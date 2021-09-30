@@ -204,7 +204,23 @@ def _register_defaults():
     register_remap(PEDF(bit_depth=8), overwrite=False)
     register_remap(NRL(bit_depth=8), overwrite=False)
     if cm is not None:
-        register_remap(LUT8bit(Density(bit_depth=8), 'viridis', use_alpha=False), overwrite=False)
+        try:
+            register_remap(LUT8bit(Density(bit_depth=8), 'viridis', use_alpha=False), overwrite=False)
+        except KeyError:
+            pass
+        try:
+            register_remap(LUT8bit(Density(bit_depth=8), 'magma', use_alpha=False), overwrite=False)
+        except KeyError:
+            pass
+        try:
+            register_remap(LUT8bit(Density(bit_depth=8), 'rainbow', use_alpha=False), overwrite=False)
+        except KeyError:
+            pass
+        try:
+            register_remap(LUT8bit(Density(bit_depth=8), 'bone', use_alpha=False), overwrite=False)
+        except KeyError:
+            pass
+
     _DEFAULTS_REGISTERED = True
 
 
