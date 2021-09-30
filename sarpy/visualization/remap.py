@@ -1,5 +1,11 @@
 """
-Provides common methods for remapping a complex image to an 8-bit image.
+Provides common methods for remapping a complex or other array to 8 or 16-bit
+image type arrays.
+
+Note: The original function and 8-bit implementation has been replaced with a
+class based solution which allows state variables associated with the remap
+function, and support for 16-bit versions, as well as an 8-bit MA, RGB or RGBA
+lookup tables.
 """
 
 __classification__ = "UNCLASSIFIED"
@@ -8,17 +14,23 @@ __author__ = ("Wade Schwartzkopf", "Thomas McCullough")
 
 import logging
 from collections import OrderedDict
+from typing import Dict
+import warnings
 
 import numpy
 from scipy.stats import scoreatpercentile as prctile
 
-from sarpy.compliance import string_types
+
+try:
+    from matplotlib import cm
+except ImportError:
+    cm = None
 
 
 logger = logging.getLogger(__name__)
 
 _DEFAULTS_REGISTERED = False
-_REMAP_DICT = OrderedDict()
+_REMAP_DICT = OrderedDict()  # type: Dict[str, RemapFunction]
 
 ###########
 # helper functions
@@ -120,17 +132,41 @@ def _linear_map(data, min_value, max_value):
     return numpy.clip((data - min_value)/float(max_value - min_value), 0, 1)
 
 
+def _nrl_stats(amplitude, percentile=99):
+    """
+    Calculate the statistics for input into the nrl remap.
+
+    Parameters
+    ----------
+    amplitude : numpy.ndarray
+        The amplitude array, assumed real valued.
+    percentile : float|int
+        Which percentile to calculate
+
+    Returns
+    -------
+    tuple
+        Of the form `(minimum, maximum, `percentile` percentile)
+    """
+
+    finite_mask = numpy.isfinite(amplitude)
+    if numpy.any(finite_mask):
+        temp_data = amplitude[finite_mask]
+        return numpy.min(temp_data), numpy.max(temp_data), prctile(temp_data, percentile)
+    else:
+        return 0, 0, 0
+
+
 ###########
 # registration function for maintaining the list
 
-def register_remap(remap_name, remap_function, overwrite=False):
+def register_remap(remap_function, overwrite=False):
     """
     Register a remap function for general usage.
 
     Parameters
     ----------
-    remap_name : str
-    remap_function : callable
+    remap_function : RemapFunction|Type
     overwrite : bool
         Should we overwrite any currently existing remap of the given name?
 
@@ -139,10 +175,12 @@ def register_remap(remap_name, remap_function, overwrite=False):
     None
     """
 
-    if not isinstance(remap_name, string_types):
-        raise TypeError('remap_name must be a string, got type {}'.format(type(remap_name)))
-    if not callable(remap_function):
-        raise TypeError('remap_function must be callable.')
+    if issubclass(remap_function, RemapFunction):
+        remap_function = remap_function()
+    if not isinstance(remap_function, RemapFunction):
+        raise TypeError('remap_function must be an instance of RemapFunction.')
+
+    remap_name = remap_function.name
 
     if remap_name not in _REMAP_DICT:
         _REMAP_DICT[remap_name] = remap_function
@@ -157,16 +195,16 @@ def _register_defaults():
     global _DEFAULTS_REGISTERED
     if _DEFAULTS_REGISTERED:
         return
-    for remap_name, remap_func in [
-            ('density', density),
-            ('high_contrast', high_contrast),
-            ('brighter', brighter),
-            ('darker', darker),
-            ('linear', linear),
-            ('log', log),
-            ('pedf', pedf),
-            ('nrl', nrl)]:
-        register_remap(remap_name, remap_func)
+    register_remap(Density(bit_depth=8), overwrite=False)
+    register_remap(High_Contrast(bit_depth=8), overwrite=False)
+    register_remap(Brighter(bit_depth=8), overwrite=False)
+    register_remap(Darker(bit_depth=8), overwrite=False)
+    register_remap(Linear(bit_depth=8), overwrite=False)
+    register_remap(Logarithmic(bit_depth=8), overwrite=False)
+    register_remap(PEDF(bit_depth=8), overwrite=False)
+    register_remap(NRL(bit_depth=8), overwrite=False)
+    if cm is not None:
+        register_remap(LUT8bit(Density(bit_depth=8), 'viridis', use_alpha=False), overwrite=False)
     _DEFAULTS_REGISTERED = True
 
 
@@ -180,7 +218,8 @@ def get_remap_list():
         List of tuples of the form `(<function name>, <function>)`.
     """
 
-    _register_defaults()
+    if not _DEFAULTS_REGISTERED:
+        _register_defaults()
 
     # NB: this was originally implemented via inspection of the callable members
     # of this module, but that ends up requiring more care in excluding
@@ -188,12 +227,35 @@ def get_remap_list():
     return [(the_key, the_value) for the_key, the_value in _REMAP_DICT.items()]
 
 
+def get_registered_remap(remap_name):
+    """
+    Gets a remap function from it's registered name.
+
+    Parameters
+    ----------
+    remap_name : str
+
+    Returns
+    -------
+    RemapFunction
+
+    Raises
+    ------
+    KeyError
+    """
+
+    if not _DEFAULTS_REGISTERED:
+        _register_defaults()
+
+    return _REMAP_DICT[remap_name]
+
+
 ############
 # remap callable classes
 
 class RemapFunction(object):
     _name = '_RemapFunction'
-    __slots__ = ('_bit_depth', '_dimension')
+    __slots__ = ('_bit_depth', '_dimension', '_override_name')
 
     def __init__(self, bit_depth=8, dimension=0):
         """
@@ -205,6 +267,7 @@ class RemapFunction(object):
         dimension : int
             Is expected to be one of 0 (monochromatic) or 3 (rgb)
         """
+        self._override_name = None
         self._bit_depth = None
         self._dimension = None
 
@@ -218,7 +281,13 @@ class RemapFunction(object):
         unique.
         """
 
-        return self._name
+        return self._name if self._override_name is None else self._override_name
+
+    def _set_name(self, value):
+        if value is None or isinstance(value, str):
+            self._override_name = value
+        else:
+            raise ValueError('Got incompatible name')
 
     @property
     def bit_depth(self):
@@ -264,8 +333,8 @@ class RemapFunction(object):
         """
 
         value = int(value)
-        if value not in [0, 1, 3]:
-            raise ValueError('Dimension is required to be one of 8 or 16, got `{}`'.format(value))
+        if not (0 <= value <= 4):
+            raise ValueError('Dimension is required to be between 0 and 4, got `{}`'.format(value))
         self._dimension = value
 
     @property
@@ -281,7 +350,7 @@ class RemapFunction(object):
         else:
             raise ValueError('Unhandled bit_depth `{}`'.format(self._bit_depth))
 
-    def __call__(self, data):
+    def __call__(self, data, **kwargs):
         """
         This performs the mapping from input data to output discrete version.
 
@@ -289,6 +358,8 @@ class RemapFunction(object):
         ----------
         data : numpy.ndarray
             The (presumably) complex data to remap.
+        kwargs
+            Some keyword arguments may be allowed here
 
         Returns
         -------
@@ -388,9 +459,13 @@ class Density(RemapFunction):
         data_mean = float(data_mean) if data_mean is not None else self._data_mean
 
         if self.bit_depth == 8:
-            return clip_cast(amplitude_to_density(data, dmin=self.dmin, mmult=self.mmult, data_mean=data_mean), self.output_dtype)
+            return clip_cast(
+                amplitude_to_density(data, dmin=self.dmin, mmult=self.mmult, data_mean=data_mean),
+                self.output_dtype)
         elif self.bit_depth == 16:
-            return clip_cast(amplitude_to_density(data, dmin=self.dmin, mmult=self.mmult, data_mean=data_mean), self.output_dtype)
+            return clip_cast(
+                amplitude_to_density(data, dmin=self.dmin, mmult=self.mmult, data_mean=data_mean),
+                self.output_dtype)
         else:
             raise ValueError('Unsupported bit depth `{}`'.format(self.bit_depth))
 
@@ -531,17 +606,19 @@ class Linear(RemapFunction):
             if min_value == max_value:
                 out[finite_mask] = 0
             else:
-                out[finite_mask] = clip_cast(numpy.iinfo(dtype).max*_linear_map(amplitude[finite_mask], min_value, max_value), dtype)
+                out[finite_mask] = clip_cast(
+                    numpy.iinfo(dtype).max*_linear_map(amplitude[finite_mask], min_value, max_value),
+                    dtype)
         return out
 
 
-class Log(RemapFunction):
+class Logarithmic(RemapFunction):
     """
     A logarithmic remap function.
     """
 
     __slots__ = ('_bit_depth', '_dimension', '_max_value', '_min_value')
-    _name = 'linear'
+    _name = 'log'
 
     def __init__(self, bit_depth=8, min_value=None, max_value=None):
         """
@@ -638,7 +715,9 @@ class Log(RemapFunction):
             if min_value == max_value:
                 out[use_mask] = 0
             else:
-                out[use_mask] = clip_cast(numpy.iinfo(dtype).max*_linear_map(numpy.log(temp_data), min_value, max_value), dtype)
+                out[use_mask] = clip_cast(
+                    numpy.iinfo(dtype).max*_linear_map(numpy.log(temp_data), min_value, max_value),
+                    dtype)
         return out
 
 
@@ -647,17 +726,38 @@ class PEDF(RemapFunction):
     A monochromatic piecewise extended density format remap.
     """
 
-    __slots__ = ('_bit_depth', '_dimension')
+    __slots__ = ('_bit_depth', '_dimension', '_density')
     _name = 'pedf'
 
-    def __init__(self, bit_depth=8):
+    def __init__(self, bit_depth=8, dmin=30, mmult=40, eps=1e-5, data_mean=None):
+        """
+
+        Parameters
+        ----------
+        bit_depth : int
+        dmin : float|int
+            A dynamic range parameter. Lower this widens the range, will raising it
+            narrows the range. This was historically fixed at 30.
+        mmult : float|int
+            A contrast parameter. Low values will result is higher contrast and quicker
+            saturation, while high values will decrease contrast and slower saturation.
+            There is some balance between the competing effects in the `dmin` and `mmult`
+            parameters.
+        eps : float
+            small offset to create a nominal floor when mapping data containing 0's.
+        data_mean : None|float|int
+            The global data mean (for continuity). The appropriate value will be
+            calculated on a per calling array basis if not provided.
+        """
         RemapFunction.__init__(self, bit_depth=bit_depth, dimension=0)
+        self._density = Density(bit_depth=bit_depth, dmin=dmin, mmult=mmult, eps=eps, data_mean=data_mean)
 
-        # todo
-        pass
-
-    def __call__(self, data):
-        raise NotImplementedError
+    def __call__(self, data, data_mean=None):
+        out = self._density(data, data_mean=data_mean)
+        half_value = int(numpy.iinfo(out.dtype).max/2)
+        top_mask = (out > half_value)
+        out[top_mask] = (out[top_mask] + half_value)/2
+        return out
 
 
 class NRL(RemapFunction):
@@ -666,42 +766,182 @@ class NRL(RemapFunction):
     transitions to logarithmic.
     """
 
-    __slots__ = ('_bit_depth', '_dimension')
+    __slots__ = ('_bit_depth', '_dimension', '_knee', '_percentile', '_stats')
     _name = 'nrl'
 
-    def __init__(self, bit_depth=8):
+    def __init__(self, bit_depth=8, knee=None, percentile=99, stats=None):
+        """
+        Parameters
+        ----------
+        bit_depth : int
+        knee : int
+            Where the knee for switching from linear to logarithmic occurs in the
+            colormap regime - this should be in keeping with bit-depth.
+        percentile : int|float
+            In the event that we are calculating the stats, which percentile
+            is the cut-off for lin-log switch-over?
+        stats : None|tuple
+            If provided, this should be of the form `(minimum, maximum, changeover)`.
+        """
+
+        self._knee = None
+        self._percentile = None
+        self._stats = None
         RemapFunction.__init__(self, bit_depth=bit_depth, dimension=0)
+        self._set_knee(knee)
+        self._set_percentile(percentile)
+        self._set_stats(stats)
 
-        # todo
-        pass
+    @property
+    def knee(self):
+        """
+        float: The for switching from linear to logarithmic occurs in the colormap regime
+        """
 
-    def __call__(self, data):
-        raise NotImplementedError
+        return self._knee
+
+    def _set_knee(self, knee):
+        max_value = numpy.iinfo(self.output_dtype).max
+        if knee is None:
+            knee = 0.85*max_value
+        knee = float(knee)
+        if not (0 < knee < max_value):
+            raise ValueError(
+                'In keeping with bit-depth, knee must take a value strictly '
+                'between 0 and {}'.format(max_value))
+        self._knee = knee
+
+    @property
+    def percentile(self):
+        """
+        float: In the event that we are calculating the stats, which percentile
+        is the cut-off for lin-log switch-over?
+        """
+
+        return self._percentile
+
+    def _set_percentile(self, percentile):
+        if percentile is None:
+            percentile = 99.0
+        else:
+            percentile = float(percentile)
+
+        if not (0 < percentile < 100):
+            raise ValueError('percentile must fall strictly between 0 and 100')
+        self._percentile = percentile
+
+    @property
+    def stats(self):
+        """
+        None|tuple: If populated, this is a tuple of the form `(minimum, maximum, changeover)`.
+        """
+
+        return self._stats
+
+    def _set_stats(self, value):
+        if value is None:
+            self._stats = None
+        else:
+            self._stats = self._validate_stats(None, value)
+
+    def _validate_stats(self, amplitude, stats):
+        if stats is None:
+            stats = self.stats
+        if stats is None and amplitude is not None:
+            stats = _nrl_stats(amplitude, self.percentile)
+        if stats is not None:
+            min_value = float(stats[0])
+            max_value = float(stats[1])
+            changeover_value = float(stats[2])
+            if not (min_value <= changeover_value <= max_value):
+                raise ValueError('Got inconsistent stats value `{}`'.format(stats))
+            stats = (min_value, max_value, changeover_value)
+        return stats
+
+    def __call__(self, data, stats=None):
+        output_dtype = self.output_dtype
+        max_index = numpy.iinfo(output_dtype).max
+
+        amplitude = numpy.abs(data)
+        amplitude_min, amplitude_max, changeover = self._validate_stats(amplitude, stats)
+        out = numpy.empty(amplitude.shape, dtype=output_dtype)
+        if amplitude_min == amplitude_max:
+            out[:] = 0
+            return out
+
+        linear_region = (amplitude <= changeover)
+        if changeover > amplitude_min:
+
+            out[linear_region] = clip_cast(
+                self.knee*_linear_map(amplitude[linear_region], amplitude_min, changeover),
+                dtype=output_dtype)
+        else:
+            logger.warning(
+                'The remap array is at least significantly constant, the nrl remap may return '
+                'strange results.')
+            out[linear_region] = 0
+
+        if changeover == amplitude_max:
+            out[~linear_region] = self.knee
+        else:
+            # calculate the log values
+            log_values = (out[~linear_region] - changeover)/(amplitude_max - changeover) + 1
+            # this is now linearly scaled from 1 to 2, apply log_2 and then scale appropriately
+            out[~linear_region] = clip_cast(
+                numpy.log2(log_values)*(max_index - self.knee) + self.knee,
+                dtype=output_dtype)
+        return out
 
 
-class RGBLookup(RemapFunction):
+class LUT8bit(RemapFunction):
     """
     A remap which uses a monochromatic remap function and a 256 color lookup
     table to produce a color image output
     """
 
     __slots__ = ('_bit_depth', '_dimension', '_mono_remap', '_lookup_table')
-    _name= '_rgb_lookup'
+    _name = '_lut_8bit'
 
-    def __init__(self, mono_remap, lookup_table):
+    def __init__(self, mono_remap, lookup_table, use_name=None, use_alpha=False):
         """
 
         Parameters
         ----------
         mono_remap : RemapFunction
-        lookup_table : numpy.ndarray
+            The 8-bit remap to apply before using the lookup table.
+        lookup_table : str|numpy.ndarray
+            A string name for a registered matplotlib colormap or the 256 element
+            rgb or rgba array.
+        use_name : None|str
+            A name to use for this remap function class instance. If this is not
+            provided and the `lookup_table` will be constructed from a
+            matplotlib colormap name, then that name will be used.
+        use_alpha : bool
+            Only used if `mono_remap` is the name of a matplotlib colormap, this
+            specifies whether or not to use the alpha channel.
         """
 
         self._mono_remap = None
         self._lookup_table = None
-        RemapFunction.__init__(self, bit_depth=8, dimension=3)
+        RemapFunction.__init__(self, bit_depth=8, dimension=0)
+        # NB: dimension may change, based on lookup table
+        #   also, the normal dimension requirement for values between 0 and 4 is bypassed
+        if use_name is None and isinstance(lookup_table, str):
+            use_name = lookup_table
+        self._set_name(use_name)
         self._set_mono_remap(mono_remap)
-        self._set_lookup_table(lookup_table)
+        self._set_lookup_table(lookup_table, use_alpha)
+
+    def _set_dimension(self, value):
+        """
+        The property is intended to be read-only.
+
+        Parameters
+        ----------
+        value : int
+        """
+
+        self._dimension = value
 
     @property
     def mono_remap(self):
@@ -712,28 +952,50 @@ class RGBLookup(RemapFunction):
 
     def _set_mono_remap(self, value):
         if not (isinstance(value, RemapFunction) and value.dimension == 0 and value.bit_depth == 8):
-            raise ValueError('mon_remap requires a monochromatic remap instance with bit_depth=8')
+            raise ValueError('mono_remap requires a monochromatic remap instance with bit_depth=8')
         self._mono_remap = value
 
     @property
     def lookup_table(self):
         """
-        numpy.ndarray: The 256 x 3 8-bit lookup table.
+        numpy.ndarray: The 256 x dimension 8-bit lookup table.
         """
 
         return self._lookup_table
 
-    def _set_lookup_table(self, value):
-        if not (isinstance(value, numpy.ndarray) and value.shape == (256, 3) and value.dtype.name == 'uint8'):
-            raise ValueError('lookup_table requires a numpy array of shape (256, 3) and dtype = uint8')
+    @staticmethod
+    def _validate_lookup_table(value, use_alpha):
+        if isinstance(value, str):
+            if cm is None:
+                raise ImportError(
+                    'The lookup_table has been specified by providing a matplotlib '
+                    'colormap name, but matplotlib can not be imported.')
+            value = clip_cast(255*cm.get_cmap(value, 256).colors, dtype='uint8')
+            if value.shape[1] == 3 or use_alpha:
+                return value
+            else:
+                return value[:, :3]
+        if not (isinstance(value, numpy.ndarray) and value.shape[0] == 256 and
+                value.ndim == 2 and value.dtype.name == 'uint8'):
+            raise ValueError(
+                'lookup_table requires a numpy array of shape (256, dimension) '
+                'and dtype = uint8')
+        return value
+
+    def _set_lookup_table(self, value, use_alpha):
+        value = self._validate_lookup_table(value, use_alpha)
         self._lookup_table = value
+        self._dimension = value.shape[1]
 
     def __call__(self, data, *args, **kwargs):
         return self._lookup_table[self._mono_remap(data, *args, **kwargs)]
 
 
-###########
-# the original flat methods, for backwards compatibility
+#################
+# DEPRECATED!
+#################
+# the original flat methods, maintained for a while
+# for backwards compatibility
 
 def density(data, data_mean=None):
     """
@@ -750,7 +1012,11 @@ def density(data, data_mean=None):
     numpy.ndarray
     """
 
-    return clip_cast(amplitude_to_density(data, data_mean=data_mean))
+    warnings.warn(
+        'the density() method is deprecated,\n\t'
+        'use the Density class, which is also callable', DeprecationWarning)
+    remapper = get_registered_remap('density')
+    return remapper(data, data_mean=data_mean)
 
 
 def brighter(data, data_mean=None):
@@ -767,7 +1033,11 @@ def brighter(data, data_mean=None):
     numpy.ndarray
     """
 
-    return clip_cast(amplitude_to_density(data, dmin=60, mmult=40, data_mean=data_mean))
+    warnings.warn(
+        'the brighter() method is deprecated,\n\t'
+        'use the Brighter class, which is also callable', DeprecationWarning)
+    remapper = get_registered_remap('brighter')
+    return remapper(data, data_mean=data_mean)
 
 
 def darker(data, data_mean=None):
@@ -784,7 +1054,11 @@ def darker(data, data_mean=None):
     numpy.ndarray
     """
 
-    return clip_cast(amplitude_to_density(data, dmin=0, mmult=40, data_mean=data_mean))
+    warnings.warn(
+        'the darker() method is deprecated,\n\t'
+        'use the Darker class, which is also callable', DeprecationWarning)
+    remapper = get_registered_remap('darker')
+    return remapper(data, data_mean=data_mean)
 
 
 def high_contrast(data, data_mean=None):
@@ -801,63 +1075,59 @@ def high_contrast(data, data_mean=None):
     numpy.ndarray
     """
 
-    return clip_cast(amplitude_to_density(data, dmin=30, mmult=4, data_mean=data_mean))
+    warnings.warn(
+        'the high_contrast() method is deprecated,\n\t'
+        'use the HighContrast class, which is also callable', DeprecationWarning)
+    remapper = get_registered_remap('high_contrast')
+    return remapper(data, data_mean=data_mean)
 
 
-def linear(data):
+def linear(data, min_value=None, max_value=None):
     """
     Linear remap - just the magnitude.
 
     Parameters
     ----------
     data : numpy.ndarray
+    min_value : None|float
+        The minimum allowed value for the dynamic range.
+    max_value : None|float
+        The maximum allowed value for the dynamic range.
 
     Returns
     -------
     numpy.ndarray
     """
 
-    if numpy.iscomplexobj(data):
-        amplitude = numpy.abs(data)
-    else:
-        amplitude = numpy.copy(data)
-
-    finite_mask = numpy.isfinite(amplitude)
-    min_value = numpy.min(amplitude[finite_mask])
-    max_value = numpy.max(amplitude[finite_mask])
-
-    return clip_cast(255.*(amplitude - min_value)/(max_value - min_value), 'uint8')
+    warnings.warn(
+        'the linear() method is deprecated,\n\t'
+        'use the Linear class, which is also callable', DeprecationWarning)
+    remapper = get_registered_remap('linear')
+    return remapper(data, min_value=min_value, max_value=max_value)
 
 
-def log(data):
+def log(data, min_value=None, max_value=None):
     """
     Logarithmic remap.
 
     Parameters
     ----------
     data : numpy.ndarray
+    min_value : None|float
+        The minimum allowed value for the dynamic range.
+    max_value : None|float
+        The maximum allowed value for the dynamic range.
 
     Returns
     -------
     numpy.ndarray
     """
 
-    out = numpy.abs(data)
-    out[out < 0] = 0
-    out += 1  # bump values up over 1.
-
-    finite_mask = numpy.isfinite(out)
-    if not numpy.any(finite_mask):
-        out[:] = 0
-        return out.astype('uint8')
-
-    log_values = numpy.log(out[finite_mask])
-    min_value = numpy.min(log_values)
-    max_value = numpy.max(log_values)
-
-    out[finite_mask] = 255*(log_values - min_value)/(max_value - min_value)
-    out[~finite_mask] = 255
-    return out.astype('uint8')
+    warnings.warn(
+        'the log() method is deprecated,\n\t'
+        'use the Logarithmic class, which is also callable', DeprecationWarning)
+    remapper = get_registered_remap('log')
+    return remapper(data, min_value=min_value, max_value=max_value)
 
 
 def pedf(data, data_mean=None):
@@ -875,34 +1145,14 @@ def pedf(data, data_mean=None):
     numpy.ndarray
     """
 
-    out = amplitude_to_density(data, data_mean=data_mean)
-    out[out > 128] = 0.5 * (out[out > 128] + 128)
-    return clip_cast(out)
+    warnings.warn(
+        'the pedf() method is deprecated,\n\t'
+        'use the PEDF class, which is also callable', DeprecationWarning)
+    remapper = get_registered_remap('pedf')
+    return remapper(data, data_mean=data_mean)
 
 
-def _nrl_stats(amplitude):
-    """
-    Calculate the statistiucs for input into the nrl remap.
-
-    Parameters
-    ----------
-    amplitude : numpy.ndarray
-        The amplitude array, assumed real valued.
-
-    Returns
-    -------
-    tuple
-        Of the form `(minimum, maximum, 99th percentile)
-    """
-
-    finite_mask = numpy.isfinite(amplitude)
-    if numpy.any(finite_mask):
-        return numpy.min(amplitude[finite_mask]), numpy.max(amplitude[finite_mask]), prctile(amplitude[finite_mask], 99)
-    else:
-        return 0, 0, 0
-
-
-def nrl(data, knee=220, stats=None):
+def nrl(data, stats=None):
     """
     A lin-log style remap.
 
@@ -910,8 +1160,6 @@ def nrl(data, knee=220, stats=None):
     ----------
     data : numpy.ndarray
         The data array to remap
-    knee : float|int
-        The knee of the lin-log transition.
     stats : None|tuple
         This is calculated if not provided. Expected to be of the form
         `(minimum, maximum, 99th percentile)`.
@@ -921,36 +1169,8 @@ def nrl(data, knee=220, stats=None):
     numpy.ndarray
     """
 
-    if not (0 < knee < 255):
-        raise ValueError('The knee value must be strictly between 0 and 255.')
-    knee = float(knee)
-
-    out = numpy.abs(data)  # starts as amplitude, and will be redefined in place
-    if stats is None:
-        stats = _nrl_stats(out)
-
-    amplitude_min, amplitude_max, amplitude_99 = stats
-    if not (amplitude_min <= amplitude_99 <= amplitude_max):
-        raise ValueError('Got inconsistent stats values {}'.format(stats))
-
-    if amplitude_min == amplitude_max:
-        out[:] = 0
-        return out.astype('uint8')
-
-    linear_region = (out <= amplitude_99)
-    if amplitude_99 > amplitude_min:
-        out[linear_region] = knee*(out[linear_region] - amplitude_min)/(amplitude_99 - amplitude_min)
-    else:
-        logger.warning(
-            'The remap array is at least 99% constant, the nrl remap may return '
-            'strange results.')
-        out[linear_region] = 0
-
-    if amplitude_99 == amplitude_max:
-        out[~linear_region] = knee
-    else:
-        # calulate the log values
-        log_values = (out[~linear_region] - amplitude_99)/(amplitude_max - amplitude_99) + 1
-        # this is now linearly scaled from 1 to 2, apply log_2 and then scale appropriately
-        out[~linear_region] = numpy.log2(log_values)*(255 - knee) + knee
-    return clip_cast(out, 'uint8')
+    warnings.warn(
+        'the nrl() method is deprecated,\n\t'
+        'use the NRL class, which is also callable', DeprecationWarning)
+    remapper = get_registered_remap('nrl')
+    return remapper(data, stats=stats)
