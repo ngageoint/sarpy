@@ -12,7 +12,7 @@ Examples
     from matplotlib import pyplot
     from sarpy.io.complex.converter import open_complex
     from sarpy.processing.csi import CSICalculator
-    from sarpy.visualization.remap import density
+    from sarpy.visualization.remap import Density
 
     # open a sicd type file
     reader = open_complex("<file name>")
@@ -33,6 +33,9 @@ Examples
     # calculate the csi for an image segment
     csi_data = csi_calculator[300:500, 200:600]
 
+    # create our remap function
+    density = Density()
+
     # let's view this csi image using matplotlib
     fig, axs = pyplot.subplots(nrows=1, ncols=1)
     axs.imshow(density(csi_data), aspect='equal')
@@ -46,9 +49,8 @@ import numpy
 
 from sarpy.compliance import int_func
 from sarpy.processing.fft_base import FFTCalculator, fft, ifft, fftshift
-from sarpy.io.general.base import BaseReader
-# noinspection PyProtectedMember
-from sarpy.processing.ortho_rectify import _get_fetch_block_size
+from sarpy.io.complex.base import SICDTypeReader
+from sarpy.io.complex.utils import get_fetch_block_size
 
 
 def filter_map_construction(siz):
@@ -191,7 +193,7 @@ class CSICalculator(FFTCalculator):
 
         Parameters
         ----------
-        reader : str|BaseReader
+        reader : str|SICDTypeReader
             Input file path or reader object, which must be of sicd type.
         dimension : int
             The dimension over which to split the sub-aperture.
@@ -220,7 +222,7 @@ class CSICalculator(FFTCalculator):
         int
         """
 
-        return _get_fetch_block_size(start_element, stop_element, self.block_size_in_bytes, bands=3)
+        return get_fetch_block_size(start_element, stop_element, self.block_size_in_bytes, bands=3)
 
     def _full_row_resolution(self, row_range, col_range, filter_map=None):
         data = super(CSICalculator, self)._full_row_resolution(row_range, col_range)

@@ -12,7 +12,7 @@ import logging
 import numpy
 from scipy.optimize import minimize_scalar
 
-from sarpy.io.general.base import BaseReader
+from sarpy.io.complex.base import SICDTypeReader
 from sarpy.processing.windows import get_hamming_broadening_factor
 from sarpy.processing.normalize_sicd import sicd_degrade_reweight, is_uniform_weight
 from sarpy.io.complex.converter import open_complex
@@ -366,22 +366,20 @@ def _validate_reader(reader, index):
 
     Parameters
     ----------
-    reader : BaseReader
+    reader : SICDTypeReader
     index : int
         The reader index.
 
     Returns
     -------
-    (BaseReader|sicd.io.complex.base.SICDTypeReader, int)
+    (SICDTypeReader, int)
     """
 
 
     if isinstance(reader, str):
         reader = open_complex(reader)
 
-    if not isinstance(reader, BaseReader):
-        raise TypeError('reader input must be a path to a complex file, or a sicd type reader instance')
-    if reader.reader_type != 'SICD':
+    if not isinstance(reader, SICDTypeReader):
         raise TypeError('reader input must be a path to a complex file, or a sicd type reader instance')
     index = int(index)
     if not (0 <= index < reader.image_count):
@@ -578,7 +576,7 @@ def quality_degrade_resolution(reader, index=0, output_file=None,
 
     Parameters
     ----------
-    reader : str|BaseReader
+    reader : str|SICDTypeReader
     index : int
         The reader index to be used.
     output_file : None|str
@@ -618,7 +616,7 @@ def quality_degrade_noise(reader, index=0, output_file=None, desired_nesz=None, 
 
     Parameters
     ----------
-    reader : str|BaseReader
+    reader : str|SICDTypeReader
     index : int
         The reader index to be used.
     output_file : None|str
@@ -665,7 +663,7 @@ def quality_degrade_rniirs(
 
     Parameters
     ----------
-    reader : str|BaseReader
+    reader : str|SICDTypeReader
     index : int
         The reader index to be used.
     output_file : None|str

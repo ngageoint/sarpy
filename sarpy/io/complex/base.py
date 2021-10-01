@@ -7,14 +7,14 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 import os
-from typing import Union, Tuple, BinaryIO
+from typing import Union, Tuple, BinaryIO, Sequence
 import numpy
 import warnings
 
 from sarpy.compliance import string_types
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd_elements.utils import is_general_match
-from sarpy.io.general.base import FlatReader, BaseChipper, is_file_like
+from sarpy.io.general.base import AbstractReader, FlatReader, BaseChipper, is_file_like
 
 try:
     import h5py
@@ -22,11 +22,12 @@ except ImportError:
     h5py = None
 
 
-class SICDTypeReader(object):
+class SICDTypeReader(AbstractReader):
     """
     An abstract class for ensuring common SICD metadata functionality.
 
-    This is intended to be used solely by extension.
+    This is intended to be used solely in conjunction with implementing a
+    legitimate reader.
     """
 
     def __init__(self, sicd_meta):
@@ -34,25 +35,23 @@ class SICDTypeReader(object):
 
         Parameters
         ----------
-        sicd_meta : None|SICDType|Tuple[SICDType]
+        sicd_meta : None|SICDType|Sequence[SICDType]
             `None`, the SICD metadata object, or tuple of objects
         """
 
-        if isinstance(sicd_meta, list):
-            sicd_meta = tuple(sicd_meta)
-
-        # validate sicd_meta input
         if sicd_meta is None:
-            pass
-        elif isinstance(sicd_meta, tuple):
+            self._sicd_meta = None
+        elif isinstance(sicd_meta, SICDType):
+            self._sicd_meta = sicd_meta
+        else:
+            temp_list = []
             for el in sicd_meta:
                 if not isinstance(el, SICDType):
                     raise TypeError(
                         'Got a collection for sicd_meta, and all elements are required '
                         'to be instances of SICDType.')
-        elif not isinstance(sicd_meta, SICDType):
-            raise TypeError('sicd_meta argument is required to be a SICDType, or collection of SICDType objects')
-        self._sicd_meta = sicd_meta
+                temp_list.append(el)
+            self._sicd_meta = tuple(temp_list)
 
     @property
     def sicd_meta(self):

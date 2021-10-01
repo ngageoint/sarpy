@@ -43,7 +43,7 @@ with basic usage as indicated by the below example.
 
 
 There are a commonalities for all such readers, because all are extensions of
-the class :class:`sarpy.io.general.base.BaseReader`, and also extensions of
+the class :class:`sarpy.io.general.base.AbstractReader`, and also extensions of
 :class:`sarpy.io.complex.base.SICDTypeReader`.
 
 Some basic properties:
@@ -51,9 +51,9 @@ Some basic properties:
 - We will have :code:`reader.reader_type = 'SICD'`, the image data
   will be of complex type, and the reader is for a format analogous to the SICD format.
 - The image data sizes can be referenced using the :code:`reader.data_size` property
-  (described here :attr:`sarpy.io.general.base.BaseReader.data_size`) and/or the
+  (described here :attr:`sarpy.io.general.base.AbstractReader.data_size`) and/or the
   :code:`reader.get_data_size_as_tuple()` function
-  (described here :meth:`sarpy.io.general.base.BaseReader.get_data_size_as_tuple`).
+  (described here :meth:`sarpy.io.general.base.AbstractReader.get_data_size_as_tuple`).
 - The image data can be read using slice notation
   :code:`data = reader[row_start:row_end:row_step, col_start:col_end:col_step, image_index=0]`.
   This data will have be recast or re-interpreted to be 64-bit complex data type,
@@ -89,7 +89,7 @@ with basic usage as indicated by
     print('image size as tuple = {}'.format(reader.get_data_size_as_tuple()))
 
 There are a commonalities for all such readers, because all are extensions of
-the class :class:`sarpy.io.general.base.BaseReader`.
+the class :class:`sarpy.io.general.base.AbstractReader`.
 
 Some basic properties:
 
@@ -97,9 +97,9 @@ Some basic properties:
   the image data will be of 8 or 16 bit unsigned integer (monochromatic or RGB),
   and the reader is for a format analogous to the SIDD format.
 - The image data sizes can be referenced using the :code:`reader.data_size` property
-  (described here :attr:`sarpy.io.general.base.BaseReader.data_size`) and/or the
+  (described here :attr:`sarpy.io.general.base.AbstractReader.data_size`) and/or the
   :code:`reader.get_data_size_as_tuple()` function
-  (described here :meth:`sarpy.io.general.base.BaseReader.get_data_size_as_tuple`).
+  (described here :meth:`sarpy.io.general.base.AbstractReader.get_data_size_as_tuple`).
 - The image data can be read using slice notation
   :code:`data = reader[row_start:row_end:row_step, col_start:col_end:col_step, image_index=0]`
 - The SIDD structures can be referenced as :code:`reader.sidd_meta` property (
@@ -135,7 +135,7 @@ with basic usage as indicated by
 
 There are a commonalities for the two readers, because both are extensions of
 the class :class:`sarpy.io.phase_history.cphd.CPHDReader`, which in turn, extends
-:class:`sarpy.io.general.base.BaseReader`.
+:class:`sarpy.io.general.base.AbstractReader`.
 
 Some basic properties:
 
@@ -144,9 +144,9 @@ Some basic properties:
 - The CPHD version can be accessed via the :code:`reader.cphd_version` property
   (see :attr:`sarpy.io.phase_history.CPHDReader.cphd_version`).
 - The image data sizes can be referenced using the :code:`reader.data_size` property
-  (described here :attr:`sarpy.io.general.base.BaseReader.data_size`) and/or the
+  (described here :attr:`sarpy.io.general.base.AbstractReader.data_size`) and/or the
   :code:`reader.get_data_size_as_tuple()` function
-  (described here :meth:`sarpy.io.general.base.BaseReader.get_data_size_as_tuple`).
+  (described here :meth:`sarpy.io.general.base.AbstractReader.get_data_size_as_tuple`).
 - The phase history (or image) data can be read using slice notation
   :code:`data = reader[row_start:row_end:row_step, col_start:col_end:col_step, image_index=0]`.
   This data will have be recast or re-interpreted to be 64-bit complex data type,

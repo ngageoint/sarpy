@@ -144,7 +144,7 @@ The recommended methodology uses slice notation, with basic syntax as:
     # read all data from the 3rd image (requires that there is one).
     third_image_data = reader[:, :, 2]
 
-This behavior is implemented in  :meth:`sarpy.io.general.base.BaseReader.__getitem__`.
+This behavior is implemented in  :meth:`sarpy.io.general.base.AbstractReader.__getitem__`.
 
 Basic data plot and remap
 -------------------------
@@ -155,15 +155,16 @@ plot for simple scripting purposes.
 .. code-block:: python
 
     from matplotlib import pyplot
-    import sarpy.visualization.remap as remap
+    from sarpy.visualization.remap import Density
 
     # ... assumes previously defined reader instance
 
+    remap_function = Density()
     # show the initial 500 x 500 chip, using the "standard" remap
     chip = reader[:500, :500]
 
     fig, axs = pyplot.subplots(nrows=1, ncols=1, figsize=(5, 5))
-    axs.imshow(remap.density(chip), cmap='gray')
+    axs.imshow(remap_function(chip), cmap='gray')
     pyplot.show()
 
 
