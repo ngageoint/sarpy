@@ -20,6 +20,9 @@ import warnings
 import numpy
 from scipy.stats import scoreatpercentile as prctile
 
+from sarpy.io.general.base import BaseReader
+from sarpy.io.complex.utils import get_data_mean_magnitude, stats_calculation, \
+    get_data_extrema
 
 try:
     from matplotlib import cm
@@ -36,14 +39,16 @@ _REMAP_DICT = OrderedDict()  # type: Dict[str, RemapFunction]
 # helper functions
 
 
-def clip_cast(array, dtype='uint8'):
+def clip_cast(array, dtype='uint8', min_value=None, max_value=None):
     """
-    Cast by clipping values outside of valid range, rather than wrapping.
+    Cast by clipping values outside of valid range, rather than truncating.
 
     Parameters
     ----------
     array : numpy.ndarray
     dtype : str|numpy.dtype
+    min_value : None|int|float
+    max_value : None|int|float
 
     Returns
     -------
@@ -51,7 +56,9 @@ def clip_cast(array, dtype='uint8'):
     """
 
     np_type = numpy.dtype(dtype)
-    return numpy.clip(array, numpy.iinfo(np_type).min, numpy.iinfo(np_type).max).astype(np_type)
+    min_value = numpy.iinfo(np_type).min if min_value is None else max(min_value, numpy.iinfo(np_type).min)
+    max_value = numpy.iinfo(np_type).max if max_value is None else max(max_value, numpy.iinfo(np_type).max)
+    return numpy.clip(array, min_value, max_value).astype(np_type)
 
 
 def amplitude_to_density(data, dmin=30, mmult=40, data_mean=None):
@@ -151,8 +158,7 @@ def _nrl_stats(amplitude, percentile=99):
 
     finite_mask = numpy.isfinite(amplitude)
     if numpy.any(finite_mask):
-        temp_data = amplitude[finite_mask]
-        return numpy.min(temp_data), numpy.max(temp_data), prctile(temp_data, percentile)
+        return stats_calculation(amplitude[finite_mask], percentile=percentile)
     else:
         return 0, 0, 0
 
@@ -270,31 +276,41 @@ def get_registered_remap(remap_name):
 # remap callable classes
 
 class RemapFunction(object):
-    _name = '_RemapFunction'
-    __slots__ = ('_bit_depth', '_dimension', '_override_name')
+    """
+    Abstract remap class which is callable.
 
-    def __init__(self, bit_depth=8, dimension=0):
+    See the :func:`call` implementation for the given class to understand
+    what specific keyword arguments are allowed for the specific instance.
+    """
+
+    _name = '_RemapFunction'
+    __slots__ = ('_override_name', '_bit_depth', '_dimension')
+    _allowed_dimension = {0, 1, 2, 3, 4}
+
+    def __init__(self, override_name=None, bit_depth=8, dimension=0):
         """
 
         Parameters
         ----------
+        override_name : None|str
+            Override name for a specific class instance
         bit_depth : int
             Should be one of 8 or 16
         dimension : int
-            Is expected to be one of 0 (monochromatic) or 3 (rgb)
         """
         self._override_name = None
         self._bit_depth = None
         self._dimension = None
-
+        self._set_name(override_name)
         self._set_bit_depth(bit_depth)
         self._set_dimension(dimension)
 
     @property
     def name(self):
         """
-        str: The (read-only) name for the remap function, which should be (globally)
-        unique.
+        str: The (read-only) name for the remap function. This will be the
+        override_name if one has been provided for this instance, otherwise it
+        will be the generic `_name` class value.
         """
 
         return self._name if self._override_name is None else self._override_name
@@ -325,16 +341,16 @@ class RemapFunction(object):
 
         value = int(value)
 
-        if value not in [8, 16]:
-            raise ValueError('Bit depth is required to be one of 8 or 16, got `{}`'.format(value))
+        if value not in [8, 16, 32]:
+            raise ValueError('Bit depth is required to be one of 8, 16, or 32 and we got `{}`'.format(value))
         self._bit_depth = value
 
     @property
     def dimension(self):
         """
-        int: The (read-only) size of the final dimension. The value 0 is monochromatic,
-        and the output should have identical shape as input. Any other value
-        IS EXPECTED to have additional final dimension of this size added.
+        int: The (read-only) size of the (additional) output final dimension.
+        The value 0 is monochromatic, where the retuned output will have identical
+        shape as input. Any other value should have additional final dimension of this size.
         """
 
         return self._dimension
@@ -349,8 +365,9 @@ class RemapFunction(object):
         """
 
         value = int(value)
-        if not (0 <= value <= 4):
-            raise ValueError('Dimension is required to be between 0 and 4, got `{}`'.format(value))
+        if self._allowed_dimension is not None and value not in self._allowed_dimension:
+            raise ValueError(
+                'Dimension is required to be one of `{}`, got `{}`'.format(self._allowed_dimension, value))
         self._dimension = value
 
     @property
@@ -363,12 +380,19 @@ class RemapFunction(object):
             return numpy.dtype('u1')
         elif self._bit_depth == 16:
             return numpy.dtype('u2')
+        elif self._bit_depth == 32:
+            return numpy.dtype('u4')
         else:
             raise ValueError('Unhandled bit_depth `{}`'.format(self._bit_depth))
 
-    def __call__(self, data, **kwargs):
+    def call(self, data, **kwargs):
         """
         This performs the mapping from input data to output discrete version.
+
+        This method os directly called by the :func:`__call__` method, so the
+        class instance (once constructed) is itself callable, as follows:
+        >>> remap = RemapFunction()
+        >>> discrete_data = remap(data, **kwargs)
 
         Parameters
         ----------
@@ -384,8 +408,103 @@ class RemapFunction(object):
 
         raise NotImplementedError
 
+    def __call__(self, data, **kwargs):
+        return self.call(data, **kwargs)
 
-class Density(RemapFunction):
+    def _validate_pixel_bounds(self, reader, index, pixel_bounds):
+        data_size = reader.get_data_size_as_tuple()[index]
+        if pixel_bounds is None:
+            return 0, data_size[0], 0, data_size[1]
+
+        if not (
+                (-data_size[0] <= pixel_bounds[0] <= data_size[0]) and
+                (-data_size[0] <= pixel_bounds[1] <= data_size[0]) and
+                (-data_size[1] <= pixel_bounds[2] <= data_size[1]) and
+                (-data_size[1] <= pixel_bounds[3] <= data_size[1])):
+            raise ValueError('invalid pixel bounds `{}` for data of shape `{}`'.format(pixel_bounds, data_size))
+        return pixel_bounds
+
+    def calculate_global_parameters_from_reader(self, reader, index=0, pixel_bounds=None):
+        """
+        Calculates any useful global bounds for the specified reader, the given
+        index, and inside the given pixel bounds.
+
+        This is expected to save ny necessary state here.
+
+        Parameters
+        ----------
+        reader : BaseReader
+        index : int
+        pixel_bounds : None|tuple
+            If provided, is of the form `(row min, row max, column min, column max)`.
+
+        Returns
+        -------
+        None
+        """
+
+        raise NotImplementedError
+
+
+class MonochromaticRemap(RemapFunction):
+    """
+    Abstract monochromatic remap class.
+    """
+
+    _name = '_Monochromatic'
+    __slots__ = ( '_override_name', '_bit_depth', '_dimension','_max_output_value')
+    _allowed_dimension = {0, }
+
+    def __init__(self, override_name=None, bit_depth=8, max_output_value=None):
+        r"""
+
+        Parameters
+        ----------
+        override_name : None|str
+            Override name for a specific class instance
+        bit_depth : int
+        max_output_value : None|int
+            The maximum output value. If provided, this must be in the interval
+            :math:`[0, 2^{bit\_depth}]`
+        """
+
+        self._max_output_value = None
+        RemapFunction.__init__(self, override_name=override_name, bit_depth=bit_depth, dimension=0)
+        self._set_max_output_value(max_output_value)
+
+    @property
+    def max_output_value(self):
+        """
+        int: The (read-only) maximum output value size.
+        """
+
+        return self._max_output_value
+
+    def _set_max_output_value(self, value):
+        max_possible = numpy.iinfo(self.output_dtype).max
+        if value is None:
+            value = max_possible
+        else:
+            value = int(value)
+
+        if 0 < value <= max_possible:
+            self._max_output_value = value
+        else:
+            raise ValueError(
+                'the max_output_value must be between 0 and {}, '
+                'got {}'.format(max_possible, value))
+
+    def call(self, data, **kwargs):
+        raise NotImplementedError
+
+    def calculate_global_parameters_from_reader(self, reader, index=0, pixel_bounds=None):
+        raise NotImplementedError
+
+
+############
+# basic monchromatic collection
+
+class Density(MonochromaticRemap):
     """
     A monochromatic logarithmic density remapping function.
 
@@ -394,15 +513,21 @@ class Density(RemapFunction):
     this was first published or where it may be publicly available.
     """
 
-    __slots__ = ('_bit_depth', '_dimension', '_dmin', '_mmult', '_eps', '_data_mean')
+    __slots__ = ('_override_name', '_bit_depth', '_dimension', '_dmin', '_mmult', '_eps', '_data_mean')
     _name = 'density'
 
-    def __init__(self, bit_depth=8, dmin=30, mmult=40, eps=1e-5, data_mean=None):
+    def __init__(self, override_name=None, bit_depth=8, max_output_value=None,
+                 dmin=30, mmult=40, eps=1e-5, data_mean=None):
         """
 
         Parameters
         ----------
+        override_name : None|str
+            Override name for a specific class instance
         bit_depth : int
+        max_output_value : None|int
+            The maximum output value. If provided, this must be in the interval
+            :math:`[0, 2^{bit\_depth}]`
         dmin : float|int
             A dynamic range parameter. Lower this widens the range, will raising it
             narrows the range. This was historically fixed at 30.
@@ -418,7 +543,7 @@ class Density(RemapFunction):
             calculated on a per calling array basis if not provided.
         """
 
-        RemapFunction.__init__(self, bit_depth=bit_depth, dimension=0)
+        MonochromaticRemap.__init__(self, override_name=override_name, bit_depth=bit_depth, max_output_value=max_output_value)
         self._data_mean = None
         self._dmin = None
         self._mmult = None
@@ -470,20 +595,41 @@ class Density(RemapFunction):
 
         self._data_mean = float(value)
 
-    def __call__(self, data, data_mean=None):
+    def call(self, data, data_mean=None):
+        """
+        This performs the mapping from input data to output discrete version.
+
+        This method os directly called by the :func:`__call__` method, so the
+        class instance (once constructed) is itself callable, as follows:
+        >>> remap = Density()
+        >>> discrete_data = remap(data, data_mean=85.2)
+
+        Parameters
+        ----------
+        data : numpy.ndarray
+            The (presumably) complex data to remap.
+        data_mean : None|float
+            The pre-calculated data mean, for consistent global use. The order
+            of preference is the value provided here, the class data_mean property
+            value, then the value calculated from the present sample.
+
+        Returns
+        -------
+        numpy.ndarray
+        """
 
         data_mean = float(data_mean) if data_mean is not None else self._data_mean
+        # the amplitude_to_density function is ort specifically geared towards
+        # dynamic range of 0 - 255, just adjust it.
 
-        if self.bit_depth == 8:
-            return clip_cast(
-                amplitude_to_density(data, dmin=self.dmin, mmult=self.mmult, data_mean=data_mean),
-                self.output_dtype)
-        elif self.bit_depth == 16:
-            return clip_cast(
-                amplitude_to_density(data, dmin=self.dmin, mmult=self.mmult, data_mean=data_mean),
-                self.output_dtype)
-        else:
-            raise ValueError('Unsupported bit depth `{}`'.format(self.bit_depth))
+        multiplier = float(self.max_output_value)/255.0
+        return clip_cast(
+            multiplier*amplitude_to_density(data, dmin=self.dmin, mmult=self.mmult, data_mean=data_mean),
+            dtype=self.output_dtype, min_value=0, max_value=self.max_output_value)
+
+    def calculate_global_parameters_from_reader(self, reader, index=0, pixel_bounds=None):
+        pixel_bounds = self._validate_pixel_bounds(reader, index, pixel_bounds)
+        self.data_mean = get_data_mean_magnitude(pixel_bounds, reader, index, 25*1024*1024)
 
 
 class Brighter(Density):
@@ -493,8 +639,9 @@ class Brighter(Density):
 
     _name = 'brighter'
 
-    def __init__(self, bit_depth=8, eps=1e-5, data_mean=None):
-        Density.__init__(self, bit_depth=bit_depth, dmin=60, mmult=40, eps=eps, data_mean=data_mean)
+    def __init__(self, override_name=None, bit_depth=8, max_output_value=None, eps=1e-5, data_mean=None):
+        Density.__init__(self, override_name=override_name, bit_depth=bit_depth, max_output_value=max_output_value,
+                         dmin=60, mmult=40, eps=eps, data_mean=data_mean)
 
 
 class Darker(Density):
@@ -504,8 +651,9 @@ class Darker(Density):
 
     _name = 'darker'
 
-    def __init__(self, bit_depth=8, eps=1e-5, data_mean=None):
-        Density.__init__(self, bit_depth=bit_depth, dmin=0, mmult=40, eps=eps, data_mean=data_mean)
+    def __init__(self, override_name=None, bit_depth=8, max_output_value=None, eps=1e-5, data_mean=None):
+        Density.__init__(self, override_name=override_name, bit_depth=bit_depth, max_output_value=max_output_value,
+                         dmin=0, mmult=40, eps=eps, data_mean=data_mean)
 
 
 class High_Contrast(Density):
@@ -515,28 +663,31 @@ class High_Contrast(Density):
 
     _name = 'high_contrast'
 
-    def __init__(self, bit_depth=8, eps=1e-5, data_mean=None):
-        Density.__init__(self, bit_depth=bit_depth, dmin=30, mmult=4, eps=eps, data_mean=data_mean)
+    def __init__(self, override_name=None, bit_depth=8, max_output_value=None, eps=1e-5, data_mean=None):
+        Density.__init__(self, override_name=override_name, bit_depth=bit_depth, max_output_value=max_output_value,
+                         dmin=30, mmult=4, eps=eps, data_mean=data_mean)
 
 
-class Linear(RemapFunction):
+class Linear(MonochromaticRemap):
     """
     A monochromatic linear remap function.
     """
 
-    __slots__ = ('_bit_depth', '_dimension', '_max_value', '_min_value')
+    __slots__ = ('_override_name', '_bit_depth', '_dimension', '_max_value', '_min_value')
     _name = 'linear'
 
-    def __init__(self, bit_depth=8, min_value=None, max_value=None):
+    def __init__(self, override_name=None, bit_depth=8, max_output_value=None, min_value=None, max_value=None):
         """
 
         Parameters
         ----------
+        override_name : None|str
+            Override name for a specific class instance
         bit_depth : int
         min_value : None|float
         max_value : None|float
         """
-        RemapFunction.__init__(self, bit_depth=bit_depth, dimension=0)
+        MonochromaticRemap.__init__(self, override_name=override_name, bit_depth=bit_depth, max_output_value=max_output_value)
 
         if min_value is not None:
             min_value = float(min_value)
@@ -602,7 +753,35 @@ class Linear(RemapFunction):
 
         return min_value, max_value
 
-    def __call__(self, data, min_value=None, max_value=None):
+    def call(self, data, min_value=None, max_value=None):
+        """
+        This performs the mapping from input data to output discrete version.
+
+        This method os directly called by the :func:`__call__` method, so the
+        class instance (once constructed) is itself callable, as follows:
+        >>> remap = Linear()
+        >>> discrete_data = remap(data, min_value=0, max_value=100)
+
+        Parameters
+        ----------
+        data : numpy.ndarray
+            The (presumably) complex data to remap.
+        min_value : None|float
+            A minimum threshold, or pre-calculated data minimum, for consistent
+            global use. The order of preference is the value provided here, the
+            class `min_value` property value, then calculated from the present
+            sample.
+        max_value : None|float
+            A maximum value threshold, or pre-calculated data maximum, for consistent
+            global use. The order of preference is the value provided here, the
+            class `max_value` property value, then calculated from the present
+            sample.
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
         if numpy.iscomplexobj(data):
             amplitude = numpy.abs(data)
         else:
@@ -610,9 +789,10 @@ class Linear(RemapFunction):
 
         dtype = self.output_dtype
         out = numpy.empty(amplitude.shape, dtype=dtype)
+        max_output_value = self.max_output_value
 
         finite_mask = numpy.isfinite(amplitude)
-        out[~finite_mask] = numpy.iinfo(dtype).max
+        out[~finite_mask] = max_output_value
 
         if numpy.any(finite_mask):
             temp_data = amplitude[finite_mask]
@@ -623,30 +803,36 @@ class Linear(RemapFunction):
                 out[finite_mask] = 0
             else:
                 out[finite_mask] = clip_cast(
-                    numpy.iinfo(dtype).max*_linear_map(amplitude[finite_mask], min_value, max_value),
-                    dtype)
+                    max_output_value*_linear_map(amplitude[finite_mask], min_value, max_value),
+                    dtype=dtype, min_value=0, max_value=max_output_value)
         return out
 
+    def calculate_global_parameters_from_reader(self, reader, index=0, pixel_bounds=None):
+        pixel_bounds = self._validate_pixel_bounds(reader, index, pixel_bounds)
+        self.min_value, self.max_value = get_data_extrema(pixel_bounds, reader, index, 25*1024*1024, percentile=None)
 
-class Logarithmic(RemapFunction):
+
+class Logarithmic(MonochromaticRemap):
     """
     A logarithmic remap function.
     """
 
-    __slots__ = ('_bit_depth', '_dimension', '_max_value', '_min_value')
+    __slots__ = ('_override_name', '_bit_depth', '_dimension', '_max_value', '_min_value')
     _name = 'log'
 
-    def __init__(self, bit_depth=8, min_value=None, max_value=None):
+    def __init__(self, override_name=None, bit_depth=8, max_output_value=None, min_value=None, max_value=None):
         """
 
         Parameters
         ----------
+        override_name : None|str
+            Override name for a specific class instance
         bit_depth : int
         min_value : None|float
         max_value : None|float
         """
 
-        RemapFunction.__init__(self, bit_depth=bit_depth, dimension=0)
+        MonochromaticRemap.__init__(self, override_name=override_name, bit_depth=bit_depth, max_output_value=max_output_value)
 
         if min_value is not None:
             min_value = float(min_value)
@@ -712,16 +898,46 @@ class Logarithmic(RemapFunction):
 
         return numpy.log(min_value), numpy.log(max_value)
 
-    def __call__(self, data, min_value=None, max_value=None):
+    def call(self, data, min_value=None, max_value=None):
+        """
+        This performs the mapping from input data to output discrete version.
+
+        This method os directly called by the :func:`__call__` method, so the
+        class instance (once constructed) is itself callable, as follows:
+        >>> remap = Logarithmic()
+        >>> discrete_data = remap(data, min_value=1.8, max_value=1.2e6)
+
+        Parameters
+        ----------
+        data : numpy.ndarray
+            The (presumably) complex data to remap.
+        min_value : None|float
+            A minimum threshold, or pre-calculated data minimum, for consistent
+            global use. The order of preference is the value provided here, the
+            class `min_value` property value, then calculated from the present
+            sample.
+        max_value : None|float
+            A maximum value threshold, or pre-calculated data maximum, for consistent
+            global use. The order of preference is the value provided here, the
+            class `max_value` property value, then calculated from the present
+            sample.
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
         amplitude = numpy.abs(data)
 
         dtype = self.output_dtype
         out = numpy.empty(amplitude.shape, dtype=dtype)
+        max_output_value = self.max_output_value
+
         finite_mask = numpy.isfinite(amplitude)
         zero_mask = (amplitude == 0)
         use_mask = finite_mask & (~zero_mask)
 
-        out[~finite_mask] = numpy.iinfo(dtype).max
+        out[~finite_mask] = max_output_value
         out[zero_mask] = 0
 
         if numpy.any(use_mask):
@@ -732,24 +948,31 @@ class Logarithmic(RemapFunction):
                 out[use_mask] = 0
             else:
                 out[use_mask] = clip_cast(
-                    numpy.iinfo(dtype).max*_linear_map(numpy.log(temp_data), min_value, max_value),
-                    dtype)
+                    max_output_value*_linear_map(numpy.log(temp_data), min_value, max_value),
+                    dtype=dtype, min_value=0, max_value=max_output_value)
         return out
 
+    def calculate_global_parameters_from_reader(self, reader, index=0, pixel_bounds=None):
+        pixel_bounds = self._validate_pixel_bounds(reader, index, pixel_bounds)
+        self.min_value, self.max_value = get_data_extrema(pixel_bounds, reader, index, 25*1024*1024, percentile=None)
 
-class PEDF(RemapFunction):
+
+class PEDF(MonochromaticRemap):
     """
     A monochromatic piecewise extended density format remap.
     """
 
-    __slots__ = ('_bit_depth', '_dimension', '_density')
+    __slots__ = ('_override_name', '_bit_depth', '_dimension', '_density')
     _name = 'pedf'
 
-    def __init__(self, bit_depth=8, dmin=30, mmult=40, eps=1e-5, data_mean=None):
+    def __init__(self, override_name=None, bit_depth=8, max_output_value=None,
+                 dmin=30, mmult=40, eps=1e-5, data_mean=None):
         """
 
         Parameters
         ----------
+        override_name : None|str
+            Override name for a specific class instance
         bit_depth : int
         dmin : float|int
             A dynamic range parameter. Lower this widens the range, will raising it
@@ -765,30 +988,62 @@ class PEDF(RemapFunction):
             The global data mean (for continuity). The appropriate value will be
             calculated on a per calling array basis if not provided.
         """
-        RemapFunction.__init__(self, bit_depth=bit_depth, dimension=0)
-        self._density = Density(bit_depth=bit_depth, dmin=dmin, mmult=mmult, eps=eps, data_mean=data_mean)
 
-    def __call__(self, data, data_mean=None):
+        MonochromaticRemap.__init__(
+            self, override_name=override_name, bit_depth=bit_depth, max_output_value=max_output_value)
+        self._density = Density(
+            bit_depth=bit_depth, max_output_value=max_output_value,
+            dmin=dmin, mmult=mmult, eps=eps, data_mean=data_mean)
+
+    def call(self, data, data_mean=None):
+        """
+        This performs the mapping from input data to output discrete version.
+
+        This method os directly called by the :func:`__call__` method, so the
+        class instance (once constructed) is itself callable, as follows:
+        >>> remap = PEDF()
+        >>> discrete_data = remap(data, data_mean=85.2)
+
+        Parameters
+        ----------
+        data : numpy.ndarray
+            The (presumably) complex data to remap.
+        data_mean : None|float
+            The pre-calculated data mean, for consistent global use. The order
+            of preference is the value provided here, the class data_mean property
+            value, then the value calculated from the present sample.
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
+        half_value = int(self.max_output_value/2)
         out = self._density(data, data_mean=data_mean)
-        half_value = int(numpy.iinfo(out.dtype).max/2)
         top_mask = (out > half_value)
         out[top_mask] = (out[top_mask] + half_value)/2
-        return out
+        return numpy.clip(out, 0, self.max_output_value)
+
+    def calculate_global_parameters_from_reader(self, reader, index=0, pixel_bounds=None):
+        self._density.calculate_global_parameters_from_reader(
+            reader, index=index, pixel_bounds=pixel_bounds)
 
 
-class NRL(RemapFunction):
+class NRL(MonochromaticRemap):
     """
     A monochromatic remap which is linear for percentile of the data, then
     transitions to logarithmic.
     """
 
-    __slots__ = ('_bit_depth', '_dimension', '_knee', '_percentile', '_stats')
+    __slots__ = ('_override_name', '_bit_depth', '_dimension', '_knee', '_percentile', '_stats')
     _name = 'nrl'
 
-    def __init__(self, bit_depth=8, knee=None, percentile=99, stats=None):
+    def __init__(self, override_name=None, bit_depth=8, max_output_value=None, knee=None, percentile=99, stats=None):
         """
         Parameters
         ----------
+        override_name : None|str
+            Override name for a specific class instance
         bit_depth : int
         knee : int
             Where the knee for switching from linear to logarithmic occurs in the
@@ -803,7 +1058,7 @@ class NRL(RemapFunction):
         self._knee = None
         self._percentile = None
         self._stats = None
-        RemapFunction.__init__(self, bit_depth=bit_depth, dimension=0)
+        MonochromaticRemap.__init__(self, override_name=override_name, bit_depth=bit_depth, max_output_value=max_output_value)
         self._set_knee(knee)
         self._set_percentile(percentile)
         self._set_stats(stats)
@@ -817,7 +1072,7 @@ class NRL(RemapFunction):
         return self._knee
 
     def _set_knee(self, knee):
-        max_value = numpy.iinfo(self.output_dtype).max
+        max_value = self.max_output_value
         if knee is None:
             knee = 0.85*max_value
         knee = float(knee)
@@ -874,9 +1129,32 @@ class NRL(RemapFunction):
             stats = (min_value, max_value, changeover_value)
         return stats
 
-    def __call__(self, data, stats=None):
+    def call(self, data, stats=None):
+        """
+        This performs the mapping from input data to output discrete version.
+
+        This method os directly called by the :func:`__call__` method, so the
+        class instance (once constructed) is itself callable as follows:
+        >>> remap = NRL()
+        >>> discrete_data = remap(data, stats=(2.3, 1025.0, 997.2))
+
+        Parameters
+        ----------
+        data : numpy.ndarray
+            The (presumably) complex data to remap.
+        stats : None|tuple
+            The stats `(minimum, maximum, chnageover)`, for consistent
+            global use. The order of preference is the value provided here, the
+            class `stats` property value, then calculated from the present
+            sample.
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
         output_dtype = self.output_dtype
-        max_index = numpy.iinfo(output_dtype).max
+        max_index = self.max_output_value
 
         amplitude = numpy.abs(data)
         amplitude_min, amplitude_max, changeover = self._validate_stats(amplitude, stats)
@@ -890,7 +1168,7 @@ class NRL(RemapFunction):
 
             out[linear_region] = clip_cast(
                 self.knee*_linear_map(amplitude[linear_region], amplitude_min, changeover),
-                dtype=output_dtype)
+                dtype=output_dtype, min_value=0, max_value=max_index)
         else:
             logger.warning(
                 'The remap array is at least significantly constant, the nrl remap may return '
@@ -905,33 +1183,39 @@ class NRL(RemapFunction):
             # this is now linearly scaled from 1 to 2, apply log_2 and then scale appropriately
             out[~linear_region] = clip_cast(
                 numpy.log2(log_values)*(max_index - self.knee) + self.knee,
-                dtype=output_dtype)
+                dtype=output_dtype, min_value=0, max_value=max_index)
         return out
+
+    def calculate_global_parameters_from_reader(self, reader, index=0, pixel_bounds=None):
+        pixel_bounds = self._validate_pixel_bounds(reader, index, pixel_bounds)
+        self._set_stats(get_data_extrema(pixel_bounds, reader, index, 25*1024*1024, percentile=self.percentile))
 
 
 class LUT8bit(RemapFunction):
     """
-    A remap which uses a monochromatic remap function and a 256 color lookup
-    table to produce a color image output
+    A remap which uses a monochromatic remap function and an 8-bit lookup table
+    to produce a (color) image output
     """
 
-    __slots__ = ('_bit_depth', '_dimension', '_mono_remap', '_lookup_table')
+    __slots__ = ('_override_name', '_bit_depth', '_dimension', '_mono_remap', '_lookup_table')
     _name = '_lut_8bit'
+    _allowed_dimension = None
 
-    def __init__(self, mono_remap, lookup_table, use_name=None, use_alpha=False):
+    def __init__(self, mono_remap, lookup_table, override_name=None, use_alpha=False):
         """
 
         Parameters
         ----------
-        mono_remap : RemapFunction
-            The 8-bit remap to apply before using the lookup table.
+        mono_remap : MonochromaticRemap
+            The remap to apply before using the lookup table. Note that the `max_output_value`
+            and lookup_table first dimension size are required to be the same.
         lookup_table : str|numpy.ndarray
             A string name for a registered matplotlib colormap or the 256 element
             rgb or rgba array.
-        use_name : None|str
-            A name to use for this remap function class instance. If this is not
-            provided and the `lookup_table` will be constructed from a
-            matplotlib colormap name, then that name will be used.
+        override_name : None|str
+            Override name for a specific class instance. If this is not provided and
+            the `lookup_table` will be constructed from a matplotlib colormap name,
+            then that name will be used.
         use_alpha : bool
             Only used if `mono_remap` is the name of a matplotlib colormap, this
             specifies whether or not to use the alpha channel.
@@ -939,12 +1223,10 @@ class LUT8bit(RemapFunction):
 
         self._mono_remap = None
         self._lookup_table = None
-        RemapFunction.__init__(self, bit_depth=8, dimension=0)
-        # NB: dimension may change, based on lookup table
-        #   also, the normal dimension requirement for values between 0 and 4 is bypassed
-        if use_name is None and isinstance(lookup_table, str):
-            use_name = lookup_table
-        self._set_name(use_name)
+        if override_name is None and isinstance(lookup_table, str):
+            override_name = lookup_table
+        RemapFunction.__init__(self, override_name=override_name, bit_depth=8, dimension=0)
+        # NB: dimension will be determined by the lookup table
         self._set_mono_remap(mono_remap)
         self._set_lookup_table(lookup_table, use_alpha)
 
@@ -961,50 +1243,70 @@ class LUT8bit(RemapFunction):
 
     @property
     def mono_remap(self):
+        # type: () -> MonochromaticRemap
         """
-        RemapFunction: The monochromatic remap being used.
+        MonochromaticRemap: The monochromatic remap being used.
         """
         return self._mono_remap
 
     def _set_mono_remap(self, value):
-        if not (isinstance(value, RemapFunction) and value.dimension == 0 and value.bit_depth == 8):
-            raise ValueError('mono_remap requires a monochromatic remap instance with bit_depth=8')
+        if not isinstance(value, MonochromaticRemap):
+            raise ValueError('mono_remap requires a monochromatic remap instance')
         self._mono_remap = value
 
     @property
     def lookup_table(self):
         """
-        numpy.ndarray: The 256 x dimension 8-bit lookup table.
+        numpy.ndarray: The 8-bit lookup table.
         """
 
         return self._lookup_table
 
-    @staticmethod
-    def _validate_lookup_table(value, use_alpha):
+    def _set_lookup_table(self, value, use_alpha):
+        max_out_size = self.mono_remap.max_output_value
         if isinstance(value, str):
             if cm is None:
                 raise ImportError(
                     'The lookup_table has been specified by providing a matplotlib '
                     'colormap name, but matplotlib can not be imported.')
-            value = clip_cast(255*cm.get_cmap(value, 256).colors, dtype='uint8')
+            value = clip_cast(max_out_size*cm.get_cmap(value, max_out_size+1).colors, dtype='uint8')
             if value.shape[1] == 3 or use_alpha:
                 return value
             else:
                 return value[:, :3]
-        if not (isinstance(value, numpy.ndarray) and value.shape[0] == 256 and
-                value.ndim == 2 and value.dtype.name == 'uint8'):
+        if not (isinstance(value, numpy.ndarray) and value.ndim == 2 and value.dtype.name == 'uint8'):
             raise ValueError(
-                'lookup_table requires a numpy array of shape (256, dimension) '
-                'and dtype = uint8')
-        return value
+                'lookup_table requires a two-dimensional numpy array of dtype = uint8')
+        if value.shape[0] != max_out_size:
+            raise ValueError(
+                'lookup_table size (first dimension) must agree with mono_remap.max_output_value')
 
-    def _set_lookup_table(self, value, use_alpha):
-        value = self._validate_lookup_table(value, use_alpha)
         self._lookup_table = value
         self._dimension = value.shape[1]
 
-    def __call__(self, data, *args, **kwargs):
-        return self._lookup_table[self._mono_remap(data, *args, **kwargs)]
+    def call(self, data, **kwargs):
+        """
+        This performs the mapping from input data to output discrete version.
+
+        This method os directly called by the :func:`__call__` method, so the
+        class instance (once constructed) is itself callable.
+
+        Parameters
+        ----------
+        data : numpy.ndarray
+        kwargs
+            The keyword arguments passed through to mono_remap.
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
+        return self._lookup_table[self._mono_remap(data, **kwargs)]
+
+    def calculate_global_parameters_from_reader(self, reader, index=0, pixel_bounds=None):
+        self.mono_remap.calculate_global_parameters_from_reader(
+            reader, index=index, pixel_bounds=pixel_bounds)
 
 
 #################
