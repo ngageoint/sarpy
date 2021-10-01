@@ -229,14 +229,28 @@ def _register_defaults():
     _DEFAULTS_REGISTERED = True
 
 
-def get_remap_list():
+def get_remap_names():
     """
-    Create list of remap functions accessible from this module.
+    Gets a list of currently registered remap function names.
 
     Returns
     -------
-    List[Tuple[str, callable], ...]
-        List of tuples of the form `(<function name>, <function>)`.
+    List[str]
+    """
+
+    if not _DEFAULTS_REGISTERED:
+        _register_defaults()
+    return list(_REMAP_DICT.keys())
+
+
+def get_remap_list():
+    """
+    Gets a list of currently registered remaps.
+
+    Returns
+    -------
+    List[Tuple[str, RemapFunction], ...]
+        List of tuples of the form `(<name>, <RemapFunction instance>)`.
     """
 
     if not _DEFAULTS_REGISTERED:
@@ -248,13 +262,14 @@ def get_remap_list():
     return [(the_key, the_value) for the_key, the_value in _REMAP_DICT.items()]
 
 
-def get_registered_remap(remap_name):
+def get_registered_remap(remap_name, default=None):
     """
     Gets a remap function from it's registered name.
 
     Parameters
     ----------
     remap_name : str
+    default : None|RemapFunction
 
     Returns
     -------
@@ -268,7 +283,11 @@ def get_registered_remap(remap_name):
     if not _DEFAULTS_REGISTERED:
         _register_defaults()
 
-    return _REMAP_DICT[remap_name]
+    if remap_name in _REMAP_DICT:
+        return _REMAP_DICT[remap_name]
+    if default is not None:
+        return default
+    raise KeyError('Unregistered remap name `{}`'.format(remap_name))
 
 
 ############
