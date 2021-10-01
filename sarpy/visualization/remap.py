@@ -546,7 +546,7 @@ class Density(MonochromaticRemap):
 
     def __init__(self, override_name=None, bit_depth=8, max_output_value=None,
                  dmin=30, mmult=40, eps=1e-5, data_mean=None):
-        """
+        r"""
 
         Parameters
         ----------
@@ -951,7 +951,7 @@ class Logarithmic(MonochromaticRemap):
         if min_value > max_value:
             min_value, max_value = max_value, min_value
 
-        return numpy.log(min_value), numpy.log(max_value)
+        return min_value, max_value
 
     def call(self, data, min_value=None, max_value=None):
         """
@@ -1002,9 +1002,9 @@ class Logarithmic(MonochromaticRemap):
             if min_value == max_value:
                 out[use_mask] = 0
             else:
+                temp_data = (numpy.clip(temp_data, min_value, max_value) - min_value)/(max_value - min_value) + 1
                 out[use_mask] = clip_cast(
-                    max_output_value*_linear_map(numpy.log(temp_data), min_value, max_value),
-                    dtype=dtype, min_value=0, max_value=max_output_value)
+                    max_output_value*numpy.log2(temp_data), dtype=dtype, min_value=0, max_value=max_output_value)
         return out
 
     def calculate_global_parameters_from_reader(self, reader, index=0, pixel_bounds=None):
@@ -1082,10 +1082,10 @@ class PEDF(MonochromaticRemap):
         numpy.ndarray
         """
 
-        half_value = int(self.max_output_value/2)
+        half_value = 0.5*self.max_output_value
         out = self._density(data, data_mean=data_mean)
         top_mask = (out > half_value)
-        out[top_mask] = (out[top_mask] + half_value)/2
+        out[top_mask] = 0.5*(out[top_mask]) + half_value
         return numpy.clip(out, 0, self.max_output_value)
 
     def calculate_global_parameters_from_reader(self, reader, index=0, pixel_bounds=None):
@@ -1138,7 +1138,7 @@ class NRL(MonochromaticRemap):
     def _set_knee(self, knee):
         max_value = self.max_output_value
         if knee is None:
-            knee = 0.85*max_value
+            knee = 0.8*max_value
         knee = float(knee)
         if not (0 < knee < max_value):
             raise ValueError(
@@ -1252,7 +1252,8 @@ class NRL(MonochromaticRemap):
             out[~linear_region] = self.knee
         else:
             # calculate the log values
-            log_values = (out[~linear_region] - changeover)/(amplitude_max - changeover) + 1
+            extreme_data = numpy.clip(amplitude[~linear_region], changeover, amplitude_max)
+            log_values = (extreme_data - changeover)/(amplitude_max - changeover) + 1
             # this is now linearly scaled from 1 to 2, apply log_2 and then scale appropriately
             out[~linear_region] = clip_cast(
                 numpy.log2(log_values)*(max_index - self.knee) + self.knee,
