@@ -15,12 +15,12 @@ from numpy.random import randn
 import scipy.signal
 
 from sarpy.compliance import int_func
-from sarpy.io.general.base import BaseReader, SarpyIOError
+from sarpy.io.general.base import SarpyIOError
 from sarpy.processing.ortho_rectify import FullResolutionFetcher
 from sarpy.processing.fft_base import fft, ifft, fftshift, ifftshift, \
     fft_sicd, ifft_sicd
 
-from sarpy.io.complex.base import FlatSICDReader
+from sarpy.io.complex.base import FlatSICDReader, SICDTypeReader
 from sarpy.io.complex.converter import open_complex
 from sarpy.io.complex.sicd import SICDWriter
 from sarpy.io.complex.sicd_elements.SICD import SICDType
@@ -333,7 +333,7 @@ class DeskewCalculator(FullResolutionFetcher):
 
         Parameters
         ----------
-        reader : BaseReader
+        reader : SICDTypeReader
         dimension : int
             The dimension in `{0, 1}` along which to deskew. `0` is row/range/fast-time,
             and `1` is column/azimuth/slow-time.
@@ -573,7 +573,7 @@ def sicd_degrade_reweight(
 
     Parameters
     ----------
-    reader : str|BaseReader
+    reader : str|SICDTypeReader
         A sicd type reader.
     output_file : None|str
         If `None`, an in-memory SICD reader instance will be returned. Otherwise,
@@ -842,14 +842,12 @@ def sicd_degrade_reweight(
     if isinstance(reader, str):
         reader = open_complex(reader)
 
-    if not (isinstance(reader, BaseReader) and reader.reader_type == 'SICD'):
+    if not isinstance(reader, SICDTypeReader):
         raise TypeError('reader must be sicd type reader, got {}'.format(reader))
 
     # noinspection PyUnresolvedReferences
     old_sicd = reader.get_sicds_as_tuple()[index]
-    assert isinstance(old_sicd, SICDType)
     validate_sicd(old_sicd)
-
     validate_filename()
 
     data_shape = reader.get_data_size_as_tuple()[index]

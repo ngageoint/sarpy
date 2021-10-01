@@ -79,16 +79,18 @@ from scipy.interpolate import RectBivariateSpline
 from sarpy.compliance import int_func, integer_types, string_types
 from sarpy.io.complex.converter import open_complex
 from sarpy.io.complex.sicd_elements.SICD import SICDType
-from sarpy.io.general.base import BaseReader
+from sarpy.io.complex.base import SICDTypeReader
 from sarpy.io.general.slice_parsing import validate_slice_int, validate_slice
+from sarpy.io.complex.utils import get_fetch_block_size, extract_blocks
+
 from sarpy.io.complex.sicd_elements.blocks import Poly2DType
 from sarpy.geometry.geocoords import geodetic_to_ecf, ecf_to_geodetic, wgs_84_norm
 from sarpy.geometry.geometry_elements import GeometryObject
-from sarpy.visualization.remap import amplitude_to_density, clip_cast
+
+from sarpy.visualization.remap import RemapFunction
 
 
 logger = logging.getLogger(__name__)
-
 
 ##################
 # module variables and helper methods
@@ -874,7 +876,7 @@ class OrthorectificationHelper(object):
 
         Parameters
         ----------
-        reader : BaseReader
+        reader : SICDTypeReader
         index : int
         proj_helper : None|ProjectionHelper
             If `None`, this will default to `PGProjection(<sicd>)`, where `<sicd>`
@@ -911,12 +913,8 @@ class OrthorectificationHelper(object):
             self._out_dtype = numpy.dtype('complex64')
         else:
             self._out_dtype = numpy.dtype('float32')
-        if not isinstance(reader, BaseReader):
+        if not isinstance(reader, SICDTypeReader):
             raise TypeError('Got unexpected type {} for reader'.format(type(reader)))
-        if reader.reader_type != "SICD":
-            raise ValueError(
-                'Reader is required to have property reader_type="SICD", got {} '
-                'for type {}'.format(reader.reader_type, type(reader)))
         self._reader = reader
         self.apply_radiometric = apply_radiometric
         self.subtract_radiometric_noise = subtract_radiometric_noise
@@ -924,9 +922,9 @@ class OrthorectificationHelper(object):
 
     @property
     def reader(self):
-        # type: () -> BaseReader
+        # type: () -> SICDTypeReader
         """
-        BaseReader: The reader instance.
+        SICDTypeReader: The reader instance.
         """
 
         return self._reader
@@ -1759,7 +1757,7 @@ class NearestNeighborMethod(OrthorectificationHelper):
 
         Parameters
         ----------
-        reader : BaseReader
+        reader : SICDTypeReader
         index : int
         proj_helper : None|ProjectionHelper
             If `None`, this will default to `PGProjection(<sicd>)`, where `<sicd>`
@@ -1821,7 +1819,7 @@ class BivariateSplineMethod(OrthorectificationHelper):
 
         Parameters
         ----------
-        reader : BaseReader
+        reader : SICDTypeReader
         index : int
         proj_helper : None|ProjectionHelper
             If `None`, this will default to `PGProjection(<sicd>)`, where `<sicd>`
@@ -1907,102 +1905,6 @@ class BivariateSplineMethod(OrthorectificationHelper):
 #################
 # Ortho-rectification generator/iterator
 
-def _get_fetch_block_size(start_element, stop_element, block_size_in_bytes, bands=1):
-    if stop_element == start_element:
-        return None
-    if block_size_in_bytes is None:
-        return None
-
-    full_size = float(abs(stop_element - start_element))
-    return max(1, int_func(numpy.ceil(block_size_in_bytes / float(bands*8*full_size))))
-
-
-def _extract_blocks(the_range, index_block_size):
-    # type: (Tuple[int, int, int], int) -> (List[Tuple[int, int, int]], List[Tuple[int, int]])
-    """
-    Convert the single range definition into a series of range definitions in
-    keeping with fetching of the appropriate block sizes.
-
-    Parameters
-    ----------
-    the_range : Tuple[int, int, int]
-        The input (off processing axis) range.
-    index_block_size : None|int|float
-        The size of blocks (number of indices).
-
-    Returns
-    -------
-    List[Tuple[int, int, int]], List[Tuple[int, int]]
-        The sequence of range definitions `(start index, stop index, step)`
-        relative to the overall image, and the sequence of start/stop indices
-        for positioning of the given range relative to the original range.
-    """
-
-    entries = numpy.arange(the_range[0], the_range[1], the_range[2], dtype=numpy.int64)
-    if index_block_size is None:
-        return [the_range, ], [(0, entries.size), ]
-
-    # how many blocks?
-    block_count = int_func(numpy.ceil(entries.size/float(index_block_size)))
-    if index_block_size == 1:
-        return [the_range, ], [(0, entries.size), ]
-
-    # workspace for what the blocks are
-    out1 = []
-    out2 = []
-    start_ind = 0
-    for i in range(block_count):
-        end_ind = start_ind+index_block_size
-        if end_ind < entries.size:
-            block1 = (int_func(entries[start_ind]), int_func(entries[end_ind]), the_range[2])
-            block2 = (start_ind, end_ind)
-        else:
-            block1 = (int_func(entries[start_ind]), the_range[1], the_range[2])
-            block2 = (start_ind, entries.size)
-        out1.append(block1)
-        out2.append(block2)
-        start_ind = end_ind
-    return out1, out2
-
-
-def _get_data_mean_magnitude(bounds, reader, index, block_size_in_bytes):
-    """
-    Gets the mean magnitude in the region defined by bounds.
-
-    Parameters
-    ----------
-    bounds : numpy.ndarray
-        Of the form `(row_start, row_end, col_start, col_end)`.
-    reader : BaseReader
-        The data reader.
-    index : int
-        The reader index to use.
-    block_size_in_bytes : int|float
-        The block size in bytes.
-
-    Returns
-    -------
-    float
-    """
-
-    # Extract the mean of the data magnitude - for global remap usage
-    logger.info(
-        'Calculating mean over the block ({}:{}, {}:{}), this may be time consuming'.format(*bounds))
-    mean_block_size = _get_fetch_block_size(bounds[0], bounds[1], block_size_in_bytes)
-    mean_column_blocks, _ = _extract_blocks((bounds[2], bounds[3], 1), mean_block_size)
-    mean_total = 0.0
-    mean_count = 0
-    for this_column_range in mean_column_blocks:
-        data = numpy.abs(reader[
-                         bounds[0]:bounds[1],
-                         this_column_range[0]:this_column_range[1],
-                         index])
-        mask = (data > 0) & numpy.isfinite(data)
-        mean_total += numpy.sum(data[mask])
-        mean_count += numpy.sum(mask)
-    return float(mean_total / mean_count)
-
-
 class FullResolutionFetcher(object):
     """
     This is a base class for provided a simple API for processing schemes where
@@ -2019,7 +1921,7 @@ class FullResolutionFetcher(object):
 
         Parameters
         ----------
-        reader : str|BaseReader
+        reader : str|SICDTypeReader
             Input file path or reader object, which must be of sicd type.
         dimension : int
             The dimension over which to split the sub-aperture.
@@ -2040,13 +1942,9 @@ class FullResolutionFetcher(object):
         # validate the reader
         if isinstance(reader, string_types):
             reader = open_complex(reader)
-        if not isinstance(reader, BaseReader):
+        if not isinstance(reader, SICDTypeReader):
             raise TypeError('reader is required to be a path name for a sicd-type image, '
                             'or an instance of a reader object.')
-        if reader.reader_type != "SICD":
-            raise ValueError(
-                'Reader is required to have property reader_type="SICD", got {} '
-                'for type {}'.format(reader.reader_type, type(reader)))
         self._reader = reader
         # set the other properties
         self.dimension = dimension
@@ -2055,9 +1953,9 @@ class FullResolutionFetcher(object):
 
     @property
     def reader(self):
-        # type: () -> BaseReader
+        # type: () -> SICDTypeReader
         """
-        BaseReader: The reader instance.
+        SICDTypeReader: The reader instance.
         """
 
         return self._reader
@@ -2203,7 +2101,7 @@ class FullResolutionFetcher(object):
         int
         """
 
-        return _get_fetch_block_size(start_element, stop_element, self.block_size_in_bytes, bands=1)
+        return get_fetch_block_size(start_element, stop_element, self.block_size_in_bytes, bands=1)
 
     @staticmethod
     def extract_blocks(the_range, index_block_size):
@@ -2228,23 +2126,7 @@ class FullResolutionFetcher(object):
 
         """
 
-        return _extract_blocks(the_range, index_block_size)
-
-    def get_data_mean_magnitude(self, bounds):
-        """
-        Gets the mean magnitude in the region defined by bounds.
-
-        Parameters
-        ----------
-        bounds : numpy.ndarray
-            Of the form `(row_start, row_end, col_start, col_end)`.
-
-        Returns
-        -------
-        float
-        """
-
-        return _get_data_mean_magnitude(bounds, self.reader, self.index, self.block_size_in_bytes)
+        return extract_blocks(the_range, index_block_size)
 
     def _full_row_resolution(self, row_range, col_range):
         # type: (Tuple[int, int, int], Tuple[int, int, int]) -> numpy.ndarray
@@ -2364,12 +2246,11 @@ class OrthorectificationIterator(object):
 
     __slots__ = (
         '_calculator', '_ortho_helper', '_pixel_bounds', '_ortho_bounds',
-        '_this_index', '_iteration_blocks', '_the_mean', '_apply_remap',
-        '_dmin', '_mmult')
+        '_this_index', '_iteration_blocks', '_remap_function')
 
     def __init__(
-            self, ortho_helper, calculator=None, bounds=None, apply_remap=True,
-            dmin=30, mmult=40):
+            self, ortho_helper, calculator=None, bounds=None,
+            remap_function=None, recalc_remap_globals=False):
         """
 
         Parameters
@@ -2383,21 +2264,17 @@ class OrthorectificationIterator(object):
         bounds : None|numpy.ndarray|list|tuple
             The pixel bounds of the form `(min row, max row, min col, max col)`.
             This will default to the full image.
-        apply_remap : bool
-            Should a remap be applied, or raw values fetched?
-        dmin : int|float
-            Parameter for `amplitude_to_density` remap function.
-            See `sarpy.visualization.remap.amplitude_to_density`.
-        mmult : int|float
-            Parameter for `amplitude_to_density` remap function.
-            See `sarpy.visualization.remap.amplitude_to_density`.
+        remap_function : None|RemapFunction
+            The remap function to apply, if desired.
+        recalc_remap_globals : bool
+            Only applies if a remap function is provided, should we recalculate
+            any required global parameters? This will automatically happen if
+            they are not already set.
         """
 
         self._this_index = None
         self._iteration_blocks = None
-        self._the_mean = None
-        self._dmin = dmin
-        self._mmult = mmult
+        self._remap_function = None
 
         # validate ortho_helper
         if not isinstance(ortho_helper, OrthorectificationHelper):
@@ -2426,7 +2303,6 @@ class OrthorectificationIterator(object):
                 'index {}'.format(ortho_helper.index, calculator.index))
 
         # validate the bounds
-        data_size = calculator.data_size
         if bounds is not None:
             pixel_bounds, pixel_rectangle = ortho_helper.bounds_to_rectangle(bounds)
             # get the corresponding ortho bounds
@@ -2437,10 +2313,17 @@ class OrthorectificationIterator(object):
             # extract the values - ensure that things are within proper image bounds
             pixel_bounds = ortho_helper.get_real_pixel_bounds(nominal_pixel_bounds)
 
+        # validate remap function
+        if remap_function is None or isinstance(remap_function, RemapFunction):
+            self._remap_function = remap_function
+        else:
+            raise TypeError(
+                'remap_function is expected to be an instance of RemapFunction, '
+                'got type `{}`'.format(type(remap_function)))
+
         self._pixel_bounds = pixel_bounds
         self._ortho_bounds = ortho_bounds
-        self._apply_remap = not (apply_remap is False)
-        self._prepare_state()
+        self._prepare_state(recalc_remap_globals=recalc_remap_globals)
 
     @property
     def ortho_helper(self):
@@ -2496,12 +2379,13 @@ class OrthorectificationIterator(object):
             int_func(self.ortho_bounds[3] - self.ortho_bounds[2]))
 
     @property
-    def data_mean_magnitude(self):
+    def remap_function(self):
+        # type: () -> Union[None, RemapFunction]
         """
-        float: Gets the mean magnitude for the reader across the pixel bounds in question.
+        None|RemapFunction: The remap function to be applied.
         """
 
-        return self._the_mean
+        return self._remap_function
 
     def get_ecf_image_corners(self):
         """
@@ -2534,7 +2418,7 @@ class OrthorectificationIterator(object):
         else:
             return ecf_to_geodetic(ecf_corners)
 
-    def _prepare_state(self):
+    def _prepare_state(self, recalc_remap_globals=False):
         """
         Prepare the iteration state.
 
@@ -2551,11 +2435,14 @@ class OrthorectificationIterator(object):
             row_block_size = self.calculator.get_fetch_block_size(self.ortho_bounds[2], self.ortho_bounds[3])
             self._iteration_blocks, _ = self.calculator.extract_blocks(
                 (self.ortho_bounds[0], self.ortho_bounds[1], 1), row_block_size)
-        if self._apply_remap:
-            # we only need this in order to apply a remap
-            self._the_mean = self.calculator.get_data_mean_magnitude(self._pixel_bounds)
 
-    def _get_ortho_helper(self, pixel_bounds, this_data):
+        if self.remap_function is not None and \
+                (recalc_remap_globals or not self.remap_function.are_global_parameters_set):
+            self.remap_function.calculate_global_parameters_from_reader(
+                self.ortho_helper.reader, index=self.ortho_helper.index, pixel_bounds=self.pixel_bounds)
+
+    @staticmethod
+    def _get_ortho_helper(pixel_bounds, this_data):
         """
         Get helper data for ortho-rectification.
 
@@ -2602,16 +2489,11 @@ class OrthorectificationIterator(object):
         """
 
         row_array, col_array = self._get_ortho_helper(pixel_bounds, this_data)
-        if self._apply_remap:
-            return clip_cast(
-                amplitude_to_density(
-                    self._ortho_helper.get_orthorectified_from_array(this_ortho_bounds, row_array, col_array, this_data),
-                    dmin=self._dmin,
-                    mmult=self._mmult,
-                    data_mean=self._the_mean),
-                dtype='uint8')
+        ortho_data = self._ortho_helper.get_orthorectified_from_array(this_ortho_bounds, row_array, col_array, this_data)
+        if self.remap_function is None:
+            return ortho_data
         else:
-            return self._ortho_helper.get_orthorectified_from_array(this_ortho_bounds, row_array, col_array, this_data)
+            return self.remap_function(ortho_data)
 
     def _get_state_parameters(self):
         """

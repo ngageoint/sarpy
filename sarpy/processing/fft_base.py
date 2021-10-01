@@ -8,7 +8,7 @@ __author__ = 'Thomas McCullough'
 import logging
 
 from sarpy.compliance import int_func
-from sarpy.io.general.base import BaseReader
+from sarpy.io.complex.base import SICDTypeReader
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.processing.ortho_rectify import FullResolutionFetcher
 
@@ -43,7 +43,7 @@ class FFTCalculator(FullResolutionFetcher):
 
         Parameters
         ----------
-        reader : str|BaseReader
+        reader : str|SICDTypeReader
             Input file path or reader object, which must be of sicd type.
         dimension : int
             The dimension over which to split the sub-aperture.

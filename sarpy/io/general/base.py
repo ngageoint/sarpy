@@ -7,7 +7,7 @@ __author__ = "Thomas McCullough"
 
 import os
 import logging
-from typing import Union, Tuple, BinaryIO, Callable
+from typing import Union, Tuple, BinaryIO, Sequence, Optional
 from importlib import import_module
 import pkgutil
 
@@ -551,59 +551,17 @@ class AggregateChipper(BaseChipper):
 #################
 # Base Reader definition
 
-class BaseReader(object):
+class AbstractReader(object):
     """
-    Abstract file reader class
+    The abstract reader basic definition - essentially just an interface definition.
     """
 
     __slots__ = ('_chipper', '_data_size', '_reader_type')
 
-    def __init__(self, chipper, reader_type="OTHER"):
-        """
-
-        Parameters
-        ----------
-        chipper : BaseChipper|Tuple[BaseChipper]
-            a chipper object, or tuple of chipper objects
-        reader_type : str
-            What kind of reader is this? Allowable options are "SICD", "SIDD",
-            "CPHD", or "OTHER".
-        """
-        # set the reader_type state
-        if not isinstance(reader_type, string_types):
-            raise ValueError('reader_type must be a string, got {}'.format(type(reader_type)))
-        if reader_type not in READER_TYPES:
-            logger.error(
-                'reader_type has value {}, while it is expected to be '
-                'one of {}'.format(reader_type, READER_TYPES))
-        self._reader_type = reader_type
-        # adjust chipper inputs
-        if isinstance(chipper, list):
-            chipper = tuple(chipper)
-
-        # validate chipper input
-        if isinstance(chipper, tuple):
-            for el in chipper:
-                if not isinstance(el, BaseChipper):
-                    raise TypeError(
-                        'Got a collection for chipper, and all elements are required '
-                        'to be instances of BaseChipper.')
-        elif not isinstance(chipper, BaseChipper):
-            raise TypeError(
-                'chipper argument is required to be a BaseChipper instance, or collection of BaseChipper objects')
-        self._chipper = chipper
-
-        # determine data_size
-        if isinstance(chipper, BaseChipper):
-            data_size = chipper.data_size
-        else:
-            data_size = tuple(el.data_size for el in chipper)
-        self._data_size = data_size
-
     @property
     def reader_type(self):
         """
-        str: A descriptive string for the type of reader, should be one of "SICD", "SIDD", "CPHD", or "OTHER"
+        str: A descriptive string for the type of reader
         """
         return self._reader_type
 
@@ -617,15 +575,6 @@ class BaseReader(object):
         return self._data_size
 
     @property
-    def file_name(self):
-        # type: () -> str
-        """
-        str: The file/path name for the reader object.
-        """
-
-        raise NotImplementedError
-
-    @property
     def image_count(self):
         """
         int: The number of images from which to read.
@@ -635,6 +584,15 @@ class BaseReader(object):
             return len(self._chipper)
         else:
             return 1
+
+    @property
+    def file_name(self):
+        # type: () -> Optional[str]
+        """
+        None|str: Defined a convenience property.
+        """
+
+        return None
 
     def get_data_size_as_tuple(self):
         """
@@ -833,6 +791,65 @@ class BaseReader(object):
         return self.__call__(dim1range, dim2range, index=index)
 
 
+class BaseReader(AbstractReader):
+    """
+    Abstract file reader class
+    """
+
+    __slots__ = ('_chipper', '_data_size', '_reader_type')
+
+    def __init__(self, chipper, reader_type="OTHER"):
+        """
+
+        Parameters
+        ----------
+        chipper : BaseChipper|Tuple[BaseChipper]
+            a chipper object, or tuple of chipper objects
+        reader_type : str
+            What kind of reader is this? Allowable options are "SICD", "SIDD",
+            "CPHD", or "OTHER".
+        """
+        # set the reader_type state
+        if not isinstance(reader_type, string_types):
+            raise ValueError('reader_type must be a string, got {}'.format(type(reader_type)))
+        if reader_type not in READER_TYPES:
+            logger.error(
+                'reader_type has value {}, while it is expected to be '
+                'one of {}'.format(reader_type, READER_TYPES))
+        self._reader_type = reader_type
+        # adjust chipper inputs
+        if isinstance(chipper, list):
+            chipper = tuple(chipper)
+
+        # validate chipper input
+        if isinstance(chipper, tuple):
+            for el in chipper:
+                if not isinstance(el, BaseChipper):
+                    raise TypeError(
+                        'Got a collection for chipper, and all elements are required '
+                        'to be instances of BaseChipper.')
+        elif not isinstance(chipper, BaseChipper):
+            raise TypeError(
+                'chipper argument is required to be a BaseChipper instance, or collection of BaseChipper objects')
+        self._chipper = chipper
+
+        # determine data_size
+        if isinstance(chipper, BaseChipper):
+            data_size = chipper.data_size
+        else:
+            data_size = tuple(el.data_size for el in chipper)
+        self._data_size = data_size
+
+    @property
+    def file_name(self):
+        # type: () -> str
+        """
+        str: The file/path name for the reader object.
+        """
+
+        raise NotImplementedError
+
+
 class SubsetReader(BaseReader):
     """
     Permits extraction from a particular subset of the possible data range.
@@ -845,7 +862,7 @@ class SubsetReader(BaseReader):
 
         Parameters
         ----------
-        parent_reader : BaseReader
+        parent_reader : AbstractReader
         dim1bounds : tuple
         dim2bounds : tuple
         """
@@ -873,7 +890,7 @@ class AggregateReader(BaseReader):
 
         Parameters
         ----------
-        readers : List[BaseReader]
+        readers : Sequence[AbstractReader]
         reader_type : str
             The reader type string.
         """
@@ -890,11 +907,11 @@ class AggregateReader(BaseReader):
 
         Parameters
         ----------
-        readers : list|tuple
+        readers : Sequence[AbstractReader]
 
         Returns
         -------
-        Tuple[BaseReader]
+        Tuple[AbstractReader]
         """
 
         if not isinstance(readers, (list, tuple)):
@@ -903,9 +920,9 @@ class AggregateReader(BaseReader):
         # validate each entry
         the_readers = []
         for i, entry in enumerate(readers):
-            if not isinstance(entry, BaseReader):
+            if not isinstance(entry, AbstractReader):
                 raise TypeError(
-                    'All elements of the input argument must be file names or BaseReader instances. '
+                    'All elements of the input argument must be file names or reader instances. '
                     'Entry {} is of type {}'.format(i, type(entry)))
             the_readers.append(entry)
         return tuple(the_readers)
@@ -942,9 +959,9 @@ class AggregateReader(BaseReader):
 
     @property
     def file_name(self):
-        # type: () -> Tuple[str]
+        # type: () -> Tuple[Optional[str]]
         """
-        Tuple[str]: The filename collection.
+        Tuple[Optional[str]]: The filename collection.
         """
 
         return tuple(entry.file_name for entry in self._readers)

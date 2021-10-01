@@ -13,7 +13,7 @@ import numpy
 from numpy.polynomial import polynomial
 from scipy.stats import scoreatpercentile
 
-from sarpy.io.general.base import BaseReader
+from sarpy.io.complex.base import SICDTypeReader
 from sarpy.io.complex.sicd_elements.blocks import Poly2DType
 
 logger = logging.getLogger(__name__)
@@ -212,7 +212,7 @@ def sicd_reader_iterator(reader, partitions=None, polarization=None, band=None):
 
     Parameters
     ----------
-    reader : BaseReader
+    reader : SICDTypeReader
     partitions : None|tuple
         The partitions collection. If None, then partitioning from
         `reader.get_sicd_partitions()` will be used.
@@ -235,10 +235,8 @@ def sicd_reader_iterator(reader, partitions=None, polarization=None, band=None):
             match &= (this_sicd.get_processed_polarization() == polarization)
         return match
 
-    from sarpy.io.general.base import BaseReader  # avoid circular import issue
-
-    if not isinstance(reader, BaseReader):
-        raise TypeError('reader must be an instance of BaseReader. Got type {}'.format(type(reader)))
+    if not isinstance(reader, SICDTypeReader):
+        raise TypeError('reader must be an instance of SICDTypeReader. Got type {}'.format(type(reader)))
     if reader.reader_type != "SICD":
         raise ValueError('The provided reader must be of SICD type.')
 
@@ -368,7 +366,7 @@ def get_data_mean_magnitude(bounds, reader, index, block_size_in_bytes):
     ----------
     bounds : numpy.ndarray|tuple|list
         Of the form `(row_start, row_end, col_start, col_end)`.
-    reader : BaseReader
+    reader : SICDTypeReader
         The data reader.
     index : int
         The reader index to use.
@@ -433,7 +431,7 @@ def get_data_extrema(bounds, reader, index, block_size_in_bytes, percentile=None
     ----------
     bounds : numpy.ndarray|tuple|list
         Of the form `(row_start, row_end, col_start, col_end)`.
-    reader : BaseReader
+    reader : SICDTypeReader
         The data reader.
     index : int
         The reader index to use.

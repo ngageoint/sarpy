@@ -2132,15 +2132,3 @@ class GFFReader(BaseReader, SICDTypeReader):
             del self._gff_details
         except Exception:
             pass
-
-
-if __name__ == '__main__':
-    the_root = r'R:\sar\Data_SomeDomestic\Sandia\dionysius\KAFB'
-    the_file_name = 'Patch003.gff'
-    full_file = os.path.join(the_root, the_file_name)
-    reader = GFFReader(full_file)
-
-    # from sarpy.processing.ortho_rectify import NearestNeighborMethod
-    # from sarpy.io.product.sidd_product_creation import create_detected_image_sidd
-    # ortho_helper = NearestNeighborMethod(reader)
-    # create_detected_image_sidd(ortho_helper, os.path.expanduser('~/Desktop'))

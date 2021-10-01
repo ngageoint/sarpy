@@ -18,9 +18,8 @@ from typing import Dict
 import warnings
 
 import numpy
-from scipy.stats import scoreatpercentile as prctile
 
-from sarpy.io.general.base import BaseReader
+from sarpy.io.complex.base import SICDTypeReader
 from sarpy.io.complex.utils import get_data_mean_magnitude, stats_calculation, \
     get_data_extrema
 
@@ -385,6 +384,15 @@ class RemapFunction(object):
         else:
             raise ValueError('Unhandled bit_depth `{}`'.format(self._bit_depth))
 
+    @property
+    def are_global_parameters_set(self):
+        """
+        bool: Are (all) global parameters used for applying this remap function
+        set? This should return `True` if there are no global parameters.
+        """
+
+        return True
+
     def call(self, data, **kwargs):
         """
         This performs the mapping from input data to output discrete version.
@@ -411,7 +419,8 @@ class RemapFunction(object):
     def __call__(self, data, **kwargs):
         return self.call(data, **kwargs)
 
-    def _validate_pixel_bounds(self, reader, index, pixel_bounds):
+    @staticmethod
+    def _validate_pixel_bounds(reader, index, pixel_bounds):
         data_size = reader.get_data_size_as_tuple()[index]
         if pixel_bounds is None:
             return 0, data_size[0], 0, data_size[1]
@@ -433,9 +442,9 @@ class RemapFunction(object):
 
         Parameters
         ----------
-        reader : BaseReader
+        reader : SICDTypeReader
         index : int
-        pixel_bounds : None|tuple
+        pixel_bounds : None|tuple|list|numpy.ndarray
             If provided, is of the form `(row min, row max, column min, column max)`.
 
         Returns
@@ -595,6 +604,15 @@ class Density(MonochromaticRemap):
 
         self._data_mean = float(value)
 
+    @property
+    def are_global_parameters_set(self):
+        """
+        bool: Is the global parameters used for applying this remap function
+        set? In this case, this is the `data_mean` property.
+        """
+
+        return self._data_mean is not None
+
     def call(self, data, data_mean=None):
         """
         This performs the mapping from input data to output discrete version.
@@ -730,6 +748,15 @@ class Linear(MonochromaticRemap):
             if not numpy.isfinite(value):
                 raise ValueError('Got unsupported maximum value `{}`'.format(value))
             self._max_value = value
+
+    @property
+    def are_global_parameters_set(self):
+        """
+        bool: Are (all) global parameters used for applying this remap function
+        set? In this case, this is the `min_value` and `max_value` properties.
+        """
+
+        return self._min_value is not None and self._max_value is not None
 
     def _get_extrema(self, amplitude, min_value, max_value):
         if min_value is not None:
@@ -876,6 +903,15 @@ class Logarithmic(MonochromaticRemap):
                 raise ValueError('Got unsupported maximum value `{}`'.format(value))
             self._max_value = value
 
+    @property
+    def are_global_parameters_set(self):
+        """
+        bool: Are (all) global parameters used for applying this remap function
+        set? In this case, this is the `min_value` and `max_value` properties.
+        """
+
+        return self._min_value is not None and self._max_value is not None
+
     def _get_extrema(self, amplitude, min_value, max_value):
         if min_value is not None:
             min_value = float(min_value)
@@ -994,6 +1030,15 @@ class PEDF(MonochromaticRemap):
         self._density = Density(
             bit_depth=bit_depth, max_output_value=max_output_value,
             dmin=dmin, mmult=mmult, eps=eps, data_mean=data_mean)
+
+    @property
+    def are_global_parameters_set(self):
+        """
+        bool: Are (all) global parameters used for applying this remap function
+        set? In this case, this is the `min_value` and `max_value` properties.
+        """
+
+        return self._density.are_global_parameters_set
 
     def call(self, data, data_mean=None):
         """
@@ -1128,6 +1173,15 @@ class NRL(MonochromaticRemap):
                 raise ValueError('Got inconsistent stats value `{}`'.format(stats))
             stats = (min_value, max_value, changeover_value)
         return stats
+
+    @property
+    def are_global_parameters_set(self):
+        """
+        bool: Are (all) global parameters used for applying this remap function
+        set? In this case, this is the `stats` property.
+        """
+
+        return self._stats is not None
 
     def call(self, data, stats=None):
         """
@@ -1283,6 +1337,14 @@ class LUT8bit(RemapFunction):
 
         self._lookup_table = value
         self._dimension = value.shape[1]
+
+    @property
+    def are_global_parameters_set(self):
+        """
+        bool: Are (all) global parameters used for applying this remap function set?
+        """
+
+        return self.mono_remap.are_global_parameters_set
 
     def call(self, data, **kwargs):
         """
