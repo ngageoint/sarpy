@@ -37,13 +37,17 @@ if __name__ == '__main__':
              '* The name for the ouput file(s) will be chosen based on CoreName and\n '
              '  transmit/collect polarization.\n')
     parser.add_argument(
+        '-s', '--size', default=3072, type=int, help='Maximum size for the interpolated image, put -1 for full size')
+    parser.add_argument(
         '-v', '--verbose', default=0, action='count', help='Verbose (level="INFO") logging?')
 
     args = parser.parse_args()
-    logger = logging.getLogger('sarpy')
+
     if args.verbose > 0:
+        logger = logging.getLogger('sarpy')
         logger.setLevel('INFO')
 
     reader = open_complex(args.input_file)
     file_stem = os.path.splitext(os.path.split(args.input_file)[1])[0]
-    create_kmz_view(reader, args.output_directory, file_stem='View-{}'.format(file_stem))
+    pixel_limit = None if args.size == -1 else args.size
+    create_kmz_view(reader, args.output_directory, pixel_limit=pixel_limit, file_stem='View-{}'.format(file_stem))
