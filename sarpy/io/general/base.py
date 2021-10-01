@@ -5,6 +5,7 @@ The general base elements for reading and writing image files.
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
+import io
 import os
 import logging
 from typing import Union, Tuple, BinaryIO, Sequence, Optional
@@ -1216,7 +1217,16 @@ class BIPChipper(BaseChipper):
             self._close_after = False
             self._file_name = data_input.name if hasattr(data_input, 'name') else None
 
+            try_memmap = False
             if hasattr(data_input, 'fileno'):
+                try:
+                    # check that fileno actually works, not just exists.
+                    data_input.fileno()
+                    try_memmap = True
+                except io.UnsupportedOperation:
+                    pass
+
+            if try_memmap:
                 # noinspection PyBroadException
                 try:
                     self._memory_map = numpy.memmap(data_input,
