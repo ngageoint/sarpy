@@ -24,6 +24,8 @@ from sarpy.io.general.nitf import NITFDetails, NITFReader, NITFWriter, ImageDeta
 from sarpy.io.general.nitf_elements.des import DataExtensionHeader, XMLDESSubheader
 from sarpy.io.general.nitf_elements.security import NITFSecurityTags
 from sarpy.io.general.nitf_elements.image import ImageSegmentHeader, ImageBands, ImageBand
+
+from sarpy.io.product.base import SIDDTypeReader
 from sarpy.io.product.sidd2_elements.SIDD import SIDDType
 from sarpy.io.product.sidd1_elements.SIDD import SIDDType as SIDDType1
 from sarpy.io.complex.sicd_elements.SICD import SICDType
@@ -206,12 +208,10 @@ def _check_iid_format(iid1, i):
             raise ValueError('Got poorly formatted image segment id {} at position {}'.format(iid1, i))
 
 
-class SIDDReader(NITFReader):
+class SIDDReader(NITFReader, SIDDTypeReader):
     """
     A reader object for a SIDD file (NITF container with SICD contents)
     """
-
-    __slots__ = ('_sidd_meta', '_sicd_meta')
 
     def __init__(self, nitf_details):
         """
@@ -232,9 +232,10 @@ class SIDDReader(NITFReader):
             raise ValueError(
                 'The input file passed in appears to be a NITF 2.1 file that does not contain '
                 'valid sidd metadata.')
+
         self._nitf_details = nitf_details
-        self._sidd_meta = self.nitf_details.sidd_meta
-        super(SIDDReader, self).__init__(nitf_details, reader_type="SIDD")
+        SIDDTypeReader.__init__(self, self.nitf_details.sidd_meta, self.nitf_details.sicd_meta)
+        NITFReader.__init__(self, nitf_details, reader_type="SIDD")
 
     @property
     def nitf_details(self):
@@ -244,23 +245,6 @@ class SIDDReader(NITFReader):
         """
 
         return self._nitf_details
-
-    @property
-    def sidd_meta(self):
-        # type: () -> Union[List[SIDDType], List[SIDDType1]]
-        """
-        None|List[sarpy.io.product.sidd2_elements.SIDD.SIDDType]: the sidd meta-data structure(s).
-        """
-
-        return self.nitf_details.sidd_meta
-
-    @property
-    def sicd_meta(self):
-        """
-        None|List[sarpy.io.complex.sicd_elements.SICD.SICDType]: the sicd meta-data structure(s).
-        """
-
-        return self.nitf_details.sicd_meta
 
     def _find_segments(self):
         # determine image segmentation from image headers

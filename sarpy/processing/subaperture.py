@@ -17,6 +17,8 @@ from sarpy.processing.fft_base import FFTCalculator, fft, ifft, fftshift, fft2_s
 from sarpy.io.general.slice_parsing import validate_slice, validate_slice_int
 from sarpy.processing.normalize_sicd import DeskewCalculator
 from sarpy.processing.ortho_rectify import OrthorectificationHelper, OrthorectificationIterator
+from sarpy.visualization.remap import RemapFunction
+from sarpy.io.complex.base import SICDTypeReader
 
 logger = logging.getLogger(__name__)
 
@@ -183,7 +185,7 @@ class SubapertureCalculator(FFTCalculator):
 
         Parameters
         ----------
-        reader : str|BaseReader
+        reader : str|SICDTypeReader
             Input file path or reader object, which must be of sicd type.
         dimension : int
             The dimension over which to split the sub-aperture.
@@ -450,7 +452,8 @@ class SubapertureOrthoIterator(OrthorectificationIterator):
 
     __slots__ = ('_depth_first', '_this_frame', '_generator')
 
-    def __init__(self, ortho_helper, calculator, bounds=None, depth_first=True):
+    def __init__(self, ortho_helper, calculator, bounds=None, remap_function=None,
+                 recalc_remap_globals=False, depth_first=True):
         """
 
         Parameters
@@ -460,6 +463,12 @@ class SubapertureOrthoIterator(OrthorectificationIterator):
         bounds : None|numpy.ndarray|list|tuple
             The pixel bounds of the form `(min row, max row, min col, max col)`.
             This will default to the full image.
+        remap_function : None|RemapFunction
+            The remap function to apply, if desired.
+        recalc_remap_globals : bool
+            Only applies if a remap function is provided, should we recalculate
+            any required global parameters? This will automatically happen if
+            they are not already set.
         depth_first : bool
             If `True`, by image segment part then frame - this requires the least
             fetching from the reader, once across all frames. Otherwise, iteration
@@ -473,8 +482,11 @@ class SubapertureOrthoIterator(OrthorectificationIterator):
 
         if not isinstance(calculator, SubapertureCalculator):
             raise TypeError(
-                'calculator must be an instance of SubapertureCalculator. Got type {}'.format(type(calculator)))
-        super(SubapertureOrthoIterator, self).__init__(ortho_helper, calculator=calculator, bounds=bounds)
+                'calculator must be an instance of SubapertureCalculator. \n\t'
+                'Got type {}'.format(type(calculator)))
+        super(SubapertureOrthoIterator, self).__init__(
+            ortho_helper, calculator=calculator, bounds=bounds,
+            remap_function=remap_function, recalc_remap_globals=recalc_remap_globals)
 
     @property
     def calculator(self):
@@ -610,7 +622,7 @@ class ApertureFilter(object):
 
         Parameters
         ----------
-        reader : BaseReader
+        reader : SICDTypeReader
         dimension : int
         index : int
         apply_deskew : bool

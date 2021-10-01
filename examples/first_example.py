@@ -154,10 +154,12 @@ Show some basic plots of the data.
 """
 
 from matplotlib import pyplot
-import sarpy.visualization.remap as remap
+from sarpy.visualization.remap import Density
+
+remap_function = Density()
 
 fig, axs = pyplot.subplots(nrows=1, ncols=1, figsize=(5, 5))
-axs.imshow(remap.density(all_data), cmap='gray')
+axs.imshow(remap_function(all_data), cmap='gray')
 pyplot.show()
 
 

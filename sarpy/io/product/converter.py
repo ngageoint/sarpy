@@ -9,8 +9,8 @@ __author__ = "Thomas McCullough"
 
 import os
 
-from sarpy.io.general.base import BaseReader, SarpyIOError, check_for_openers
-
+from sarpy.io.general.base import SarpyIOError, check_for_openers
+from sarpy.io.product.base import SIDDTypeReader
 
 ###########
 # Module variables
@@ -26,7 +26,7 @@ def register_opener(open_func):
     ----------
     open_func
         This is required to be a function which takes a single argument (file name).
-        This function should return a sarpy.io.general.base.BaseReader instance
+        This function should return a sarpy.io.product.base.SIDDTypeReader instance
         if the referenced file is viable for the underlying type, and None otherwise.
 
     Returns
@@ -67,7 +67,7 @@ def open_product(file_name):
 
     Returns
     -------
-    BaseReader
+    SIDDTypeReader
 
     Raises
     ------

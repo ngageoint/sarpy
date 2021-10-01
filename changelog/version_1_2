@@ -1,5 +1,9 @@
 # This details the important differences introduced in sarpy 1.2
 
+* .24 - Refactoring to present remaps to be classes versus flat functions, for
+            the purposes of coherently introducing state
+        Introduced AbstractReader to simple permit more simpler class structure
+            identification
 * .23 - Introducing RGIQE methods with sicd degradation functions and a method
             for producing a sicd/reader with reweighting and/or subaperture
             processing applied

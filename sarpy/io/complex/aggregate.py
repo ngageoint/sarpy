@@ -7,17 +7,17 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
-from typing import List, Tuple
+from typing import Tuple, Sequence
 
 from sarpy.compliance import string_types
 from sarpy.io.complex.converter import open_complex
-from sarpy.io.general.base import BaseReader, AggregateReader, SarpyIOError
+from sarpy.io.general.base import AggregateReader, SarpyIOError
 from sarpy.io.complex.base import SICDTypeReader
 
 
 class AggregateComplexReader(AggregateReader, SICDTypeReader):
     """
-    Aggregate multiple sicd type files and/or readers into a single reader instance.
+    Aggregate multiple sicd type readers into a single reader instance.
     """
 
     __slots__ = ('_readers', '_index_mapping')
@@ -27,7 +27,7 @@ class AggregateComplexReader(AggregateReader, SICDTypeReader):
 
         Parameters
         ----------
-        readers : List[BaseReader|str]
+        readers : Sequence[SICDTypeReader|str]
         """
 
         readers = self._validate_readers(readers)
@@ -43,14 +43,14 @@ class AggregateComplexReader(AggregateReader, SICDTypeReader):
 
         Parameters
         ----------
-        readers : list|tuple
+        readers : Sequence[SICDTypeReader]
 
         Returns
         -------
-        Tuple[BaseReader]
+        Tuple[SICDTypeReader]
         """
 
-        if not isinstance(readers, (list, tuple)):
+        if not isinstance(readers, Sequence):
             raise TypeError('input argument must be a list or tuple of readers/files. Got type {}'.format(type(readers)))
 
         # get a reader for each entry, and make sure that they are sicd type
@@ -68,14 +68,6 @@ class AggregateComplexReader(AggregateReader, SICDTypeReader):
             else:
                 reader = entry
 
-            if not isinstance(entry, BaseReader):
-                raise TypeError(
-                    'All elements of the input argument must be file names or BaseReader instances. '
-                    'Entry {} is of type {}'.format(i, type(entry)))
-            if reader.reader_type != "SICD":
-                raise ValueError(
-                    'Entry {} of the input argument does not correspond to a sicd type reader. '
-                    'Got type {}, with reader_type value {}'.format(i, type(reader), reader.reader_type))
             if not isinstance(reader, SICDTypeReader):
                 raise ValueError(
                     'Entry {} of the input argument does not correspond to a SICDTypeReader instance. '
