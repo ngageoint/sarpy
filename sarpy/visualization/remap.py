@@ -180,7 +180,7 @@ def register_remap(remap_function, overwrite=False):
     None
     """
 
-    if issubclass(remap_function, RemapFunction):
+    if isinstance(remap_function, type) and issubclass(remap_function, RemapFunction):
         remap_function = remap_function()
     if not isinstance(remap_function, RemapFunction):
         raise TypeError('remap_function must be an instance of RemapFunction.')
@@ -200,6 +200,7 @@ def _register_defaults():
     global _DEFAULTS_REGISTERED
     if _DEFAULTS_REGISTERED:
         return
+    register_remap(NRL(bit_depth=8), overwrite=False)
     register_remap(Density(bit_depth=8), overwrite=False)
     register_remap(High_Contrast(bit_depth=8), overwrite=False)
     register_remap(Brighter(bit_depth=8), overwrite=False)
@@ -207,22 +208,21 @@ def _register_defaults():
     register_remap(Linear(bit_depth=8), overwrite=False)
     register_remap(Logarithmic(bit_depth=8), overwrite=False)
     register_remap(PEDF(bit_depth=8), overwrite=False)
-    register_remap(NRL(bit_depth=8), overwrite=False)
     if cm is not None:
         try:
-            register_remap(LUT8bit(Density(bit_depth=8), 'viridis', use_alpha=False), overwrite=False)
+            register_remap(LUT8bit(NRL(bit_depth=8), 'viridis', use_alpha=False), overwrite=False)
         except KeyError:
             pass
         try:
-            register_remap(LUT8bit(Density(bit_depth=8), 'magma', use_alpha=False), overwrite=False)
+            register_remap(LUT8bit(NRL(bit_depth=8), 'magma', use_alpha=False), overwrite=False)
         except KeyError:
             pass
         try:
-            register_remap(LUT8bit(Density(bit_depth=8), 'rainbow', use_alpha=False), overwrite=False)
+            register_remap(LUT8bit(NRL(bit_depth=8), 'rainbow', use_alpha=False), overwrite=False)
         except KeyError:
             pass
         try:
-            register_remap(LUT8bit(Density(bit_depth=8), 'bone', use_alpha=False), overwrite=False)
+            register_remap(LUT8bit(NRL(bit_depth=8), 'bone', use_alpha=False), overwrite=False)
         except KeyError:
             pass
 
@@ -1323,15 +1323,15 @@ class LUT8bit(RemapFunction):
                 raise ImportError(
                     'The lookup_table has been specified by providing a matplotlib '
                     'colormap name, but matplotlib can not be imported.')
-            value = clip_cast(max_out_size*cm.get_cmap(value, max_out_size+1).colors, dtype='uint8')
-            if value.shape[1] == 3 or use_alpha:
-                return value
-            else:
-                return value[:, :3]
+            cmap = cm.get_cmap(value, max_out_size+1)
+            color_array = cmap(numpy.arange(max_out_size+1))
+            value = clip_cast(max_out_size*color_array, dtype='uint8')
+            if value.shape[1] > 3 and not use_alpha:
+                value = value[:, :3]
         if not (isinstance(value, numpy.ndarray) and value.ndim == 2 and value.dtype.name == 'uint8'):
             raise ValueError(
                 'lookup_table requires a two-dimensional numpy array of dtype = uint8')
-        if value.shape[0] != max_out_size:
+        if value.shape[0] != max_out_size+1:
             raise ValueError(
                 'lookup_table size (first dimension) must agree with mono_remap.max_output_value')
 
