@@ -448,8 +448,9 @@ class CPHDReader1_0(CPHDReader):
         self._pvp_memmap = None  # type: Union[None, Dict[str, numpy.ndarray]]
         self._support_array_memmap = None  # type: Union[None, Dict[str, numpy.ndarray]]
         self._cphd_details = _validate_cphd_details(cphd_details, version='1.0')
-        chipper = self._create_chippers()
         CPHDTypeReader.__init__(self, self._cphd_details.cphd_meta)
+
+        chipper = self._create_chippers()
         BaseReader.__init__(self, chipper, reader_type="CPHD")
         self._create_pvp_memmaps()
         self._create_support_array_memmaps()
@@ -461,7 +462,7 @@ class CPHDReader1_0(CPHDReader):
         CPHDType1_0: The CPHD structure.
         """
 
-        return self.cphd_details.cphd_meta
+        return self._cphd_meta
 
     @property
     def cphd_header(self):
@@ -736,8 +737,9 @@ class CPHDReader0_3(CPHDReader):
         """
 
         self._cphd_details = _validate_cphd_details(cphd_details, version='0.3')
-        chipper = self._create_chippers()
         CPHDTypeReader.__init__(self, self._cphd_details.cphd_meta)
+
+        chipper = self._create_chippers()
         BaseReader.__init__(self, chipper, reader_type="CPHD")
         self._create_pvp_memmaps()
 
@@ -748,7 +750,7 @@ class CPHDReader0_3(CPHDReader):
         CPHDType0_3: The CPHD structure, which is version dependent.
         """
 
-        return self.cphd_details.cphd_meta
+        return self._cphd_meta
 
     @property
     def cphd_header(self):

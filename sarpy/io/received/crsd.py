@@ -499,8 +499,8 @@ class CRSDReader1_0(CRSDReader):
         self._pvp_memmap = None  # type: Union[None, Dict[str, numpy.ndarray]]
         self._support_array_memmap = None  # type: Union[None, Dict[str, numpy.ndarray]]
         self._crsd_details = _validate_crsd_details(crsd_details, version='1.0')
-        chipper = self._create_chippers()
         CRSDTypeReader.__init__(self, self._crsd_details.crsd_meta)
+        chipper = self._create_chippers()
         BaseReader.__init__(self, chipper, reader_type="CRSD")
 
         self._create_pvp_memmaps()
