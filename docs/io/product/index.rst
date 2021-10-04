@@ -5,6 +5,7 @@ Derived data product reading and writing elements (sarpy.io.product)
     :maxdepth: 2
     :caption: Contents:
 
+    base
     sidd
     sidd_product_creation
     kmz_product_creation

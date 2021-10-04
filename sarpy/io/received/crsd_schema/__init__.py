@@ -22,6 +22,6 @@ def get_schema_path(version='1.0.0'):
     """
 
     if version == '1.0.0':
-        return pkg_resources.resource_filename('sarpy.io.phase_history.crsd_schema', 'CRSD_schema_V1.0.0_2021_06_12.xsd')
+        return pkg_resources.resource_filename('sarpy.io.received.crsd_schema', 'CRSD_schema_V1.0.0_2021_06_12.xsd')
     else:
         raise ValueError('Got unrecognized version {}'.format(version))
