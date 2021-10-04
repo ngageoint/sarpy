@@ -678,6 +678,23 @@ def sicd_degrade_reweight(
         uniform_weight = is_uniform_weight(sicd, dimension)
         delta_kcoa = dir_params.DeltaKCOAPoly.get_array(dtype='float64')
 
+        st_beam_comp = sicd.ImageFormation.STBeamComp if sicd.ImageFormation is not None else None
+
+        if dimension == 1 and (not uniform_weight or weighting_in is not None):
+            if st_beam_comp is None:
+                logger.warning(
+                    'Processing along the column direction requires modification\n\t'
+                    'of the original weighting scheme, and the value for\n\t'
+                    'ImageFormation.STBeamComp is not populated.\n\t'
+                    'It is like that the de-weighting effort along the column is imperfect.')
+            elif st_beam_comp == 'NO':
+                logger.warning(
+                    'Processing along the column direction requires modification\n\t'
+                    'of the original weighting scheme, and the value for\n\t'
+                    'ImageFormation.STBeamComp is populated as `NO`.\n\t'
+                    'It is like that the de-weighting effort along the column is imperfect.')
+
+
         if aperture_in is None and weighting_in is None:
             # nothing to be done in this dimension
             return
