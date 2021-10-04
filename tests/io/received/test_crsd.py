@@ -4,9 +4,9 @@ import json
 import tempfile
 
 import numpy.testing
-from sarpy.io.phase_history.crsd import CRSDReader, CRSDReader1_0, CRSDWriter1_0
+from sarpy.io.received.crsd import CRSDReader, CRSDReader1_0, CRSDWriter1_0
 from sarpy.io.phase_history.converter import open_phase_history
-from sarpy.io.phase_history.crsd_schema import get_schema_path
+from sarpy.io.received.crsd_schema import get_schema_path
 
 from tests import unittest, parse_file_entry
 

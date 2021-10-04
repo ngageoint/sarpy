@@ -20,7 +20,8 @@ from sarpy.io.general.base import AbstractWriter, BaseReader, BIPChipper, SarpyI
 
 from sarpy.io.phase_history.cphd1_elements.utils import binary_format_string_to_dtype
 # noinspection PyProtectedMember
-from sarpy.io.phase_history.crsd1_elements.CRSD import CRSDType, CRSDHeader, _CRSD_SECTION_TERMINATOR
+from sarpy.io.received.crsd1_elements.CRSD import CRSDType, CRSDHeader, _CRSD_SECTION_TERMINATOR
+from sarpy.io.received.base import CRSDTypeReader
 
 logger = logging.getLogger(__name__)
 
@@ -250,7 +251,7 @@ def _validate_crsd_details(crsd_details, version=None):
     return crsd_details
 
 
-class CRSDReader(BaseReader):
+class CRSDReader(BaseReader, CRSDTypeReader):
     """
     The Abstract CRSD reader instance, which just selects the proper CRSD reader
     class based on the CRSD version. Note that there is no __init__ method for
@@ -291,15 +292,6 @@ class CRSDReader(BaseReader):
         """
 
         return self.crsd_details.crsd_version
-
-    @property
-    def crsd_meta(self):
-        # type: () -> CRSDType
-        """
-        CRSDType: The CRSD structure, which is version dependent.
-        """
-
-        return self.crsd_details.crsd_meta
 
     @property
     def crsd_header(self):
@@ -508,7 +500,9 @@ class CRSDReader1_0(CRSDReader):
         self._support_array_memmap = None  # type: Union[None, Dict[str, numpy.ndarray]]
         self._crsd_details = _validate_crsd_details(crsd_details, version='1.0')
         chipper = self._create_chippers()
+        CRSDTypeReader.__init__(self, self._crsd_details.crsd_meta)
         BaseReader.__init__(self, chipper, reader_type="CRSD")
+
         self._create_pvp_memmaps()
         self._create_support_array_memmaps()
 
@@ -516,10 +510,10 @@ class CRSDReader1_0(CRSDReader):
     def crsd_meta(self):
         # type: () -> CRSDType
         """
-        CRSDType: The CRSD structure.
+        CRSDType: the crsd meta_data.
         """
 
-        return self.crsd_details.crsd_meta
+        return self._crsd_meta
 
     @property
     def crsd_header(self):
@@ -741,26 +735,9 @@ class CRSDReader1_0(CRSDReader):
         return self._pvp_memmap[channel.Identifier][the_range[0]:the_range[1]:the_range[2]]
 
     def read_pvp_block(self):
-        """
-        Reads the entirety of the PVP block(s).
-
-        Returns
-        -------
-        Dict[str, numpy.ndarray]
-            Dictionary of `numpy.ndarray` containing the PVP arrays.
-        """
         return {chan.Identifier: self.read_pvp_array(chan.Identifier) for chan in self.crsd_meta.Data.Channels}
 
     def read_support_block(self):
-        """
-        Reads the entirety of support block(s).
-
-        Returns
-        -------
-        Dict[str, numpy.ndarray]
-            Dictionary of `numpy.ndarray` containing the support arrays.
-        """
-
         if self.crsd_meta.Data.SupportArrays:
             return {
                 sa.Identifier: self.read_support_array(sa.Identifier, None, None)
@@ -769,15 +746,6 @@ class CRSDReader1_0(CRSDReader):
             return {}
 
     def read_signal_block(self):
-        """
-        Reads the entirety of signal block(s).
-
-        Returns
-        -------
-        Dict[str, numpy.ndarray]
-            Dictionary of `numpy.ndarray` containing the support arrays.
-        """
-
         return {chan.Identifier: self.read_chip(None, None, index=chan.Identifier) for chan in self.crsd_meta.Data.Channels}
 
 
@@ -797,7 +765,7 @@ class CRSDWriter1_0(AbstractWriter):
         Parameters
         ----------
         file_name : str
-        crsd_meta : sarpy.io.phase_history.crsd1_elements.CRSD.CRSDType
+        crsd_meta : CRSDType
         check_existence : bool
             Should we check if the given file already exists, and raises an exception if so?
         """
@@ -822,7 +790,7 @@ class CRSDWriter1_0(AbstractWriter):
     @property
     def crsd_meta(self):
         """
-        sarpy.io.phase_history.crsd1_elements.CRSD.CRSDType: The crsd metadata
+        CRSDType: The crsd metadata
         """
 
         return self._crsd_meta
