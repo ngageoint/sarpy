@@ -422,7 +422,9 @@ def _write_sicd_overlay(ortho_iterator, kmz_document, folder):
     time_args, _ = _get_sicd_time_args(ortho_iterator.sicd, subdivisions=None)
 
     # create the output workspace
-    image_data = numpy.zeros(ortho_iterator.ortho_data_size, dtype='uint8')
+    if ortho_iterator.remap_function.bit_depth != 8:
+        raise ValueError('The bit depth for the remap function must be 8, for now.')
+    image_data = numpy.zeros(ortho_iterator.ortho_data_size, dtype=ortho_iterator.remap_function.output_dtype)
     # populate by iterating
     for data, start_indices in ortho_iterator:
         image_data[start_indices[0]:start_indices[0]+data.shape[0],

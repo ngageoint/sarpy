@@ -1,5 +1,7 @@
 # This details the important differences introduced in sarpy 1.2
 
+* .25 - Separated CPHD and CRSD reading and writing implementations into separate
+        sub-packages, and continued specific reader type base pattern for clarity
 * .24 - Refactoring to present remaps to be classes versus flat functions, for
             the purposes of coherently introducing state
         Introduced AbstractReader to simple permit more simpler class structure

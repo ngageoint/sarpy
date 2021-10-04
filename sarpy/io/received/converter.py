@@ -1,15 +1,15 @@
 """
-This module provide utilities for reading essentially Compensated Phase History Data.
+This module provide utilities for reading essentially Compensated Received Signal Data
 """
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
+
 import os
 
 from sarpy.io.general.base import SarpyIOError, check_for_openers
-from sarpy.io.phase_history.base import CPHDTypeReader
-
+from sarpy.io.received.base import CRSDTypeReader
 
 ###########
 # Module variables
@@ -25,7 +25,7 @@ def register_opener(open_func):
     ----------
     open_func
         This is required to be a function which takes a single argument (file name).
-        This function should return a sarpy.io.phase_history.base.CPHDTypeReader instance
+        This function should return a sarpy.io.received.base.CRSDTypeReader instance
         if the referenced file is viable for the underlying type, and None otherwise.
 
     Returns
@@ -49,10 +49,10 @@ def parse_openers():
         return
     _parsed_openers = True
 
-    check_for_openers('sarpy.io.phase_history', register_opener)
+    check_for_openers('sarpy.io.received', register_opener)
 
 
-def open_phase_history(file_name):
+def open_received(file_name):
     """
     Given a file, try to find and return the appropriate reader object.
 
@@ -62,7 +62,7 @@ def open_phase_history(file_name):
 
     Returns
     -------
-    CPHDTypeReader
+    CRSDTypeReader
 
     Raises
     ------
@@ -80,4 +80,4 @@ def open_phase_history(file_name):
             return reader
 
     # If for loop completes, no matching file format was found.
-    raise SarpyIOError('Unable to determine phase history image format.')
+    raise SarpyIOError('Unable to determine received image format.')

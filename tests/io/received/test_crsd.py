@@ -4,9 +4,9 @@ import json
 import tempfile
 
 import numpy.testing
-from sarpy.io.phase_history.crsd import CRSDReader, CRSDReader1_0, CRSDWriter1_0
-from sarpy.io.phase_history.converter import open_phase_history
-from sarpy.io.phase_history.crsd_schema import get_schema_path
+from sarpy.io.received.crsd import CRSDReader, CRSDReader1_0, CRSDWriter1_0
+from sarpy.io.received.converter import open_received
+from sarpy.io.received.crsd_schema import get_schema_path
 
 from tests import unittest, parse_file_entry
 
@@ -33,7 +33,7 @@ def generic_io_test(instance, test_file, reader_type_string, reader_type):
 
     reader = None
     with instance.subTest(msg='establish reader for type {} and file {}'.format(reader_type_string, test_file)):
-        reader = open_phase_history(test_file)
+        reader = open_received(test_file)
         instance.assertTrue(reader is not None, msg='Returned None, so opening failed.')
 
     if reader is None:

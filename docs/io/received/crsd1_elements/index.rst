@@ -1,4 +1,4 @@
-CRSD Version 1.0 elements (sarpy.io.phase_history.crsd1_elements)
+CRSD Version 1.0 elements (sarpy.io.received.crsd1_elements)
 =================================================================
 
 .. toctree::
