@@ -223,8 +223,8 @@ class BaseChipper(object):
         ----------
         range1 : None|int|tuple
             * if `None`, then the range is not limited in first axis
-            * if `int` = step size
-            * if (`int`, `int`) = `end`, `step size`
+            * if `int` = start
+            * if (`int`, `int`) = `start`, `stop`
             * if (`int`, `int`, `int`) = `start`, `stop`, `step size`
         range2 : None|int|tuple
             same as `range1`, except for the second axis.
@@ -310,8 +310,8 @@ class BaseChipper(object):
         ----------
         range1 : None|int|tuple
             * if `None`, then the range is not limited in first axis
-            * if `int` = step size
-            * if (`int`, `int`) = `end`, `step size`
+            * if `int` = start
+            * if (`int`, `int`) = `start`, `stop`
             * if (`int`, `int`, `int`) = `start`, `stop`, `step size`
         range2 : None|int|tuple
             same as `range1`, except for the second axis.
@@ -677,17 +677,8 @@ class AbstractReader(object):
         :code:`data = reader[start:stop:stride, start:stop:stride, index]`
 
         Here the slice on index (dimension 3) is limited to a single integer, and
-        no slice on index :code:`reader[:, :]` will default to `index=0`,
+        no slice on the index :code:`reader[:, :]` will default to `index=0`,
         :code:`reader[:, :, 0]` (where appropriate).
-
-        The convention for precendence in the `range1` and `range2` arguments is
-        a little unusual. To clarify, the following are equivalent
-        :code:`reader(stride1, stride2)` yields the same as
-        :code:`reader((stride1, ), (stride2, ))` yields the same as
-        :code:`reader[::stride1, ::stride2]`.
-
-        :code:`reader((stop1, stride1), (stop2, stride2))` yields the same as
-        :code:`reader[:stop1:stride1, :stop2:stride2]`.
 
         :code:`reader((start1, stop1, stride1), (start2, stop2, stride2))`
         yields the same as :code:`reader[start1:stop1:stride1, start2:stop2:stride2]`.
@@ -770,23 +761,6 @@ class AbstractReader(object):
         Here the slice on index (dimension 3) is limited to a single integer. No
         slice on index will default to `index=0`, that is :code:`reader[:, :]` and
         :code:`reader[:, :, 0]` yield equivalent results.
-
-        The convention for slice and call syntax is as expected from standard Python convention.
-        In the read_chip` method, the convention is a little unusual. The following yield
-        equivalent results
-
-        .. code-block:: python
-
-            data = reader.read_chip(stride1, stride2)
-            data = reader.read_chip((stride1, ), (stride2, ))
-            data = reader[::stride1, ::stride2]
-
-        Likewise, the following yield equivalent results
-
-        .. code-block:: python
-
-            data = reader.read_chip((stop1, stride1), (stop2, stride2))
-            data = reader[:stop1:stride1, :stop2:stride2]
         """
 
         return self.__call__(dim1range, dim2range, index=index)
