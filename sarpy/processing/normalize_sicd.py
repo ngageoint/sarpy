@@ -686,14 +686,13 @@ def sicd_degrade_reweight(
                     'Processing along the column direction requires modification\n\t'
                     'of the original weighting scheme, and the value for\n\t'
                     'ImageFormation.STBeamComp is not populated.\n\t'
-                    'It is like that the de-weighting effort along the column is imperfect.')
+                    'It is unclear how imperfect the de-weighting effort along the column may be.')
             elif st_beam_comp == 'NO':
                 logger.warning(
                     'Processing along the column direction requires modification\n\t'
                     'of the original weighting scheme, and the value for\n\t'
                     'ImageFormation.STBeamComp is populated as `NO`.\n\t'
-                    'It is like that the de-weighting effort along the column is imperfect.')
-
+                    'It is likely that the de-weighting effort along the column is imperfect.')
 
         if aperture_in is None and weighting_in is None:
             # nothing to be done in this dimension
