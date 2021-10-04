@@ -33,13 +33,16 @@ def validate_range(arg, siz):
     if arg is None:
         pass
     elif isinstance(arg, integer_types):
-        step = arg
+        start = arg
+        stop = arg + 1
+        step = 1
     else:
         # NB: following this pattern to avoid confused pycharm inspection
         if len(arg) == 1:
-            step = arg[0]
+            start = int(arg[0])
+            stop = start + 1
         elif len(arg) == 2:
-            stop, step = arg
+            start, stop = arg
         elif len(arg) == 3:
             start, stop, step = arg
     start = 0 if start is None else int_func(start)
