@@ -39,11 +39,11 @@ if __name__ == '__main__':
     parser.add_argument(
         '-s', '--size', default=3072, type=int, help='Maximum size for the interpolated image, put -1 for full size')
     parser.add_argument(
-        '-v', '--verbose', default=0, action='count', help='Verbose (level="INFO") logging?')
+        '-v', '--verbose', action='store_true', help='Verbose (level="INFO") logging?')
 
     args = parser.parse_args()
 
-    if args.verbose > 0:
+    if args.verbose:
         logger = logging.getLogger('sarpy')
         logger.setLevel('INFO')
 
