@@ -391,23 +391,6 @@ class CPHDReader(BaseReader, CPHDTypeReader):
         Here the slice on index (dimension 3) is limited to a single integer. No
         slice on index will default to `index=0`, that is :code:`reader[:, :]` and
         :code:`reader[:, :, 0]` yield equivalent results.
-
-        The convention for slice and call syntax is as expected from standard Python convention.
-        In the read_chip` method, the convention is a little unusual. The following yield
-        equivalent results
-
-        .. code-block:: python
-
-            data = reader.read_chip(stride1, stride2)
-            data = reader.read_chip((stride1, ), (stride2, ))
-            data = reader[::stride1, ::stride2]
-
-        Likewise, the following yield equivalent results
-
-        .. code-block:: python
-
-            data = reader.read_chip((stop1, stride1), (stop2, stride2))
-            data = reader[:stop1:stride1, :stop2:stride2]
         """
 
         return self.__call__(dim1range, dim2range, index=index)
