@@ -5,6 +5,7 @@ Annotation elements (sarpy.annotation)
     :maxdepth: 2
     :caption: Contents:
 
+    base
     label
     rcs
     afrl
