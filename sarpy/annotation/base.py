@@ -103,17 +103,19 @@ class AnnotationProperties(Jsonable):
     The basic common properties for an annotation
     """
 
-    __slots__ = ('_name', '_description', '_geometry_properties', '_parameters')
+    __slots__ = ('_name', '_description', '_directory', '_geometry_properties', '_parameters')
     _type = 'AnnotationProperties'
 
-    def __init__(self, name=None, description=None, geometry_properties=None, parameters=None):
+    def __init__(self, name=None, description=None, directory=None, geometry_properties=None, parameters=None):
         self._name = None
         self._description = None
+        self._directory = None
         self._geometry_properties = []
         self._parameters = None
 
         self.name = name
         self.description = description
+        self.directory = directory
         self.geometry_properties = geometry_properties
         self.parameters = parameters
 
@@ -142,6 +144,25 @@ class AnnotationProperties(Jsonable):
         if value is None or isinstance(value, str):
             self._description = value
         raise TypeError('Got unexpected type for description')
+
+    @property
+    def directory(self):
+        """
+        Optional[str]: The directory - for basic display and/or subdivision purposes
+        """
+        return self._directory
+
+    @directory.setter
+    def directory(self, value):
+        if value is None:
+            self._directory = None
+            return
+
+        if not isinstance(value, str):
+            raise TypeError('Got unexpected type for directory')
+
+        parts = [entry.strip() for entry in value.split('/')]
+        self._description = '/'.join([entry for entry in parts if entry != ''])
 
     @property
     def geometry_properties(self):
@@ -219,6 +240,7 @@ class AnnotationProperties(Jsonable):
         return cls(
             name=the_json.get('name', None),
             description=the_json.get('description', None),
+            directory=the_json.get('directory', None),
             geometry_properties=the_json.get('geometry_properties', None),
             parameters=the_json.get('parameters', None))
 
@@ -238,10 +260,11 @@ class AnnotationProperties(Jsonable):
         if parent_dict is None:
             parent_dict = OrderedDict()
         parent_dict['type'] = self.type
-        if self.name is not None:
-            parent_dict['name'] = self.name
-        if self.description is not None:
-            parent_dict['name'] = self.description
+        for field in ['name', 'description', 'directory']:
+            value = getattr(self, field)
+            if value is not None:
+                parent_dict[field] = value
+
         if self.geometry_properties is not None:
             parent_dict['geometry_properties'] = [entry.to_dict() for entry in self.geometry_properties]
         if self.parameters is not None:
