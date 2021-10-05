@@ -1,5 +1,6 @@
 # This details the important differences introduced in sarpy 1.2
 
+* .27 - Making the annotation object definitions more coherent
 * .26 - Replacing the bad slice convention parsing from the __call__ method with
         the standard expected for Python
 * .25 - Separated CPHD and CRSD reading and writing implementations into separate

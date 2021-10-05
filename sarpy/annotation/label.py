@@ -16,9 +16,8 @@ from typing import Union, List, Any, Dict
 from datetime import datetime
 import getpass
 
-# noinspection PyProtectedMember
-from sarpy.geometry.geometry_elements import _Jsonable, FeatureCollection, Feature
-from sarpy.compliance import string_types, int_func, integer_types
+from sarpy.annotation.base import AnnotationProperties
+from sarpy.geometry.geometry_elements import Jsonable, FeatureCollection, Feature
 
 
 logger = logging.getLogger(__name__)
@@ -112,7 +111,7 @@ class LabelSchema(object):
         return self._version_date
 
     def update_version_date(self, value=None):
-        if isinstance(value, string_types):
+        if isinstance(value, str):
             self._version_date = value
         else:
             self._version_date = datetime.utcnow().isoformat('T')+'Z'
@@ -263,15 +262,18 @@ class LabelSchema(object):
     def _inspect_new_id_for_integer(self, the_id):
         if not self._integer_ids:
             return  # nothing to do
-        if isinstance(the_id, string_types):
+        if isinstance(the_id, str):
+            # noinspection PyBroadException
             try:
-                the_id = int_func(the_id)
+                the_id = int(the_id)
             except Exception:
                 self._integer_ids = False
                 self._maximum_id = None
 
-        if isinstance(the_id, integer_types):
-            self._maximum_id = the_id if self._maximum_id is None else max(self._maximum_id, the_id)
+        if isinstance(the_id, int):
+            # noinspection PyTypeChecker
+            self._maximum_id = the_id if self._maximum_id is None else \
+                max(self._maximum_id, the_id)
         else:
             self._integer_ids = False
             self._maximum_id = None
@@ -416,6 +418,7 @@ class LabelSchema(object):
     def _construct_parent_types(self):
         def iterate(t_key, parents):
             entry = [t_key, ]
+            # noinspection PyUnresolvedReferences
             entry.extend(parents)
             self._parent_types[t_key] = entry
             if t_key not in self._subtypes:
@@ -444,8 +447,7 @@ class LabelSchema(object):
         """
 
         # validate inputs
-        if not (isinstance(the_id, string_types) and isinstance(the_name, string_types) and
-                isinstance(the_parent, string_types)):
+        if not (isinstance(the_id, str) and isinstance(the_name, str) and isinstance(the_parent, str)):
             raise TypeError(
                 'the_id, the_name, and the_parent must all be string type, got '
                 'types {}, {}, {}'.format(type(the_id), type(the_name), type(the_parent)))
@@ -782,7 +784,7 @@ class LabelSchema(object):
 ##########
 # elements for labeling a feature
 
-class LabelMetadata(_Jsonable):
+class LabelMetadata(Jsonable):
     """
     Basic annotation metadata building block - everything but the geometry object
     """
@@ -839,7 +841,7 @@ class LabelMetadata(_Jsonable):
         return parent_dict
 
 
-class LabelMetadataList(_Jsonable):
+class LabelMetadataList(Jsonable):
     """
     The collection of LabelMetadata elements.
     """
@@ -935,13 +937,31 @@ class LabelMetadataList(_Jsonable):
         return parent_dict
 
 
+class LabelProperties(AnnotationProperties):
+    _type = 'LabelProperties'
+
+    @property
+    def parameters(self):
+        """
+        LabelMetadataList: The parameters
+        """
+
+        return self._parameters
+
+    @parameters.setter
+    def parameters(self, value):
+        if value is None or isinstance(value, LabelMetadataList):
+            self._parameters = value
+        raise TypeError('Got unexpected type for parameters')
+
+
 ############
 # the feature extensions
 
 class LabelFeature(Feature):
     """
     A specific extension of the Feature class which has the properties attribute
-    populated with LabelMetadataList instance.
+    populated with LabelProperties instance.
     """
 
     @property
@@ -951,7 +971,7 @@ class LabelFeature(Feature):
 
         Returns
         -------
-        None|LabelMetadataList
+        None|LabelProperties
         """
 
         return self._properties
@@ -960,27 +980,17 @@ class LabelFeature(Feature):
     def properties(self, properties):
         if properties is None:
             self._properties = None
-        elif isinstance(properties, LabelMetadataList):
+        elif isinstance(properties, LabelProperties):
             self._properties = properties
         elif isinstance(properties, dict):
-            self._properties = LabelMetadataList.from_dict(properties)
+            self._properties = LabelProperties.from_dict(properties)
         else:
-            raise TypeError('properties must be an LabelMetadataList')
-
-    def to_dict(self, parent_dict=None):
-        if parent_dict is None:
-            parent_dict = OrderedDict()
-        parent_dict['type'] = self.type
-        parent_dict['id'] = self.uid
-        parent_dict['geometry'] = self.geometry.to_dict()
-        if self.properties is not None:
-            parent_dict['properties'] = self.properties.to_dict()
-        return parent_dict
+            raise TypeError('properties must be an LabelProperties')
 
     def add_annotation_metadata(self, value):
         if self._properties is None:
-            self._properties = LabelMetadataList()
-        self._properties.insert_new_element(value)
+            self._properties = LabelProperties()
+        self._properties.parameters.insert_new_element(value)
 
 
 class LabelCollection(FeatureCollection):
@@ -1009,7 +1019,9 @@ class LabelCollection(FeatureCollection):
             return
 
         if not isinstance(features, list):
-            raise TypeError('features must be a list of LabelFeatures. Got {}'.format(type(features)))
+            raise TypeError(
+                'features must be a list of LabelFeatures. '
+                'Got {}'.format(type(features)))
 
         for entry in features:
             self.add_feature(entry)
@@ -1037,7 +1049,7 @@ class LabelCollection(FeatureCollection):
 
     def __getitem__(self, item):
         # type: (Any) -> Union[LabelFeature, List[LabelFeature]]
-        if isinstance(item, string_types):
+        if isinstance(item, str):
             index = self._feature_dict[item]
             return self._features[index]
         return self._features[item]
