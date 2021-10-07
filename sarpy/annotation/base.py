@@ -17,6 +17,8 @@ from sarpy.geometry.geometry_elements import Jsonable, FeatureCollection, Featur
     GeometryCollection, GeometryObject, Geometry, basic_assemble_from_collection
 
 
+_BASE_VERSION = "Base:1.0"
+
 logger = logging.getLogger(__name__)
 
 
@@ -555,9 +557,12 @@ class FileAnnotationCollection(object):
     """
 
     __slots__ = (
-         '_image_file_name', '_image_id', '_core_name', '_annotations')
+         '_version', '_image_file_name', '_image_id', '_core_name', '_annotations')
 
-    def __init__(self, annotations=None, image_file_name=None, image_id=None, core_name=None):
+    def __init__(self, version=None, annotations=None, image_file_name=None, image_id=None, core_name=None):
+        if version is None:
+            version = _BASE_VERSION
+        self._version = version
         self._annotations = None
 
         if image_file_name is None:
@@ -574,6 +579,14 @@ class FileAnnotationCollection(object):
             logger.error('One of image_file_name, image_id, or core_name should be defined.')
 
         self.annotations = annotations
+
+    @property
+    def version(self):
+        """
+        str: The version
+        """
+
+        return self._version
 
     @property
     def image_file_name(self):
@@ -644,7 +657,7 @@ class FileAnnotationCollection(object):
 
         Parameters
         ----------
-        annotation : LabelFeature
+        annotation : AnnotationFeature
             The prospective annotation.
         """
 
@@ -704,6 +717,7 @@ class FileAnnotationCollection(object):
         if not isinstance(the_dict, dict):
             raise TypeError('This requires a dict. Got type {}'.format(type(the_dict)))
         return cls(
+            version=the_dict.get('version', 'UNKNOWN'),
             annotations=the_dict.get('annotations', None),
             image_file_name=the_dict.get('image_file_name', None),
             image_id=the_dict.get('image_id', None),
@@ -712,6 +726,7 @@ class FileAnnotationCollection(object):
     def to_dict(self, parent_dict=None):
         if parent_dict is None:
             parent_dict = OrderedDict()
+        parent_dict['version'] = self.version
         if self.image_file_name is not None:
             parent_dict['image_file_name'] = self.image_file_name
         if self.image_id is not None:

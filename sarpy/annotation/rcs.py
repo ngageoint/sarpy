@@ -16,6 +16,7 @@ from sarpy.geometry.geometry_elements import Jsonable, Polygon, MultiPolygon
 from sarpy.annotation.base import AnnotationFeature, AnnotationProperties, \
     AnnotationCollection, FileAnnotationCollection
 
+_RCS_VERSION = "RCS:1.0"
 logger = logging.getLogger(__name__)
 
 
@@ -379,8 +380,18 @@ class RCSCollection(AnnotationCollection):
 
 class FileRCSCollection(FileAnnotationCollection):
     """
-    An collection of annotation elements associated with a given single image element file.
+    An collection of RCS statistics elements.
     """
+
+    def __init__(self, version=None, annotations=None, image_file_name=None,
+                 image_id=None, core_name=None):
+        if version is None:
+            version = _RCS_VERSION
+
+        FileAnnotationCollection.__init__(
+            self, version=version, annotations=annotations, image_file_name=image_file_name,
+            image_id=image_id, core_name=core_name)
+
     @property
     def annotations(self):
         """
@@ -474,6 +485,7 @@ class FileRCSCollection(FileAnnotationCollection):
         if not isinstance(the_dict, dict):
             raise TypeError('This requires a dict. Got type {}'.format(type(the_dict)))
         return cls(
+            version=the_dict.get('version', 'UNKNOWN'),
             annotations=the_dict.get('annotations', None),
             image_file_name=the_dict.get('image_file_name', None),
             image_id=the_dict.get('image_id', None),

@@ -9,16 +9,15 @@ __author__ = "Thomas McCullough"
 import logging
 import time
 from collections import OrderedDict
-import os
 import json
 from typing import Union, List, Any, Dict
 from datetime import datetime
 import getpass
 
-from sarpy.annotation.base import AnnotationProperties
-from sarpy.geometry.geometry_elements import Jsonable, FeatureCollection, Feature
+from sarpy.annotation.base import AnnotationProperties, FileAnnotationCollection
+from sarpy.geometry.geometry_elements import Jsonable, Feature, FeatureCollection
 
-
+_LABEL_VERSION = "Label:1.0"
 logger = logging.getLogger(__name__)
 
 
@@ -1057,17 +1056,18 @@ class LabelCollection(FeatureCollection):
 ###########
 # serialized file object
 
-class FileLabelCollection(object):
+class FileLabelCollection(FileAnnotationCollection):
     """
     An collection of annotation elements associated with a given single image element file.
     """
 
     __slots__ = (
-        '_label_schema', '_image_file_name', '_image_id', '_core_name',
-        '_annotations')
+        '_version', '_label_schema', '_image_file_name', '_image_id', '_core_name', '_annotations')
 
-    def __init__(self, label_schema, annotations=None, image_file_name=None, image_id=None, core_name=None):
-        self._annotations = None
+    def __init__(self, label_schema, version=None, annotations=None,
+                 image_file_name=None, image_id=None, core_name=None):
+        if version is None:
+            version = _LABEL_VERSION
 
         if isinstance(label_schema, str):
             label_schema = LabelSchema.from_file(label_schema)
@@ -1077,20 +1077,9 @@ class FileLabelCollection(object):
             raise TypeError('label_schema must be an instance of a LabelSchema.')
         self._label_schema = label_schema
 
-        if image_file_name is None:
-            self._image_file_name = None
-        elif isinstance(image_file_name, str):
-            self._image_file_name = os.path.split(image_file_name)[1]
-        else:
-            raise TypeError('image_file_name must be a None or a string')
-
-        self._image_id = image_id
-        self._core_name = core_name
-
-        if self._image_file_name is None and self._image_id is None and self._core_name is None:
-            logger.error('One of image_file_name, image_id, or core_name should be defined.')
-
-        self.annotations = annotations
+        FileAnnotationCollection.__init__(
+            self, version=version, annotations=annotations, image_file_name=image_file_name,
+            image_id=image_id, core_name=core_name)
 
     @property
     def label_schema(self):
@@ -1102,42 +1091,6 @@ class FileLabelCollection(object):
         LabelSchema
         """
         return self._label_schema
-
-    @property
-    def image_file_name(self):
-        """
-        The image file name, if appropriate.
-
-        Returns
-        -------
-        None|str
-        """
-
-        return self._image_file_name
-
-    @property
-    def image_id(self):
-        """
-        The image id, if appropriate.
-
-        Returns
-        -------
-        None|str
-        """
-
-        return self._image_id
-
-    @property
-    def core_name(self):
-        """
-        The image core name, if appropriate.
-
-        Returns
-        -------
-        None|str
-        """
-
-        return self._core_name
 
     @property
     def annotations(self):
@@ -1199,17 +1152,6 @@ class FileLabelCollection(object):
         if not valid:
             raise ValueError('LabelFeature does not follow the schema.')
         self._annotations.add_feature(annotation)
-
-    def delete_annotation(self, annotation_id):
-        """
-        Deletes the annotation associated with the given id.
-
-        Parameters
-        ----------
-        annotation_id : str
-        """
-
-        del self._annotations[annotation_id]
 
     def is_annotation_valid(self, annotation):
         """
@@ -1304,6 +1246,7 @@ class FileLabelCollection(object):
             raise KeyError('this dictionary must contain a label_schema')
         return cls(
             the_dict['label_schema'],
+            version=the_dict.get('version', 'UNKNOWN'),
             annotations=the_dict.get('annotations', None),
             image_file_name=the_dict.get('image_file_name', None),
             image_id=the_dict.get('image_id', None),
@@ -1313,16 +1256,4 @@ class FileLabelCollection(object):
         if parent_dict is None:
             parent_dict = OrderedDict()
         parent_dict['label_schema'] = self.label_schema.to_dict()
-        if self.image_file_name is not None:
-            parent_dict['image_file_name'] = self.image_file_name
-        if self.image_id is not None:
-            parent_dict['image_id'] = self.image_id
-        if self.core_name is not None:
-            parent_dict['core_name'] = self.core_name
-        if self.annotations is not None:
-            parent_dict['annotations'] = self.annotations.to_dict()
-        return parent_dict
-
-    def to_file(self, file_name):
-        with open(file_name, 'w') as fi:
-            json.dump(self.to_dict(), fi, indent=1)
+        return FileAnnotationCollection.to_dict(self, parent_dict=parent_dict)
