@@ -1,6 +1,5 @@
 """
-This module provides structures for annotating a given (single image) file with
-labeled items.
+This module provides structures for performing data labelling on a background image
 """
 
 __classification__ = "UNCLASSIFIED"

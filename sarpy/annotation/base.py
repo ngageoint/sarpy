@@ -7,6 +7,7 @@ __author__ = "Thomas McCullough"
 
 import logging
 import os
+from uuid import uuid4
 from typing import Optional, Dict, List, Any, Union
 import json
 
@@ -20,14 +21,27 @@ logger = logging.getLogger(__name__)
 
 
 class GeometryProperties(Jsonable):
-    __slots__ = ('_name', '_color')
+    __slots__ = ('_uid', '_name', '_color')
     _type = 'GeometryProperties'
 
-    def __init__(self, name=None, color=None):
+    def __init__(self, uid=None, name=None, color=None):
         self._name = None
         self._color = None
+        if uid is None:
+            uid = str(uuid4())
+        if not isinstance(uid, str):
+            raise TypeError('uid must be a string')
+        self._uid = uid
         self.name = name
         self.color = color
+
+    @property
+    def uid(self):
+        """
+        str: A unique identifier for the associated geometry element
+        """
+
+        return self._uid
 
     @property
     def name(self):
@@ -379,10 +393,34 @@ class AnnotationFeature(Feature):
 
         if self.geometry is None:
             return 0
-        elif isinstance(self.geometry, GeometryObject):
+        elif not self.geometry.is_collection:
             return 1
         else:
-            return len(self.geometry.geometries)
+            return len(self.geometry.collection)
+
+    def get_geometry_element(self, index):
+        """
+        Gets the basic geometry object at the given index.
+
+        Parameters
+        ----------
+        index : int
+
+        Returns
+        -------
+        Point|Line|Polygon
+        """
+
+        if self.geometry is None:
+            raise ValueError('No geometry defined.')
+
+        index = int(index)
+        if not (0 <= index < self.geometry_count):
+            raise KeyError('invalid geometry index')
+        if self.geometry.is_collection:
+            return self.geometry.collection[index]
+        else:
+            return self.geometry
 
     def _validate_geometry_element(self, geometry):
         if geometry is None:

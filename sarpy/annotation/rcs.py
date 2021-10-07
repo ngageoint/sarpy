@@ -1,6 +1,6 @@
 """
 This module provides structures for annotating a given SICD type file for RCS
-calculations.
+calculations
 """
 
 __classification__ = "UNCLASSIFIED"
