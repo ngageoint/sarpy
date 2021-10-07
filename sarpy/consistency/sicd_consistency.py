@@ -256,7 +256,7 @@ def check_sicd_file(nitf_details):
                     raise ValueError(
                         'This file contains a SIDD DES, and should be a SIDD file')
                 elif 'SICD' in root_node.tag:
-                    sicd_des.append((i, des_string, des_header))
+                    sicd_des.append((i, des_string.encode('utf-8'), des_header))
             except Exception as e:
                 logger.error('Failed parsing the xml DES entry {} as xml'.format(i))
                 raise e
