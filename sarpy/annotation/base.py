@@ -551,13 +551,14 @@ class AnnotationCollection(FeatureCollection):
         return self._features[item]
 
 
-class FileAnnotationCollection(object):
+class FileAnnotationCollection(Jsonable):
     """
     An collection of annotation elements associated with a given single image element file.
     """
 
     __slots__ = (
          '_version', '_image_file_name', '_image_id', '_core_name', '_annotations')
+    _type = 'FileAnnotationCollection'
 
     def __init__(self, version=None, annotations=None, image_file_name=None, image_id=None, core_name=None):
         if version is None:
@@ -716,6 +717,11 @@ class FileAnnotationCollection(object):
 
         if not isinstance(the_dict, dict):
             raise TypeError('This requires a dict. Got type {}'.format(type(the_dict)))
+
+        typ = the_dict.get('type', 'NONE')
+        if typ != cls._type:
+            raise ValueError('FileAnnotationCollection cannot be constructed from the input dictionary')
+
         return cls(
             version=the_dict.get('version', 'UNKNOWN'),
             annotations=the_dict.get('annotations', None),
@@ -726,6 +732,7 @@ class FileAnnotationCollection(object):
     def to_dict(self, parent_dict=None):
         if parent_dict is None:
             parent_dict = OrderedDict()
+        parent_dict['type'] = self.type
         parent_dict['version'] = self.version
         if self.image_file_name is not None:
             parent_dict['image_file_name'] = self.image_file_name

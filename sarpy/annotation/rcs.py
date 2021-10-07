@@ -382,6 +382,7 @@ class FileRCSCollection(FileAnnotationCollection):
     """
     An collection of RCS statistics elements.
     """
+    _type = 'FileRCSCollection'
 
     def __init__(self, version=None, annotations=None, image_file_name=None,
                  image_id=None, core_name=None):
@@ -484,6 +485,11 @@ class FileRCSCollection(FileAnnotationCollection):
 
         if not isinstance(the_dict, dict):
             raise TypeError('This requires a dict. Got type {}'.format(type(the_dict)))
+
+        typ = the_dict.get('type', 'NONE')
+        if typ != cls._type:
+            raise ValueError('FileRCSCollection cannot be constructed from the input dictionary')
+
         return cls(
             version=the_dict.get('version', 'UNKNOWN'),
             annotations=the_dict.get('annotations', None),

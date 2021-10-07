@@ -1063,7 +1063,7 @@ class FileLabelCollection(FileAnnotationCollection):
 
     __slots__ = (
         '_version', '_label_schema', '_image_file_name', '_image_id', '_core_name', '_annotations')
-
+    _type = 'FileLabelCollection'
     def __init__(self, label_schema, version=None, annotations=None,
                  image_file_name=None, image_id=None, core_name=None):
         if version is None:
@@ -1244,6 +1244,11 @@ class FileLabelCollection(FileAnnotationCollection):
             raise TypeError('This requires a dict. Got type {}'.format(type(the_dict)))
         if 'label_schema' not in the_dict:
             raise KeyError('this dictionary must contain a label_schema')
+
+        typ = the_dict.get('type', 'NONE')
+        if typ != cls._type:
+            raise ValueError('FileLabelCollection cannot be constructed from the input dictionary')
+
         return cls(
             the_dict['label_schema'],
             version=the_dict.get('version', 'UNKNOWN'),
@@ -1255,5 +1260,15 @@ class FileLabelCollection(FileAnnotationCollection):
     def to_dict(self, parent_dict=None):
         if parent_dict is None:
             parent_dict = OrderedDict()
+        parent_dict['type'] = self.type
+        parent_dict['version'] = self.version
         parent_dict['label_schema'] = self.label_schema.to_dict()
-        return FileAnnotationCollection.to_dict(self, parent_dict=parent_dict)
+        if self.image_file_name is not None:
+            parent_dict['image_file_name'] = self.image_file_name
+        if self.image_id is not None:
+            parent_dict['image_id'] = self.image_id
+        if self.core_name is not None:
+            parent_dict['core_name'] = self.core_name
+        if self.annotations is not None:
+            parent_dict['annotations'] = self.annotations.to_dict()
+        return parent_dict
