@@ -604,6 +604,9 @@ class TSXDetails(object):
                 float(self._find_main('./productInfo/sceneInfo/sceneCenterCoord/lon').text),
                 float(self._find_main('./productInfo/sceneInfo/sceneAverageHeight').text)]
 
+        if self._find_main('./productInfo/acquisitionInfo/lookDirection').text[0].upper() == 'L':
+            scp_col = cols - scp_col - 1
+
         sicd.ImageData = ImageDataType(
             NumRows=rows, NumCols=cols, FirstRow=0, FirstCol=0, FullImage=(rows, cols),
             PixelType='RE16I_IM16I', SCPPixel=(scp_row, scp_col))
@@ -1092,7 +1095,7 @@ class TSXReader(BaseReader, SICDTypeReader):
         for the_file, the_sicd in zip(the_files, the_sicds):
             rows = the_sicd.ImageData.NumRows
             cols = the_sicd.ImageData.NumCols
-            symmetry = (False, (the_sicd.SCPCOA.SideOfTrack == 'L'), True)
+            symmetry = ((the_sicd.SCPCOA.SideOfTrack == 'L'), False, True)
             if image_format != 'COSAR':
                 raise ValueError(
                     'Expected complex data for TerraSAR-X to be in COSAR format. '
