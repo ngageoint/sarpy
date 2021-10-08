@@ -366,6 +366,20 @@ class AnnotationFeature(Feature):
         else:
             raise TypeError('Got an unexpected type for properties attribute of class {}'.format(self.__class__))
 
+    def get_name(self):
+        """
+        Gets a useful name.
+
+        Returns
+        -------
+        str
+        """
+
+        if self.properties is None or self.properties.name is None:
+            return self.uid
+
+        return self.properties.name
+
     @property
     def geometry(self):
         """
@@ -399,6 +413,31 @@ class AnnotationFeature(Feature):
             return 1
         else:
             return len(self.geometry.collection)
+
+    def get_geometry_name(self, index):
+        """
+        Gets the name, or a reasonable default, for the geometry at index `index`.
+
+        Parameters
+        ----------
+        index : int
+
+        Returns
+        -------
+        str
+        """
+
+        index = int(index)
+        geometry = self.get_geometry_element(index)
+        default_name = '<{}>'.format(geometry.__class__.__name__)
+        name = None
+        if self.properties is not None and \
+                self.properties.geometry_properties is not None and \
+                index < len(self.properties.geometry_properties):
+            name = self.properties.geometry_properties[0].name
+
+        return default_name if name is None else name
+
 
     def get_geometry_element(self, index):
         """

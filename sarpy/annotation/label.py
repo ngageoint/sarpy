@@ -986,6 +986,14 @@ class LabelFeature(Feature):
             raise TypeError('properties must be an LabelProperties')
 
     def add_annotation_metadata(self, value):
+        """
+        Adds the new label to the series of labeling efforts.
+
+        Parameters
+        ----------
+        value : LabelMetadata
+        """
+
         if self._properties is None:
             self._properties = LabelProperties()
         self._properties.parameters.insert_new_element(value)
