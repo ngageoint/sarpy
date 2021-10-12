@@ -66,7 +66,7 @@ def amplitude_to_density(data, dmin=30, mmult=40, data_mean=None):
 
     This is a digested version of contents presented in a 1994 pulication
     entitled "Softcopy Display of SAR Data" by Kevin Mangis. It is unclear where
-    this was first published or where it may be publically available.
+    this was first published or where it may be publicly available.
 
     Parameters
     ----------
@@ -418,6 +418,7 @@ class RemapFunction(object):
 
         This method os directly called by the :func:`__call__` method, so the
         class instance (once constructed) is itself callable, as follows:
+
         >>> remap = RemapFunction()
         >>> discrete_data = remap(data, **kwargs)
 
@@ -638,6 +639,7 @@ class Density(MonochromaticRemap):
 
         This method os directly called by the :func:`__call__` method, so the
         class instance (once constructed) is itself callable, as follows:
+
         >>> remap = Density()
         >>> discrete_data = remap(data, data_mean=85.2)
 
@@ -805,6 +807,7 @@ class Linear(MonochromaticRemap):
 
         This method os directly called by the :func:`__call__` method, so the
         class instance (once constructed) is itself callable, as follows:
+
         >>> remap = Linear()
         >>> discrete_data = remap(data, min_value=0, max_value=100)
 
@@ -959,6 +962,7 @@ class Logarithmic(MonochromaticRemap):
 
         This method os directly called by the :func:`__call__` method, so the
         class instance (once constructed) is itself callable, as follows:
+
         >>> remap = Logarithmic()
         >>> discrete_data = remap(data, min_value=1.8, max_value=1.2e6)
 
@@ -1065,6 +1069,7 @@ class PEDF(MonochromaticRemap):
 
         This method os directly called by the :func:`__call__` method, so the
         class instance (once constructed) is itself callable, as follows:
+
         >>> remap = PEDF()
         >>> discrete_data = remap(data, data_mean=85.2)
 
@@ -1208,6 +1213,7 @@ class NRL(MonochromaticRemap):
 
         This method os directly called by the :func:`__call__` method, so the
         class instance (once constructed) is itself callable as follows:
+
         >>> remap = NRL()
         >>> discrete_data = remap(data, stats=(2.3, 1025.0, 997.2))
 
