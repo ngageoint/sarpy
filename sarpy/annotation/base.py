@@ -119,18 +119,17 @@ class AnnotationProperties(Jsonable):
     The basic common properties for an annotation
     """
 
-    __slots__ = ('_name', '_description', '_applicable_indices', '_directory', '_geometry_properties', '_parameters')
+    __slots__ = ('_name', '_description', '_directory', '_geometry_properties', '_parameters')
     _type = 'AnnotationProperties'
 
-    def __init__(self, name=None, description=None, applicable_indices=None,
-                 directory=None, geometry_properties=None, parameters=None):
+    def __init__(self, name=None, description=None, directory=None,
+                 geometry_properties=None, parameters=None):
         """
 
         Parameters
         ----------
         name : Optional[str]
         description : Optional[str]
-        applicable_indices : Optional[List[int]]
         directory : Optional[str]
         geometry_properties : Optional[List[GeometryProperties]]
         parameters : Optional[Jsonable]
@@ -139,13 +138,11 @@ class AnnotationProperties(Jsonable):
         self._name = None
         self._description = None
         self._directory = None
-        self._applicable_indices = None
         self._geometry_properties = []
         self._parameters = None
 
         self.name = name
         self.description = description
-        self.applicable_indices = applicable_indices
         self.directory = directory
         self.geometry_properties = geometry_properties
         self.parameters = parameters
@@ -175,39 +172,6 @@ class AnnotationProperties(Jsonable):
         if value is None or isinstance(value, str):
             self._description = value
         raise TypeError('Got unexpected type for description')
-
-    @property
-    def applicable_indices(self):
-        """
-        None|List[int]: The list of all image indices to which this annotation applies.
-        `None` is equivalent to all.
-        """
-
-        return self._applicable_indices
-
-    @applicable_indices.setter
-    def applicable_indices(self, value):
-        if value is None:
-            self._applicable_indices = None
-            return
-
-        self._applicable_indices = [int(entry) for entry in value]
-
-    def add_applicable_index(self, value):
-        """
-        Adds an index to the applicable list.
-
-        Parameters
-        ----------
-        value : int
-        """
-
-        if value is None or self._applicable_indices is None:
-            return
-        value = int(value)
-        if value not in self._applicable_indices:
-            self._applicable_indices.append(value)
-            self._applicable_indices = sorted(self._applicable_indices)
 
     @property
     def directory(self):
@@ -269,6 +233,27 @@ class AnnotationProperties(Jsonable):
         if not isinstance(entry, GeometryProperties):
             raise TypeError('Got entry of unexpected type for geometry properties list')
         self._geometry_properties.append(entry)
+
+    def get_geometry_property(self, item):
+        """
+        Fetches the appropriate geometry property.
+
+        Parameters
+        ----------
+        item : int|str
+
+        Returns
+        -------
+        GeometryProperties
+        """
+
+        if isinstance(item, int):
+            return self._geometry_properties[item]
+        elif isinstance(item, str):
+            for entry in self.geometry_properties:
+                if entry.uid == item:
+                    return entry
+        raise KeyError('Got unrecognized geometry key `{}`'.format(item))
 
     @property
     def parameters(self):
