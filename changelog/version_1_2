@@ -1,6 +1,10 @@
 # This details the important differences introduced in sarpy 1.2
 
-* .28 - Account for noise changes in subaperture degrade processing
+* .29 - Account for noise changes in subaperture degrade processing
+* .28 - Bug fixes for sicd validation of version 1.1 date and pfa bounds
+            consistency checking for the spotlight case
+        Ensure that FTITLE and IID2 nitf header fields in a sicd file will be
+            prefixed with 'SICD:' if attepting to write a version 1.1 file
 * .27 - Bug fix for left looking terrasarx sicd
 * .26 - Replacing the bad slice convention parsing from the __call__ method with
         the standard expected for Python
