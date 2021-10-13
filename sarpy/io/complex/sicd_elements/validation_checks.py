@@ -540,10 +540,10 @@ def _pfa_check_polar_angle_consistency(PFA, CollectionInfo, ImageFormation):
         derived_pol_angle_bounds = numpy.arctan(numpy.array([PFA.Kaz1, PFA.Kaz2], dtype='float64')/PFA.Krg1)
         pol_angle_bounds_diff = numpy.amax(numpy.abs(polar_angle_bounds - derived_pol_angle_bounds))
         if pol_angle_bounds_diff > 1e-2:
-            PFA.log_validity_error(
-                'the derived polar angle bounds ({}) are not consistent with\n\t'
-                'the provided ImageFormation processing times '
-                '(expected bounds {}).'.format(polar_angle_bounds, derived_pol_angle_bounds))
+            PFA.log_validity_warning(
+                'the derived polar angle bounds ({})\n\t'
+                'are not entirely consistent with the provided ImageFormation processing times\n\t '
+                '(expected bounds {})'.format(polar_angle_bounds, derived_pol_angle_bounds))
             cond = False
     return cond
 
