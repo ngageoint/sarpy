@@ -1,7 +1,8 @@
 # This details the important differences introduced in sarpy 1.2
 
-* .29 - Making the annotation object definitions more coherent and useful for
+* .30 - Making the annotation object definitions more coherent and useful for
             annotation tool usage
+* .29 - Account for noise changes in subaperture degrade processing
 * .28 - Bug fixes for sicd validation of version 1.1 date and pfa bounds
             consistency checking for the spotlight case
         Ensure that FTITLE and IID2 nitf header fields in a sicd file will be
