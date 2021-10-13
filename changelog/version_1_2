@@ -1,6 +1,8 @@
 # This details the important differences introduced in sarpy 1.2
 
-* .28 - Making the annotation object definitions more coherent
+* .28 - Making the annotation object definitions more coherent and useful for
+            annotation tool usage
+        Moving PFA polar angle bounds validation check failure from error to warning
 * .27 - Bug fix for left looking terrasarx sicd
 * .26 - Replacing the bad slice convention parsing from the __call__ method with
         the standard expected for Python
