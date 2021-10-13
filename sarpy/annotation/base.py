@@ -56,7 +56,8 @@ class GeometryProperties(Jsonable):
     def name(self, value):
         if value is None or isinstance(value, str):
             self._name = value
-        raise TypeError('Got unexpected type for name')
+        else:
+            raise TypeError('Got unexpected type for name')
 
     @property
     def color(self):
@@ -69,7 +70,8 @@ class GeometryProperties(Jsonable):
     def color(self, value):
         if value is None or isinstance(value, str):
             self._color = value
-        raise TypeError('Got unexpected type for color')
+        else:
+            raise TypeError('Got unexpected type for color')
 
     @classmethod
     def from_dict(cls, the_json):
@@ -158,7 +160,8 @@ class AnnotationProperties(Jsonable):
     def name(self, value):
         if value is None or isinstance(value, str):
             self._name = value
-        raise TypeError('Got unexpected type for name')
+        else:
+            raise TypeError('Got unexpected type for name')
 
     @property
     def description(self):
@@ -171,7 +174,8 @@ class AnnotationProperties(Jsonable):
     def description(self, value):
         if value is None or isinstance(value, str):
             self._description = value
-        raise TypeError('Got unexpected type for description')
+        else:
+            raise TypeError('Got unexpected type for description')
 
     @property
     def directory(self):
@@ -267,7 +271,8 @@ class AnnotationProperties(Jsonable):
     def parameters(self, value):
         if value is None or isinstance(value, Jsonable):
             self._parameters = value
-        raise TypeError('Got unexpected type for parameters')
+        else:
+            raise TypeError('Got unexpected type for parameters')
 
     @classmethod
     def from_dict(cls, the_json):
@@ -320,6 +325,19 @@ class AnnotationProperties(Jsonable):
             parent_dict['parameters'] = self.parameters.to_dict()
         return parent_dict
 
+    def replicate(self):
+        if self.geometry_properties is None:
+            geom_properties = None
+        else:
+            geom_properties = [entry.replicate() for entry in self.geometry_properties]
+        if self.parameters is None:
+            params = None
+        else:
+            params = self.parameters.replicate()
+        the_type = self.__class__
+        return the_type(name=self.name, description=self.description, directory=self.directory,
+                        geometry_properties=geom_properties, parameters=params)
+
 
 class AnnotationFeature(Feature):
     """
@@ -343,7 +361,7 @@ class AnnotationFeature(Feature):
     @properties.setter
     def properties(self, properties):
         if properties is None:
-            self._properties = None
+            self._properties = AnnotationProperties()
         elif isinstance(properties, AnnotationProperties):
             self._properties = properties
         elif isinstance(properties, dict):
@@ -381,7 +399,11 @@ class AnnotationFeature(Feature):
     def geometry(self, geometry):
         if isinstance(geometry, dict):
             geometry = Geometry.from_dict(geometry)
-
+        if geometry is None:
+            self._geometry = None
+            return
+        if not isinstance(geometry, Geometry):
+            raise TypeError('geomerty must be an instance of Geometry, got `{}`'.format(type(geometry)))
         if geometry.is_collection:
             geometry = basic_assemble_from_collection(geometry)
         self._geometry = self._validate_geometry_element(geometry)
@@ -454,8 +476,7 @@ class AnnotationFeature(Feature):
         if not isinstance(geometry, Geometry):
             raise TypeError('geometry must be an instance of Geometry base class')
 
-        if self._allowed_geometries is not None and \
-                geometry not in self._allowed_geometries:
+        if self._allowed_geometries is not None and geometry not in self._allowed_geometries:
             raise TypeError('geometry is not of one of the allowed types')
         return geometry
 

@@ -977,7 +977,7 @@ class LabelFeature(Feature):
     @properties.setter
     def properties(self, properties):
         if properties is None:
-            self._properties = None
+            self._properties = LabelProperties()
         elif isinstance(properties, LabelProperties):
             self._properties = properties
         elif isinstance(properties, dict):

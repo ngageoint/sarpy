@@ -5,7 +5,7 @@ This module provides basic geometry elements generally geared towards (geo)json 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
-
+import copy
 from collections import OrderedDict
 from uuid import uuid4
 from typing import Union, List, Tuple, Dict, Callable, Any
@@ -265,6 +265,21 @@ class Jsonable(object):
         the_type = self.__class__
         return the_type.from_dict(self.to_dict())
 
+    def replicate(self):
+        """
+        Make a replica of the item, where uid has not been copied.
+
+        Returns
+        -------
+
+        """
+
+        out_dict = self.to_dict().copy()
+        if 'uid' in out_dict:
+            del out_dict['uid']
+        the_type = self.__class__
+        return the_type.from_dict(out_dict)
+
 
 #######
 # Geojson object definitions
@@ -404,6 +419,18 @@ class Feature(Jsonable):
         placemark = doc.add_container(par=parent, typ='Placemark', **params)
         if self.geometry is not None:
             self.geometry.add_to_kml(doc, placemark, coord_transform)
+
+    def replicate(self):
+        geometry = self.geometry.replicate()
+        old_properties = self.properties
+        if old_properties is None:
+            new_properties = None
+        elif isinstance(old_properties, Jsonable):
+            new_properties = old_properties.replicate()
+        else:
+            new_properties = copy.deepcopy(old_properties)
+        the_type = self.__class__
+        return the_type(geometry=geometry, properties=new_properties)
 
 
 class FeatureCollection(Jsonable):
@@ -566,6 +593,11 @@ class FeatureCollection(Jsonable):
             if self.features is not None:
                 for feat in self.features:
                     feat.add_to_kml(doc, coord_transform)
+
+    def replicate(self):
+        features = [feat.replicate() for feat in self.features]
+        the_type = self.__class__
+        return the_type(features=features)
 
 
 class Geometry(Jsonable):
