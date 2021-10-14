@@ -48,8 +48,8 @@ urn_mapping = {
     'urn:SICD:1.1.0': {
         'version': '1.1',
         'release': '1.1.0',
-        'date': '2014-07-08T00:00:00Z',
-        'schema': os.path.join(_the_directory, 'SICD_schema_V1_1_0_2014_07_08.xsd')},
+        'date': '2014-09-30T00:00:00Z',
+        'schema': os.path.join(_the_directory, 'SICD_schema_V1_1_0_2014_09_30.xsd')},
     'urn:SICD:1.2.0': {
         'version': '1.2',
         'release': '1.2.0',

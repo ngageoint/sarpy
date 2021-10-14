@@ -715,6 +715,8 @@ class SICDWriter(NITFWriter):
             ftitle = 'SICD: {}'.format(self._sicd_meta.CollectionInfo.CoreName)
         if ftitle is None:
             ftitle = 'SICD: Unknown'
+        if self._check_older_version and not ftitle.startswith('SICD:'):
+            ftitle = 'SICD:' + ftitle
         return ftitle
 
     def _get_fdt(self):
@@ -736,6 +738,8 @@ class SICDWriter(NITFWriter):
 
     def _get_iid2(self):
         iid2 = self._sicd_meta.NITF.get('IID2', self._get_ftitle())
+        if self._check_older_version and not iid2.startswith('SICD:'):
+            iid2 = 'SICD:' + iid2
         return iid2
 
     def _image_parameters(self):
