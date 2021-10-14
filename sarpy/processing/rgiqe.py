@@ -236,8 +236,8 @@ def snr_to_rniirs(bandwidth_area, signal, noise):
 
     Returns
     -------
-    (float, float)
-        The information_density and estimated RNIIRS
+    information_density : float
+    rniirs : float
     """
 
     information_density = get_information_density(bandwidth_area, signal, noise)
@@ -245,10 +245,31 @@ def snr_to_rniirs(bandwidth_area, signal, noise):
     return information_density, rniirs
 
 
+def rgiqe(sicd):
+    """
+    Calculate the information_density and (default) estimated RNIIRS for the
+    given sicd.
+
+    Parameters
+    ----------
+    sicd : sarpy.io.complex.sicd_elements.SICD.SICDType
+
+    Returns
+    -------
+    information_density : float
+    rniirs : float
+    """
+
+    bandwidth_area = get_bandwidth_area(sicd)
+    signal = get_default_signal_estimate(sicd)
+    noise = get_sigma0_noise(sicd)
+    return snr_to_rniirs(bandwidth_area, signal, noise)
+
+
 def populate_rniirs_for_sicd(sicd, signal=None, noise=None, override=False):
     """
     This populates the value(s) for RNIIRS and information density in the SICD
-    structure, according to the RGIQE.
+    structure, according to the RGIQE. **This modifies the sicd structure in place.**
 
     Parameters
     ----------
