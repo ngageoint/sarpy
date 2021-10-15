@@ -755,7 +755,7 @@ class RadarCollectionType(Serializable):
         'Waveform': {'array': True, 'child_tag': 'WFParameters'},
         'TxSequence': {'array': True, 'child_tag': 'TxStep'},
         'RcvChannels': {'array': True, 'child_tag': 'ChanParameters'},
-        'Parameters': {'array': False, 'child_tag': 'Parameters'}}
+        'Parameters': {'array': False, 'child_tag': 'Parameter'}}
     # descriptors
     TxFrequency = SerializableDescriptor(
         'TxFrequency', TxFrequencyType, _required, strict=DEFAULT_STRICT,
@@ -840,9 +840,16 @@ class RadarCollectionType(Serializable):
         self._derive_wf_params()
 
     def _derive_tx_polarization(self):
+        def check_sequence():
+            unique_entries = set(entry.TxPolarization for entry in self.TxSequence)
+            if len(unique_entries) == 1:
+                self.TxPolarization = self.TxSequence[0].TxPolarization
+            else:
+                self.TxPolarization = 'SEQUENCE'
+
         # TxPolarization was optional prior to SICD 1.0. It may need to be derived.
         if self.TxSequence is not None:
-            self.TxPolarization = 'SEQUENCE'
+            check_sequence()
             return
         if self.TxPolarization is not None:
             return  # nothing to be done
@@ -859,12 +866,11 @@ class RadarCollectionType(Serializable):
             elif len(self.RcvChannels) < 2:
                 return  # no need for step definition
 
-            tx_pols = list(set(chan_param.get_transmit_polarization() for chan_param in self.RcvChannels))
+            tx_pols = list(chan_param.get_transmit_polarization() for chan_param in self.RcvChannels)
 
             if len(tx_pols) > 1:
-                steps = [TxStepType(index=i+1, TxPolarization=tx_pol) for i, tx_pol in enumerate(tx_pols)]
-                self.TxSequence = steps
-                self.TxPolarization = 'SEQUENCE'
+                self.TxSequence = [TxStepType(index=i+1, TxPolarization=tx_pol) for i, tx_pol in enumerate(tx_pols)]
+                check_sequence()
             else:
                 self.TxPolarization = tx_pols[0]
         else:
