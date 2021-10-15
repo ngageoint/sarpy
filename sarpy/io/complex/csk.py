@@ -433,9 +433,9 @@ class CSKDetails(object):
             dop_poly_az = strip_poly(h5_dict['Centroid vs Azimuth Time Polynomial'])
             dop_poly_rg = strip_poly(h5_dict['Centroid vs Range Time Polynomial'])
         elif self._mission_id == 'CSG':
-            az_ref_time = band_dict[band_name]['Azimuth Polynomial Reference Time']
+            az_ref_time = band_dict[band_name]['Azimuth Polynomial Reference Time - ZD']
             rg_ref_time = band_dict[band_name]['Range Polynomial Reference Time']
-            dop_poly_az = strip_poly(band_dict[band_name]['Doppler Centroid vs Azimuth Time Polynomial'])
+            dop_poly_az = strip_poly(band_dict[band_name]['Doppler Centroid vs Azimuth Time Polynomial - ZD'])
             dop_poly_rg = strip_poly(band_dict[band_name]['Doppler Centroid vs Range Time Polynomial'])
         else:
             raise ValueError('Unhandled mission id {}'.format(self._mission_id))
