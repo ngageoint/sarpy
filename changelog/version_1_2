@@ -1,6 +1,7 @@
 # This details the important differences introduced in sarpy 1.2
 
-* .30 - Account for noise changes in subaperture degrade processing
+* .30 - Account for noise and Radiometric SF poly changes due to subaperture
+        and weighting changes
 * .29 - Fixing bug in SICD.RadarCollection for parsing extra parameters
         Using the correct zero doppler time for CSG format data
 * .28 - Bug fixes for sicd validation of version 1.1 date and pfa bounds
