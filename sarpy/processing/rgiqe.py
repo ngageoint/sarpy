@@ -712,7 +712,7 @@ def quality_degrade(reader, index=0, output_file=None, desired_resolution=None,
 
     .. math::
 
-        resultant\_nesz = reweighted\_nesz*frac{new\_row\_bw}{row\_bw}*\frac{new\_col\_bw}{col\_bw}
+        resultant\_nesz = reweighted\_nesz*\frac{new\_row\_bw}{row\_bw}*\frac{new\_col\_bw}{col\_bw}
 
     This is the default resultant noise, and the lower bound for `desired_nesz`.
 
