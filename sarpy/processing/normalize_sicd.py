@@ -680,25 +680,28 @@ def aperture_dimension_params(
     return dimension_limits, cur_aperture_limits, cur_weight_function, new_aperture_limits, new_weight_function
 
 
-def _noise_multiplier(cur_weighting, new_weighting):
+def _noise_multiplier(cur_ap_limits, cur_weighting, new_ap_limits, new_weighting):
     """
-    Gets noise multiplier due to sub-aperture degradation and re-weighting along
-    one dimension.
+    Gets noise multiplier and nominal multiplier due to sub-aperture degradation
+    and re-weighting along one dimension.
 
     Parameters
     ----------
+    cur_ap_limits : tuple
     cur_weighting : numpy.ndarray
+    new_ap_limits : tuple
     new_weighting : numpy.ndarray
 
     Returns
     -------
-    float
+    noise_multiplier : float
     """
 
-    unweight_noise = numpy.sum(1./cur_weighting**2)/float(cur_weighting.size)
-    reweight_noise = numpy.sum(new_weighting**2)/float(new_weighting.size)
-    out = float(new_weighting.size)*unweight_noise*reweight_noise/float(cur_weighting.size)
-    return out
+    start_lim = new_ap_limits[0]-cur_ap_limits[0]
+    end_lim = start_lim + new_ap_limits[1] - new_ap_limits[0]
+    weight_change = new_weighting/cur_weighting[start_lim:end_lim]
+    second_moment = numpy.sum(weight_change**2)/float(new_weighting.size)
+    return second_moment*float(new_weighting.size)/float(cur_weighting.size)
 
 
 def get_resultant_noise(
@@ -731,13 +734,14 @@ def get_resultant_noise(
 
     noise_db = sicd.Radiometric.NoiseLevel.NoisePoly[0, 0]
 
-    _, _, cur_row_weighting, _, new_row_weighting = aperture_dimension_params(
+    # dimension_limits, cur_aperture_limits, cur_weight_function, new_aperture_limits, new_weight_function
+    _, cur_row_ap_limits, cur_row_weighting, new_row_ap_limits, new_row_weighting = aperture_dimension_params(
         sicd, 0, row_limits, row_aperture, row_weight_funct)
-    row_multiplier = _noise_multiplier(cur_row_weighting, new_row_weighting)
+    row_multiplier = _noise_multiplier(cur_row_ap_limits, cur_row_weighting, new_row_ap_limits, new_row_weighting)
 
-    _, _, cur_col_weighting, _, new_col_weighting = aperture_dimension_params(
+    _, cur_col_ap_limits, cur_col_weighting, new_col_ap_limits, new_col_weighting = aperture_dimension_params(
         sicd, 1, column_limits, column_aperture, column_weight_funct)
-    column_multiplier = _noise_multiplier(cur_col_weighting, new_col_weighting)
+    column_multiplier = _noise_multiplier(cur_col_ap_limits, cur_col_weighting, new_col_ap_limits, new_col_weighting)
 
     return noise_db + 10*numpy.log10(row_multiplier) + 10*numpy.log10(column_multiplier)
 
@@ -923,7 +927,7 @@ def sicd_degrade_reweight(
 
         if aperture_in is None and weighting_in is None:
             # nothing to be done in this dimension
-            return adjustment_multiplier
+            return noise_adjustment_multiplier
 
         new_weight = None if weighting_in is None else weighting_in['WgtFunct']
         dimension_limits, cur_aperture_limits, cur_weight_function, \
@@ -933,7 +937,8 @@ def sicd_degrade_reweight(
         index_count = dimension_limits[1] - dimension_limits[0]
         cur_center_index = 0.5*(cur_aperture_limits[0] + cur_aperture_limits[1])
         new_center_index = 0.5*(new_aperture_limits[0] + new_aperture_limits[1])
-        noise_multiplier = _noise_multiplier(cur_weight_function, new_weight_function)
+        noise_multiplier = _noise_multiplier(
+            cur_aperture_limits, cur_weight_function, new_aperture_limits, new_weight_function)
 
         # perform deskew, if necessary
         if not not_skewed:
@@ -1033,10 +1038,7 @@ def sicd_degrade_reweight(
             delta_kcoa[0, 0] += additional_shift
             dir_params.DeltaKCOAPoly = delta_kcoa
 
-        if noise_multiplier is None:
-            return adjustment_multiplier
-        else:
-            return adjustment_multiplier*noise_multiplier
+        return noise_adjustment_multiplier*noise_multiplier
 
     if isinstance(reader, str):
         reader = open_complex(reader)
@@ -1094,27 +1096,26 @@ def sicd_degrade_reweight(
                                                   start_ind+row_limits[0]:stop_ind+row_limits[0],
                                                   column_limits[0]:column_limits[1], index]
 
-    adjustment_multiplier = 1.0
+    noise_adjustment_multiplier, nominal_adjustment_multiplier = 1.0, 1.0
 
     # NB: I'm adding Gaussian white noise first - this may be modified later
     do_add_noise()
 
     # do, as necessary, along the row
-    adjustment_multiplier = do_dimension(0)
+    noise_adjustment_multiplier = do_dimension(0)
     # do, as necessary, along the row
-    adjustment_multiplier = do_dimension(1)
+    noise_adjustment_multiplier = do_dimension(1)
 
     # re-derive the various ImpResp parameters
     sicd.Grid.derive_direction_params(sicd.ImageData, populate=True)
 
     # adjust the noise polynomial
     if noise_level is not None:
-        noise_level.NoisePoly.Coefs[0, 0] += 10*numpy.log10(adjustment_multiplier)
+        noise_level.NoisePoly.Coefs[0, 0] += 10*numpy.log10(nominal_adjustment_multiplier)
 
     if sicd.Radiometric is not None:
-        sicd.Radiometric.RCSSFPoly.Coefs *= adjustment_multiplier
 
-        sf_adjust = adjustment_multiplier*old_sicd.Grid.get_slant_plane_area()/sicd.Grid.get_slant_plane_area()
+        sf_adjust = old_sicd.Grid.get_slant_plane_area()/sicd.Grid.get_slant_plane_area()
         sicd.Radiometric.BetaZeroSFPoly.Coefs *= sf_adjust
         sicd.Radiometric.GammaZeroSFPoly.Coefs *= sf_adjust
         sicd.Radiometric.SigmaZeroSFPoly.Coefs *= sf_adjust
