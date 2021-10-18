@@ -6,7 +6,9 @@ Command-line Utilities (sarpy.utils)
     :caption: Contents:
 
     convert_to_sicd
+    chip_sicd
     create_kmz
     create_product
     nitf_utils
     cphd_utils
+    nominal_sicd_noise

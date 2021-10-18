@@ -1,5 +1,6 @@
 # This details the important differences introduced in sarpy 1.2
 
+* .31 - Adding a command-line utility for adding a nominal noise polynomial
 * .30 - Account for noise and Radiometric SF poly changes due to subaperture
         and weighting changes
 * .29 - Fixing bug in SICD.RadarCollection for parsing extra parameters
