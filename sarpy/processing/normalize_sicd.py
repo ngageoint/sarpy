@@ -8,6 +8,7 @@ __author__ = "Thomas McCullough"
 import logging
 from tempfile import mkstemp
 import os
+from typing import Tuple
 
 import numpy
 from numpy.polynomial import polynomial
@@ -561,6 +562,190 @@ class DeskewCalculator(FullResolutionFetcher):
         return full_data[::abs(row_range[2]), ::abs(col_range[2])]
 
 
+def aperture_dimension_limits(sicd, dimension, dimension_limits=None, aperture_limits=None):
+    """
+    This is a helper method to determine the "correct" effective limits for aperture
+    processing along the given dimension, considering the ImpRespBW values.
+
+    Parameters
+    ----------
+    sicd : SICDType
+    dimension : int
+        One of `{0, 1}`, for the processing dimension
+    dimension_limits : None|Tuple[int|float, int|float]
+        The base limits along the given dimension, will default to `(0, rows)` for `dimension=0`
+        or `(0, columns)` for `dimension=1`, if not provided.
+    aperture_limits : None|Tuple[int|float, int|float]
+        The desired aperture limits, relative to `dimension_limits`.
+
+    Returns
+    -------
+    dimension_limits : Tuple[int, int]
+        The explicitly populated effective limits along the given dimension.
+    aperture_limits : Tuple[int, int]
+        The valid aperture limits, relative to `dimension_limits`, after considerations
+        of the impulse response bandwidth along the dimension.
+    """
+
+    def validate_tuple(tup, limit):
+        # type: (None|tuple, int) -> Tuple[int, int]
+        if tup is None:
+            return 0, limit
+
+        out = int(numpy.floor(tup[0])), int(numpy.ceil(tup[1]))
+        if not (0 <= out[0] < out[1] <= limit):
+            raise ValueError('Got invalid tuple `{}` for limit `{}`'.format(tup, limit))
+        return out
+
+    def extrema_tuple(tup1, tup2):
+        # type: (tuple, tuple) -> Tuple[int, int]
+        return int(numpy.floor(max(tup1[0], tup2[0]))), int(numpy.ceil(min(tup1[1], tup2[1])))
+
+    dimension = int(dimension)
+    if dimension not in [0, 1]:
+        raise ValueError('Got invalid dimension value')
+
+    if dimension == 0:
+        the_limit = sicd.ImageData.NumRows
+        the_oversample = max(1., 1./(sicd.Grid.Row.SS * sicd.Grid.Row.ImpRespBW))
+    else:
+        the_limit = sicd.ImageData.NumCols
+        the_oversample = max(1., 1./(sicd.Grid.Col.SS*sicd.Grid.Col.ImpRespBW))
+
+    dimension_limits = validate_tuple(dimension_limits, the_limit)
+    dimension_count = dimension_limits[1] - dimension_limits[0]
+    aperture_limits = validate_tuple(aperture_limits, dimension_count)
+
+    ap_size = dimension_count/the_oversample
+    ap_limits = (0.5 * (dimension_count - ap_size), 0.5 * (dimension_count + ap_size))
+    ap_limits = extrema_tuple(aperture_limits, ap_limits)
+    return dimension_limits, ap_limits
+
+
+def aperture_dimension_params(
+        sicd, dimension, dimension_limits=None, aperture_limits=None, new_weight_function=None):
+    """
+    Gets the aperture processing parameters along the given dimension.
+
+    Parameters
+    ----------
+    sicd : SICDType
+    dimension : int
+        One of `{0, 1}`, for the processing dimension
+    dimension_limits : None|tuple[int|float, int|float]
+        The base limits along the given dimension, will default to `(0, rows)`
+        for `dimension=0` or `(0, columns)` for `dimension=1`, if not provided.
+    aperture_limits : tuple[int, int]
+        The valid aperture limits, relative to `dimension_limits`, after
+        considerations of the impulse response bandwidth along the dimension.
+    new_weight_function : None|numpy.ndarray
+        The new weight function. This will default to the current weight function
+        if not provided.
+
+    Returns
+    -------
+    dimension_limits : tuple[int, int]
+        The explicitly populated effective limits along the given dimension.
+    cur_aperture_limits : tuple[int, int]
+        The current valid aperture limits, relative to `dimension_limits`, after
+        considerations of the impulse response bandwidth along the dimension.
+    cur_aperture_weighting : numpy.ndarray
+    new_aperture_limits : tuple[int, int]
+        The new valid aperture limits, relative to `dimension_limits`, after
+        considerations of the impulse response bandwidth along the dimension.
+    new_aperture_weighting : numpy.ndarray
+    """
+
+    dimension = int(dimension)
+    if dimension not in [0, 1]:
+        raise ValueError('Got invalid dimension value')
+
+    dimension_limits, cur_aperture_limits = aperture_dimension_limits(sicd, dimension, dimension_limits, None)
+    _, new_aperture_limits = aperture_dimension_limits(sicd, dimension, dimension_limits, aperture_limits)
+
+    cur_ap_count = cur_aperture_limits[1] - cur_aperture_limits[0]
+    new_ap_count = new_aperture_limits[1] - new_aperture_limits[0]
+    if dimension == 0:
+        cur_weight_function = scipy.signal.resample(sicd.Grid.Row.WgtFunct, cur_ap_count)
+        if new_weight_function is None:
+            new_weight_function = scipy.signal.resample(sicd.Grid.Row.WgtFunct, new_ap_count)
+        else:
+            new_weight_function = scipy.signal.resample(new_weight_function, new_ap_count)
+    else:
+        cur_weight_function = scipy.signal.resample(sicd.Grid.Col.WgtFunct, cur_ap_count)
+        if new_weight_function is None:
+            new_weight_function = scipy.signal.resample(sicd.Grid.Col.WgtFunct, new_ap_count)
+        else:
+            new_weight_function = scipy.signal.resample(new_weight_function, new_ap_count)
+    return dimension_limits, cur_aperture_limits, cur_weight_function, new_aperture_limits, new_weight_function
+
+
+def _noise_multiplier(cur_ap_limits, cur_weighting, new_ap_limits, new_weighting):
+    """
+    Gets noise multiplier and nominal multiplier due to sub-aperture degradation
+    and re-weighting along one dimension.
+
+    Parameters
+    ----------
+    cur_ap_limits : tuple
+    cur_weighting : numpy.ndarray
+    new_ap_limits : tuple
+    new_weighting : numpy.ndarray
+
+    Returns
+    -------
+    noise_multiplier : float
+    """
+
+    start_lim = new_ap_limits[0]-cur_ap_limits[0]
+    end_lim = start_lim + new_ap_limits[1] - new_ap_limits[0]
+    weight_change = new_weighting/cur_weighting[start_lim:end_lim]
+    second_moment = numpy.sum(weight_change**2)/float(new_weighting.size)
+    return second_moment*float(new_weighting.size)/float(cur_weighting.size)
+
+
+def get_resultant_noise(
+        sicd,
+        row_limits=None, row_aperture=None, row_weight_funct=None,
+        column_limits=None, column_aperture=None, column_weight_funct=None):
+    """
+    Gets the noise value of the processed sicd file. This depends explicitly on
+    the aperture and weighting schemes.
+
+    Parameters
+    ----------
+    sicd : SICDType
+    row_limits : None|tuple[int, int]
+    row_aperture : None|tuple[int, int]
+    row_weight_funct : None|numpy.ndarray
+    column_limits : None|tuple[int, int]
+    column_aperture : None|tuple[int, int]
+    column_weight_funct : None|numpy.ndarray
+
+    Returns
+    -------
+    None|float
+        The absolute noise in dB units at (0, 0) - the new constant term of the
+        noise polynomial.
+    """
+
+    if sicd.Radiometric is None or sicd.Radiometric.NoiseLevel is None or sicd.Radiometric.NoiseLevel.NoisePoly is None:
+        return None
+
+    noise_db = sicd.Radiometric.NoiseLevel.NoisePoly[0, 0]
+
+    # dimension_limits, cur_aperture_limits, cur_weight_function, new_aperture_limits, new_weight_function
+    _, cur_row_ap_limits, cur_row_weighting, new_row_ap_limits, new_row_weighting = aperture_dimension_params(
+        sicd, 0, row_limits, row_aperture, row_weight_funct)
+    row_multiplier = _noise_multiplier(cur_row_ap_limits, cur_row_weighting, new_row_ap_limits, new_row_weighting)
+
+    _, cur_col_ap_limits, cur_col_weighting, new_col_ap_limits, new_col_weighting = aperture_dimension_params(
+        sicd, 1, column_limits, column_aperture, column_weight_funct)
+    column_multiplier = _noise_multiplier(cur_col_ap_limits, cur_col_weighting, new_col_ap_limits, new_col_weighting)
+
+    return noise_db + 10*numpy.log10(row_multiplier) + 10*numpy.log10(column_multiplier)
+
+
 def sicd_degrade_reweight(
         reader, output_file=None, index=0,
         row_limits=None, column_limits=None,
@@ -568,8 +753,21 @@ def sicd_degrade_reweight(
         column_aperture=None, column_weighting=None,
         add_noise=None, pixel_threshold=1500*1500,
         check_existence=True, check_older_version=False, repopulate_rniirs=True):
-    """
-    Given input, create a SICD (file or reader) with modified weighting/subaperture parameters.
+    r"""
+    Given input, create a SICD (file or reader) with modified weighting/subaperture
+    parameters. Any additional noise will be added **before** performing any sub-aperture
+    degradation processing.
+
+    Recall that reducing the size of the impulse response bandwidth via sub-aperture
+    degradation in a single direction by by :math:`ratio`, actually decreases the
+    magnitude of the noise in pixel power by :math:`ratio`, or subtracts
+    :math:`10*\log_{10}(ratio)` from the noise given in dB.
+
+    .. warning::
+
+        To ensure correctness of metadata, if the Noise Polynomial is present,
+        then then the NoiseLevelType must be `'ABSOLUTE'`. Otherwise an exception
+        will be raised.
 
     Parameters
     ----------
@@ -587,21 +785,23 @@ def sicd_degrade_reweight(
     row_aperture : None|tuple
         `None` (no row subaperture), or integer valued `start_row, end_row` for the
         row subaperture definition. This is with respect to row values AFTER
-        considering `row_limits`.
+        considering `row_limits`. Note that this will reduce the noise, so the
+        noise polynomial (if it is populated) will be modified.
     row_weighting : None|dict
         `None` (no row weighting change), or the new row weighting parameters
-        `{'WindowName': <name>, 'Parameters: {}, 'WgtFunction': array}`.
+        `{'WindowName': <name>, 'Parameters: {}, 'WgtFunct': array}`.
     column_aperture : None|tuple
         `None` (no column subaperture), or integer valued `start_col, end_col` for the
         column sub-aperture definition. This is with respect to row values AFTER
-        considering `column_limits`.
+        considering `column_limits`. Note that this will reduce the noise, so the
+        noise polynomial (if it is populated) will be modified.
     column_weighting : None|dict
         `None` (no columng weighting change), or the new column weighting parameters
-        `{'WindowName': <name>, 'Parameters: {}, 'WgtFunction': array}`.
+        `{'WindowName': <name>, 'Parameters: {}, 'WgtFunct': array}`.
     add_noise : None|float
-        If provided, Gaussian white noise of pixel power `add_noise` will be added.
-        If the Noise Polynomial is populated, then the NoiseLevelType must be
-        `'ABSOLUTE'`, or an exception will be raised.
+        If provided, Gaussian white noise of pixel power `add_noise` will be
+        added, prior to any subbaperture processing. Note that performing subaperture
+        processing actually reduces the resulting noise, which will also be considered.
     pixel_threshold : None|int
         Approximate pixel area threshold for performing this directly in memory.
     check_existence : bool
@@ -662,17 +862,48 @@ def sicd_degrade_reweight(
             multiplier = sicd.Grid.Col.SS
         return (numpy.arange(start_index, end_index) + shift)*multiplier
 
+    def do_add_noise():
+        if add_noise is None:
+            return
+
+        # noinspection PyBroadException
+        try:
+            variance = float(add_noise)
+            if variance <= 0:
+                logger.error('add_noise was provided as `{}`, but must be a positive number'.format(add_noise))
+                return
+        except Exception:
+            logger.error('add_noise was provided as `{}`, but must be a positive number'.format(add_noise))
+            return
+
+        sigma = numpy.sqrt(0.5*variance)
+
+        if noise_level is not None:
+            noise_constant_db = noise_level.NoisePoly.Coefs[0, 0]
+            noise_constant_power = numpy.exp(numpy.log(10)*0.1*noise_constant_db)
+            noise_constant_power += variance
+            noise_constant_db = 10*numpy.log10(noise_constant_power)
+            noise_level.NoisePoly.Coefs[0, 0] = noise_constant_db
+
+        for (_start_ind, _stop_ind) in row_iterations:
+            d_shape = (_stop_ind - _start_ind, data_shape[1])
+            added_noise = numpy.empty(d_shape, dtype='complex64')
+            added_noise[:].real = randn(*d_shape).astype('float32')
+            added_noise[:].imag = randn(*d_shape).astype('float32')
+            added_noise *= sigma
+            working_data[_start_ind:_stop_ind, :] += added_noise
+
     def do_dimension(dimension):
         if dimension == 0:
             dir_params = sicd.Grid.Row
             aperture_in = row_aperture
             weighting_in = row_weighting
-            index_count = sicd.ImageData.NumRows
+            dimension_limits = row_limits
         else:
             dir_params = sicd.Grid.Col
             aperture_in = column_aperture
             weighting_in = column_weighting
-            index_count = sicd.ImageData.NumCols
+            dimension_limits = column_limits
 
         not_skewed = is_not_skewed(sicd, dimension)
         uniform_weight = is_uniform_weight(sicd, dimension)
@@ -696,13 +927,18 @@ def sicd_degrade_reweight(
 
         if aperture_in is None and weighting_in is None:
             # nothing to be done in this dimension
-            return
+            return noise_adjustment_multiplier
 
-        oversample = max(1., 1./(dir_params.SS*dir_params.ImpRespBW))
-
-        old_weight, start_index, end_index = determine_weight_array(
-            out_data_shape, dir_params.WgtFunct.copy(), oversample, dimension)
-        center_index = 0.5 * (start_index + end_index)
+        new_weight = None if weighting_in is None else weighting_in['WgtFunct']
+        dimension_limits, cur_aperture_limits, cur_weight_function, \
+            new_aperture_limits, new_weight_function = aperture_dimension_params(
+                old_sicd, dimension, dimension_limits=dimension_limits,
+                aperture_limits=aperture_in, new_weight_function=new_weight)
+        index_count = dimension_limits[1] - dimension_limits[0]
+        cur_center_index = 0.5*(cur_aperture_limits[0] + cur_aperture_limits[1])
+        new_center_index = 0.5*(new_aperture_limits[0] + new_aperture_limits[1])
+        noise_multiplier = _noise_multiplier(
+            cur_aperture_limits, cur_weight_function, new_aperture_limits, new_weight_function)
 
         # perform deskew, if necessary
         if not not_skewed:
@@ -734,54 +970,40 @@ def sicd_degrade_reweight(
         # perform deweight, if necessary
         if not uniform_weight:
             if dimension == 0:
-                working_data[start_index:end_index, :] /= old_weight[:, numpy.newaxis]
+                working_data[cur_aperture_limits[0]:cur_aperture_limits[1], :] /= cur_weight_function[:, numpy.newaxis]
             else:
-                working_data[:, start_index:end_index] /= old_weight
+                working_data[:, cur_aperture_limits[0]:cur_aperture_limits[1]] /= cur_weight_function
 
         # do sub-aperture, if necessary
         if aperture_in is not None:
-            new_start_index = max(int(aperture_in[0]), start_index)
-            new_end_index = min(int(aperture_in[1]), end_index)
-            new_center_index = 0.5*(new_start_index + new_end_index)
             if dimension == 0:
-                working_data[:new_start_index, :] = 0
-                working_data[new_end_index:, :] = 0
+                working_data[:new_aperture_limits[0], :] = 0
+                working_data[new_aperture_limits[1]:, :] = 0
             else:
-                working_data[:, :new_start_index] = 0
-                working_data[:, new_end_index:] = 0
+                working_data[:, :new_aperture_limits[0]] = 0
+                working_data[:, new_aperture_limits[1]:] = 0
 
-            new_oversample = oversample*float(end_index - start_index)/float(new_end_index - new_start_index)
-            the_ratio = new_oversample/oversample
+            the_ratio = float(new_aperture_limits[1] - new_aperture_limits[0]) / \
+                float(cur_aperture_limits[1] - cur_aperture_limits[0])
             # modify the ImpRespBW value (derived ImpRespWid handled at the end)
-            dir_params.ImpRespBW /= the_ratio
-        else:
-            new_center_index = center_index
-            new_oversample = oversample
+            dir_params.ImpRespBW *= the_ratio
 
         # perform reweight, if necessary
         if weighting_in is not None:
-            new_weight, start_index, end_index = determine_weight_array(
-                out_data_shape, weighting_in['WgtFunction'].copy(), new_oversample, dimension)
-            start_index += int(new_center_index - center_index)
-            end_index += int(new_center_index - center_index)
-
             if dimension == 0:
-                working_data[start_index:end_index, :] *= new_weight[:, numpy.newaxis]
+                working_data[new_aperture_limits[0]:new_aperture_limits[1], :] *= new_weight_function[:, numpy.newaxis]
             else:
-                working_data[:, start_index:end_index] *= new_weight
+                working_data[:, new_aperture_limits[0]:new_aperture_limits[1]] *= new_weight_function
             # modify the weight definition
             dir_params.WgtType = WgtTypeType(
                 WindowName=weighting_in['WindowName'],
                 Parameters=weighting_in.get('Parameters', None))
-            dir_params.WgtFunct = weighting_in['WgtFunction'].copy()
+            dir_params.WgtFunct = weighting_in['WgtFunct'].copy()
         elif not uniform_weight:
-            # weight remained the same, and it's not uniform
-            new_weight, start_index, end_index = determine_weight_array(
-                out_data_shape, dir_params.WgtFunct.copy(), new_oversample, dimension)
             if dimension == 0:
-                working_data[start_index:end_index, :] *= new_weight[:, numpy.newaxis]
+                working_data[new_aperture_limits[0]:new_aperture_limits[1], :] *= new_weight_function[:, numpy.newaxis]
             else:
-                working_data[:, start_index:end_index] *= new_weight
+                working_data[:, new_aperture_limits[0]:new_aperture_limits[1]] *= new_weight_function
 
         # perform inverse fourier transform along the given dimension
         if dimension == 0:
@@ -811,49 +1033,12 @@ def sicd_degrade_reweight(
                         row_array, col_array, dir_params.Sgn, 1, forward=True)
 
         # modify the delta_kcoa_poly - introduce the shift necessary for additional offset
-        if center_index != new_center_index:
-            additional_shift = dir_params.Sgn*(center_index - new_center_index)/float(index_count*dir_params.SS)
+        if new_center_index != cur_center_index:
+            additional_shift = dir_params.Sgn*(cur_center_index - new_center_index)/float(index_count*dir_params.SS)
             delta_kcoa[0, 0] += additional_shift
             dir_params.DeltaKCOAPoly = delta_kcoa
 
-        # re-derive the various ImpResp parameters
-        sicd.Grid.derive_direction_params(sicd.ImageData, populate=True)
-
-    def do_add_noise():
-        if add_noise is None:
-            return
-
-        # noinspection PyBroadException
-        try:
-            variance = float(add_noise)
-            if variance <= 0:
-                logger.error('add_noise was provided as `{}`, but must be a positive number'.format(add_noise))
-                return
-        except Exception:
-            logger.error('add_noise was provided as `{}`, but must be a positive number'.format(add_noise))
-            return
-
-        sigma = numpy.sqrt(0.5*variance)
-        noise_level = None if sicd.Radiometric is None else sicd.Radiometric.NoiseLevel
-
-        if noise_level is not None:
-            if noise_level.NoiseLevelType != 'ABSOLUTE':
-                raise ValueError(
-                    'add_noise is provided, but the radiometric noise is populated,\n\t'
-                    'with `NoiseLevelType={}`'.format(noise_level.NoiseLevelType))
-            noise_constant_db = noise_level.NoisePoly.Coefs[0, 0]
-            noise_constant_power = numpy.power(10, noise_constant_db/10.)
-            noise_constant_power += variance
-            noise_constant_db = 10*numpy.log10(noise_constant_power)
-            noise_level.NoisePoly.Coefs[0, 0] = noise_constant_db
-
-        for (_start_ind, _stop_ind) in row_iterations:
-            d_shape = (_stop_ind - _start_ind, data_shape[1])
-            added_noise = numpy.empty(d_shape, dtype='complex64')
-            added_noise[:].real = randn(*d_shape).astype('float32')
-            added_noise[:].imag = randn(*d_shape).astype('float32')
-            added_noise *= sigma
-            working_data[_start_ind:_stop_ind, :] += added_noise
+        return noise_adjustment_multiplier*noise_multiplier
 
     if isinstance(reader, str):
         reader = open_complex(reader)
@@ -875,6 +1060,16 @@ def sicd_degrade_reweight(
 
     # prepare our working sicd structure
     sicd = old_sicd.copy()
+
+    noise_level = None if sicd.Radiometric is None else sicd.Radiometric.NoiseLevel
+    # NB: as an alternative, we could drop the noise polynomial?
+    if add_noise is not None and \
+            noise_level is not None and \
+            noise_level.NoiseLevelType != 'ABSOLUTE':
+        raise ValueError(
+            'add_noise is provided, but the radiometric noise is populated,\n\t'
+            'with `NoiseLevelType={}`'.format(noise_level.NoiseLevelType))
+
     sicd.ImageData.FirstRow += row_limits[0]
     sicd.ImageData.NumRows = row_limits[1] - row_limits[0]
     sicd.ImageData.FirstCol += column_limits[0]
@@ -897,19 +1092,38 @@ def sicd_degrade_reweight(
         _, temp_file = mkstemp(suffix='.sarpy.cache', text=False)
         working_data = numpy.memmap(temp_file, dtype='complex64', mode='r+', offset=0, shape=out_data_shape)
         for (start_ind, stop_ind) in row_iterations:
-            working_data[start_ind:stop_ind, :] = reader[start_ind+row_limits[0]:stop_ind+row_limits[0], column_limits[0]:column_limits[1], index]
+            working_data[start_ind:stop_ind, :] = reader[
+                                                  start_ind+row_limits[0]:stop_ind+row_limits[0],
+                                                  column_limits[0]:column_limits[1], index]
+
+    noise_adjustment_multiplier, nominal_adjustment_multiplier = 1.0, 1.0
 
     # NB: I'm adding Gaussian white noise first - this may be modified later
     do_add_noise()
 
     # do, as necessary, along the row
-    do_dimension(0)
+    noise_adjustment_multiplier = do_dimension(0)
     # do, as necessary, along the row
-    do_dimension(1)
+    noise_adjustment_multiplier = do_dimension(1)
+
+    # re-derive the various ImpResp parameters
+    sicd.Grid.derive_direction_params(sicd.ImageData, populate=True)
+
+    # adjust the noise polynomial
+    if noise_level is not None:
+        noise_level.NoisePoly.Coefs[0, 0] += 10*numpy.log10(nominal_adjustment_multiplier)
+
+    if sicd.Radiometric is not None:
+
+        sf_adjust = old_sicd.Grid.get_slant_plane_area()/sicd.Grid.get_slant_plane_area()
+        sicd.Radiometric.BetaZeroSFPoly.Coefs *= sf_adjust
+        sicd.Radiometric.GammaZeroSFPoly.Coefs *= sf_adjust
+        sicd.Radiometric.SigmaZeroSFPoly.Coefs *= sf_adjust
 
     if sicd.RMA is not None and sicd.RMA.INCA is not None and sicd.RMA.INCA.TimeCAPoly is not None:
         # redefine the INCA doppler centroid poly to be in keeping with any redefinition of our Col.DeltaKCOAPoly?
-        sicd.RMA.INCA.DopCentroidPoly = sicd.Grid.Col.DeltaKCOAPoly.get_array(dtype='float64')/sicd.RMA.INCA.TimeCAPoly[1]
+        sicd.RMA.INCA.DopCentroidPoly = sicd.Grid.Col.DeltaKCOAPoly.get_array(dtype='float64') / \
+            sicd.RMA.INCA.TimeCAPoly[1]
 
     if repopulate_rniirs:
         sicd.populate_rniirs(override=True)

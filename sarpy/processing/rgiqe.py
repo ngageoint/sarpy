@@ -14,31 +14,28 @@ from scipy.optimize import minimize_scalar
 
 from sarpy.io.complex.base import SICDTypeReader
 from sarpy.processing.windows import get_hamming_broadening_factor
-from sarpy.processing.normalize_sicd import sicd_degrade_reweight, is_uniform_weight
+from sarpy.processing.normalize_sicd import sicd_degrade_reweight, is_uniform_weight, \
+    get_resultant_noise
 from sarpy.io.complex.converter import open_complex
 
 logger = logging.getLogger(__name__)
 
 RNIIRS_FIT_PARAMETERS = numpy.array([3.7555, .3960], dtype='float64')
 """
-The RNIIRS calculation parameters determined by empirical fit 
+The RNIIRS calculation parameters determined by empirical data fit 
 """
 
 
 #####################
 # methods for extracting necessary information from the sicd structure
 
-def get_sigma0_noise(sicd):
+def _verify_sicd_with_noise(sicd):
     """
-    Calculate the absolute noise estimate, in sigma0 power units.
+    Verify that the sicd is appropriately populated with noise.
 
     Parameters
     ----------
     sicd : sarpy.io.complex.sicd_elements.SICD.SICDType
-
-    Returns
-    -------
-    float
     """
 
     if sicd.Radiometric is None:
@@ -57,8 +54,24 @@ def get_sigma0_noise(sicd):
         raise ValueError(
             'Radiometric.NoiseLevel.NoiseLevelType is not `ABSOLUTE``,\n\t'
             'so no noise estimate can be derived.')
+
+
+def get_sigma0_noise(sicd):
+    """
+    Calculate the absolute noise estimate, in sigma0 power units.
+
+    Parameters
+    ----------
+    sicd : sarpy.io.complex.sicd_elements.SICD.SICDType
+
+    Returns
+    -------
+    float
+    """
+
+    _verify_sicd_with_noise(sicd)
     noise = sicd.Radiometric.NoiseLevel.NoisePoly[0, 0]  # this is in db
-    noise = 10**(0.1*noise)  # this is absolute
+    noise = numpy.exp(numpy.log(10)*0.1*noise)  # this is absolute
 
     # convert to SigmaZero value
     noise *= sicd.Radiometric.SigmaZeroSFPoly[0, 0]
@@ -110,6 +123,47 @@ def get_bandwidth_area(sicd):
         sicd.Grid.Row.ImpRespBW *
         sicd.Grid.Col.ImpRespBW *
         numpy.cos(numpy.deg2rad(sicd.SCPCOA.SlopeAng)))
+
+
+def _get_sigma0_deweighted(sicd):
+    """
+    Calculate the Sigma Zero SF for a deweighted version of the sicd.
+
+    Parameters
+    ----------
+    sicd : sarpy.io.complex.sicd_elements.SICD.SICDType
+
+    Returns
+    -------
+    float
+    """
+
+    sigma0_sf = sicd.Radiometric.RCSSFPoly[0, 0] * \
+                (sicd.Grid.Row.ImpRespBW * sicd.Grid.Col.ImpRespBW) / \
+                numpy.cos(numpy.deg2rad(sicd.SCPCOA.SlopeAng))
+    return sigma0_sf
+
+
+def get_sigma0_noise_with_uniform_weighting(sicd):
+    """
+    Gets both the current nesz and nesz after uniform weighting **in power units**.
+
+    Parameters
+    ----------
+    sicd : sarpy.io.complex.sicd_elements.SICD.SICDType
+
+    Returns
+    -------
+    current_nesz : float
+        In power units.
+    reweighted_nesz : float
+        In power units.
+    """
+
+    _verify_sicd_with_noise(sicd)
+    current_noise, reweighted_noise = _get_current_and_reweighted_noise(sicd)
+    sigma0_sf = _get_sigma0_deweighted(sicd)
+    return current_noise*sigma0_sf, reweighted_noise*sigma0_sf
 
 
 #########################
@@ -201,8 +255,8 @@ def snr_to_rniirs(bandwidth_area, signal, noise):
 
     Returns
     -------
-    (float, float)
-        The information_density and estimated RNIIRS
+    information_density : float
+    rniirs : float
     """
 
     information_density = get_information_density(bandwidth_area, signal, noise)
@@ -210,10 +264,31 @@ def snr_to_rniirs(bandwidth_area, signal, noise):
     return information_density, rniirs
 
 
+def rgiqe(sicd):
+    """
+    Calculate the information_density and (default) estimated RNIIRS for the
+    given sicd.
+
+    Parameters
+    ----------
+    sicd : sarpy.io.complex.sicd_elements.SICD.SICDType
+
+    Returns
+    -------
+    information_density : float
+    rniirs : float
+    """
+
+    bandwidth_area = get_bandwidth_area(sicd)
+    signal = get_default_signal_estimate(sicd)
+    noise = get_sigma0_noise(sicd)
+    return snr_to_rniirs(bandwidth_area, signal, noise)
+
+
 def populate_rniirs_for_sicd(sicd, signal=None, noise=None, override=False):
     """
     This populates the value(s) for RNIIRS and information density in the SICD
-    structure, according to the RGIQE.
+    structure, according to the RGIQE. **This modifies the sicd structure in place.**
 
     Parameters
     ----------
@@ -268,97 +343,142 @@ def populate_rniirs_for_sicd(sicd, signal=None, noise=None, override=False):
     sicd.CollectionInfo.Parameters['PREDICTED_RNIIRS'] = '{0:0.1f}'.format(rniirs)
 
 
-def get_bandwidth_noise_distribution(alpha, snr, information_density_ratio):
+def get_bandwidth_noise_distribution(bandwidth_area, snr, alpha, desired_information_density):
     r"""
-    From the perspective of achieving the desired RNIIRS based on downgrading
-    the SICD. This gets the relative multipliers for the bandwidth and nesz values,
-    given the distribution parameter, the current snr, and the ratio between the
-    desired and current information density.
+    This is a function which defines a distribution of SICD degradation
+    parameters to achieve the desired information density/rniirs. This gets the
+    relative multipliers for the bandwidth and nesz values, given the current
+    bandwidth area, the current snr, a distribution parameter, and the desired
+    information density.
 
     The information density is defined as
 
     .. math::
 
-        inf\_density = bw\_area*\log_2(1 + snr),
+        inf\_density = bw\_area\cdot\log_2(1 + snr).
 
-    which naturally splits multiplicatively into a piece which can be varied
-    based on bandwidth, and a piece which can be varied based purely on varying
-    snr (nesz).
-
-    Then, we have
+    If we use sub-aperture degradation to reduce the bandwidth area and add noise
+    (before the sub-aperture degradation), we get
 
     .. math::
 
-        inf\_density\_ratio & = \frac{desired\_inf\_density}{current\_inf\_density} \\
-                                  & = \frac{desired\_bw\_area}{current\_bw\_area} \cdot
-                                      \frac{\log_2(1 + desired\_snr)}{\log_2(1 + snr)} \\
-                                  & = (bw\_multiplier)^2 \cdot \frac{\log_2(1 + snr/noise\_multiplier)}{\log_2(1 + snr)}
+        inf\_density\_new = bw\_area \cdot bw\_mult^2\cdot\log_2\left(1 + \frac{snr}{bw\_mult^2\cdot noise\_mult}\right)
 
-    A one parameter distribution, with free parameter :math:`\alpha \in [0, 1]`, can
-    naturally be formed here by setting
+    The resultant noise (in unit of power) AFTER processing will be
 
     .. math::
 
-        inf\_density\_ratio & = (inf\_density\_ratio)^{1-\alpha}\cdot (inf\_density\_ratio)^{\alpha} \\
-        inf\_density\_ratio^{1-\alpha} & = (bw\_multiplier)^2 \\
-        inf\_density\_ratio^{\alpha} &= \frac{\log_2(1 + snr/noise\_multiplier)}{\log_2(1 + snr)},
+        new\_noise & = noise\cdot bw\_mult^2\cdot noise\_mult \text{(in power)}\\
+        new\_nesz &= nesz + 2\log_{10}(bw\_mult) + \log_{10}(noise\_mult) \text{(in dB)}
 
-    This allows us to uniquely determine that
+    Holding the value for :math:`inf\_density\_new` constant defines a distribution
+    on :math:`bw\_mult` and :math:`noise\_mult` to obtain the desired information
+    density/rniirs. There is significant interplay between the values for :math:`bw\_mult` and
+    :math:`noise\_mult`, but it can be simplified to a one parameter distribution
+    based on :math:`\alpha \in [0, 1]`. There is a natural continuum of consideration,
+    which we define as :math:`\alpha=0`, we add no additional noise
+    (:math:`noise\_mult=1`) and use purely sub-aperture degradation. On the other
+    end, which we define as :math:`\alpha=1`, we have :math:`bw\_mult=1`, so that
 
     .. math::
 
-        bw\_multiplier &= (inf\_density\_ratio)^{(1-\alpha)/2} \\
-        noise\_multiplier &= snr/\left((1 + snr)^{inf\_density\_ratio^{\alpha}} - 1\right)
+        inf\_density\_new &= bw\_area\cdot\log_2\left(1 + \frac{snr}{max\_noise\_mult}\right) \\
+        max\_noise\_mult & = \frac{snr}{2^{inf\_density\_new/bw\_area} - 1}
 
-    which allows for unique determination for values `bw_multiplier` and `noise_multiplier`.
+    Then, given :math:`\alpha \in [0, 1]`, our distribution is defined by setting
+    :math:`noise\_mult = (max\_noise\_mult - 1)\cdot\alpha + 1` and then determining
+    the unique :math:`bw\_mult` which fulfills our requirement
 
-    This establishes a specific distribution of bandwidth and nesz values all providing
-    identical RNIIRS value. On one end, at :math:`\alpha = 0`, the bandwidth is decreased
-    while noise remains static, and the other extreme end, at :math:`\alpha = 1`,
-    the bandwidth is static and the noise is increased.
+    .. math::
+
+        inf\_density\_new = bw\_area \cdot bw\_mult^2\cdot\log_2\left(1 + \frac{snr}{bw\_mult^2\cdot noise\_mult}\right)
+
+    To visualize the noise and bandwidth area as functions of :math:`\alpha` determined
+    by this function, then just use the fundamental definitions.
+
+    .. math::
+
+        new\_bandwidth\_area(\alpha) &= bandwidth\_area\cdot (bw\_mult(\alpha))^2 \\
+        new\_noise(\alpha) &= noise\cdot (bw\_mult(\alpha))^2\cdot noise\_mult(\alpha) \text{(in power)}\\
+        new\_nesz(\alpha) &= nesz + 2\log_{10}(bw\_mult(\alpha)) + \log_{10}(noise\_mult(\alpha)) \text{(in dB)}
+
 
     Parameters
     ----------
-    alpha : float
+    bandwidth_area : float
     snr : float
-    information_density_ratio : float
+    alpha : float
+    desired_information_density : float
 
     Returns
     -------
     (float, float)
-        The bw_multiplier and noise_multiplier (for nesz).
+        The bandwidth multiplier and noise multiplier
     """
 
-    def find_bw_multiplier(multiplier):
-        return float(numpy.sqrt(multiplier))
+    # todo: this is not the swiftest implementation - is it worth trying to speed up?
 
-    def find_nesz_multiplier(multiplier):
-        return snr/(numpy.power(1 + snr, multiplier) - 1)
+    def minimize_function(bandwidth_mult):
+        sq_factor = bandwidth_mult*bandwidth_mult
+        new_bw_area = bandwidth_area*sq_factor
+        new_snr = snr/(sq_factor*noise_multiplier)
+        diff = desired_information_density - get_information_density(new_bw_area, new_snr, 1)
+        return diff*diff
 
-        # res = minimize_scalar(
-        #     lambda x: (numpy.log(1 + snr*x) - multiplier*numpy.log(1 + snr))**2,
-        #     bounds=(0, 1),
-        #     method='bounded')
-        # if not res.success:
-        #     raise ValueError('RNIIRS value search for nesz failed')
-        # return 1./res.x
+    current_inf_density = get_information_density(bandwidth_area, snr, 1)
+    if desired_information_density >= current_inf_density:
+        raise ValueError(
+            'current information density is {}, this SICD can not be degraded\n\t'
+            'to obtain a result with information density {}'.format(
+                current_inf_density, desired_information_density))
 
-    alpha = float(alpha)
     if not (0 <= alpha <= 1):
         raise ValueError('alpha must be in the interval [0, 1], got {}'.format(alpha))
 
+    max_signal_multiplier = snr/(2**(desired_information_density/bandwidth_area) - 1)
+
+    noise_multiplier = (max_signal_multiplier - 1.0)*alpha + 1.0
+
+    res = minimize_scalar(
+        minimize_function,
+        bounds=(1e-6, 1),
+        method='bounded',
+        options={'xatol': 1e-8, 'maxiter': 1000, 'disp': 0})
+    if not res.success:
+        raise ValueError('information density value search for bandwidth multiplier failed')
+    bw_multiplier = res.x
+
     if alpha == 0:
-        return find_bw_multiplier(information_density_ratio), 1.0
+        return bw_multiplier, 1
     elif alpha == 1:
-        return 1.0, find_nesz_multiplier(information_density_ratio)
+        return 1, noise_multiplier
     else:
-        bw_ratio = numpy.power(information_density_ratio, 1-alpha)
-        noise_ratio = information_density_ratio/bw_ratio
-        return find_bw_multiplier(bw_ratio), find_nesz_multiplier(noise_ratio)
+        return bw_multiplier, noise_multiplier
 
 
 #########################
 # helpers for quality degradation function
+
+def _get_uniform_weight_dicts(sicd):
+    """
+    Gets the dictionaries denoting uniform weighting.
+
+    Parameters
+    ----------
+    sicd : sarpy.io.complex.sicd_elements.SICD.SICDType
+
+    Returns
+    -------
+    row_weighting : None|dict
+    column_weighting : None|dict
+    """
+
+    row_weighting = None if is_uniform_weight(sicd, 0) else \
+        {'WindowName': 'UNIFORM', 'WgtFunct': numpy.ones((32,), dtype='float64')}
+    column_weighting = None if is_uniform_weight(sicd, 1) else \
+        {'WindowName': 'UNIFORM', 'WgtFunct': numpy.ones((32,), dtype='float64')}
+    return row_weighting, column_weighting
+
 
 def _validate_reader(reader, index):
     """
@@ -414,7 +534,7 @@ def _map_desired_resolution_to_aperture(
 
     Returns
     -------
-    None|tuple
+    (None|tuple, bw_factor)
     """
 
     if desired_resolution is None and desired_bandwidth is None:
@@ -434,7 +554,7 @@ def _map_desired_resolution_to_aperture(
     if use_bandwidth > current_imp_resp_bw:
         if desired_resolution is not None:
             raise ValueError(
-                'After mapping form Desired {} ImpRespWid considering uniform weighting,\n\t'
+                'After mapping from Desired {} ImpRespWid considering uniform weighting,\n\t'
                 'the equivalent desired ImpRespBW is {},\n\t'
                 'but the current ImpRespBW is {}'.format(direction, use_bandwidth, current_imp_resp_bw))
         else:
@@ -442,46 +562,121 @@ def _map_desired_resolution_to_aperture(
                 'Desired {} ImpRespBW is given as {},\n\t'
                 'but the current ImpRespBW is {}'.format(direction, use_bandwidth, current_imp_resp_bw))
     elif use_bandwidth == current_imp_resp_bw:
-        return None
+        return None, 1.0
     else:
         oversample = max(1., 1./(sample_size*use_bandwidth))
         ap_size = round(direction_size/oversample)
         start_ind = int(numpy.floor(0.5*(direction_size - ap_size)))
-        return start_ind, start_ind+ap_size
+        return (start_ind, start_ind+ap_size), use_bandwidth/current_imp_resp_bw
 
 
-def _determine_additional_noise_amount(desired_nesz, sicd):
+def _determine_additional_noise_amount(desired_nesz, total_bw_factor, current_noise, reweighted_noise, sicd):
     """
     Determine the additional amount of noise (in units of pixel power) required
     to achieve the desired Noise Equivalent Sigma Zero.
 
-    Except in trivial cases, this will raise an exception if the SICd structure
+    Except in trivial cases, this will raise an exception if the SICD structure
     does not have full radiometric and noise calibration.
 
     Parameters
     ----------
     desired_nesz : None|float
         The desired noise equivalent sigma zero value.
+    total_bw_factor : float
+        The relative size of the bandwidth area after implied sup-aperture degradation.
+    current_noise : float
+    reweighted_noise : float
     sicd : sarpy.io.complex.sicd_elements.SICD.SICDType
         The sicd structure.
 
     Returns
     -------
     None|float
+        The amount of noise to add, before re-weighting
+
+    Raises
+    ------
+    ValueError
     """
 
     if desired_nesz is None:
         return None
 
     desired_nesz = float(desired_nesz)
-    current_nesz = get_sigma0_noise(sicd)  # of the form sigma0*<pixel power>
-    # this will have raises an exception if the sicd is improper
-    if desired_nesz < current_nesz:
-        raise ValueError('The current NESZ is {}, while the desired value is {}'.format(current_nesz, desired_nesz))
-    elif desired_nesz == current_nesz:
+    current_nesz = reweighted_noise*sicd.Radiometric.SigmaZeroSFPoly[0, 0]
+    required_nesz = desired_nesz/total_bw_factor
+    additional_factor = (required_nesz - current_nesz)/current_nesz
+    if additional_factor < 0:
+        raise ValueError('The desired NESZ is too small to be achieved using the given sub-aperture processing scheme')
+    elif additional_factor <= 1e-5:
         return None
     else:
-        return (desired_nesz - current_nesz)/sicd.Radiometric.SigmaZeroSFPoly[0, 0]
+        return current_noise*additional_factor
+
+
+def _get_current_and_reweighted_noise(sicd):
+    """
+    Gets both the current noise in units of power, and the noise after uniform
+    weighting in units of power.
+
+    Parameters
+    ----------
+    sicd : sarpy.io.complex.sicd_elements.SICD.SICDType
+
+    Returns
+    -------
+    noise : float
+    reweighted_noise : float
+    """
+
+    current_noise = numpy.exp(numpy.log(10)*0.1*sicd.Radiometric.NoiseLevel.NoisePoly[0, 0])  # in power
+    reweighted_noise = get_resultant_noise(
+        sicd,
+        row_weight_funct=numpy.ones((32, ), dtype='float32'),
+        column_weight_funct=numpy.ones((32, ), dtype='float32'))
+    return current_noise, numpy.exp(numpy.log(10)*0.1*reweighted_noise)
+
+
+def _map_bandwidth_parameters(sicd, desired_resolution=None, desired_bandwidth=None):
+    """
+    Helper function to map desired resolution or bandwidth to the suitable (centered)
+    aperture.
+
+    Parameters
+    ----------
+    sicd : sarpy.io.complex.sicd_elements.SICD.SICDType
+    desired_resolution : None|tuple[float, float]
+    desired_bandwidth : None|tuple[float, float]
+
+    Returns
+    -------
+    row_aperture : tuple[int, int]
+    row_bw_factor : float
+    column_aperture : tuple[float, float]
+    column_bw_factor : float
+    """
+
+    if desired_resolution is not None:
+        # get the broadening factor for uniform weighting
+        broadening_factor = get_hamming_broadening_factor(1.0)
+        row_aperture, row_bw_factor = _map_desired_resolution_to_aperture(
+            sicd.Grid.Row.ImpRespBW, sicd.Grid.Row.SS, 'Row', sicd.ImageData.NumRows,
+            desired_resolution=desired_resolution[0], broadening_factor=broadening_factor)
+        column_aperture, column_bw_factor = _map_desired_resolution_to_aperture(
+            sicd.Grid.Col.ImpRespBW, sicd.Grid.Col.SS, 'Col', sicd.ImageData.NumCols,
+            desired_resolution=desired_resolution[1], broadening_factor=broadening_factor)
+    elif desired_bandwidth is not None:
+        row_aperture, row_bw_factor = _map_desired_resolution_to_aperture(
+            sicd.Grid.Row.ImpRespBW, sicd.Grid.Row.SS, 'Row', sicd.ImageData.NumRows,
+            desired_bandwidth=desired_bandwidth[0])
+        column_aperture, column_bw_factor = _map_desired_resolution_to_aperture(
+            sicd.Grid.Col.ImpRespBW, sicd.Grid.Col.SS, 'Col', sicd.ImageData.NumCols,
+            desired_bandwidth=desired_bandwidth[1])
+    else:
+        row_aperture, row_bw_factor = None, 1
+        column_aperture, column_bw_factor = None, 1
+
+    return row_aperture, row_bw_factor, column_aperture, column_bw_factor
 
 
 #########################
@@ -489,14 +684,43 @@ def _determine_additional_noise_amount(desired_nesz, sicd):
 
 def quality_degrade(reader, index=0, output_file=None, desired_resolution=None,
                     desired_bandwidth=None, desired_nesz=None, **kwargs):
-    """
+    r"""
     Create a degraded quality SICD based on the desired resolution (impulse response width)
     or bandwidth (impulse response bandwidth), and the desired Noise Equivalent
-    Sigma Zero value. The produced SICD will have uniform weighting.
+    Sigma Zero value. The produced SICD will have **uniform weighting**.
 
     No more than one of `desired_resolution` and `desired_bandwidth` can be provided.
     If None of `desired_resolution`, `desired_bandwidth`, or `desired_nesz` are provided,
-    then the SICD will be re-weighted with uniform weighting.
+    then the SICD will be re-weighted with uniform weighting - even this will
+    change the noise and RNIIRS values slightly.
+
+    .. note::
+
+        The de-weighting and sub-aperture degradation involved in setting the
+        desired resolution or bandwidth naturally changes the magnitude of the
+        per pixel noise. A SICD produced from such processing will naturally
+        have a different nesz value (and slightly pink/colored noise), even if it
+        is not augmented by the addition of extra noise.
+
+    The current `reweighted_nesz` in power units can be obtained from
+    :func:`get_sigma0_noise_with_uniform_weighting`.
+
+    Assuming that the current Row/Col ImpRespBW is given in tuple `(row_bw, col_bw)`,
+    the desired Row/Col ImpRespBW is provided as `(new_row_bw, new_col_bw)`,
+    and the current reweighted noise equivalent sigma zero value is given as `reweighted_nesz`,
+    then the resultant noise will be given as
+
+    .. math::
+
+        resultant\_nesz = reweighted\_nesz*frac{new\_row\_bw}{row\_bw}*\frac{new\_col\_bw}{col\_bw}
+
+    This is the default resultant noise, and the lower bound for `desired_nesz`.
+
+    .. warning::
+
+        Unless `desired_nesz=None`, this will fail for a SICD which is not fully
+        Radiometrically calibrated with `'ABSOLUTE'` noise type.
+
 
     Parameters
     ----------
@@ -514,7 +738,9 @@ def quality_degrade(reader, index=0, output_file=None, desired_resolution=None,
         The desired ImpRespBW (Row, Col) tuple. You cannot provide both
         `desired_resolution` and `desired_bandwidth`.
     desired_nesz : None|float
-        The desired Noise Equivalent Sigma Zero value.
+        The desired Noise Equivalent Sigma Zero value in power units, this is after
+        modifications which change the noise due to sub-aperture degradation and/or
+        de-weighting.
     kwargs
         Keyword arguments passed through to :func:`sarpy.processing.normalize_sicd.sicd_degrade_reweight`
 
@@ -530,32 +756,12 @@ def quality_degrade(reader, index=0, output_file=None, desired_resolution=None,
         raise ValueError('Both desire_resolution and desired_bandwidth cannot be supplied.')
 
     sicd = reader.get_sicds_as_tuple()[index]
-    row_weighting = None if is_uniform_weight(sicd, 0) else \
-        {'WindowName': 'UNIFORM', 'WgtFunct': numpy.ones((32,), dtype='float64')}
-    column_weighting = None if is_uniform_weight(sicd, 1) else \
-        {'WindowName': 'UNIFORM', 'WgtFunct': numpy.ones((32,), dtype='float64')}
+    row_weighting, column_weighting = _get_uniform_weight_dicts(sicd)
 
-    if desired_resolution is not None:
-        # get the broadening factor for uniform weighting
-        broadening_factor = get_hamming_broadening_factor(1.0)
-        row_aperture = _map_desired_resolution_to_aperture(
-            sicd.Grid.Row.ImpRespBW, sicd.Grid.Row.SS, 'Row', sicd.ImageData.NumRows,
-            desired_resolution=desired_resolution[0], broadening_factor=broadening_factor)
-        column_aperture = _map_desired_resolution_to_aperture(
-            sicd.Grid.Col.ImpRespBW, sicd.Grid.Col.SS, 'Col', sicd.ImageData.NumCols,
-            desired_resolution=desired_resolution[1], broadening_factor=broadening_factor)
-    elif desired_bandwidth is not None:
-        row_aperture = _map_desired_resolution_to_aperture(
-            sicd.Grid.Row.ImpRespBW, sicd.Grid.Row.SS, 'Row', sicd.ImageData.NumRows,
-            desired_bandwidth=desired_bandwidth[0])
-        column_aperture = _map_desired_resolution_to_aperture(
-            sicd.Grid.Col.ImpRespBW, sicd.Grid.Col.SS, 'Col', sicd.ImageData.NumCols,
-            desired_bandwidth=desired_bandwidth[1])
-    else:
-        row_aperture = None
-        column_aperture = None
-
-    add_noise = _determine_additional_noise_amount(desired_nesz, sicd)
+    row_aperture, row_bw_factor, column_aperture, column_bw_factor = _map_bandwidth_parameters(
+        sicd, desired_resolution=desired_resolution, desired_bandwidth=desired_bandwidth)
+    current_noise, reweighted_noise = _get_current_and_reweighted_noise(sicd)
+    add_noise = _determine_additional_noise_amount(desired_nesz, row_bw_factor*column_bw_factor, current_noise, reweighted_noise, sicd)
 
     return sicd_degrade_reweight(
         reader, output_file=output_file, index=index,
@@ -611,6 +817,7 @@ def quality_degrade_noise(reader, index=0, output_file=None, desired_nesz=None, 
     Noise Equivalent Sigma Zero value. The produced SICD will have uniform weighting.
 
     .. warning::
+
         This will fail for a SICD which is not fully Radiometrically calibrated,
         with ABSOLUTE noise type.
 
@@ -638,26 +845,27 @@ def quality_degrade_noise(reader, index=0, output_file=None, desired_nesz=None, 
 
 
 def quality_degrade_rniirs(
-        reader, index=0, output_file=None, desired_rniirs=None,
-        alpha=0, **kwargs):
+        reader, index=0, output_file=None, desired_rniirs=None, alpha=0, **kwargs):
     r"""
     Create a degraded quality SICD based on the desired estimated RNIIRS value.
     The produced SICD will have uniform weighting.
 
-    The information density is defined as
-    :math:`inf\_density = bandwidth\_area*\log(1 + signal/nesz)`, which naturally
-    splits multiplicatively into a piece which can be varied based on bandwidth,
-    and a piece which can be varied based on nesz.
+    The sicd degradation will be performed as follows:
 
-    The icd degradation will be performed as follows.
-    - The current information density/current rniirs will be found.
+    - The current information density/current rniirs **with respect to uniform weighting**
+      will be found.
+
     - The information density required to produce the desired rniirs will be found.
-    - The ratio between the two information densities will be calculated,
-      :math:`ratio = \frac{required\_inf\_density}{current\_inf\_density}`.
-    - This will be used to determine the multipliers for bandwidth and nesz values
-    using :func:`get_bandwidth_noise_distribution`.
+
+    - This will be used, along with the :math:`\alpha` value, will be used in
+      :func:`get_bandwidth_noise_distribution` to determine the multipliers for
+      bandwidth and nesz values.
+
+    - These desired bandwidth and noise values will then be used in conjunction
+      with :func:`sicd_degrade_reweight`.
 
     .. warning::
+
         This will fail for a SICD which is not fully Radiometrically calibrated,
         with ABSOLUTE noise type.
 
@@ -700,36 +908,56 @@ def quality_degrade_rniirs(
     reader, index = _validate_reader(reader, index)
     sicd = reader.get_sicds_as_tuple()[index]
 
-    nesz = get_sigma0_noise(sicd)
-    signal = get_default_signal_estimate(sicd)
     bandwidth_area = get_bandwidth_area(sicd)
+    signal = get_default_signal_estimate(sicd)
+    current_noise, reweighted_noise = _get_current_and_reweighted_noise(sicd)
+    sigma0_sf = _get_sigma0_deweighted(sicd)
+    nesz = reweighted_noise*sigma0_sf
+
     current_inf_density = get_information_density(bandwidth_area, signal, nesz)
     current_rniirs = get_rniirs(current_inf_density)
 
     if current_rniirs < desired_rniirs:
         raise ValueError(
-            'The current rniirs is {}, and the desired rniirs is {}'.format(current_rniirs, desired_rniirs))
+            'The current rniirs (after uniform weighting) is {},\n\t'
+            'and the desired rniirs is {}'.format(current_rniirs, desired_rniirs))
 
     # find the information density for the required RNIIRS
     desired_inf_density = find_inf_density()
-    the_ratio = desired_inf_density/current_inf_density
     alpha = float(alpha)
-    bw_multiplier, nesz_multiplier = get_bandwidth_noise_distribution(alpha, signal/nesz, the_ratio)
+    bw_multiplier, nesz_multiplier = get_bandwidth_noise_distribution(
+        bandwidth_area, signal/nesz, alpha, desired_inf_density)
 
     desired_bandwidth = (sicd.Grid.Row.ImpRespBW*bw_multiplier, sicd.Grid.Col.ImpRespBW*bw_multiplier)
-    desired_nesz = nesz*nesz_multiplier
+    if nesz_multiplier < (1 - 1e-5):
+        raise ValueError('Got negative required additional noise.')
+    elif nesz_multiplier < (1 + 1e-5):
+        add_noise = None  # to overcome imprecision nonsense
+    else:
+        add_noise = current_noise*(nesz_multiplier - 1)
+
+    row_weighting, column_weighting = _get_uniform_weight_dicts(sicd)
+
+    row_aperture, row_bw_factor, column_aperture, column_bw_factor = _map_bandwidth_parameters(
+        sicd, desired_bandwidth=desired_bandwidth)
 
     if alpha == 0:
         # signal and noise remain constant, and we vary only bandwidth (ImpRespBW)
-        return quality_degrade(
-            reader, index=index, output_file=output_file,
-            desired_bandwidth=desired_bandwidth, **kwargs)
+        return sicd_degrade_reweight(
+            reader, output_file=output_file, index=index,
+            row_aperture=row_aperture, row_weighting=row_weighting,
+            column_aperture=column_aperture, column_weighting=column_weighting,
+            add_noise=None, **kwargs)
     elif alpha == 1:
         # bandwidth area remains constant, we vary only the noise
-        return quality_degrade(
-            reader, index=index, output_file=output_file,
-            desired_nesz=desired_nesz, **kwargs)
+        return sicd_degrade_reweight(
+            reader, output_file=output_file, index=index,
+            row_weighting=row_weighting,
+            column_weighting=column_weighting,
+            add_noise=add_noise, **kwargs)
     else:
-        return quality_degrade(
-            reader, index=index, output_file=output_file,
-            desired_bandwidth=desired_bandwidth, desired_nesz=desired_nesz, **kwargs)
+        return sicd_degrade_reweight(
+            reader, output_file=output_file, index=index,
+            row_aperture=row_aperture, row_weighting=row_weighting,
+            column_aperture=column_aperture, column_weighting=column_weighting,
+            add_noise=add_noise, **kwargs)

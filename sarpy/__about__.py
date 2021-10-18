@@ -27,7 +27,7 @@ __all__ = ['__version__',
            '__license__', '__copyright__']
 
 
-__version__ = "1.2.29"
+__version__ = "1.2.30"
 __version__ += '.post0'
 
 
