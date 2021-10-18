@@ -3,6 +3,7 @@ Command-line Utilities
 
 Description of the command-line utilities which help accomplish a variety of tasks.
 
+
 Convert to SICD format
 ----------------------
 
@@ -13,6 +14,17 @@ This can be accomplished using a command-line utility as
 For a basic help, check
 
 >>> python -m sarpy.utils.convert_to_sicd --help
+
+
+Chip SICD
+---------
+This can be accomplished using a command-line utility as
+
+>>> python -m sarpy.utils.chip_sicd <input file> <output directory>
+
+For a basic help, check
+
+>>> python -m sarpy.utils.chip_sicd --help
 
 
 Derived Product Creation from SICD
@@ -60,3 +72,16 @@ To dump NITF header information to a text file from the command-line
 For a basic help on the command-line, check
 
 >>> python -m sarpy.utils.nitf_utils --help
+
+
+Add Nominal Noise Polynomial
+----------------------------
+
+This can be accomplished using a command-line utility as
+
+>>> python -m sarpy.utils.nominal_sicd_noise <input file> <output directory>
+
+For a basic help, check
+
+>>> python -m sarpy.utils.nominal_sicd_noise --help
+
