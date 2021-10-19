@@ -125,6 +125,25 @@ def get_bandwidth_area(sicd):
         numpy.cos(numpy.deg2rad(sicd.SCPCOA.SlopeAng)))
 
 
+def _get_sigma0_deweighted(sicd):
+    """
+    Calculate the Sigma Zero SF for a deweighted version of the sicd.
+
+    Parameters
+    ----------
+    sicd : sarpy.io.complex.sicd_elements.SICD.SICDType
+
+    Returns
+    -------
+    float
+    """
+
+    sigma0_sf = sicd.Radiometric.RCSSFPoly[0, 0] * \
+                (sicd.Grid.Row.ImpRespBW * sicd.Grid.Col.ImpRespBW) / \
+                numpy.cos(numpy.deg2rad(sicd.SCPCOA.SlopeAng))
+    return sigma0_sf
+
+
 def get_sigma0_noise_with_uniform_weighting(sicd):
     """
     Gets both the current nesz and nesz after uniform weighting **in power units**.
@@ -143,7 +162,7 @@ def get_sigma0_noise_with_uniform_weighting(sicd):
 
     _verify_sicd_with_noise(sicd)
     current_noise, reweighted_noise = _get_current_and_reweighted_noise(sicd)
-    sigma0_sf = sicd.Radiometric.SigmaZeroSFPoly[0, 0]
+    sigma0_sf = _get_sigma0_deweighted(sicd)
     return current_noise*sigma0_sf, reweighted_noise*sigma0_sf
 
 
@@ -668,7 +687,7 @@ def quality_degrade(reader, index=0, output_file=None, desired_resolution=None,
     r"""
     Create a degraded quality SICD based on the desired resolution (impulse response width)
     or bandwidth (impulse response bandwidth), and the desired Noise Equivalent
-    Sigma Zero value. The produced SICD will have uniform weighting.
+    Sigma Zero value. The produced SICD will have **uniform weighting**.
 
     No more than one of `desired_resolution` and `desired_bandwidth` can be provided.
     If None of `desired_resolution`, `desired_bandwidth`, or `desired_nesz` are provided,
@@ -693,7 +712,7 @@ def quality_degrade(reader, index=0, output_file=None, desired_resolution=None,
 
     .. math::
 
-        resultant\_nesz = reweighted\_nesz*frac{new\_row\_bw}{row\_bw}*\frac{new\_col\_bw}{col\_bw}
+        resultant\_nesz = reweighted\_nesz*\frac{new\_row\_bw}{row\_bw}*\frac{new\_col\_bw}{col\_bw}
 
     This is the default resultant noise, and the lower bound for `desired_nesz`.
 
@@ -833,7 +852,7 @@ def quality_degrade_rniirs(
 
     The sicd degradation will be performed as follows:
 
-    - The current information density/current rniirs with respect to uniform weighting
+    - The current information density/current rniirs **with respect to uniform weighting**
       will be found.
 
     - The information density required to produce the desired rniirs will be found.
@@ -892,7 +911,8 @@ def quality_degrade_rniirs(
     bandwidth_area = get_bandwidth_area(sicd)
     signal = get_default_signal_estimate(sicd)
     current_noise, reweighted_noise = _get_current_and_reweighted_noise(sicd)
-    nesz = reweighted_noise*sicd.Radiometric.SigmaZeroSFPoly[0, 0]
+    sigma0_sf = _get_sigma0_deweighted(sicd)
+    nesz = reweighted_noise*sigma0_sf
 
     current_inf_density = get_information_density(bandwidth_area, signal, nesz)
     current_rniirs = get_rniirs(current_inf_density)
@@ -941,45 +961,3 @@ def quality_degrade_rniirs(
             row_aperture=row_aperture, row_weighting=row_weighting,
             column_aperture=column_aperture, column_weighting=column_weighting,
             add_noise=add_noise, **kwargs)
-
-
-if __name__ == '__main__':
-    # bw_area = 1.0
-    # signal = 1.0
-    # noise = 0.01
-    # information_density = get_information_density(bw_area, signal, noise)
-    # rniirs = get_rniirs(information_density)
-    # inf_dens_mult = 0.2
-    # des_rniirs = get_rniirs(inf_dens_mult*information_density)
-    # print(f'{rniirs}, {des_rniirs}, {10*numpy.log10(noise)}')
-    # for alp in numpy.linspace(0, 1, 10):
-    #     bw_mult, nesz_mult = get_bandwidth_noise_distribution(bw_area, signal/noise, alp, inf_dens_mult*information_density)
-    #     # what is the new information density?
-    #     bw_area_new = bw_area*(bw_mult**2)
-    #     noise_new = noise*nesz_mult*(bw_mult**2)
-    #     inf_density_new = get_information_density(bw_area_new, signal, noise_new)
-    #     rniirs_new = get_rniirs(inf_density_new)
-    #     print('alpha = {0:0.2f}, '
-    #           'bw_mult={1:0.5f}, '
-    #           'nesz_mult={2:0.5f}, '
-    #           'nesz in db = {5:0.4f}, '
-    #           'inf density new = {3:0.7f}, '
-    #           'calculated rniirs = {4:0.7f}'.format(alp, bw_mult, nesz_mult, inf_density_new, rniirs_new, 10*numpy.log10(noise_new)))
-
-    # import os
-    # from sarpy.io.complex.sicd import SICDReader
-    # from sarpy.visualization.remap import NRL
-    # from PIL import Image
-    #
-    # nrl = NRL()
-    # reader = SICDReader(os.path.expanduser('~/Desktop/test_sicd_full.nitf'))
-    # desired_rniirs = 2.8
-    # out_root = os.path.expanduser('~/Desktop/reduced_2_8')
-    # print(f'initial_rniirs = {reader.sicd_meta.CollectionInfo.Parameters["PREDICTED_RNIIRS"]}, desired_rniirs = {desired_rniirs}')
-    # for i, alp in enumerate(numpy.linspace(0, 1, 8)):
-    #     out = quality_degrade_rniirs(reader, desired_rniirs=desired_rniirs, alpha=alp)
-    #     print(f'alpha = {alp}, nesz[dB] = {10*numpy.log10(get_sigma0_noise(out.sicd_meta))}')
-    #     img = Image.fromarray(nrl(out[:, :]))
-    #     img.save(os.path.join(out_root, 'image_{}.png'.format(i)))
-
-    pass
