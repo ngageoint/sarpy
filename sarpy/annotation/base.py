@@ -95,7 +95,7 @@ class GeometryProperties(Jsonable):
         if typ != cls._type:
             raise ValueError('GeometryProperties cannot be constructed from {}'.format(the_json))
         return cls(
-            uid=the_json['uid'],
+            uid=the_json.get('uid', None),
             name=the_json.get('name', None),
             color=the_json.get('color', None))
 
@@ -431,7 +431,7 @@ class AnnotationFeature(Feature):
             self._geometry = None
             return
         if not isinstance(geometry, Geometry):
-            raise TypeError('geomerty must be an instance of Geometry, got `{}`'.format(type(geometry)))
+            raise TypeError('geometry must be an instance of Geometry, got `{}`'.format(type(geometry)))
         if geometry.is_collection:
             geometry = basic_assemble_from_collection(geometry)
         self._geometry = self._validate_geometry_element(geometry)
@@ -601,22 +601,24 @@ class AnnotationFeature(Feature):
                 'This is likely to cause problems.'.format(
                     self.geometry_count, len(self.properties.geometry_properties)))
 
-    def remove_geometry_element(self, index):
+    def remove_geometry_element(self, item):
         """
         Remove the geometry element at the given index
 
         Parameters
         ----------
-        index : int
+        item : int|str
         """
 
-        index = int(index)
-        if not (0 <= index < self.geometry_count):
-            raise KeyError('Got invalid index value')
+        _, index = self.get_geometry_property_and_index(item)
 
         if self.geometry_count == 1:
-            self._geometry = None
-            self._properties = None
+            self.geometry = None
+            self.properties = None
+        elif self.geometry_count == 2:
+            del self.geometry.collection[index]
+            del self.properties.geometry_properties[index]
+            self.geometry = self.geometry.collection[0]
         else:
             del self.geometry.collection[index]
             del self.properties.geometry_properties[index]

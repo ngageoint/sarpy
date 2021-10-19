@@ -431,7 +431,6 @@ class Feature(Jsonable):
 
     def replicate(self):
         geometry = None if self.geometry is None else self.geometry.replicate()
-
         old_properties = self.properties
         if old_properties is None:
             new_properties = None
@@ -1009,7 +1008,7 @@ class Point(GeometryObject):
         # type: (Dict) -> Point
         if not geometry.get('type', None) == cls._type:
             raise ValueError('Poorly formed json {}'.format(geometry))
-        cls(coordinates=geometry['coordinates'])
+        return cls(coordinates=geometry['coordinates'])
 
     def add_to_kml(self, doc, parent, coord_transform):
         if self.coordinates is None:
@@ -1111,7 +1110,7 @@ class MultiPoint(GeometryObject):
         # type: (Dict) -> MultiPoint
         if not geometry.get('type', None) == cls._type:
             raise ValueError('Poorly formed json {}'.format(geometry))
-        cls(coordinates=geometry['coordinates'])
+        return cls(coordinates=geometry['coordinates'])
 
     def add_to_kml(self, doc, parent, coord_transform):
         if self._points is None:
@@ -1271,7 +1270,7 @@ class LineString(GeometryObject):
         # type: (dict) -> LineString
         if not geometry.get('type', None) == cls._type:
             raise ValueError('Poorly formed json {}'.format(geometry))
-        cls(coordinates=geometry['coordinates'])
+        return cls(coordinates=geometry['coordinates'])
 
     def get_length(self):
         """
@@ -1390,7 +1389,7 @@ class MultiLineString(GeometryObject):
         # type: (Dict) -> MultiLineString
         if not geometry.get('type', None) == cls._type:
             raise ValueError('Poorly formed json {}'.format(geometry))
-        cls(coordinates=geometry['coordinates'])
+        return cls(coordinates=geometry['coordinates'])
 
     def get_length(self):
         """
@@ -2027,7 +2026,7 @@ class Polygon(GeometryObject):
         # type: (Dict) -> Polygon
         if not geometry.get('type', None) == cls._type:
             raise ValueError('Poorly formed json {}'.format(geometry))
-        cls(coordinates=geometry['coordinates'])
+        return cls(coordinates=geometry['coordinates'])
 
     def get_bbox(self):
         if self._outer_ring is None:
@@ -2308,7 +2307,7 @@ class MultiPolygon(GeometryObject):
         # type: (Dict) -> MultiPolygon
         if not geometry.get('type', None) == cls._type:
             raise ValueError('Poorly formed json {}'.format(geometry))
-        cls(coordinates=geometry['coordinates'])
+        return cls(coordinates=geometry['coordinates'])
 
     def get_coordinate_list(self):
         if self._polygons is None:
