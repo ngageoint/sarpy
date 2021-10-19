@@ -838,6 +838,16 @@ class LabelMetadata(Jsonable):
             parent_dict[attr] = getattr(self, attr)
         return parent_dict
 
+    def replicate(self):
+        kwargs = {}
+        for attr in self.__slots__:
+            if attr == 'timestamp':
+                kwargs[attr] = time.time()
+            else:
+                kwargs[attr] = getattr(self, attr)
+        the_type = self.__class__
+        return the_type(**kwargs)
+
 
 class LabelMetadataList(Jsonable):
     """
@@ -933,6 +943,14 @@ class LabelMetadataList(Jsonable):
         else:
             parent_dict['elements'] = [entry.to_dict() for entry in self._elements]
         return parent_dict
+
+    def replicate(self):
+        kwargs = {}
+        elements = self.elements
+        if elements is not None:
+            kwargs['elements'] = [elements[0].replicate()]
+        the_type = self.__class__
+        return the_type(**kwargs)
 
 
 class LabelProperties(AnnotationProperties):
@@ -1072,6 +1090,7 @@ class FileLabelCollection(FileAnnotationCollection):
     __slots__ = (
         '_version', '_label_schema', '_image_file_name', '_image_id', '_core_name', '_annotations')
     _type = 'FileLabelCollection'
+
     def __init__(self, label_schema, version=None, annotations=None,
                  image_file_name=None, image_id=None, core_name=None):
         if version is None:

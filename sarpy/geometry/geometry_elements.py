@@ -370,7 +370,12 @@ class Feature(Jsonable):
         typ = the_json['type']
         if typ != cls._type:
             raise ValueError('Feature cannot be constructed from {}'.format(the_json))
-        return cls(uid=the_json.get('id', None),
+
+        the_id = the_json.get('id', None)
+        if the_id is None:
+            the_id = the_json.get('uid', None)
+
+        return cls(uid=the_id,
                    geometry=the_json.get('geometry', None),
                    properties=the_json.get('properties', None))
 
@@ -379,15 +384,19 @@ class Feature(Jsonable):
             parent_dict = OrderedDict()
         parent_dict['type'] = self.type
         parent_dict['id'] = self.uid
-        if self.geometry is None:
-            parent_dict['geometry'] = None
-        else:
+
+        if self.geometry is not None:
             parent_dict['geometry'] = self.geometry.to_dict()
+
         if self.properties is not None:
-            if isinstance(self.properties, (int, float, str, list)):
+            if isinstance(self.properties, (int, float, str, list, dict)):
                 parent_dict['properties'] = self.properties
             elif isinstance(self.properties, Jsonable):
                 parent_dict['properties'] = self.properties.to_dict()
+            else:
+                logger.warning(
+                    'Got unexpected Feature properties type `{}`,'
+                    '\n\tnot serializing'.format(type(self.properties)))
         return parent_dict
 
     def add_to_kml(self, doc, coord_transform, parent=None):
@@ -421,7 +430,8 @@ class Feature(Jsonable):
             self.geometry.add_to_kml(doc, placemark, coord_transform)
 
     def replicate(self):
-        geometry = self.geometry.replicate()
+        geometry = None if self.geometry is None else self.geometry.replicate()
+
         old_properties = self.properties
         if old_properties is None:
             new_properties = None
@@ -429,6 +439,7 @@ class Feature(Jsonable):
             new_properties = old_properties.replicate()
         else:
             new_properties = copy.deepcopy(old_properties)
+
         the_type = self.__class__
         return the_type(geometry=geometry, properties=new_properties)
 

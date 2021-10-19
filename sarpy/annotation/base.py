@@ -29,11 +29,13 @@ class GeometryProperties(Jsonable):
     def __init__(self, uid=None, name=None, color=None):
         self._name = None
         self._color = None
+
         if uid is None:
             uid = str(uuid4())
         if not isinstance(uid, str):
             raise TypeError('uid must be a string')
         self._uid = uid
+
         self.name = name
         self.color = color
 
@@ -50,6 +52,7 @@ class GeometryProperties(Jsonable):
         """
         Optional[str]: The name
         """
+
         return self._name
 
     @name.setter
@@ -64,6 +67,7 @@ class GeometryProperties(Jsonable):
         """
         Optional[str]: The color
         """
+
         return self._color
 
     @color.setter
@@ -91,6 +95,7 @@ class GeometryProperties(Jsonable):
         if typ != cls._type:
             raise ValueError('GeometryProperties cannot be constructed from {}'.format(the_json))
         return cls(
+            uid=the_json['uid'],
             name=the_json.get('name', None),
             color=the_json.get('color', None))
 
@@ -110,10 +115,12 @@ class GeometryProperties(Jsonable):
         if parent_dict is None:
             parent_dict = OrderedDict()
         parent_dict['type'] = self.type
+        parent_dict['uid'] = self.uid
         if self.name is not None:
             parent_dict['name'] = self.name
         if self.color is not None:
             parent_dict['color'] = self.color
+        return parent_dict
 
 
 class AnnotationProperties(Jsonable):
@@ -194,7 +201,7 @@ class AnnotationProperties(Jsonable):
             raise TypeError('Got unexpected type for directory')
 
         parts = [entry.strip() for entry in value.split('/')]
-        self._description = '/'.join([entry for entry in parts if entry != ''])
+        self._directory = '/'.join([entry for entry in parts if entry != ''])
 
     @property
     def geometry_properties(self):
@@ -245,18 +252,42 @@ class AnnotationProperties(Jsonable):
         Parameters
         ----------
         item : int|str
+            The geometry properties uid or integer index.
 
         Returns
         -------
         GeometryProperties
+
+        Raises
+        ------
+        KeyError
         """
 
+        return self.get_geometry_property_and_index(item)[0]
+
+    def get_geometry_property_and_index(self, item):
+        """
+        Fetches the appropriate geometry property and its integer index.
+
+        Parameters
+        ----------
+        item : int|str
+            The geometry properties uid or integer index.
+
+        Returns
+        -------
+        (GeometryProperties, int)
+
+        Raises
+        ------
+        KeyError
+        """
         if isinstance(item, int):
-            return self._geometry_properties[item]
+            return self._geometry_properties[item], item
         elif isinstance(item, str):
-            for entry in self.geometry_properties:
+            for index, entry in enumerate(self.geometry_properties):
                 if entry.uid == item:
-                    return entry
+                    return entry, index
         raise KeyError('Got unrecognized geometry key `{}`'.format(item))
 
     @property
@@ -326,17 +357,14 @@ class AnnotationProperties(Jsonable):
         return parent_dict
 
     def replicate(self):
-        if self.geometry_properties is None:
-            geom_properties = None
-        else:
-            geom_properties = [entry.replicate() for entry in self.geometry_properties]
-        if self.parameters is None:
-            params = None
-        else:
-            params = self.parameters.replicate()
+        geom_properties = None if self.geometry_properties is None else \
+            [entry.replicate() for entry in self.geometry_properties]
+        params = None if self.parameters is None else self.parameters.replicate()
+
         the_type = self.__class__
-        return the_type(name=self.name, description=self.description, directory=self.directory,
-                        geometry_properties=geom_properties, parameters=params)
+        return the_type(
+            name=self.name, description=self.description, directory=self.directory,
+            geometry_properties=geom_properties, parameters=params)
 
 
 class AnnotationFeature(Feature):
@@ -421,54 +449,112 @@ class AnnotationFeature(Feature):
         else:
             return len(self.geometry.collection)
 
-    def get_geometry_name(self, index):
+    def get_geometry_name(self, item):
         """
-        Gets the name, or a reasonable default, for the geometry at index `index`.
+        Gets the name, or a reasonable default, for the geometry.
 
         Parameters
         ----------
-        index : int
+        item : int|str
 
         Returns
         -------
         str
         """
 
-        index = int(index)
-        geometry = self.get_geometry_element(index)
-        default_name = '<{}>'.format(geometry.__class__.__name__)
-        name = None
-        if self.properties is not None and \
-                self.properties.geometry_properties is not None and \
-                index < len(self.properties.geometry_properties):
-            name = self.properties.geometry_properties[0].name
+        geometry, geom_properties = self.get_geometry_and_geometry_properties(item)
+        return '<{}>'.format(geometry.__class__.__name__) if geom_properties.name is None else geom_properties.name
 
-        return default_name if name is None else name
-
-
-    def get_geometry_element(self, index):
+    def get_geometry_property(self, item):
         """
-        Gets the basic geometry object at the given index.
+        Gets the geometry properties object for the given index/uid.
 
         Parameters
         ----------
-        index : int
+        item : int|str
+            The geometry properties uid or integer index.
 
         Returns
         -------
-        Point|Line|Polygon
+        GeometryProperties
+
+        Raises
+        ------
+        KeyError
+        """
+
+        return self.properties.get_geometry_property(item)
+
+    def get_geometry_property_and_index(self, item):
+        """
+        Gets the geometry properties object and integer index for the given index/uid.
+
+        Parameters
+        ----------
+        item : int|str
+            The geometry properties uid or integer index.
+
+        Returns
+        -------
+        (GeometryProperties, int)
+
+        Raises
+        ------
+        KeyError
+        """
+
+        return self.properties.get_geometry_property_and_index(item)
+
+    def get_geometry_and_geometry_properties(self, item):
+        """
+        Gets the geometry and geometry properties object for the given index/uid.
+
+        Parameters
+        ----------
+        item : int|str
+            The geometry properties uid or integer index.
+
+        Returns
+        -------
+        (Point|Line|Polygon, GeometryProperties)
+
+        Raises
+        ------
+        KeyError
         """
 
         if self.geometry is None:
             raise ValueError('No geometry defined.')
 
+        geom_prop, index = self.get_geometry_property_and_index(item)
+
         index = int(index)
         if not (0 <= index < self.geometry_count):
             raise KeyError('invalid geometry index')
         if self.geometry.is_collection:
-            return self.geometry.collection[index]
+            return self.geometry.collection[index], geom_prop
         else:
-            return self.geometry
+            return self.geometry, geom_prop
+
+    def get_geometry_element(self, item):
+        """
+        Gets the basic geometry object at the given index.
+
+        Parameters
+        ----------
+        item : int|str
+            The integer index or associated geometry properties uid.
+
+        Returns
+        -------
+        Point|Line|Polygon
+
+        Raises
+        ------
+        ValueError|KeyError
+        """
+
+        return self.get_geometry_and_geometry_properties(item)[0]
 
     def _validate_geometry_element(self, geometry):
         if geometry is None:
