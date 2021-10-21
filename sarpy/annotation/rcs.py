@@ -369,6 +369,9 @@ class RCSCollection(AnnotationCollection):
 
     def __getitem__(self, item):
         # type: (Any) -> Union[RCSFeature, List[RCSFeature]]
+        if self._features is None:
+            raise StopIteration
+
         if isinstance(item, str):
             index = self._feature_dict[item]
             return self._features[index]

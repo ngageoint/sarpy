@@ -678,6 +678,9 @@ class AnnotationCollection(FeatureCollection):
 
     def __getitem__(self, item):
         # type: (Any) -> Union[AnnotationFeature, List[AnnotationFeature]]
+        if self._features is None:
+            raise StopIteration
+
         if isinstance(item, str):
             index = self._feature_dict[item]
             return self._features[index]

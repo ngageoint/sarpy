@@ -919,6 +919,8 @@ class LabelMetadataList(Jsonable):
 
     def __getitem__(self, item):
         # type: (Any) -> LabelMetadata
+        if self._elements is None:
+            raise StopIteration
         return self._elements[item]
 
     @property
@@ -1022,11 +1024,14 @@ class LabelProperties(AnnotationProperties):
     def parameters(self, value):
         if value is None:
             self._parameters = LabelMetadataList()
-        elif isinstance(value, dict):
+            return
+        if isinstance(value, dict):
             self._parameters = LabelMetadataList.from_dict(value)
-        elif isinstance(value, LabelMetadataList):
+            return
+        if isinstance(value, LabelMetadataList):
             self._parameters = value
-        raise TypeError('Got unexpected type for parameters')
+            return
+        raise TypeError('Got unexpected type for parameters `{}`'.format(type(value)))
 
     def get_label_id(self):
         """
@@ -1065,12 +1070,14 @@ class LabelFeature(AnnotationFeature):
     def properties(self, properties):
         if properties is None:
             self._properties = LabelProperties()
-        elif isinstance(properties, LabelProperties):
-            self._properties = properties
-        elif isinstance(properties, dict):
+            return
+        if isinstance(properties, dict):
             self._properties = LabelProperties.from_dict(properties)
-        else:
-            raise TypeError('properties must be an LabelProperties')
+            return
+        if isinstance(properties, LabelProperties):
+            self._properties = properties
+            return
+        raise TypeError('properties must be an LabelProperties')
 
     def add_annotation_metadata(self, value):
         """
@@ -1153,6 +1160,9 @@ class LabelCollection(AnnotationCollection):
 
     def __getitem__(self, item):
         # type: (Any) -> Union[LabelFeature, List[LabelFeature]]
+        if self._features is None:
+            raise StopIteration
+
         if isinstance(item, str):
             index = self._feature_dict[item]
             return self._features[index]
@@ -1286,11 +1296,11 @@ class FileLabelCollection(FileAnnotationCollection):
         if self._label_schema is None:
             return True
 
-        if annotation.properties is None or annotation.properties.elements is None:
+        if annotation.properties is None or annotation.properties.parameters is None:
             return True
 
         valid = True
-        for entry in annotation.properties.elements:
+        for entry in annotation.properties.parameters:
             if not self._label_schema.is_valid_confidence(entry.confidence):
                 valid = False
                 logger.error('Invalid confidence value {}'.format(entry.confidence))
