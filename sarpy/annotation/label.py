@@ -14,11 +14,14 @@ from typing import Union, List, Any, Dict
 from datetime import datetime
 import getpass
 
-from sarpy.annotation.base import AnnotationProperties, FileAnnotationCollection
-from sarpy.geometry.geometry_elements import Jsonable, Feature, FeatureCollection
+from sarpy.annotation.base import AnnotationProperties, FileAnnotationCollection, \
+    AnnotationFeature, AnnotationCollection
+from sarpy.geometry.geometry_elements import Jsonable, Geometry, Point, MultiPoint, \
+    LineString, MultiLineString, Polygon, MultiPolygon, GeometryCollection
 
 _LABEL_VERSION = "Label:1.0"
 logger = logging.getLogger(__name__)
+POSSIBLE_GEOMETRIES = ('point', 'line', 'polygon')
 
 
 class LabelSchema(object):
@@ -197,6 +200,7 @@ class LabelSchema(object):
     def permitted_geometries(self):
         """
         The collection of permitted geometry types. None corresponds to all.
+        Entries should be one of `{'point', 'line', 'polygon'}`.
 
         Returns
         -------
@@ -210,9 +214,25 @@ class LabelSchema(object):
         if values is None:
             self._permitted_geometries = None
             return
-        if not isinstance(values, list):
-            values = list(values)
-        self._permitted_geometries = values
+
+        if isinstance(values, str):
+            values = [values.lower().strip(), ]
+        else:
+            values = [entry.lower().strip() for entry in values]
+
+        if len(values) == 0:
+            self._permitted_geometries = None
+            return
+
+        temp_values = []
+        for entry in values:
+            if entry in temp_values:
+                continue
+            if entry not in POSSIBLE_GEOMETRIES:
+                raise ValueError('Got unknown geometry value `{}`'.format(entry))
+            temp_values.append(entry)
+
+        self._permitted_geometries = temp_values
 
     def get_id_from_name(self, the_name):
         """
@@ -762,21 +782,45 @@ class LabelSchema(object):
 
         Parameters
         ----------
-        value
-            If string, it should likely be the geometry type string (Point, Linestring, etc).
-            For any other object, the exact name of the class will be used for the check.
+        value : str|Geometry
 
         Returns
         -------
         bool
         """
 
+        def check_geom(geom):
+            if isinstance(geom, (Point, MultiPoint)):
+                out = 'point' in self._permitted_geometries
+                if not out:
+                    logger.error('Not allowed point type geometry components')
+                return out
+            elif isinstance(geom, (LineString, MultiLineString)):
+                out = 'line' in self._permitted_geometries
+                if not out:
+                    logger.error('Not allowed line type geometry components')
+                return out
+            elif isinstance(geom, (Polygon, MultiPolygon)):
+                out = 'polygon' in self._permitted_geometries
+                if not out:
+                    logger.error('Not allowed polygon type geometry components')
+                return out
+            elif isinstance(geom, GeometryCollection):
+                out = True
+                for entry in geom.geometries:
+                    out &= check_geom(entry)
+                return out
+            else:
+                raise TypeError('Got unexpected geometry type `{}`'.format(type(geom)))
+
         if self._permitted_geometries is None or value is None:
             return True
-        elif isinstance(value, str):
-            return value in self._permitted_geometries
-        else:
-            return value.__class__.__name__ in self._permitted_geometries
+
+        if isinstance(value, str):
+            return value.lower().strip() in self._permitted_geometries
+        if not isinstance(value, Geometry):
+            raise TypeError('Got unexpected geometry type `{}`'.format(type(value)))
+        return check_geom(value)
 
 
 ##########
@@ -812,6 +856,7 @@ class LabelMetadata(Jsonable):
         self.user_id = user_id  # type: str
         self.comment = comment  # type: Union[None, str]
         self.confidence = confidence  # type: Union[None, str, int]
+
         if timestamp is None:
             timestamp = time.time()
         if not isinstance(timestamp, float):
@@ -841,9 +886,7 @@ class LabelMetadata(Jsonable):
     def replicate(self):
         kwargs = {}
         for attr in self.__slots__:
-            if attr == 'timestamp':
-                kwargs[attr] = time.time()
-            else:
+            if attr not in ['user_id', 'timestamp']:
                 kwargs[attr] = getattr(self, attr)
         the_type = self.__class__
         return the_type(**kwargs)
@@ -952,6 +995,17 @@ class LabelMetadataList(Jsonable):
         the_type = self.__class__
         return the_type(**kwargs)
 
+    def get_label_id(self):
+        """
+        Gets the current label id.
+
+        Returns
+        -------
+        None|str
+        """
+
+        return None if (self.elements is None or len(self.elements) == 0) else self.elements[0].label_id
+
 
 class LabelProperties(AnnotationProperties):
     _type = 'LabelProperties'
@@ -966,15 +1020,30 @@ class LabelProperties(AnnotationProperties):
 
     @parameters.setter
     def parameters(self, value):
-        if value is None or isinstance(value, LabelMetadataList):
+        if value is None:
+            self._parameters = LabelMetadataList()
+        elif isinstance(value, dict):
+            self._parameters = LabelMetadataList.from_dict(value)
+        elif isinstance(value, LabelMetadataList):
             self._parameters = value
         raise TypeError('Got unexpected type for parameters')
+
+    def get_label_id(self):
+        """
+        Gets the current label id.
+
+        Returns
+        -------
+        None|str
+        """
+
+        return None if self.parameters is None else self.parameters.get_label_id()
 
 
 ############
 # the feature extensions
 
-class LabelFeature(Feature):
+class LabelFeature(AnnotationFeature):
     """
     A specific extension of the Feature class which has the properties attribute
     populated with LabelProperties instance.
@@ -1016,8 +1085,19 @@ class LabelFeature(Feature):
             self._properties = LabelProperties()
         self._properties.parameters.insert_new_element(value)
 
+    def get_label_id(self):
+        """
+        Gets the label id.
 
-class LabelCollection(FeatureCollection):
+        Returns
+        -------
+        None|str
+        """
+
+        return None if self.properties is None else self.properties.get_label_id()
+
+
+class LabelCollection(AnnotationCollection):
     """
     A specific extension of the FeatureCollection class which has the features are
     LabelFeature instances.
