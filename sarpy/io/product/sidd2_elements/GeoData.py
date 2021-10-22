@@ -30,7 +30,7 @@ class GeoDataType(Serializable):
     _collections_tags = {
         'ValidData': {'array': True, 'child_tag': 'Vertex'},
         'ImageCorners': {'array': True, 'child_tag': 'ICP'}}
-    _numeric_format = {'ImageCorners': '0.16G', 'ValidData': '0.16G'}
+    _numeric_format = {'ImageCorners': '0.17E', 'ValidData': '0.17E'}
     # other class variables
     _EARTH_MODEL_VALUES = ('WGS_84', )
     # descriptors

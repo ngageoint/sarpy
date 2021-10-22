@@ -25,7 +25,7 @@ class GeographicCoordinatesType(Serializable):
 
     _fields = ('LongitudeDensity', 'LatitudeDensity', 'ReferenceOrigin')
     _required = ('LongitudeDensity', 'LatitudeDensity', 'ReferenceOrigin')
-    _numeric_format = {'LongitudeDensity': '0.16G', 'LatitudeDensity': '0.16G'}
+    _numeric_format = {'LongitudeDensity': '0.17E', 'LatitudeDensity': '0.17E'}
     # Descriptor
     LongitudeDensity = FloatDescriptor(
         'LongitudeDensity', _required, strict=DEFAULT_STRICT,
@@ -136,7 +136,7 @@ class AccuracyType(Serializable):
     _collections_tags = {
         'Horizontals': {'array': False, 'child_tag': 'Horizontal'},
         'Verticals': {'array': False, 'child_tag': 'Vertical'}}
-    _numeric_format = {key: '0.16G' for key in _fields}
+    _numeric_format = {key: '0.17E' for key in _fields}
     # Descriptor
     Horizontals = FloatListDescriptor(
         'Horizontals', _collections_tags, _required, strict=DEFAULT_STRICT,

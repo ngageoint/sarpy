@@ -333,7 +333,7 @@ class MonitorCompensationAppliedType(Serializable):
     """
     _fields = ('Gamma', 'XMin')
     _required = ('Gamma', 'XMin')
-    _numeric_format = {key: '0.16G' for key in _fields}
+    _numeric_format = {key: '0.17E' for key in _fields}
     # Descriptor
     Gamma = FloatDescriptor(
         'Gamma', _required, strict=DEFAULT_STRICT,

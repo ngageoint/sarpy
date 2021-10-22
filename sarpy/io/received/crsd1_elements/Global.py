@@ -25,7 +25,7 @@ class TimelineType(Serializable):
 
     _fields = ('CollectionRefTime', 'RcvTime1', 'RcvTime2')
     _required = ('CollectionRefTime', 'RcvTime1', 'RcvTime2')
-    _numeric_format = {'RcvTime1': '0.16G', 'RcvTime2': '0.16G'}
+    _numeric_format = {'RcvTime1': '0.17E', 'RcvTime2': '0.17E'}
     # descriptors
     CollectionRefTime = DateTimeDescriptor(
         'CollectionRefTime', _required, strict=DEFAULT_STRICT, numpy_datetime_units='us',
@@ -69,7 +69,7 @@ class FrcvBandType(Serializable, Arrayable):
 
     _fields = ('FrcvMin', 'FrcvMax')
     _required = _fields
-    _numeric_format = {fld: '0.16G' for fld in _fields}
+    _numeric_format = {fld: '0.17E' for fld in _fields}
     # descriptors
     FrcvMin = FloatDescriptor(
         'FrcvMin', _required, strict=DEFAULT_STRICT, bounds=(0, None),

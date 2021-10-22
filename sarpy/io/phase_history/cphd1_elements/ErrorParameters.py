@@ -23,7 +23,7 @@ class RadarSensorType(Serializable):
 
     _fields = ('RangeBias', 'ClockFreqSF', 'CollectionStartTime', 'RangeBiasDecorr')
     _required = ('RangeBias', )
-    _numeric_format = {'RangeBias': '0.17G', 'ClockFreqSF': '0.17G', 'CollectionStartTime': '0.17G'}
+    _numeric_format = {'RangeBias': '0.17E', 'ClockFreqSF': '0.17E', 'CollectionStartTime': '0.17E'}
     # descriptors
     RangeBias = FloatDescriptor(
         'RangeBias', _required, strict=DEFAULT_STRICT, bounds=(0, None),
@@ -71,7 +71,7 @@ class IonoErrorType(Serializable):
 
     _fields = ('IonoRangeVertical', 'IonoRangeRateVertical', 'IonoRgRgRateCC', 'IonoRangeVertDecorr')
     _required = ('IonoRgRgRateCC', )
-    _numeric_format = {'IonoRangeVertical': '0.17G', 'IonoRangeRateVertical': '0.17G', 'IonoRgRgRateCC': '0.17G'}
+    _numeric_format = {'IonoRangeVertical': '0.17E', 'IonoRangeRateVertical': '0.17E', 'IonoRgRgRateCC': '0.17E'}
     # descriptors
     IonoRangeVertical = FloatDescriptor(
         'IonoRangeVertical', _required, strict=DEFAULT_STRICT, bounds=(0, None),
@@ -119,7 +119,7 @@ class BistaticRadarSensorType(Serializable):
 
     _fields = ('ClockFreqSF', 'CollectionStartTime')
     _required = ('CollectionStartTime', )
-    _numeric_format = {'ClockFreqSF': '0.17G', 'CollectionStartTime': '0.17G'}
+    _numeric_format = {'ClockFreqSF': '0.17E', 'CollectionStartTime': '0.17E'}
     # descriptors
     ClockFreqSF = FloatDescriptor(
         'ClockFreqSF', _required, strict=DEFAULT_STRICT, bounds=(0, None),

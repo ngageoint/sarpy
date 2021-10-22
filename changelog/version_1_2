@@ -1,7 +1,8 @@
 # This details the important differences introduced in sarpy 1.2
 
-* .34 - Making the annotation object definitions more coherent and useful for
+* .35 - Making the annotation object definitions more coherent and useful for
             annotation tool usage
+* .34 - Changing the serialization format for xml floating point to exponential
 * .33 - Upping the serialized digits in xml double fields from 16 to 17
 * .32 - Fixing bug for left looking radarsat SLC data
 * .31 - Adding a command-line utility for adding a nominal noise polynomial
