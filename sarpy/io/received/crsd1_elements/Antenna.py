@@ -56,7 +56,7 @@ class AntPatternType(Serializable):
     _required = (
         'Identifier', 'FreqZero', 'EBFreqShift', 'MLFreqDilation',
         'ArrayGPId', 'ElementGPId')
-    _numeric_format = {'FreqZero': '0.16G', 'GainZero': '0.16G'}
+    _numeric_format = {'FreqZero': '0.17E', 'GainZero': '0.17E'}
     # descriptors
     Identifier = StringDescriptor(
         'Identifier', _required, strict=DEFAULT_STRICT,

@@ -98,7 +98,7 @@ class ImageDataType(Serializable):
     _fields = (
         'PixelType', 'AmpTable', 'NumRows', 'NumCols', 'FirstRow', 'FirstCol', 'FullImage', 'SCPPixel', 'ValidData')
     _required = ('PixelType', 'NumRows', 'NumCols', 'FirstRow', 'FirstCol', 'FullImage', 'SCPPixel')
-    _numeric_format = {'AmpTable': '0.17G'}
+    _numeric_format = {'AmpTable': '0.17E'}
     _PIXEL_TYPE_VALUES = ("RE32F_IM32F", "RE16I_IM16I", "AMP8I_PHS8I")
     # descriptors
     PixelType = StringEnumDescriptor(

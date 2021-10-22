@@ -34,7 +34,7 @@ class ParameterType(Serializable):
 
     _fields = ('ParameterName', 'Value')
     _required = _fields
-    _numeric_format = {'Value': '0.17G'}
+    _numeric_format = {'Value': '0.17E'}
     # Descriptor
     ParameterName = StringDescriptor(
         'ParameterName', _required, strict=DEFAULT_STRICT,
@@ -98,7 +98,7 @@ class PrimeMeridianType(Serializable):
 
     _fields = ('Name', 'Longitude')
     _required = _fields
-    _numeric_format = {'Longitude': '0.17G'}
+    _numeric_format = {'Longitude': '0.17E'}
     # Descriptor
     Name = StringDescriptor(
         'Name', _required, strict=DEFAULT_STRICT,
@@ -132,7 +132,7 @@ class SpheroidType(Serializable):
     """
     _fields = ('SpheroidName', 'SemiMajorAxis', 'InverseFlattening')
     _required = _fields
-    _numeric_format = {'SemiMajorAxis': '0.17G', 'InverseFlattening': '0.17G'}
+    _numeric_format = {'SemiMajorAxis': '0.17E', 'InverseFlattening': '0.17E'}
     # Descriptor
     SpheroidName = StringDescriptor(
         'SpheroidName', _required, strict=DEFAULT_STRICT,
@@ -634,7 +634,7 @@ class AnnotationObjectType(Serializable):
     def _serialize_point(coords, doc, tag, parent):
         if len(coords) < 2:
             raise ValueError('coords must have at least two elements')
-        fmt_func = '{0:0.16G}'.format
+        fmt_func = '{0:0.17E}'.format
         node = create_new_node(doc, tag, parent=parent)
         create_text_node(doc, 'sfa:X', fmt_func(coords[0]), parent=node)
         create_text_node(doc, 'sfa:Y', fmt_func(coords[1]), parent=node)

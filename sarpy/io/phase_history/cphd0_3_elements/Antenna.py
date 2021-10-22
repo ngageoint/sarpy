@@ -23,7 +23,7 @@ class HPBWType(Serializable):
 
     _fields = ('DCX', 'DCY')
     _required = _fields
-    _numeric_format = {'DCX': '0.16G', 'DCY': '0.16G'}
+    _numeric_format = {'DCX': '0.17E', 'DCY': '0.17E'}
     # descriptors
     DCX = FloatDescriptor(
         'DCX', _required, strict=DEFAULT_STRICT,
@@ -62,7 +62,7 @@ class AntParamType(AntParamTypeBase):
         'XAxisPoly', 'YAxisPoly', 'FreqZero', 'EB', 'HPBW', 'Array', 'Elem',
         'GainBSPoly', 'EBFreqShift', 'MLFreqDilation')
     _required = ('XAxisPoly', 'YAxisPoly', 'FreqZero', )
-    _numeric_format = {'FreqZero': '0.16G'}
+    _numeric_format = {'FreqZero': '0.17E'}
     # descriptors
     HPBW = SerializableDescriptor(
         'HPBW', HPBWType, _required, strict=DEFAULT_STRICT,

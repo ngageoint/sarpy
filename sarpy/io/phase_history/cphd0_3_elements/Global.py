@@ -147,7 +147,7 @@ class GlobalType(Serializable):
         'DomainType', 'PhaseSGN', 'CollectStart', 'CollectDuration',
         'TxTime1', 'TxTime2', 'ImageArea')
     _numeric_format = {
-        'CollectDuration': '0.16G', 'TxTime1': '0.16G', 'TxTime2': '0.16G'}
+        'CollectDuration': '0.17E', 'TxTime1': '0.17E', 'TxTime2': '0.17E'}
     # descriptors
     DomainType = StringEnumDescriptor(
         'DomainType', ('FX', 'TOA'), _required, strict=DEFAULT_STRICT,

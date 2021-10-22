@@ -27,7 +27,7 @@ class RMRefType(Serializable):
 
     _fields = ('PosRef', 'VelRef', 'DopConeAngRef')
     _required = _fields
-    _numeric_format = {'DopConeAngRef': '0.17G', }
+    _numeric_format = {'DopConeAngRef': '0.17E', }
     # descriptors
     PosRef = SerializableDescriptor(
         'PosRef', XYZType, _required, strict=DEFAULT_STRICT,
@@ -67,7 +67,7 @@ class INCAType(Serializable):
     _fields = (
         'TimeCAPoly', 'R_CA_SCP', 'FreqZero', 'DRateSFPoly', 'DopCentroidPoly', 'DopCentroidCOA')
     _required = ('TimeCAPoly', 'R_CA_SCP', 'FreqZero', 'DRateSFPoly')
-    _numeric_format = {'R_CA_SCP': '0.17G', 'FreqZero': '0.17G'}
+    _numeric_format = {'R_CA_SCP': '0.17E', 'FreqZero': '0.17E'}
     # descriptors
     TimeCAPoly = SerializableDescriptor(
         'TimeCAPoly', Poly1DType, _required, strict=DEFAULT_STRICT,

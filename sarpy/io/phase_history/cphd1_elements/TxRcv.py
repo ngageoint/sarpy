@@ -26,8 +26,8 @@ class TxWFParametersType(Serializable):
     _required = (
         'Identifier', 'PulseLength', 'RFBandwidth', 'FreqCenter', 'Polarization')
     _numeric_format = {
-        'PulseLength': '0.17G', 'RFBandwidth': '0.17G', 'FreqCenter': '0.17G',
-        'LFMRate': '0.17G', 'Power': '0.17G'}
+        'PulseLength': '0.17E', 'RFBandwidth': '0.17E', 'FreqCenter': '0.17E',
+        'LFMRate': '0.17E', 'Power': '0.17E'}
     # descriptors
     Identifier = StringDescriptor(
         'Identifier', _required, strict=DEFAULT_STRICT,
@@ -99,8 +99,8 @@ class RcvParametersType(Serializable):
         'Identifier', 'WindowLength', 'SampleRate', 'IFFilterBW', 'FreqCenter',
         'Polarization')
     _numeric_format = {
-        'WindowLength': '0.17G', 'SampleRate': '0.17G', 'IFFilterBW': '0.17G',
-        'FreqCenter': '0.17G', 'LFMRate': '0.17G', 'PathGain': '0.17G'}
+        'WindowLength': '0.17E', 'SampleRate': '0.17E', 'IFFilterBW': '0.17E',
+        'FreqCenter': '0.17E', 'LFMRate': '0.17E', 'PathGain': '0.17E'}
     # descriptors
     Identifier = StringDescriptor(
         'Identifier', _required, strict=DEFAULT_STRICT,

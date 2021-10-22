@@ -157,7 +157,7 @@ class CapellaDetails(object):
                 elif isinstance(val, int):
                     dict_out[key] = str(val)
                 elif isinstance(val, float):
-                    dict_out[key] = '{0:0.17G}'.format(val)
+                    dict_out[key] = '{0:0.17E}'.format(val)
                 else:
                     raise TypeError('Got unhandled type {}'.format(type(val)))
             return dict_out

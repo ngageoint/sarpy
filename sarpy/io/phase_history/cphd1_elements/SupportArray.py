@@ -25,7 +25,7 @@ class SupportArrayCore(Serializable):
 
     _fields = ('Identifier', 'ElementFormat', 'X0', 'Y0', 'XSS', 'YSS', 'NODATA')
     _required = ('Identifier', 'ElementFormat', 'X0', 'Y0', 'XSS', 'YSS')
-    _numeric_format = {'X0': '0.17G', 'Y0': '0.17G', 'XSS': '0.17G', 'YSS': '0.17G'}
+    _numeric_format = {'X0': '0.17E', 'Y0': '0.17E', 'XSS': '0.17E', 'YSS': '0.17E'}
     # descriptors
     Identifier = StringDescriptor(
         'Identifier', _required, strict=DEFAULT_STRICT,

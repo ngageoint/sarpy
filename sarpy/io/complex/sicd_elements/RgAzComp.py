@@ -28,7 +28,7 @@ class RgAzCompType(Serializable):
 
     _fields = ('AzSF', 'KazPoly')
     _required = _fields
-    _numeric_format = {'AzSF': '0.16G'}
+    _numeric_format = {'AzSF': '0.17E'}
     # descriptors
     AzSF = FloatDescriptor(
         'AzSF', _required, strict=DEFAULT_STRICT,

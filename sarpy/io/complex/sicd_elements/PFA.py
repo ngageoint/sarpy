@@ -62,7 +62,7 @@ class PFAType(Serializable):
         'FPN', 'IPN', 'PolarAngRefTime', 'PolarAngPoly', 'SpatialFreqSFPoly', 'Krg1', 'Krg2', 'Kaz1', 'Kaz2',
         'STDeskew')
     _required = ('FPN', 'IPN', 'PolarAngRefTime', 'PolarAngPoly', 'SpatialFreqSFPoly', 'Krg1', 'Krg2', 'Kaz1', 'Kaz2')
-    _numeric_format = {'PolarAngRefTime': '0.16G', 'Krg1': '0.16G', 'Krg2': '0.16G', 'Kaz1': '0.16G', 'Kaz2': '0.16G'}
+    _numeric_format = {'PolarAngRefTime': '0.17E', 'Krg1': '0.17E', 'Krg2': '0.17E', 'Kaz1': '0.17E', 'Kaz2': '0.17E'}
     # descriptors
     FPN = UnitVectorDescriptor(
         'FPN', XYZType, _required, strict=DEFAULT_STRICT,
