@@ -157,9 +157,9 @@ class SCPCOAType(Serializable):
         'GrazeAng', 'IncidenceAng', 'TwistAng', 'SlopeAng', 'AzimAng', 'LayoverAng')
     _required = _fields
     _numeric_format = {
-        'SCPTime': '0.16G', 'SlantRange': '0.16G', 'GroundRange': '0.16G', 'DopplerConeAng': '0.16G',
-        'GrazeAng': '0.16G', 'IncidenceAng': '0.16G', 'TwistAng': '0.16G', 'SlopeAng': '0.16G',
-        'AzimAng': '0.16G', 'LayoverAng': '0.16G'}
+        'SCPTime': '0.17G', 'SlantRange': '0.17G', 'GroundRange': '0.17G', 'DopplerConeAng': '0.17G',
+        'GrazeAng': '0.17G', 'IncidenceAng': '0.17G', 'TwistAng': '0.17G', 'SlopeAng': '0.17G',
+        'AzimAng': '0.17G', 'LayoverAng': '0.16G'}
     # class variables
     _SIDE_OF_TRACK_VALUES = ('L', 'R')
     # descriptors

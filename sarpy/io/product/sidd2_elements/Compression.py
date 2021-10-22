@@ -23,7 +23,7 @@ class J2KSubtype(Serializable):
     _fields = ('NumWaveletLevels', 'NumBands', 'LayerInfo')
     _required = ('NumWaveletLevels', 'NumBands')
     _collections_tags = {'LayerInfo': {'array': True, 'child_tag': 'Bitrate', 'size_attribute': 'numLayers'}}
-    _numeric_format = {'LayerInfo': '0.16G'}
+    _numeric_format = {'LayerInfo': '0.17G'}
     # Descriptor
     NumWaveletLevels = IntegerDescriptor(
         'NumWaveletLevels', _required, strict=DEFAULT_STRICT,

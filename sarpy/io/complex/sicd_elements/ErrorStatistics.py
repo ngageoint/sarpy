@@ -21,7 +21,7 @@ class CompositeSCPErrorType(Serializable):
     """
     _fields = ('Rg', 'Az', 'RgAz')
     _required = _fields
-    _numeric_format = {key: '0.16G' for key in _fields}
+    _numeric_format = {key: '0.17G' for key in _fields}
     # descriptors
     Rg = FloatDescriptor(
         'Rg', _required, strict=DEFAULT_STRICT,
@@ -58,7 +58,7 @@ class CorrCoefsType(Serializable):
         'P1P2', 'P1P3', 'P1V1', 'P1V2', 'P1V3', 'P2P3', 'P2V1', 'P2V2', 'P2V3',
         'P3V1', 'P3V2', 'P3V3', 'V1V2', 'V1V3', 'V2V3')
     _required = _fields
-    _numeric_format = {key: '0.16G' for key in _fields}
+    _numeric_format = {key: '0.17G' for key in _fields}
     # descriptors
     P1P2 = FloatDescriptor(
         'P1P2', _required, strict=DEFAULT_STRICT, docstring='`P1` and `P2` correlation coefficient.')  # type: float
@@ -137,7 +137,7 @@ class PosVelErrType(Serializable):
 
     _fields = ('Frame', 'P1', 'P2', 'P3', 'V1', 'V2', 'V3', 'CorrCoefs', 'PositionDecorr')
     _required = ('Frame', 'P1', 'P2', 'P3', 'V1', 'V2', 'V3')
-    _numeric_format = {'P1': '0.16G', 'P2': '0.16G', 'P3': '0.16G', 'V1': '0.16G', 'V2': '0.16G', 'V3': '0.16G'}
+    _numeric_format = {'P1': '0.17G', 'P2': '0.17G', 'P3': '0.17G', 'V1': '0.17G', 'V2': '0.16G', 'V3': '0.16G'}
     # class variables
     _FRAME_VALUES = ('ECF', 'RIC_ECF', 'RIC_ECI')
     # descriptors
