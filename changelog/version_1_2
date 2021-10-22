@@ -1,7 +1,8 @@
 # This details the important differences introduced in sarpy 1.2
 
-* .32 - Making the annotation object definitions more coherent and useful for
+* .33 - Making the annotation object definitions more coherent and useful for
             annotation tool usage
+* .32 - Fixing bug for left looking radarsat SLC data
 * .31 - Adding a command-line utility for adding a nominal noise polynomial
 * .30 - Account for noise and Radiometric SF poly changes due to subaperture
         and weighting changes

@@ -759,7 +759,7 @@ class RadarSatDetails(object):
                 CollectStart=collect_start, CollectDuration=duration, IPP=[ipp, ])
 
         def get_image_formation():
-            #type: () -> ImageFormationType
+            # type: () -> ImageFormationType
             pulse_parts = len(self._findall('./sourceAttributes/radarParameters/pulseBandwidth'))
             return ImageFormationType(
                 # PRFScaleFactor for either polarimetric or multi-step, but not both.
@@ -835,7 +835,7 @@ class RadarSatDetails(object):
                 doppler_centroid_node.find('./timeOfDopplerCentroidEstimate').text, precision='us')
 
             look = scpcoa.look
-            if look > 1:
+            if look > 0:
                 # SideOfTrack == 'L'
                 # we explicitly want negative time order
                 if zero_dop_first_line < zero_dop_last_line:
@@ -844,11 +844,11 @@ class RadarSatDetails(object):
                 # we explicitly want positive time order
                 if zero_dop_first_line > zero_dop_last_line:
                     zero_dop_first_line, zero_dop_last_line = zero_dop_last_line, zero_dop_first_line
-            col_spacing_zd = get_seconds(zero_dop_last_line, zero_dop_first_line, precision='us') / (
-                        image_data.NumCols - 1)
+            col_spacing_zd = get_seconds(zero_dop_last_line, zero_dop_first_line, precision='us') / \
+                (image_data.NumCols - 1)
             # zero doppler time of SCP relative to collect start
             time_scp_zd = get_seconds(zero_dop_first_line, collect_start, precision='us') + \
-                          image_data.SCPPixel.Col * col_spacing_zd
+                image_data.SCPPixel.Col * col_spacing_zd
 
             inca = INCAType(
                 R_CA_SCP=near_range + (image_data.SCPPixel.Row * grid.Row.SS),
@@ -872,10 +872,10 @@ class RadarSatDetails(object):
             inca.DRateSFPoly = Poly2DType(Coefs=numpy.reshape(coeffs, (coeffs.size, 1)))
 
             # modify a few of the other fields
-            ss_scale = numpy.sqrt(vel_ca_squared) * inca.DRateSFPoly[0, 0]
-            grid.Col.SS = col_spacing_zd * ss_scale
-            grid.Col.ImpRespBW = -look * doppler_bandwidth / ss_scale
-            inca.TimeCAPoly = Poly1DType(Coefs=[time_scp_zd, 1. / ss_scale])
+            ss_scale = abs(numpy.sqrt(vel_ca_squared)*inca.DRateSFPoly[0, 0])
+            grid.Col.SS = abs(col_spacing_zd*ss_scale)
+            grid.Col.ImpRespBW = doppler_bandwidth/ss_scale
+            inca.TimeCAPoly = Poly1DType(Coefs=[time_scp_zd, -look/ss_scale])
 
             # doppler centroid
             doppler_cent_poly = Poly1DType(Coefs=doppler_cent_coeffs)
@@ -888,19 +888,19 @@ class RadarSatDetails(object):
             if collection_info.RadarMode.ModeType == 'SPOTLIGHT':
                 doppler_cent_est = get_seconds(doppler_cent_time_est, collect_start, precision='us')
                 dop_poly = numpy.zeros((scaled_coeffs.shape[0], 2), dtype=numpy.float64)
-                dop_poly[0, 1] = -look * center_frequency * alpha * numpy.sqrt(vel_ca_squared) / inca.R_CA_SCP
-                dop_poly[1, 1] = look * center_frequency * alpha * numpy.sqrt(vel_ca_squared) / (inca.R_CA_SCP ** 2)
+                dop_poly[0, 1] = -look*center_frequency*alpha*numpy.sqrt(vel_ca_squared)/inca.R_CA_SCP
+                dop_poly[1, 1] = -center_frequency*alpha*numpy.sqrt(vel_ca_squared)/(inca.R_CA_SCP ** 2)
                 one_way_time = inca.R_CA_SCP / speed_of_light
                 pos = position.ARPPoly(doppler_cent_est + one_way_time)
                 vel = position.ARPPoly.derivative_eval(doppler_cent_est + one_way_time)
                 los = geo_data.SCP.ECF.get_array() - pos
                 vel_hat = vel / numpy.linalg.norm(vel)
-                dop_poly[:, 0] = dop_poly[:, 0] - look * (dop_poly[:, 1] * numpy.dot(los, vel_hat))
+                dop_poly[:, 0] += -look*(dop_poly[:, 1]*numpy.dot(los, vel_hat))
                 inca.DopCentroidPoly = Poly2DType(Coefs=dop_poly)
             else:
                 inca.DopCentroidPoly = Poly2DType(Coefs=numpy.reshape(scaled_coeffs, (scaled_coeffs.size, 1)))
 
-            grid.Col.DeltaKCOAPoly = Poly2DType(Coefs=inca.DopCentroidPoly.get_array() * col_spacing_zd / grid.Col.SS)
+            grid.Col.DeltaKCOAPoly = Poly2DType(Coefs=inca.DopCentroidPoly.get_array()*col_spacing_zd/grid.Col.SS)
             # compute grid.Col.DeltaK1/K2 from DeltaKCOAPoly
             coeffs = grid.Col.DeltaKCOAPoly.get_array()[:, 0]
             # get roots
@@ -1246,7 +1246,6 @@ class RadarSatDetails(object):
         def get_rma_adjust_grid():
             # type: () -> RMAType
 
-            look = scpcoa.look
             sar_processing_info = self._find('./imageGenerationParameters/sarProcessingInformation')
 
             doppler_bandwidth = float(sar_processing_info.find('./totalProcessedAzimuthBandwidth').text)
@@ -1261,10 +1260,10 @@ class RadarSatDetails(object):
                 dtype='float64')
             doppler_rate_ref_time = float(dop_rate_estimate_node.find('./dopplerRateReferenceTime').text)
 
-            line_spacing_zd = \
+            col_spacing_zd = \
                 get_seconds(zero_dop_last_line, zero_dop_first_line, precision='us')/self._num_lines_processed
             # NB: this will be negative for Ascending
-            col_spacing_zd = numpy.abs(line_spacing_zd)
+
             # zero doppler time of SCP relative to collect start
             time_scp_zd = 0.5*processing_time_span
 
@@ -1288,11 +1287,13 @@ class RadarSatDetails(object):
             coeffs = -numpy.convolve(dop_rate_scaled_coeffs, r_ca) / (alpha * center_frequency * vel_ca_squared)
             inca.DRateSFPoly = Poly2DType(Coefs=numpy.reshape(coeffs, (coeffs.size, 1)))
 
+            look = scpcoa.look
+
             # modify a few of the other fields
-            ss_scale = numpy.sqrt(vel_ca_squared) * inca.DRateSFPoly[0, 0]
-            grid.Col.SS = col_spacing_zd * ss_scale
-            grid.Col.ImpRespBW = -look * doppler_bandwidth / ss_scale
-            inca.TimeCAPoly = Poly1DType(Coefs=[time_scp_zd, 1. / ss_scale])
+            ss_scale = abs(numpy.sqrt(vel_ca_squared)*inca.DRateSFPoly[0, 0])
+            grid.Col.SS = abs(col_spacing_zd*ss_scale)
+            grid.Col.ImpRespBW = doppler_bandwidth/ss_scale
+            inca.TimeCAPoly = Poly1DType(Coefs=[time_scp_zd, -look/ss_scale])
 
             # doppler centroid
             doppler_cent_coeffs = numpy.array(
@@ -1311,15 +1312,15 @@ class RadarSatDetails(object):
             if collection_info.RadarMode.ModeType == 'SPOTLIGHT':
                 doppler_cent_est = get_seconds(dop_centroid_est_time, collect_start, precision='us')
                 dop_poly = numpy.zeros((scaled_coeffs.shape[0], 2), dtype=numpy.float64)
-                dop_poly[0, 1] = -look * center_frequency * alpha * numpy.sqrt(vel_ca_squared) / inca.R_CA_SCP
-                dop_poly[1, 1] = look * center_frequency * alpha * numpy.sqrt(vel_ca_squared) / (inca.R_CA_SCP ** 2)
+                dop_poly[0, 1] = -look*center_frequency*alpha*numpy.sqrt(vel_ca_squared)/inca.R_CA_SCP
+                dop_poly[1, 1] = -center_frequency*alpha*numpy.sqrt(vel_ca_squared)/(inca.R_CA_SCP**2)
                 one_way_time = inca.R_CA_SCP / speed_of_light
                 use_time = doppler_cent_est + one_way_time
                 pos = position.ARPPoly(use_time)
                 vel = position.ARPPoly.derivative_eval(use_time, der_order=1)
                 los = geo_data.SCP.ECF.get_array() - pos
                 vel_hat = vel / numpy.linalg.norm(vel)
-                dop_poly[:, 0] = dop_poly[:, 0] - look * (dop_poly[:, 1] * numpy.dot(los, vel_hat))
+                dop_poly[:, 0] += -look*(dop_poly[:, 1]*numpy.dot(los, vel_hat))
                 inca.DopCentroidPoly = Poly2DType(Coefs=dop_poly)  # NB: this is set for use in fit-time_coa_poly
             else:
                 raise ValueError('ScanSAR mode data should be SPOTLIGHT mode')
