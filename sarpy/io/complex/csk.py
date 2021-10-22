@@ -283,7 +283,7 @@ class CSKDetails(object):
                 if coefficient is None:
                     params = None
                 else:
-                    params = {'COEFFICIENT': '{0:0.16G}'.format(coefficient)}
+                    params = {'COEFFICIENT': '{0:0.17G}'.format(coefficient)}
                 out = WgtTypeType(WindowName=weight_name, Parameters=params)
                 if weight_name != 'HAMMING':
                     logger.warning(

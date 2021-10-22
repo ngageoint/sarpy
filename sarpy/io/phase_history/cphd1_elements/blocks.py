@@ -29,7 +29,7 @@ class LSType(Serializable, Arrayable):
 
     _fields = ('Line', 'Sample')
     _required = _fields
-    _numeric_format = {'Line': '0.16G', 'Sample': '0.16G'}
+    _numeric_format = {'Line': '0.17G', 'Sample': '0.17G'}
     # Descriptor
     Line = FloatDescriptor(
         'Line', _required, strict=DEFAULT_STRICT,
@@ -158,7 +158,7 @@ class XYType(Serializable, Arrayable):
 
     _fields = ('X', 'Y')
     _required = _fields
-    _numeric_format = {'X': '0.16G', 'Y': '0.16G'}
+    _numeric_format = {'X': '0.17G', 'Y': '0.17G'}
     # descriptors
     X = FloatDescriptor(
         'X', _required, strict=True,

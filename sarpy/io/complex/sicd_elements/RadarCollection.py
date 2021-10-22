@@ -76,7 +76,7 @@ class TxFrequencyType(Serializable, Arrayable):
 
     _fields = ('Min', 'Max')
     _required = _fields
-    _numeric_format = {'Min': '0.16G', 'Max': '0.16G'}
+    _numeric_format = {'Min': '0.17G', 'Max': '0.17G'}
     # descriptors
     Min = FloatDescriptor(
         'Min', _required, strict=DEFAULT_STRICT,
@@ -195,7 +195,7 @@ class WaveformParametersType(Serializable):
         'ADCSampleRate', 'RcvIFBandwidth', 'RcvFreqStart', 'RcvFMRate', 'index')
     _required = ()
     _set_as_attribute = ('index', )
-    _numeric_format = {key: '0.16G' for key in _fields if key not in ('RcvDemodType', 'index')}
+    _numeric_format = {key: '0.17G' for key in _fields if key not in ('RcvDemodType', 'index')}
 
     # descriptors
     TxPulseLength = FloatDescriptor(
@@ -438,7 +438,7 @@ class ReferencePointType(Serializable):
     _fields = ('ECF', 'Line', 'Sample', 'name')
     _required = ('ECF', 'Line', 'Sample')
     _set_as_attribute = ('name', )
-    _numeric_format = {'Line': '0.16G', 'Sample': '0.16G'}
+    _numeric_format = {'Line': '0.17G', 'Sample': '0.17G'}
     # descriptors
     ECF = SerializableDescriptor(
         'ECF', XYZType, _required, strict=DEFAULT_STRICT,
@@ -480,7 +480,7 @@ class XDirectionType(Serializable):
     """The X direction of the collect"""
     _fields = ('UVectECF', 'LineSpacing', 'NumLines', 'FirstLine')
     _required = _fields
-    _numeric_format = {'LineSpacing': '0.16G', }
+    _numeric_format = {'LineSpacing': '0.17G', }
     # descriptors
     UVectECF = UnitVectorDescriptor(
         'UVectECF', XYZType, _required, strict=DEFAULT_STRICT,
@@ -522,7 +522,7 @@ class YDirectionType(Serializable):
     """The Y direction of the collect"""
     _fields = ('UVectECF', 'SampleSpacing', 'NumSamples', 'FirstSample')
     _required = _fields
-    _numeric_format = {'SampleSpacing': '0.16G', }
+    _numeric_format = {'SampleSpacing': '0.17G', }
     # descriptors
     UVectECF = UnitVectorDescriptor(
         'UVectECF', XYZType, _required, strict=DEFAULT_STRICT,

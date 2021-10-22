@@ -409,7 +409,7 @@ class DRAParametersType(Serializable):
     """
     _fields = ('Pmin', 'Pmax', 'EminModifier', 'EmaxModifier')
     _required = _fields
-    _numeric_format = {key: '0.16G' for key in _fields}
+    _numeric_format = {key: '0.17G' for key in _fields}
     # Descriptor
     Pmin = FloatDescriptor(
         'Pmin', _required, strict=DEFAULT_STRICT, bounds=(0, 1),
@@ -457,7 +457,7 @@ class DRAOverridesType(Serializable):
     """
     _fields = ('Subtractor', 'Multiplier')
     _required = _fields
-    _numeric_format = {key: '0.16G' for key in _fields}
+    _numeric_format = {key: '0.17G' for key in _fields}
     # Descriptor
     Subtractor = FloatDescriptor(
         'Subtractor', _required, strict=DEFAULT_STRICT, bounds=(0, 2047),
