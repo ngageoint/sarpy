@@ -14,11 +14,8 @@ import logging
 
 import numpy
 
-from sarpy.compliance import string_types, integer_types
-
 
 logger = logging.getLogger(__name__)
-
 
 ##########
 # utility functions
@@ -305,7 +302,7 @@ class Feature(Jsonable):
 
         if uid is None:
             self._uid = str(uuid4())
-        elif not isinstance(uid, string_types):
+        elif not isinstance(uid, str):
             raise TypeError('uid must be a string.')
         else:
             self._uid = uid
@@ -465,7 +462,10 @@ class FeatureCollection(Jsonable):
 
     def __getitem__(self, item):
         # type: (Any) -> Union[Feature, List[Feature]]
-        if isinstance(item, string_types):
+        if self._features is None:
+            raise StopIteration
+
+        if isinstance(item, str):
             index = self._feature_dict[item]
             return self._features[index]
         return self._features[item]
@@ -477,10 +477,10 @@ class FeatureCollection(Jsonable):
 
         if isinstance(item, Feature):
             item = Feature.uid
-        if not(isinstance(item, string_types) or isinstance(item, integer_types)):
-            raise ValueError('Unexpected type {}'.format(type(item)))
+        if not isinstance(item, (str, int)):
+            raise ValueError('Unexpected type `{}`'.format(type(item)))
 
-        if isinstance(item, string_types):
+        if isinstance(item, str):
             index = self._feature_dict[item]
             del self._features[index]
         else:
@@ -1582,7 +1582,9 @@ class LinearRing(LineString):
             self._segmentation = None
             self._diffs = None
             return
+
         if not isinstance(coordinates, numpy.ndarray):
+            # noinspection PyTypeChecker
             coordinates = numpy.array(coordinates, dtype=numpy.float64)
         if len(coordinates.shape) != 2:
             raise ValueError(
