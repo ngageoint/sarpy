@@ -22,7 +22,7 @@ class TimelineType(Serializable):
 
     _fields = ('CollectionStart', 'RcvCollectionStart', 'TxTime1', 'TxTime2')
     _required = ('CollectionStart', 'TxTime1', 'TxTime2')
-    _numeric_format = {'TxTime1': '0.16G', 'TxTime2': '0.16G'}
+    _numeric_format = {'TxTime1': '0.17E', 'TxTime2': '0.17E'}
     # descriptors
     CollectionStart = DateTimeDescriptor(
         'CollectionStart', _required, strict=DEFAULT_STRICT, numpy_datetime_units='us',
@@ -74,7 +74,7 @@ class FxBandType(Serializable, Arrayable):
 
     _fields = ('FxMin', 'FxMax')
     _required = _fields
-    _numeric_format = {fld: '0.16G' for fld in _fields}
+    _numeric_format = {fld: '0.17E' for fld in _fields}
     # descriptors
     FxMin = FloatDescriptor(
         'FxMin', _required, strict=DEFAULT_STRICT, bounds=(0, None),
@@ -126,7 +126,7 @@ class TOASwathType(Serializable, Arrayable):
 
     _fields = ('TOAMin', 'TOAMax')
     _required = _fields
-    _numeric_format = {fld: '0.16G' for fld in _fields}
+    _numeric_format = {fld: '0.17E' for fld in _fields}
     # descriptors
     TOAMin = FloatDescriptor(
         'TOAMin', _required, strict=DEFAULT_STRICT,
@@ -177,7 +177,7 @@ class TropoParametersType(Serializable):
 
     _fields = ('N0', 'RefHeight')
     _required = _fields
-    _numeric_format = {'N0': '0.16G'}
+    _numeric_format = {'N0': '0.17E'}
     # descriptors
     N0 = FloatDescriptor(
         'N0', _required, strict=DEFAULT_STRICT, bounds=(0, None),
@@ -214,7 +214,7 @@ class IonoParametersType(Serializable):
 
     _fields = ('TECV', 'F2Height')
     _required = ('TECV', )
-    _numeric_format = {fld: '0.16G' for fld in _fields}
+    _numeric_format = {fld: '0.17E' for fld in _fields}
     # descriptor
     TECV = FloatDescriptor(
         'TECV', _required, strict=DEFAULT_STRICT, bounds=(0, None),

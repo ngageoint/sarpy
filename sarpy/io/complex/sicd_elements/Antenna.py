@@ -80,7 +80,7 @@ class AntParamType(Serializable):
     _fields = (
         'XAxisPoly', 'YAxisPoly', 'FreqZero', 'EB', 'Array', 'Elem', 'GainBSPoly', 'EBFreqShift', 'MLFreqDilation')
     _required = ('XAxisPoly', 'YAxisPoly', 'FreqZero', 'Array')
-    _numeric_format = {'FreqZero': '0.17G'}
+    _numeric_format = {'FreqZero': '0.17E'}
     # descriptors
     XAxisPoly = SerializableDescriptor(
         'XAxisPoly', XYZPolyType, _required, strict=DEFAULT_STRICT,

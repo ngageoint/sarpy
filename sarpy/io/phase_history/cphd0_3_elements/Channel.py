@@ -25,8 +25,8 @@ class ParametersType(Serializable):
     _required = (
         'SRP_Index', 'NomTOARateSF', 'FxCtrNom', 'BWSavedNom', 'TOASavedNom')
     _numeric_format = {
-        'NomTOARateSF': '0.16G', 'FxCtrNom': '0.16G', 'BWSavedNom': '0.16G',
-        'TOASavedNom': '0.16G'}
+        'NomTOARateSF': '0.17E', 'FxCtrNom': '0.17E', 'BWSavedNom': '0.17E',
+        'TOASavedNom': '0.17E'}
     # descriptors
     SRP_Index = IntegerDescriptor(
         'SRP_Index', _required, strict=DEFAULT_STRICT,
