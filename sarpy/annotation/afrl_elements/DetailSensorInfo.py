@@ -27,7 +27,7 @@ from .blocks import LatLonEleType
 class BeamWidthType(Serializable, Arrayable):
     _fields = ('Azimuth', 'Elevation')
     _required = _fields
-    _numeric_format = {key: '0.16G' for key in _fields}
+    _numeric_format = {key: '0.17E' for key in _fields}
     # Descriptors
     Azimuth = FloatDescriptor(
         'Azimuth', _required, strict=True, docstring='The Azimuth attribute.')  # type: float
@@ -93,7 +93,7 @@ class BeamWidthType(Serializable, Arrayable):
 class SquintAngleType(Serializable):
     _fields = ('GroundPlane', 'SlantPlane')
     _required = _fields
-    _numeric_format = {el: '0.16G' for el in _fields}
+    _numeric_format = {el: '0.17E' for el in _fields}
     # descriptor
     GroundPlane = FloatDescriptor(
         'GroundPlane', _required,
@@ -129,7 +129,7 @@ class AircraftLocationType(Serializable, Arrayable):
     """A three-dimensional geographic point in WGS-84 coordinates."""
     _fields = ('Lat', 'Lon', 'Altitude')
     _required = _fields
-    _numeric_format = {'Lat': '0.16G', 'Lon': '0.16G', 'Altitude': '0.16G'}
+    _numeric_format = {'Lat': '0.17E', 'Lon': '0.17E', 'Altitude': '0.17E'}
     # descriptors
     Lat = FloatDescriptor(
         'Lat', _required, strict=True,

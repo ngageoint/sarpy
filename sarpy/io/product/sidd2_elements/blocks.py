@@ -57,7 +57,7 @@ class RangeAzimuthType(Serializable, Arrayable):
     """
     _fields = ('Range', 'Azimuth')
     _required = ('Range', 'Azimuth')
-    _numeric_format = {key: '0.16G' for key in _fields}
+    _numeric_format = {key: '0.17E' for key in _fields}
     _child_xml_ns_key = {'Range': 'sicommon', 'Azimuth': 'sicommon'}
     # Descriptor
     Range = FloatDescriptor(
@@ -132,7 +132,7 @@ class AngleMagnitudeType(Serializable, Arrayable):
 
     _fields = ('Angle', 'Magnitude')
     _required = ('Angle', 'Magnitude')
-    _numeric_format = {key: '0.16G' for key in _fields}
+    _numeric_format = {key: '0.17E' for key in _fields}
     _child_xml_ns_key = {'Angle': 'sicommon', 'Magnitude': 'sicommon'}
     # Descriptor
     Angle = FloatModularDescriptor(
@@ -212,7 +212,7 @@ class RowColArrayElement(RowColArrayElementBase):
 class RowColDoubleType(Serializable, Arrayable):
     _fields = ('Row', 'Col')
     _required = _fields
-    _numeric_format = {key: '0.16G' for key in _fields}
+    _numeric_format = {key: '0.17E' for key in _fields}
     _child_xml_ns_key = {'Row': 'sicommon', 'Col': 'sicommon'}
     # Descriptors
     Row = FloatDescriptor(
@@ -441,7 +441,7 @@ class BankCustomType(Serializable, Arrayable):
     __slots__ = ('_coefs', )
     _fields = ('Coefs', 'numPhasings', 'numPoints')
     _required = ('Coefs', )
-    _numeric_format = {'Coefs': '0.16G'}
+    _numeric_format = {'Coefs': '0.17E'}
 
     def __init__(self, Coefs=None, **kwargs):
         """

@@ -47,7 +47,7 @@ class LFMEclipseType(Serializable):
 
     _fields = ('FxEarlyLow', 'FxEarlyHigh', 'FxLateLow', 'FxLateHigh')
     _required = _fields
-    _numeric_format = {fld: '0.17G' for fld in _fields}
+    _numeric_format = {fld: '0.17E' for fld in _fields}
     # descriptors
     FxEarlyLow = FloatDescriptor(
         'FxEarlyLow', _required, strict=DEFAULT_STRICT, bounds=(0, None),
@@ -97,7 +97,7 @@ class TOAExtendedType(Serializable):
 
     _fields = ('TOAExtSaved', 'LFMEclipse')
     _required = ('TOAExtSaved', )
-    _numeric_format = {'TOAExtSaved': '0.17G'}
+    _numeric_format = {'TOAExtSaved': '0.17E'}
     # descriptors
     TOAExtSaved = FloatDescriptor(
         'TOAExtSaved', _required, strict=DEFAULT_STRICT, bounds=(0, None),
@@ -260,7 +260,7 @@ class TgtRefLevelType(Serializable):
 
     _fields = ('PTRef', )
     _required = _fields
-    _numeric_format = {'PTRef': '0.17G'}
+    _numeric_format = {'PTRef': '0.17E'}
     # descriptors
     PTRef = FloatDescriptor(
         'PTRef', _required, strict=DEFAULT_STRICT, bounds=(0, None),
@@ -293,7 +293,7 @@ class FxPNPointType(Serializable):
 
     _fields = ('Fx', 'PN')
     _required = _fields
-    _numeric_format = {'FX': '0.17G', 'PN': '0.17G'}
+    _numeric_format = {'FX': '0.17E', 'PN': '0.17E'}
     # descriptors
     Fx = FloatDescriptor(
         'Fx', _required, strict=DEFAULT_STRICT,
@@ -335,7 +335,7 @@ class NoiseLevelType(Serializable):
     _required = ('PNRef', 'BNRef')
     _collections_tags = {
         'FxNoiseProfile': {'array': True, 'child_tag': 'Point'}}
-    _numeric_format = {'PNRef': '0.17G', 'BNRef': '0.17G'}
+    _numeric_format = {'PNRef': '0.17E', 'BNRef': '0.17E'}
     # descriptors
     PNRef = FloatDescriptor(
         'PNRef', _required, strict=DEFAULT_STRICT, bounds=(0, None),
@@ -381,7 +381,7 @@ class ChannelParametersType(Serializable):
         'Identifier', 'RefVectorIndex', 'FXFixed', 'TOAFixed', 'SRPFixed',
         'Polarization', 'FxC', 'FxBW', 'TOASaved', 'DwellTimes')
     _numeric_format = {
-        'FxC': '0.17G', 'FxBW': '0.17G', 'FxBWNoise': '0.17G', 'TOASaved': '0.16G'}
+        'FxC': '0.17E', 'FxBW': '0.17E', 'FxBWNoise': '0.17E', 'TOASaved': '0.17E'}
     # descriptors
     Identifier = StringDescriptor(
         'Identifier', _required, strict=DEFAULT_STRICT,

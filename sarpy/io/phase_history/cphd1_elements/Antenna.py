@@ -108,7 +108,7 @@ class GainPhaseArrayType(Serializable):
 
     _fields = ('Freq', 'ArrayId', 'ElementId')
     _required = ('Freq', 'ArrayId')
-    _numeric_format = {'Freq', '0.16G'}
+    _numeric_format = {'Freq', '0.17E'}
     # descriptors
     Freq = FloatDescriptor(
         'Freq', _required, strict=DEFAULT_STRICT, bounds=(0, None),
@@ -156,7 +156,7 @@ class AntPatternType(Serializable):
         'Identifier', 'FreqZero', 'EB', 'Array', 'Element')
     _collections_tags = {
         'GainPhaseArray': {'array': False, 'child_tag': 'GainPhaseArray'}}
-    _numeric_format = {'FreqZero': '0.16G', 'GainZero': '0.16G'}
+    _numeric_format = {'FreqZero': '0.17E', 'GainZero': '0.17E'}
     # descriptors
     Identifier = StringDescriptor(
         'Identifier', _required, strict=DEFAULT_STRICT,
