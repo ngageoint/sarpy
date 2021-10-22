@@ -168,7 +168,7 @@ class RangeCrossRangeType(Serializable, Arrayable):
     """
     _fields = ('Range', 'CrossRange')
     _required = _fields
-    _numeric_format = {key: '0.16G' for key in _fields}
+    _numeric_format = {key: '0.17G' for key in _fields}
     # descriptors
     Range = FloatDescriptor(
         'Range', _required, strict=True, docstring='The Range attribute.')  # type: float
@@ -235,7 +235,7 @@ class RangeCrossRangeType(Serializable, Arrayable):
 class RowColDoubleType(Serializable, Arrayable):
     _fields = ('Row', 'Col')
     _required = _fields
-    _numeric_format = {key: '0.16G' for key in _fields}
+    _numeric_format = {key: '0.17G' for key in _fields}
     # Descriptors
     Row = FloatDescriptor(
         'Row', _required, strict=True, docstring='The Row attribute.')  # type: float
@@ -302,7 +302,7 @@ class LatLonEleType(Serializable, Arrayable):
     """A three-dimensional geographic point in WGS-84 coordinates."""
     _fields = ('Lat', 'Lon', 'Ele')
     _required = _fields
-    _numeric_format = {'Lat': '0.16G', 'Lon': '0.16G', 'Ele': '0.16G'}
+    _numeric_format = {'Lat': '0.17G', 'Lon': '0.17G', 'Ele': '0.17G'}
     # descriptors
     Lat = FloatDescriptor(
         'Lat', _required, strict=True,

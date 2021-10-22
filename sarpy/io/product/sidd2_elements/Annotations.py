@@ -34,7 +34,7 @@ class ParameterType(Serializable):
 
     _fields = ('ParameterName', 'Value')
     _required = _fields
-    _numeric_format = {'Value': '0.16G'}
+    _numeric_format = {'Value': '0.17G'}
     # Descriptor
     ParameterName = StringDescriptor(
         'ParameterName', _required, strict=DEFAULT_STRICT,
@@ -98,7 +98,7 @@ class PrimeMeridianType(Serializable):
 
     _fields = ('Name', 'Longitude')
     _required = _fields
-    _numeric_format = {'Longitude': '0.16G'}
+    _numeric_format = {'Longitude': '0.17G'}
     # Descriptor
     Name = StringDescriptor(
         'Name', _required, strict=DEFAULT_STRICT,
@@ -132,7 +132,7 @@ class SpheroidType(Serializable):
     """
     _fields = ('SpheroidName', 'SemiMajorAxis', 'InverseFlattening')
     _required = _fields
-    _numeric_format = {'SemiMajorAxis': '0.16G', 'InverseFlattening': '0.16G'}
+    _numeric_format = {'SemiMajorAxis': '0.17G', 'InverseFlattening': '0.17G'}
     # Descriptor
     SpheroidName = StringDescriptor(
         'SpheroidName', _required, strict=DEFAULT_STRICT,

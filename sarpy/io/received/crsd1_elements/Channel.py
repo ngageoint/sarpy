@@ -61,7 +61,7 @@ class SignalRefLevelType(Serializable):
 
     _fields = ('PSCRSD', 'PRcvDensity')
     _required = _fields
-    _numeric_format = {fld: '0.16G' for fld in _fields}
+    _numeric_format = {fld: '0.17G' for fld in _fields}
     # descriptors
     PSCRSD = FloatDescriptor(
         'PSCRSD', _required, strict=DEFAULT_STRICT,
@@ -99,7 +99,7 @@ class NoiseLevelType(Serializable):
 
     _fields = ('PNCRSD', 'BNCRSD')
     _required = _fields
-    _numeric_format = {fld: '0.16G' for fld in _fields}
+    _numeric_format = {fld: '0.17G' for fld in _fields}
     # descriptors
     PNCRSD = FloatDescriptor(
         'PNCRSD', _required, strict=DEFAULT_STRICT,
@@ -229,7 +229,7 @@ class ChannelParametersType(Serializable):
         'Identifier', 'RefVectorIndex', 'RefFreqFixed', 'FrcvFixed', 'DemodFixed',
         'F0Ref', 'Fs', 'BWInst', 'RcvPol')
     _numeric_format = {
-        'F0Ref': '0.16G', 'Fs': '0.16G', 'BWInst': '0.16G'}
+        'F0Ref': '0.17G', 'Fs': '0.17G', 'BWInst': '0.17G'}
     _collections_tags = {
         'AddedParameters': {'array': False, 'child_tag': 'AddedParameters'}}
     # descriptors

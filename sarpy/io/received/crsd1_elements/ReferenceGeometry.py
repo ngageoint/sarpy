@@ -89,8 +89,8 @@ class RcvParametersType(Serializable):
         'DopplerConeAngle', 'GrazeAngle', 'IncidenceAngle', 'AzimuthAngle')
     _required = _fields
     _numeric_format = {
-        'SlantRange': '0.16G', 'GroundRange': '0.16G', 'DopplerConeAngle': '0.16G',
-        'GrazeAngle': '0.16G', 'IncidenceAngle': '0.16G', 'AzimuthAngle': '0.16G'}
+        'SlantRange': '0.17G', 'GroundRange': '0.17G', 'DopplerConeAngle': '0.17G',
+        'GrazeAngle': '0.17G', 'IncidenceAngle': '0.17G', 'AzimuthAngle': '0.17G'}
     # descriptors
     RcvTime = FloatDescriptor(
         'RcvTime', _required, strict=DEFAULT_STRICT,
