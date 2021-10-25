@@ -860,6 +860,9 @@ class Poly1DType(Serializable, Arrayable):
     def __getitem__(self, item):
         return self._coefs[item]
 
+    def __setitem__(self, item, value):
+        self._coefs[item] = value
+
     def derivative(self, der_order=1, return_poly=False):
         """
         Calculate the `der_order` derivative of the polynomial.
@@ -1138,6 +1141,9 @@ class Poly2DType(Serializable, Arrayable):
 
     def __getitem__(self, item):
         return self._coefs[item]
+
+    def __setitem__(self, item, value):
+        self._coefs[item] = value
 
     def shift(self, t1_shift=0, t1_scale=1, t2_shift=0, t2_scale=1, return_poly=False):
         r"""

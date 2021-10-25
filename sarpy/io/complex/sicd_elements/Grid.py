@@ -269,6 +269,20 @@ class DirParamType(Serializable):
             self.WgtFunct = value
         return value
 
+    def get_oversample_rate(self):
+        """
+        Gets the oversample rate. *Added in version 1.2.35.*
+
+        Returns
+        -------
+        float
+        """
+
+        if self.SS is None or self.ImpRespBW is None:
+            raise AttributeError('Both SS and ImpRespBW must be populated.')
+
+        return max(1., 1./(self.SS*self.ImpRespBW))
+
     def _get_broadening_factor(self):
         """
         Gets the *broadening factor*, assuming that `WgtFunct` has been properly populated.
