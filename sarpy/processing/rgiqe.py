@@ -474,7 +474,7 @@ def get_bandwidth_noise_distribution(sicd, alpha, desired_information_density=No
     #   signal/(mult*noise) = 2^(inf_dens/bw_area) - 1
     #   mult = signal/(noise*2^(inf_dens/bw_area) - 1))
 
-    print(f'sigma zero estimate {sigma0_sf*this_bw_areas} bw_area {this_bw_areas}, signal {this_signals}, the noise {this_noises}')
+    print(f'sigma zero estimate {sigma0_sf/numpy.multiply.reduce(bw_multiplier[indices, :], 1)} bw_area {this_bw_areas}, signal {this_signals}, the noise {this_noises}, noise weighting {noise_weighting[indices]}')
 
     required_noise_multiplier = this_signals/(this_noises*(numpy.exp2(desired_information_density/this_bw_areas) - 1))
     required_noise_multiplier[required_noise_multiplier < 1] = 1
@@ -677,11 +677,11 @@ def get_dimension_bandwidth_multiplier_possibilities(sicd, dimension):
     data_size = (sicd.ImageData.NumRows, sicd.ImageData.NumCols)
     # get the current aperture delimiters and weight array of appropriate size
     if dimension == 0:
-        wgt_funct =  sicd.Grid.Row.WgtFunct.copy()
+        wgt_funct = sicd.Grid.Row.WgtFunct.copy()
         oversample = sicd.Grid.Row.get_oversample_rate()
     else:
-        wgt_funct =  sicd.Grid.Row.WgtFunct.copy()
-        oversample = sicd.Grid.Row.get_oversample_rate()
+        wgt_funct = sicd.Grid.Col.WgtFunct.copy()
+        oversample = sicd.Grid.Col.get_oversample_rate()
     weight_array, ap_start, ap_end = determine_weight_array(data_size, wgt_funct, oversample, dimension)
 
     # set up workspace to determine the second moment of all possible center-subapertures
@@ -697,7 +697,7 @@ def get_dimension_bandwidth_multiplier_possibilities(sicd, dimension):
         index_count[0] = 1
         squared_entries = numpy.empty((half_size, ), dtype='float64')
         squared_entries[:] = 1./weight_array[half_size-1:]**2
-        squared_entries[:] += 1./weight_array[half_size-2::-1]**2
+        squared_entries[1:] += 1./weight_array[half_size-2::-1]**2
     # now, determine the cumulative sum of these two arrays, and reverse them
     aperture_size = numpy.cumsum(index_count)[::-1]
     second_moment = numpy.cumsum(squared_entries)[::-1]
@@ -736,16 +736,18 @@ def get_bidirectional_bandwidth_multiplier_possibilities(sicd):
         An array of shape `(N, 2)` for row/column separately.
     """
 
-    row_aperture_size, row_bw_multiplier, row_noise_weighting = get_dimension_bandwidth_multiplier_possibilities(sicd, 0)
-    col_aperture_size, col_bw_multiplier, col_noise_weighting = get_dimension_bandwidth_multiplier_possibilities(sicd, 1)
+    row_aperture_size, row_bw_multiplier, row_noise_weighting = get_dimension_bandwidth_multiplier_possibilities(
+        sicd, 0)
+    col_aperture_size, col_bw_multiplier, col_noise_weighting = get_dimension_bandwidth_multiplier_possibilities(
+        sicd, 1)
 
     the_size = max(row_aperture_size.size, col_aperture_size.size)
     aperture_size = numpy.empty((the_size, 2), dtype='int32')
     bw_multiplier = numpy.empty((the_size, 2), dtype='float64')
     noise_weighting = numpy.empty((the_size, 2), dtype='float64')
 
-    row_indexing = numpy.cast['int32'](numpy.ceil(float(row_aperture_size.size)*numpy.arange(the_size)/float(the_size)))
-    col_indexing = numpy.cast['int32'](numpy.ceil(float(col_aperture_size.size)*numpy.arange(the_size)/float(the_size)))
+    row_indexing = numpy.cast['int32'](numpy.ceil(float(row_aperture_size.size - 1)*numpy.arange(the_size)/float(the_size - 1)))
+    col_indexing = numpy.cast['int32'](numpy.ceil(float(col_aperture_size.size - 1)*numpy.arange(the_size)/float(the_size - 1)))
 
     aperture_size[:, 0] = row_aperture_size[row_indexing]
     aperture_size[:, 1] = col_aperture_size[col_indexing]
@@ -1062,7 +1064,7 @@ def quality_degrade_rniirs(
     desired_bandwidth = (sicd.Grid.Row.ImpRespBW*bandwidth_multiplier[0], sicd.Grid.Col.ImpRespBW*bandwidth_multiplier[1])
     add_noise = (noise_multiplier - 1)*current_noise
 
-    if add_noise <= 0:
+    if alpha == 0 or add_noise <= 0:
         add_noise = None
     row_aperture, row_bw_factor, column_aperture, column_bw_factor = _map_bandwidth_parameters(
         sicd, desired_bandwidth=desired_bandwidth)
@@ -1079,9 +1081,9 @@ if __name__ == '__main__':
     import os
     from sarpy.io.complex.sicd import SICDReader
 
-    reader = SICDReader(os.path.expanduser('~/Desktop/orig_sicd.nitf'))
+    reader = SICDReader(os.path.expanduser(r'C:\Users\jr80407\Documents\workspace\testing_sarpy\downsample.nitf'))
 
-    out = quality_degrade_rniirs(reader, desired_rniirs=3.0)
+    out = quality_degrade_rniirs(reader, desired_rniirs=2.5)
     print(f'initial noise is {get_sigma0_noise(reader.sicd_meta)}')
     print(f'resulting noise is {get_sigma0_noise(out.sicd_meta)}')
     print(f'resulting rniirs {rgiqe(out.sicd_meta)}')
