@@ -510,6 +510,9 @@ class BankCustomType(Serializable, Arrayable):
     def __getitem__(self, item):
         return self._coefs[item]
 
+    def __setitem__(self, item, value):
+        self._coefs[item] = value
+
     @classmethod
     def from_array(cls, array):  # type: (numpy.ndarray) -> BankCustomType
         if array is None:
