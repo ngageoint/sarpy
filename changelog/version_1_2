@@ -1,7 +1,7 @@
 # This details the important differences introduced in sarpy 1.2
 
-* .35 - Correcting the RGIQE calculation for estimated noise adjustment for a
-        subaperture window
+* .35 - Correcting the Radiometric polynomials for SICD subaperture degradation
+        and the rgiqe methods for degrading to a desired quality
 * .34 - Changing the serialization format for xml floating point to exponential
 * .33 - Upping the serialized digits in xml double fields from 16 to 17
 * .32 - Fixing bug for left looking radarsat SLC data
