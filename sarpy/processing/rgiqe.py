@@ -10,12 +10,12 @@ __author__ = "Thomas McCullough"
 import logging
 
 import numpy
-from scipy.optimize import minimize_scalar
+from scipy.signal import resample
 
-from sarpy.io.complex.base import SICDTypeReader
+from sarpy.io.complex.base import SICDTypeReader, FlatSICDReader
 from sarpy.processing.windows import get_hamming_broadening_factor
 from sarpy.processing.normalize_sicd import sicd_degrade_reweight, is_uniform_weight, \
-    get_resultant_noise
+    get_resultant_noise, determine_weight_array, noise_scaling
 from sarpy.io.complex.converter import open_complex
 
 logger = logging.getLogger(__name__)
@@ -138,32 +138,9 @@ def _get_sigma0_deweighted(sicd):
     float
     """
 
-    sigma0_sf = sicd.Radiometric.RCSSFPoly[0, 0] * \
-                (sicd.Grid.Row.ImpRespBW * sicd.Grid.Col.ImpRespBW) / \
-                numpy.cos(numpy.deg2rad(sicd.SCPCOA.SlopeAng))
-    return sigma0_sf
-
-
-def get_sigma0_noise_with_uniform_weighting(sicd):
-    """
-    Gets both the current nesz and nesz after uniform weighting **in power units**.
-
-    Parameters
-    ----------
-    sicd : sarpy.io.complex.sicd_elements.SICD.SICDType
-
-    Returns
-    -------
-    current_nesz : float
-        In power units.
-    reweighted_nesz : float
-        In power units.
-    """
-
-    _verify_sicd_with_noise(sicd)
-    current_noise, reweighted_noise = _get_current_and_reweighted_noise(sicd)
-    sigma0_sf = _get_sigma0_deweighted(sicd)
-    return current_noise*sigma0_sf, reweighted_noise*sigma0_sf
+    return sicd.Radiometric.RCSSFPoly[0, 0] * \
+           (sicd.Grid.Row.ImpRespBW * sicd.Grid.Col.ImpRespBW) / \
+           numpy.cos(numpy.deg2rad(sicd.SCPCOA.SlopeAng))
 
 
 #########################
@@ -229,6 +206,47 @@ def get_rniirs(information_density):
         out[mask] = a[0] + a[1]*numpy.log2(information_density[mask])
     if numpy.any(mask_other):
         out[mask_other] = slope*information_density[mask_other]
+
+    if orig_ndim == 0:
+        return float(out[0])
+    return out
+
+
+def get_information_density_for_rniirs(rniirs):
+    """
+    The inverse of :func:`get_rniirs`, this determines the information density
+    which yields the given RNIIRS.
+
+    *New in version 1.2.35.*
+
+    Parameters
+    ----------
+    rniirs : float
+
+    Returns
+    -------
+    float
+    """
+
+    a = RNIIRS_FIT_PARAMETERS
+    iim_transition = numpy.exp(1 - numpy.log(2) * a[0] / a[1])
+    slope = a[1] / (iim_transition * numpy.log(2))
+    rniirs_transition = slope*iim_transition
+
+    if not isinstance(rniirs, numpy.ndarray):
+        rniirs = numpy.array(rniirs, dtype='float64')
+    orig_ndim = rniirs.ndim
+    if orig_ndim == 0:
+        rniirs = numpy.reshape(rniirs, (1, ))
+
+    out = numpy.empty(rniirs.shape, dtype='float64')
+    mask = (rniirs > rniirs_transition)
+    mask_other = ~mask
+
+    if numpy.any(mask):
+        out[mask] = numpy.exp2((rniirs[mask] - a[0])/a[1])
+    if numpy.any(mask_other):
+        out[mask_other] = rniirs[mask_other]/slope
 
     if orig_ndim == 0:
         return float(out[0])
@@ -343,117 +361,130 @@ def populate_rniirs_for_sicd(sicd, signal=None, noise=None, override=False):
     sicd.CollectionInfo.Parameters['PREDICTED_RNIIRS'] = '{0:0.1f}'.format(rniirs)
 
 
-def get_bandwidth_noise_distribution(bandwidth_area, snr, alpha, desired_information_density):
+def get_bandwidth_noise_distribution(sicd, alpha, desired_information_density=None, desired_rniirs=None):
     r"""
-    This is a function which defines a distribution of SICD degradation
-    parameters to achieve the desired information density/rniirs. This gets the
-    relative multipliers for the bandwidth and nesz values, given the current
-    bandwidth area, the current snr, a distribution parameter, and the desired
+    This function determines SICD degradation parameters (nominally symmetric in
+    row/column subaperture degradation) to achieve the desired information density/rniirs.
+
+    For SICD files with weighting, the deweighting process comes along with a natural
+    modification of the noise which depends on the bandwidth multiplier. Including this,
+    there is natural one parameter distribution of reducing bandwidth and adding noise
+    to achieve the desired RNIIRS/information density, based on :math:`\alpha \in [0, 1]`.
+
+    For :math:`\alpha=0`, we add no additional noise (:math:`noise\_mult=1`) and use
+    purely sub-aperture degradation, achieved at
+    .. math::
+
+        desired\_information\_density = bandwidth\_area*(bw\_min)^2)\cdot\log_2(1 + snr/(bw\_noise\_adjustment).
+
+    On the other end, at :math:`\alpha=1`, we have :math:`bw\_mult=1` and derive the
+    noise multiplier which fulfills the required information density. For intermediate
+    :math:`0 < \alpha < 1`, we find
+
+    .. math::
+
+        bw_mult(\alpha) = bw\_min\cdot (1-\alpha)
+
+    Then, we find :math:`noise\_multiplier(\alpha)` which fulfills the required
     information density.
 
-    The information density is defined as
+    .. note::
 
-    .. math::
+        Choosing subaperture windows is fundamentally a discrete operation, and
+        this carries over to the realities of choosing bandwidth multipliers. See
+        :func:`get_bidirectional_bandwidth_multiplier_possibilities` for all
+        feasible values for bandwidth multipliers and associated noise adjustment
+        details.
 
-        inf\_density = bw\_area\cdot\log_2(1 + snr).
-
-    If we use sub-aperture degradation to reduce the bandwidth area and add noise
-    (before the sub-aperture degradation), we get
-
-    .. math::
-
-        inf\_density\_new = bw\_area \cdot bw\_mult^2\cdot\log_2\left(1 + \frac{snr}{bw\_mult^2\cdot noise\_mult}\right)
-
-    The resultant noise (in unit of power) AFTER processing will be
-
-    .. math::
-
-        new\_noise & = noise\cdot bw\_mult^2\cdot noise\_mult \text{(in power)}\\
-        new\_nesz &= nesz + 2\log_{10}(bw\_mult) + \log_{10}(noise\_mult) \text{(in dB)}
-
-    Holding the value for :math:`inf\_density\_new` constant defines a distribution
-    on :math:`bw\_mult` and :math:`noise\_mult` to obtain the desired information
-    density/rniirs. There is significant interplay between the values for :math:`bw\_mult` and
-    :math:`noise\_mult`, but it can be simplified to a one parameter distribution
-    based on :math:`\alpha \in [0, 1]`. There is a natural continuum of consideration,
-    which we define as :math:`\alpha=0`, we add no additional noise
-    (:math:`noise\_mult=1`) and use purely sub-aperture degradation. On the other
-    end, which we define as :math:`\alpha=1`, we have :math:`bw\_mult=1`, so that
-
-    .. math::
-
-        inf\_density\_new &= bw\_area\cdot\log_2\left(1 + \frac{snr}{max\_noise\_mult}\right) \\
-        max\_noise\_mult & = \frac{snr}{2^{inf\_density\_new/bw\_area} - 1}
-
-    Then, given :math:`\alpha \in [0, 1]`, our distribution is defined by setting
-    :math:`noise\_mult = (max\_noise\_mult - 1)\cdot\alpha + 1` and then determining
-    the unique :math:`bw\_mult` which fulfills our requirement
-
-    .. math::
-
-        inf\_density\_new = bw\_area \cdot bw\_mult^2\cdot\log_2\left(1 + \frac{snr}{bw\_mult^2\cdot noise\_mult}\right)
-
-    To visualize the noise and bandwidth area as functions of :math:`\alpha` determined
-    by this function, then just use the fundamental definitions.
-
-    .. math::
-
-        new\_bandwidth\_area(\alpha) &= bandwidth\_area\cdot (bw\_mult(\alpha))^2 \\
-        new\_noise(\alpha) &= noise\cdot (bw\_mult(\alpha))^2\cdot noise\_mult(\alpha) \text{(in power)}\\
-        new\_nesz(\alpha) &= nesz + 2\log_{10}(bw\_mult(\alpha)) + \log_{10}(noise\_mult(\alpha)) \text{(in dB)}
-
+    *Refined in version 1.2.35.*
 
     Parameters
     ----------
-    bandwidth_area : float
-    snr : float
-    alpha : float
-    desired_information_density : float
+    sicd : sarpy.io.complex.sicd_elements.SICD.SICDType
+    alpha : float|numpy.ndarray
+    desired_information_density : None|float
+    desired_rniirs : None|float
 
     Returns
     -------
-    (float, float)
-        The bandwidth multiplier and noise multiplier
+    bandwidth_multiplier : (float, float)|numpy.ndarray
+        The `(row, column)` bandwidth multiplier including the discrete nature
+        of this aperture, so the two may not be precisely equal.
+    noise_multiplier : float|numpy.ndarray
+        The noise multiplier, indicating how much noise to add before the
+        subaperture processing.
     """
 
-    # todo: this is not the swiftest implementation - is it worth trying to speed up?
+    # validate the desired information density/rniirs
+    if (desired_information_density is None and desired_rniirs is None) or \
+            (desired_information_density is not None and desired_rniirs is not None):
+        raise ValueError('Exactly one of desired_information_density and desired_rniirs must be provided')
 
-    def minimize_function(bandwidth_mult):
-        sq_factor = bandwidth_mult*bandwidth_mult
-        new_bw_area = bandwidth_area*sq_factor
-        new_snr = snr/(sq_factor*noise_multiplier)
-        diff = desired_information_density - get_information_density(new_bw_area, new_snr, 1)
-        return diff*diff
+    if not isinstance(alpha, numpy.ndarray):
+        alpha = numpy.array(alpha, dtype='float64')
+    orig_ndim = alpha.ndim
+    if orig_ndim == 0:
+        alpha = numpy.reshape(alpha, (1, ))
 
-    current_inf_density = get_information_density(bandwidth_area, snr, 1)
-    if desired_information_density >= current_inf_density:
+    if not numpy.all(alpha >= 0 & alpha <= 1):
+        raise ValueError('values for alpha must be in the interval [0, 1]')
+
+    if desired_information_density is not None:
+        desired_information_density = float(desired_information_density)
+    elif desired_rniirs is not None:
+        desired_information_density = get_information_density_for_rniirs(float(desired_rniirs))
+
+    aperture_size, bw_multiplier, noise_weighting = get_bidirectional_bandwidth_multiplier_possibilities(sicd)
+
+    bandwidth_area = get_bandwidth_area(sicd)
+    signal = get_default_signal_estimate(sicd)  # NB: this is just 1 or 0.25, no scaling issues
+    current_noise = numpy.exp(numpy.log(10)*0.1*sicd.Radiometric.NoiseLevel.NoisePoly[0, 0])
+    sigma0_sf = _get_sigma0_deweighted(sicd)
+
+    # construct the whole list of bandwidth areas and resulting noises after
+    # subaperture degrading and deweighting
+    bw_areas = bandwidth_area*numpy.multiply.reduce(bw_multiplier, 1)
+    signals = signal*numpy.multiply.reduce(bw_multiplier, 1)
+    noises = sigma0_sf*current_noise*numpy.multiply.reduce(noise_weighting, 1)
+    inf_densities = get_information_density(bw_areas, signals, noises)
+    current_inf_density = inf_densities[0]
+
+    if desired_information_density > current_inf_density:
         raise ValueError(
-            'current information density is {}, this SICD can not be degraded\n\t'
-            'to obtain a result with information density {}'.format(
-                current_inf_density, desired_information_density))
+            'The desired information density is {},\n\t'
+            'but the current deweighted information density is {}'.format(
+                desired_information_density, current_inf_density))
+    if desired_information_density < inf_densities[-1]:
+        raise ValueError(
+            'The desired information density is {},\n\t'
+            'but the minimum possible with pure subaperture degradation is {}'.format(
+                desired_information_density, inf_densities[-1]))
 
-    if not (0 <= alpha <= 1):
-        raise ValueError('alpha must be in the interval [0, 1], got {}'.format(alpha))
+    best_index = numpy.argmin((desired_information_density - inf_densities)**2)
 
-    max_signal_multiplier = snr/(2**(desired_information_density/bandwidth_area) - 1)
+    # 0 -> best index (all subaperture), 1 -> 0 (all noise)
 
-    noise_multiplier = (max_signal_multiplier - 1.0)*alpha + 1.0
+    indices = numpy.cast['int32'](best_index - alpha*best_index)
+    indices = numpy.clip(indices, 0, best_index)
 
-    res = minimize_scalar(
-        minimize_function,
-        bounds=(1e-6, 1),
-        method='bounded',
-        options={'xatol': 1e-8, 'maxiter': 1000, 'disp': 0})
-    if not res.success:
-        raise ValueError('information density value search for bandwidth multiplier failed')
-    bw_multiplier = res.x
+    this_bw_areas = bw_areas[indices]
+    this_signals = signals[indices]
+    this_noises = noises[indices]
 
-    if alpha == 0:
-        return bw_multiplier, 1
-    elif alpha == 1:
-        return 1, noise_multiplier
-    else:
-        return bw_multiplier, noise_multiplier
+    # NB: inf_dens = bw_area*log2(1 + signal/(mult*noise))
+    #   signal/(mult*noise) = 2^(inf_dens/bw_area) - 1
+    #   mult = signal/(noise*2^(inf_dens/bw_area) - 1))
+
+    required_noise_multiplier = this_signals/(this_noises*(numpy.exp2(desired_information_density/this_bw_areas) - 1))
+    required_noise_multiplier[required_noise_multiplier < 1] = 1
+
+    bw_mult_out = numpy.empty(required_noise_multiplier.shape + (2, ), dtype='float64')
+    bw_mult_out[:, 0] = bw_multiplier[indices, 0]
+    bw_mult_out[:, 1] = bw_multiplier[indices, 1]
+
+    if orig_ndim == 0:
+        return (float(bw_mult_out[0, 0]), float(bw_mult_out[0, 1])), float(required_noise_multiplier[0])
+    return bw_mult_out, required_noise_multiplier
 
 
 #########################
@@ -570,7 +601,7 @@ def _map_desired_resolution_to_aperture(
         return (start_ind, start_ind+ap_size), use_bandwidth/current_imp_resp_bw
 
 
-def _determine_additional_noise_amount(desired_nesz, total_bw_factor, current_noise, reweighted_noise, sicd):
+def _determine_additional_noise_amount(desired_nesz, total_bw_factor, sigma0_sf, sicd):
     """
     Determine the additional amount of noise (in units of pixel power) required
     to achieve the desired Noise Equivalent Sigma Zero.
@@ -584,8 +615,8 @@ def _determine_additional_noise_amount(desired_nesz, total_bw_factor, current_no
         The desired noise equivalent sigma zero value.
     total_bw_factor : float
         The relative size of the bandwidth area after implied sup-aperture degradation.
-    current_noise : float
-    reweighted_noise : float
+    sigma0_sf : float
+        The current SigmaZeroSFPoly constant after uniform weighting
     sicd : sarpy.io.complex.sicd_elements.SICD.SICDType
         The sicd structure.
 
@@ -599,13 +630,15 @@ def _determine_additional_noise_amount(desired_nesz, total_bw_factor, current_no
     ValueError
     """
 
+    # todo: this is not even the right function signature
     if desired_nesz is None:
         return None
-
     desired_nesz = float(desired_nesz)
-    current_nesz = reweighted_noise*sicd.Radiometric.SigmaZeroSFPoly[0, 0]
-    required_nesz = desired_nesz/total_bw_factor
-    additional_factor = (required_nesz - current_nesz)/current_nesz
+
+    current_noise, reweighted_noise = _get_current_and_reweighted_noise(sicd)
+    current_nesz = reweighted_noise*sigma0_sf  # after weighting
+    subaperture_nesz = current_nesz*total_bw_factor  # after aperture
+    additional_factor = (desired_nesz - subaperture_nesz)/subaperture_nesz
     if additional_factor < 0:
         raise ValueError('The desired NESZ is too small to be achieved using the given sub-aperture processing scheme')
     elif additional_factor <= 1e-5:
@@ -630,11 +663,12 @@ def _get_current_and_reweighted_noise(sicd):
     """
 
     current_noise = numpy.exp(numpy.log(10)*0.1*sicd.Radiometric.NoiseLevel.NoisePoly[0, 0])  # in power
-    reweighted_noise = get_resultant_noise(
-        sicd,
-        row_weight_funct=numpy.ones((32, ), dtype='float32'),
-        column_weight_funct=numpy.ones((32, ), dtype='float32'))
-    return current_noise, numpy.exp(numpy.log(10)*0.1*reweighted_noise)
+    reweighted_noise = numpy.exp(
+        numpy.log(10)*0.1*get_resultant_noise(
+            sicd,
+            row_weight_funct=numpy.ones((32, ), dtype='float32'),
+            column_weight_funct=numpy.ones((32, ), dtype='float32')))
+    return current_noise, reweighted_noise
 
 
 def _map_bandwidth_parameters(sicd, desired_resolution=None, desired_bandwidth=None):
@@ -679,6 +713,122 @@ def _map_bandwidth_parameters(sicd, desired_resolution=None, desired_bandwidth=N
     return row_aperture, row_bw_factor, column_aperture, column_bw_factor
 
 
+def get_dimension_bandwidth_multiplier_possibilities(sicd, dimension):
+    """
+    Gets the bandwidth and noise multiplier possibilities for all centered
+    subapertures along the given dimension **for a deweighted sicd**.
+
+    .. note::
+
+        The noise multiplier for a given aperture size explicitly depends on
+        the second moment of the inverse of the weight function over the applicable
+        subaperture window. This must be explicitly calculated for each subaperture
+        window.
+
+    *Introduced in 1.2.35*
+
+    Parameters
+    ----------
+    sicd : sarpy.io.complex.sicd_elements.SICD.SICDType
+    dimension : int
+        One of `{0, 1}`.
+
+    Returns
+    -------
+    aperture_size : numpy.ndarray
+        Of shape `(N, )`.
+    bandwidth_multiplier : numpy.ndarray
+        Of shape `(N, )`.
+    noise_weighting : numpy.ndarray
+        Of shape `(N, )`.
+    """
+
+    data_size = (sicd.ImageData.NumRows, sicd.ImageData.NumCols)
+    # get the current aperture delimiters and weight array of appropriate size
+    if dimension == 0:
+        wgt_funct =  sicd.Grid.Row.WgtFunct.copy()
+        oversample = sicd.Grid.Row.get_oversample_rate()
+    else:
+        wgt_funct =  sicd.Grid.Row.WgtFunct.copy()
+        oversample = sicd.Grid.Row.get_oversample_rate()
+    weight_array, ap_start, ap_end = determine_weight_array(data_size, wgt_funct, oversample, dimension)
+
+    # set up workspace to determine the second moment of all possible center-subapertures
+    if (weight_array.size % 2) == 0:
+        half_size = int(weight_array.size/2)
+        index_count = numpy.full((half_size, ), 2, dtype='int32')
+        squared_entries = numpy.empty((half_size, ), dtype='float64')
+        squared_entries[:] = 1./weight_array[half_size:]**2
+        squared_entries[:] += 1./weight_array[half_size-1::-1]**2
+    else:
+        half_size = int((weight_array.size + 1)/2)
+        index_count = numpy.full((half_size, ), 2, dtype='int32')
+        index_count[0] = 1
+        squared_entries = numpy.empty((half_size, ), dtype='float64')
+        squared_entries[:] = 1./weight_array[half_size-1:]**2
+        squared_entries[:] += 1./weight_array[half_size-2::-1]**2
+    # now, determine the cumulative sum of these two arrays, and reverse them
+    aperture_size = numpy.cumsum(index_count)[::-1]
+    second_moment = numpy.cumsum(squared_entries)[::-1]
+
+    noise_weighting = second_moment/float(weight_array.size)
+    bw_multiplier = aperture_size/float(weight_array.size)
+    return aperture_size, bw_multiplier, noise_weighting
+
+
+def get_bidirectional_bandwidth_multiplier_possibilities(sicd):
+    """
+    Gets the bandwidth and noise multiplier possibilities for all centered
+    subapertures shrinking along both dimensions symmetrically
+    **for a deweighted sicd**.
+
+    .. note::
+
+        The noise multiplier for a given aperture size explicitly depends on
+        the second moment of the inverse of the weight function over the applicable
+        subaperture window. This must be explicitly calculated for each subaperture
+        window.
+
+    *Introduced in 1.2.35*
+
+    Parameters
+    ----------
+    sicd : sarpy.io.complex.sicd_elements.SICD.SICDType
+
+    Returns
+    -------
+    aperture_size : numpy.ndarray
+        An array of shape `(N, 2)` for row/column separately.
+    bandwidth_multiplier : numpy.ndarray
+        An array of shape `(N, 2)` for row/column separately.
+    noise_weighting : numpy.ndarray
+        An array of shape `(N, 2)` for row/column separately.
+    """
+
+    row_aperture_size, row_bw_multiplier, row_noise_weighting = get_dimension_bandwidth_multiplier_possibilities(sicd, 0)
+    col_aperture_size, col_bw_multiplier, col_noise_weighting = get_dimension_bandwidth_multiplier_possibilities(sicd, 1)
+
+    the_size = max(row_aperture_size.size, col_aperture_size.size)
+    aperture_size = numpy.empty((the_size, 2), dtype='int32')
+    bw_multiplier = numpy.empty((the_size, 2), dtype='float64')
+    noise_weighting = numpy.empty((the_size, 2), dtype='float64')
+
+    row_indexing = numpy.cast['int32'](numpy.ceil(float(row_aperture_size.size)*numpy.arange(the_size)/float(the_size)))
+    col_indexing = numpy.cast['int32'](numpy.ceil(float(col_aperture_size.size)*numpy.arange(the_size)/float(the_size)))
+
+    aperture_size[:, 0] = row_aperture_size[row_indexing]
+    aperture_size[:, 1] = col_aperture_size[col_indexing]
+
+    bw_multiplier[:, 0] = row_bw_multiplier[row_indexing]
+    bw_multiplier[:, 1] = col_bw_multiplier[col_indexing]
+
+    noise_weighting[:, 0] = row_noise_weighting[row_indexing]
+    noise_weighting[:, 1] = col_noise_weighting[col_indexing]
+
+    return aperture_size, bw_multiplier, noise_weighting
+
+# todo: function mapping this onto all possible information densities and RNIIRS?
+
 #########################
 # SICD quality degradation functions
 
@@ -701,9 +851,6 @@ def quality_degrade(reader, index=0, output_file=None, desired_resolution=None,
         per pixel noise. A SICD produced from such processing will naturally
         have a different nesz value (and slightly pink/colored noise), even if it
         is not augmented by the addition of extra noise.
-
-    The current `reweighted_nesz` in power units can be obtained from
-    :func:`get_sigma0_noise_with_uniform_weighting`.
 
     Assuming that the current Row/Col ImpRespBW is given in tuple `(row_bw, col_bw)`,
     the desired Row/Col ImpRespBW is provided as `(new_row_bw, new_col_bw)`,
@@ -757,11 +904,14 @@ def quality_degrade(reader, index=0, output_file=None, desired_resolution=None,
 
     sicd = reader.get_sicds_as_tuple()[index]
     row_weighting, column_weighting = _get_uniform_weight_dicts(sicd)
+    sigma0_sf = _get_sigma0_deweighted(sicd)
 
     row_aperture, row_bw_factor, column_aperture, column_bw_factor = _map_bandwidth_parameters(
         sicd, desired_resolution=desired_resolution, desired_bandwidth=desired_bandwidth)
-    current_noise, reweighted_noise = _get_current_and_reweighted_noise(sicd)
-    add_noise = _determine_additional_noise_amount(desired_nesz, row_bw_factor*column_bw_factor, current_noise, reweighted_noise, sicd)
+    # todo: calculate the additional noise right here directly...
+
+    add_noise = _determine_additional_noise_amount(desired_nesz, row_bw_factor*column_bw_factor, sigma0_sf, sicd)
+    # todo: ensure that this is correct, it is currently not...
 
     return sicd_degrade_reweight(
         reader, output_file=output_file, index=index,
@@ -893,71 +1043,57 @@ def quality_degrade_rniirs(
         reader object.
     """
 
-    def find_inf_density():
-        res = minimize_scalar(
-            lambda x: (desired_rniirs - get_rniirs(x))**2,
-            bounds=(0, current_inf_density),
-            method='bounded')
-        if not res.success:
-            raise ValueError('RNIIRS value search for information density failed')
-        return float(res.x)
-
     if desired_rniirs is None:
         return quality_degrade(reader, index=index, output_file=output_file, **kwargs)
 
     reader, index = _validate_reader(reader, index)
     sicd = reader.get_sicds_as_tuple()[index]
+    current_noise = numpy.exp(numpy.log(10)*0.1*sicd.Radiometric.NoiseLevel.NoisePoly[0, 0])
 
-    bandwidth_area = get_bandwidth_area(sicd)
-    signal = get_default_signal_estimate(sicd)
-    current_noise, reweighted_noise = _get_current_and_reweighted_noise(sicd)
-    sigma0_sf = _get_sigma0_deweighted(sicd)
-    nesz = reweighted_noise*sigma0_sf
+    bandwidth_multiplier, noise_multiplier = get_bandwidth_noise_distribution(sicd, alpha, desired_rniirs=desired_rniirs)
 
-    current_inf_density = get_information_density(bandwidth_area, signal, nesz)
-    current_rniirs = get_rniirs(current_inf_density)
-
-    if current_rniirs < desired_rniirs:
-        raise ValueError(
-            'The current rniirs (after uniform weighting) is {},\n\t'
-            'and the desired rniirs is {}'.format(current_rniirs, desired_rniirs))
-
-    # find the information density for the required RNIIRS
-    desired_inf_density = find_inf_density()
-    alpha = float(alpha)
-    bw_multiplier, nesz_multiplier = get_bandwidth_noise_distribution(
-        bandwidth_area, signal/nesz, alpha, desired_inf_density)
-
-    desired_bandwidth = (sicd.Grid.Row.ImpRespBW*bw_multiplier, sicd.Grid.Col.ImpRespBW*bw_multiplier)
-    if nesz_multiplier < (1 - 1e-5):
-        raise ValueError('Got negative required additional noise.')
-    elif nesz_multiplier < (1 + 1e-5):
-        add_noise = None  # to overcome imprecision nonsense
-    else:
-        add_noise = current_noise*(nesz_multiplier - 1)
-
-    row_weighting, column_weighting = _get_uniform_weight_dicts(sicd)
-
+    desired_bandwidth = (sicd.Grid.Row.ImpRespBW*bandwidth_multiplier[0], sicd.Grid.Col.ImpRespBW*bandwidth_multiplier[1])
+    add_noise = (noise_multiplier - 1)*current_noise
+    if add_noise <= 0:
+        add_noise = None
     row_aperture, row_bw_factor, column_aperture, column_bw_factor = _map_bandwidth_parameters(
         sicd, desired_bandwidth=desired_bandwidth)
+    row_weighting, column_weighting = _get_uniform_weight_dicts(sicd)
 
-    if alpha == 0:
-        # signal and noise remain constant, and we vary only bandwidth (ImpRespBW)
-        return sicd_degrade_reweight(
-            reader, output_file=output_file, index=index,
-            row_aperture=row_aperture, row_weighting=row_weighting,
-            column_aperture=column_aperture, column_weighting=column_weighting,
-            add_noise=None, **kwargs)
-    elif alpha == 1:
-        # bandwidth area remains constant, we vary only the noise
-        return sicd_degrade_reweight(
-            reader, output_file=output_file, index=index,
-            row_weighting=row_weighting,
-            column_weighting=column_weighting,
-            add_noise=add_noise, **kwargs)
-    else:
-        return sicd_degrade_reweight(
-            reader, output_file=output_file, index=index,
-            row_aperture=row_aperture, row_weighting=row_weighting,
-            column_aperture=column_aperture, column_weighting=column_weighting,
-            add_noise=add_noise, **kwargs)
+    return sicd_degrade_reweight(
+        reader, output_file=output_file, index=index,
+        row_aperture=row_aperture, row_weighting=row_weighting,
+        column_aperture=column_aperture, column_weighting=column_weighting,
+        add_noise=add_noise, **kwargs)
+
+
+if __name__ == '__main__':
+    import os
+    from sarpy.io.complex.sicd import SICDReader
+
+    # reader = SICDReader(os.path.expanduser('~/Desktop/orig_sicd.nitf'))
+
+    # out = quality_degrade_rniirs(reader, desired_rniirs=3.4)
+    # print(f'initial noise is {get_sigma0_noise(reader.sicd_meta)}')
+    # print(f'resulting noise is {get_sigma0_noise(out.sicd_meta)}')
+    # print(f'resulting rniirs {rgiqe(out.sicd_meta)}')
+
+    from matplotlib import pyplot
+    #
+    # dimension = 0
+    # ap_size, bw_mult, noise_mult = get_bidirectional_bandwidth_multiplier_possibilities(reader.sicd_meta)
+    # # ap_size, bw_mult, noise_mult = get_dimension_bandwidth_multiplier_possibilities(reader.sicd_meta, dimension)
+    # fig, axs = pyplot.subplots(nrows=3, sharex='all')
+    # axs[0].set_title('Comparison of bandwidth multiplier and noise multiplier')
+    # axs[0].plot(ap_size)
+    # axs[0].set_ylabel('subaperture size')
+    # axs[1].plot(bw_mult)
+    # axs[1].set_ylabel('bandwidth multiplier')
+    # axs[2].plot(numpy.multiply.reduce(noise_mult, 1))
+    # axs[2].set_ylabel('noise multiplier (both)')
+    # pyplot.show()
+
+
+    # fig, ax = pyplot.subplots()
+    # ax.plot(inf_dens)
+    # pyplot.show()
