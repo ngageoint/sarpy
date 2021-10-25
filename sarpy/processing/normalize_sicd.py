@@ -943,9 +943,7 @@ def sicd_degrade_reweight(
             the_ratio = float(new_aperture_limits[1] - new_aperture_limits[0]) / \
                 float(cur_aperture_limits[1] - cur_aperture_limits[0])
             # modify the ImpRespBW value (derived ImpRespWid handled at the end)
-            print(f'initial imp resp bw {dir_params.ImpRespBW}')
             dir_params.ImpRespBW *= the_ratio
-            print(f'final imp resp bw {dir_params.ImpRespBW}')
 
         # perform reweight, if necessary
         if weighting_in is not None:
@@ -1073,12 +1071,14 @@ def sicd_degrade_reweight(
         noise_level.NoisePoly[0, 0] += 10*numpy.log10(noise_adjustment_multiplier)
 
     if sicd.Radiometric is not None:
-        sf_adjust = old_sicd.Grid.get_slant_plane_area()/sicd.Grid.get_slant_plane_area()
-        print(f'initial sigmazerosf - {sicd.Radiometric.SigmaZeroSFPoly[0, 0]}, sf_adjust - {sf_adjust}')
-        sicd.Radiometric.BetaZeroSFPoly.Coefs = sicd.Radiometric.BetaZeroSFPoly.get_array()*sf_adjust
-        sicd.Radiometric.GammaZeroSFPoly.Coefs = sicd.Radiometric.GammaZeroSFPoly.get_array()*sf_adjust
-        sicd.Radiometric.SigmaZeroSFPoly.Coefs = sicd.Radiometric.SigmaZeroSFPoly.get_array()*sf_adjust
-        print(f'final sigmazerosf - {sicd.Radiometric.SigmaZeroSFPoly[0, 0]}')
+        sf_adjust = old_sicd.Grid.get_slant_plane_area()/noise_adjustment_multiplier
+        sicd.Radiometric.RCSSFPoly.Coefs = sicd.Radiometric.RCSSFPoly.get_array()*sf_adjust
+        sicd.Radiometric.BetaZeroSFPoly.Coefs = sicd.Radiometric.BetaZeroSFPoly.get_array() / \
+            noise_adjustment_multiplier
+        sicd.Radiometric.SigmaZeroSFPoly.Coefs = sicd.Radiometric.SigmaZeroSFPoly.get_array() / \
+            noise_adjustment_multiplier
+        sicd.Radiometric.GammaZeroSFPoly.Coefs = sicd.Radiometric.GammaZeroSFPoly.get_array() / \
+            noise_adjustment_multiplier
 
     if sicd.RMA is not None and sicd.RMA.INCA is not None and sicd.RMA.INCA.TimeCAPoly is not None:
         # redefine the INCA doppler centroid poly to be in keeping with any redefinition of our Col.DeltaKCOAPoly?
