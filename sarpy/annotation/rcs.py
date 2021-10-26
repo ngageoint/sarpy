@@ -8,7 +8,7 @@ __author__ = "Thomas McCullough"
 
 
 import logging
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 import json
 from typing import Union, Any, List
 
@@ -18,8 +18,220 @@ from sarpy.geometry.geometry_elements import Jsonable, Polygon, MultiPolygon
 from sarpy.annotation.base import AnnotationFeature, AnnotationProperties, \
     AnnotationCollection, FileAnnotationCollection
 
+from sarpy.io.complex.base import SICDTypeReader
+from sarpy.io.complex.sicd_elements.SICD import SICDType
+from sarpy.io.complex.utils import get_im_physical_coords
+
+
 _RCS_VERSION = "RCS:1.0"
 logger = logging.getLogger(__name__)
+
+DEFAULT_NAME_MAPPING = OrderedDict(
+    RCS='RCSSFPoly',
+    BetaZero='BetaZeroSFPoly',
+    GammaZero='GammaZeroSFPoly',
+    SigmaZero='SigmaZeroSFPoly')
+
+
+def _get_polygon_bounds(polygon, data_size):
+    """
+    Gets the row/column bounds for the polygon and a polygon inclusion mask for
+    the defined rectangular pixel grid.
+
+    Parameters
+    ----------
+    polygon : Polygon
+    data_size : Tuple[int, int]
+
+    Returns
+    -------
+    row_bounds : Tuple[int, int]
+        The lower and upper bounds for the rows.
+    col_bounds : Tuple[int, int]
+        The lower and upper bounds for the columns.
+    mask: numpy.ndarray
+        The boolean inclusion mask.
+    """
+
+    if not isinstance(polygon, Polygon):
+        raise TypeError('polygon must be an instance of Polygon, got type {}'.format(type(polygon)))
+
+    bounding_box = polygon.get_bbox()
+    if len(bounding_box) != 4:
+        raise ValueError('Got unexpected bounding box {}'.format(bounding_box))
+
+    row_min = max(0, int(numpy.floor(bounding_box[0])))
+    row_max = min(int(numpy.floor(bounding_box[2])) + 1, data_size[0])
+
+    col_min = max(0, int(numpy.floor(bounding_box[1])))
+    col_max = min(int(numpy.floor(bounding_box[3])) + 1, data_size[1])
+
+    row_bounds = (row_min, row_max)
+    col_bounds = (col_min, col_max)
+    mask = polygon.grid_contained(
+        numpy.arange(row_bounds[0], row_bounds[1]),
+        numpy.arange(col_bounds[0], col_bounds[1]))
+    return row_bounds, col_bounds, mask
+
+
+def create_rcs_value_collection_for_reader(reader, polygon):
+    """
+    Given a SICD type reader and a polygon with coordinates in pixel space
+    (all sicd footprint assumed applicable), construct the `RCSValueCollection`.
+
+    Parameters
+    ----------
+    reader : SICDTypeReader
+    polygon : Polygon|MultiPolygon
+
+    Returns
+    -------
+    RCSValueCollection
+    """
+
+    def evaluate_sicd(the_sicd):
+        # type: (SICDType) -> (bool, bool)
+        if the_sicd.Radiometric is None:
+            return False, False
+
+        if the_sicd.Radiometric.NoiseLevel is None:
+            return True, False
+        if the_sicd.Radiometric.NoiseLevel.NoiseLevelType == 'ABSOLUTE':
+            return True, True
+        else:
+            return True, False
+
+    def get_stat_entries():
+        def get_empty_dict():
+            return dict(total=0.0, total2=0.0, count=0, min=numpy.inf, max=-numpy.inf)
+
+        return defaultdict(
+            lambda: dict(value=get_empty_dict(), noise=get_empty_dict()) if has_noise else dict(value=get_empty_dict()))
+
+    def calculate_statistics(array, the_entry):
+        # type: (numpy.ndarray, dict) -> None
+        the_entry['total'] += numpy.sum(array)
+        the_entry['total2'] += numpy.sum(array*array)
+        the_entry['count'] += array.size
+        the_entry['min'] = min(the_entry['min'], numpy.min(array))
+        the_entry['max'] = max(the_entry['max'], numpy.max(array))
+
+    def get_total_rcs(the_stats, the_pol, the_ind, oversamp):
+        if has_radiometric:
+            the_entry = the_stats['RCS']
+            name = 'TotalRCS'
+            val = the_entry['value']['total']/oversamp
+            noise_val = the_entry['noise']['total']/oversamp if has_noise else None
+        else:
+            the_entry = the_stats['PixelPower']
+            name = 'TotalPixelPower'
+            val = the_entry['value']['total']
+            noise_val = the_entry['noise']['total'] if has_noise else None
+
+        out = RCSValue(the_pol, name, the_ind, value=RCSStatistics(mean=val))
+        if has_noise:
+            out.noise = RCSStatistics(mean=noise_val)
+        return out
+
+    def get_rcs_value(the_stats, the_pol, name, the_ind):
+        def make_stat_entry(vals):
+            the_count = vals['count']
+            if the_count == 0:
+                the_mean = float('NaN')
+                the_var = float('NaN')
+            else:
+                the_mean = float(vals['total']/the_count)
+                the_var = vals['total2']/the_count - the_mean*the_mean
+            return RCSStatistics(
+                mean=the_mean, std=float(numpy.sqrt(the_var)), min=float(vals['min']), max=float(vals['max']))
+
+        the_entry = the_stats[name]
+        noise_value = the_entry.get('noise', None)
+
+        out = RCSValue(the_pol, name, the_ind)
+        out.value = make_stat_entry(the_entry['value'])
+        if noise_value is not None:
+            out.noise = make_stat_entry(noise_value)
+        return out
+
+    # verify that all footprint are identical
+    data_sizes = reader.get_data_size_as_tuple()
+    if len(data_sizes) > 1:
+        for entry in data_sizes[1:]:
+            if entry != data_sizes[0]:
+                raise ValueError('Each image index must have identical size')
+    data_size = data_sizes[0]
+
+    if isinstance(polygon, Polygon):
+        polygons = [polygon, ]
+    elif isinstance(polygon, MultiPolygon):
+        polygons = polygon.polygons
+    else:
+        raise TypeError('polygon must be a Polygon or MultiPolygon, got type {}'.format(type(polygon)))
+
+    sicds = reader.get_sicds_as_tuple()
+    radiometric_signature = None
+    for sicd in sicds:
+        if radiometric_signature is None:
+            radiometric_signature = evaluate_sicd(sicd)
+        elif radiometric_signature != evaluate_sicd(sicd):
+            raise ValueError('All sicds in the reader must have compatible Radiometric definition')
+    has_radiometric, has_noise = radiometric_signature
+
+    # construct the statistics values - first/second moments and max/min
+    stat_values = [get_stat_entries() for _ in sicds]
+
+    for polygon in polygons:
+        row_bounds, col_bounds, mask = _get_polygon_bounds(polygon, data_size)
+        if not numpy.any(mask):
+            continue
+
+        for i, sicd in enumerate(sicds):
+            current_stat_entries = stat_values[i]
+
+            # define the pixel power array for the given polygon and image index
+            data = reader[row_bounds[0]:row_bounds[1], col_bounds[0]:col_bounds[1], i][mask]
+            data = data.real * data.real + data.imag * data.imag  # get pixel power
+
+            # define the pixel power statistics
+            calculate_statistics(data, current_stat_entries['PixelPower']['value'])
+
+            if has_radiometric:
+                noise_poly = sicd.Radiometric.NoiseLevel.NoisePoly if has_noise else None
+                # construct the physical coordinate arrays
+                row_array = numpy.arange(row_bounds[0], row_bounds[1], 1, dtype=numpy.int32)
+                x_array = get_im_physical_coords(row_array, sicd.Grid, sicd.ImageData, 'Row')
+                col_array = numpy.arange(col_bounds[0], col_bounds[1], 1, dtype=numpy.int32)
+                y_array = get_im_physical_coords(col_array, sicd.Grid, sicd.ImageData, 'Col')
+                yarr, xarr = numpy.meshgrid(y_array, x_array)
+                xarr = xarr[mask]
+                yarr = yarr[mask]
+
+                noise_power = numpy.exp(numpy.log(10)*0.1*noise_poly(xarr, yarr)) if has_noise else None
+                if has_noise:
+                    # add the noise statistics for the pixel power
+                    calculate_statistics(noise_power, current_stat_entries['PixelPower']['noise'])
+
+                for units_name, rcs_poly_name in DEFAULT_NAME_MAPPING.items():
+                    the_poly = getattr(sicd.Radiometric, rcs_poly_name)
+                    sf_data = the_poly(xarr, yarr)
+                    calculate_statistics(sf_data*data, current_stat_entries[units_name]['value'])
+                    if has_noise:
+                        calculate_statistics(sf_data*noise_power, current_stat_entries[units_name]['noise'])
+
+    # convert this collection of raw data to the RCSStatistics collection
+    rcs_values = RCSValueCollection()
+    for i, sicd in enumerate(sicds):
+        polarization = sicd.get_processed_polarization()
+        oversample = sicd.Grid.Row.get_oversample_rate()*sicd.Grid.Col.get_oversample_rate()
+        raw_stats = stat_values[i]
+        # create the total rcs/power entry
+        rcs_values.insert_new_element(get_total_rcs(raw_stats, polarization, i, oversample))
+        rcs_values.insert_new_element(get_rcs_value(raw_stats, polarization, 'PixelPower', i))
+        if has_radiometric:
+            for the_units in DEFAULT_NAME_MAPPING.keys():
+                rcs_values.insert_new_element(get_rcs_value(raw_stats, polarization, the_units, i))
+    return rcs_values
 
 
 class RCSStatistics(Jsonable):
@@ -77,11 +289,14 @@ class RCSStatistics(Jsonable):
     def get_field_list(self):
         if self.mean is None:
             return '', '', '', '', ''
-
-        std_str = '' if self.std is None else '{0:0.5G}'.format(self.std)
-        min_str = '' if self.min is None else '{0:0.5G}'.format(self.min)
-        max_str = '' if self.max is None else '{0:0.5G}'.format(self.max)
-        return '{0:0.5G}'.format(self.mean), '{0:0.5G}'.format(self.mean), std_str, min_str, max_str
+        else:
+            return (
+                '{0:0.5G}'.format(10*numpy.log10(self.mean)),
+                '{0:0.5G}'.format(self.mean),
+                '{0:0.5G}'.format(self.std) if self.std is not None else '',
+                '{0:0.5G}'.format(self.min) if self.min is not None else '',
+                '{0:0.5G}'.format(self.max) if self.max is not None else '',
+            )
 
 
 class RCSValue(Jsonable):
@@ -92,34 +307,25 @@ class RCSValue(Jsonable):
     __slots__ = ('polarization', 'units', '_index', '_value', '_noise')
     _type = 'RCSValue'
 
-    def __init__(self, polarization, units, index=None, value=None, noise=None):
+    def __init__(self, polarization, units, index, value=None, noise=None):
         """
 
         Parameters
         ----------
         polarization : str
         units: str
+        index : int
         value : None|RCSStatistics
         noise : None|RCSStatistics
         """
         self._value = None
         self._noise = None
+        self._index = None
         self.polarization = polarization
         self.units = units
-        if index is None:
-            self._index = 0
-        else:
-            self._index = int(index)
+        self.index = index
         self.value = value
         self.noise = noise
-
-    @property
-    def index(self):
-        """
-        int: The image index.
-        """
-
-        return self._index
 
     @property
     def value(self):
@@ -138,12 +344,26 @@ class RCSValue(Jsonable):
         self._value = val
 
     @property
+    def index(self):
+        """
+        int: The image index to which this applies
+        """
+
+        return self._index
+
+    @index.setter
+    def index(self, value):
+        if value is None:
+            value = 0
+        self._index = int(value)
+
+    @property
     def noise(self):
         """
         None|RCSStatistics: The noise
         """
 
-        return self._value
+        return self._noise
 
     @noise.setter
     def noise(self, val):
@@ -161,7 +381,7 @@ class RCSValue(Jsonable):
         return cls(
             the_json.get('polarization', None),
             the_json.get('units', None),
-            index=the_json.get('index', None),
+            the_json.get('index', None),
             value=the_json.get('value', None),
             noise=the_json.get('noise', None))
 
@@ -336,6 +556,23 @@ class RCSFeature(AnnotationFeature):
             self._properties = RCSProperties.from_dict(properties)
         else:
             raise TypeError('properties must be an RCSProperties')
+
+    def set_rcs_parameters_from_reader(self, reader):
+        """
+        Given a SICD type reader construct the `RCSValueCollection` and set that
+        as the properties.parameters value.
+
+        Parameters
+        ----------
+        reader : SICDTypeReader
+        """
+
+        if self.geometry is None or self.geometry_count == 0:
+            self.properties.parameters = None
+        else:
+            # noinspection PyTypeChecker
+            self.properties.parameters = create_rcs_value_collection_for_reader(
+                reader, self.geometry)
 
 
 class RCSCollection(AnnotationCollection):

@@ -959,12 +959,14 @@ class LabelMetadataList(Jsonable):
         """
 
         if isinstance(element, dict):
-            LabelMetadata.from_dict(element)
+            element = LabelMetadata.from_dict(element)
         if not isinstance(element, LabelMetadata):
-            raise TypeError('element must be an LabelMetadata instance')
+            raise TypeError('element must be an LabelMetadata instance, got type {}'.format(type(element)))
 
         if self._elements is None:
             self._elements = [element, ]
+        elif len(self._elements) == 0:
+            self._elements.append(element)
         else:
             if element.timestamp < self._elements[0].timestamp:
                 raise ValueError(
