@@ -10,7 +10,9 @@ __author__ = "Thomas McCullough"
 import logging
 from collections import OrderedDict
 import json
-from typing import Union, Any, List, Optional
+from typing import Union, Any, List
+
+import numpy
 
 from sarpy.geometry.geometry_elements import Jsonable, Polygon, MultiPolygon
 from sarpy.annotation.base import AnnotationFeature, AnnotationProperties, \
@@ -72,16 +74,25 @@ class RCSStatistics(Jsonable):
             parent_dict[attr] = getattr(self, attr)
         return parent_dict
 
+    def get_field_list(self):
+        if self.mean is None:
+            return '', '', '', '', ''
+
+        std_str = '' if self.std is None else '{0:0.5G}'.format(self.std)
+        min_str = '' if self.min is None else '{0:0.5G}'.format(self.min)
+        max_str = '' if self.max is None else '{0:0.5G}'.format(self.max)
+        return '{0:0.5G}'.format(self.mean), '{0:0.5G}'.format(self.mean), std_str, min_str, max_str
+
 
 class RCSValue(Jsonable):
     """
     The collection of RCSStatistics elements.
     """
 
-    __slots__ = ('polarization', 'units', '_value', '_noise')
+    __slots__ = ('polarization', 'units', '_index', '_value', '_noise')
     _type = 'RCSValue'
 
-    def __init__(self, polarization, units, value=None, noise=None):
+    def __init__(self, polarization, units, index=None, value=None, noise=None):
         """
 
         Parameters
@@ -95,8 +106,20 @@ class RCSValue(Jsonable):
         self._noise = None
         self.polarization = polarization
         self.units = units
+        if index is None:
+            self._index = 0
+        else:
+            self._index = int(index)
         self.value = value
         self.noise = noise
+
+    @property
+    def index(self):
+        """
+        int: The image index.
+        """
+
+        return self._index
 
     @property
     def value(self):
@@ -138,6 +161,7 @@ class RCSValue(Jsonable):
         return cls(
             the_json.get('polarization', None),
             the_json.get('units', None),
+            index=the_json.get('index', None),
             value=the_json.get('value', None),
             noise=the_json.get('noise', None))
 
@@ -146,6 +170,7 @@ class RCSValue(Jsonable):
             parent_dict = OrderedDict()
         parent_dict['polarization'] = self.polarization
         parent_dict['units'] = self.units
+        parent_dict['index'] = self.index
         if self.value is not None:
             parent_dict['value'] = self.value.to_dict()
         if self.noise is not None:
@@ -177,8 +202,6 @@ class RCSValueCollection(Jsonable):
         self.elements = elements
 
     def __len__(self):
-        if self._elements is None:
-            return 0
         return len(self._elements)
 
     def __getitem__(self, item):
@@ -208,7 +231,7 @@ class RCSValueCollection(Jsonable):
     def elements(self):
         # type: () -> Union[None, List[RCSValue]]
         """
-        None|List[RCSValue]: The RCSValue elements.
+        List[RCSValue]: The RCSValue elements.
         """
 
         return self._elements
@@ -216,7 +239,7 @@ class RCSValueCollection(Jsonable):
     @elements.setter
     def elements(self, elements):
         if elements is None:
-            self._elements = None
+            self._elements = []
             return
 
         if not isinstance(elements, list):
@@ -237,13 +260,12 @@ class RCSValueCollection(Jsonable):
             element = RCSValue.from_dict(element)
         if not isinstance(element, RCSValue):
             raise TypeError('element must be an RCSValue instance')
-        if self._elements is None:
-            self._elements = [element, ]
-        else:
-            self._elements.append(element)
+        self._elements.append(element)
 
     @classmethod
-    def from_dict(cls, the_json):  # type: (dict) -> RCSValueCollection
+    def from_dict(cls, the_json):
+        # type: (dict) -> RCSValueCollection
+
         typ = the_json['type']
         if typ != cls._type:
             raise ValueError('RCSValueCollection cannot be constructed from {}'.format(the_json))
@@ -255,9 +277,7 @@ class RCSValueCollection(Jsonable):
             parent_dict = OrderedDict()
         parent_dict['type'] = self.type
         parent_dict['pixel_count'] = self.pixel_count
-        if self._elements is None:
-            parent_dict['elements'] = None
-        else:
+        if len(self._elements) > 0:
             parent_dict['elements'] = [entry.to_dict() for entry in self._elements]
         return parent_dict
 
@@ -268,16 +288,20 @@ class RCSProperties(AnnotationProperties):
     @property
     def parameters(self):
         """
-        Optional[RCSValueCollection]: The parameters
+        RCSValueCollection: The parameters
         """
 
         return self._parameters
 
     @parameters.setter
     def parameters(self, value):
+        if value is None:
+            self._parameters = RCSValueCollection()
+            return
+
         if isinstance(value, dict):
             value = RCSValueCollection.from_dict(value)
-        if not (value is None or isinstance(value, RCSValueCollection)):
+        if not isinstance(value, RCSValueCollection):
             raise TypeError('Got unexpected type for parameters')
         self._parameters = value
 
@@ -291,13 +315,13 @@ class RCSFeature(AnnotationFeature):
 
     @property
     def properties(self):
-        # type: () -> Optional[RCSValueCollection]
+        # type: () -> RCSProperties
         """
         The properties.
 
         Returns
         -------
-        None|RCSValueCollection
+        RCSProperties
         """
 
         return self._properties
@@ -305,13 +329,13 @@ class RCSFeature(AnnotationFeature):
     @properties.setter
     def properties(self, properties):
         if properties is None:
-            self._properties = RCSValueCollection()
-        elif isinstance(properties, RCSValueCollection):
+            self._properties = RCSProperties()
+        elif isinstance(properties, RCSProperties):
             self._properties = properties
         elif isinstance(properties, dict):
-            self._properties = RCSValueCollection.from_dict(properties)
+            self._properties = RCSProperties.from_dict(properties)
         else:
-            raise TypeError('properties must be an RCSValueCollection')
+            raise TypeError('properties must be an RCSProperties')
 
 
 class RCSCollection(AnnotationCollection):
