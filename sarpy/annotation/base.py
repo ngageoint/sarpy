@@ -562,7 +562,7 @@ class AnnotationFeature(Feature):
         if not isinstance(geometry, Geometry):
             raise TypeError('geometry must be an instance of Geometry base class')
 
-        if self._allowed_geometries is not None and geometry not in self._allowed_geometries:
+        if self._allowed_geometries is not None and geometry.__class__ not in self._allowed_geometries:
             raise TypeError('geometry is not of one of the allowed types')
         return geometry
 
