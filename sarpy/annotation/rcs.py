@@ -10,11 +10,11 @@ __author__ = "Thomas McCullough"
 import logging
 from collections import OrderedDict, defaultdict
 import json
-from typing import Union, Any, List, Optional
+from typing import Union, Any, List
 
 import numpy
 
-from sarpy.geometry.geometry_elements import Jsonable, Polygon, MultiPolygon, Geometry
+from sarpy.geometry.geometry_elements import Jsonable, Polygon, MultiPolygon
 from sarpy.annotation.base import AnnotationFeature, AnnotationProperties, \
     AnnotationCollection, FileAnnotationCollection
 
@@ -27,10 +27,10 @@ _RCS_VERSION = "RCS:1.0"
 logger = logging.getLogger(__name__)
 
 DEFAULT_NAME_MAPPING = OrderedDict(
-    RCSSFPoly='RCS',
-    BetaZeroSFPoly='BetaZero',
-    GammaZeroSFPoly='GammaZero',
-    SigmaZeroSFPoly='SigmaZero')
+    RCS='RCSSFPoly',
+    BetaZero='BetaZeroSFPoly',
+    GammaZero='GammaZeroSFPoly',
+    SigmaZero='SigmaZeroSFPoly')
 
 
 def _get_polygon_bounds(polygon, data_size):
@@ -103,12 +103,10 @@ def create_rcs_value_collection_for_reader(reader, polygon):
 
     def get_stat_entries():
         def get_empty_dict():
-            return {'total': 0.0, 'total2': 0.0, 'count': 0, 'min': numpy.inf, 'max': -numpy.inf}
+            return dict(total=0.0, total2=0.0, count=0, min=numpy.inf, max=-numpy.inf)
 
         return defaultdict(
-            lambda:
-            {'value': get_empty_dict(), 'noise': get_empty_dict()} if has_noise else
-            {'value': get_empty_dict()})
+            lambda: dict(value=get_empty_dict(), noise=get_empty_dict()) if has_noise else dict(value=get_empty_dict()))
 
     def calculate_statistics(array, the_entry):
         # type: (numpy.ndarray, dict) -> None
@@ -116,25 +114,36 @@ def create_rcs_value_collection_for_reader(reader, polygon):
         the_entry['total2'] += numpy.sum(array*array)
         the_entry['count'] += array.size
         the_entry['min'] = min(the_entry['min'], numpy.min(array))
-        the_entry['max'] = min(the_entry['max'], numpy.min(array))
+        the_entry['max'] = max(the_entry['max'], numpy.max(array))
 
     def get_total_rcs(the_stats, the_pol, the_ind, oversamp):
         if has_radiometric:
-            the_entry = the_stats['RCS']['value']
+            the_entry = the_stats['RCS']
             name = 'TotalRCS'
-            val = the_entry['total']/oversamp
+            val = the_entry['value']['total']/oversamp
+            noise_val = the_entry['noise']['total']/oversamp if has_noise else None
         else:
-            the_entry = the_stats['PixelPower']['value']
+            the_entry = the_stats['PixelPower']
             name = 'TotalPixelPower'
-            val = the_entry['total']
-        return RCSValue(the_pol, name, the_ind, value=RCSStatistics(mean=val))
+            val = the_entry['value']['total']
+            noise_val = the_entry['noise']['total'] if has_noise else None
+
+        out = RCSValue(the_pol, name, the_ind, value=RCSStatistics(mean=val))
+        if has_noise:
+            out.noise = RCSStatistics(mean=noise_val)
+        return out
 
     def get_rcs_value(the_stats, the_pol, name, the_ind):
         def make_stat_entry(vals):
             the_count = vals['count']
-            the_mean = vals['total']/the_count
-            the_var = vals['total2']/the_count - the_mean*the_mean
-            return RCSStatistics(mean=the_mean, std=float(numpy.sqrt(the_var)), min=vals['min'], max=vals['max'])
+            if the_count == 0:
+                the_mean = float('NaN')
+                the_var = float('NaN')
+            else:
+                the_mean = float(vals['total']/the_count)
+                the_var = vals['total2']/the_count - the_mean*the_mean
+            return RCSStatistics(
+                mean=the_mean, std=float(numpy.sqrt(the_var)), min=float(vals['min']), max=float(vals['max']))
 
         the_entry = the_stats[name]
         noise_value = the_entry.get('noise', None)
@@ -203,7 +212,7 @@ def create_rcs_value_collection_for_reader(reader, polygon):
                     # add the noise statistics for the pixel power
                     calculate_statistics(noise_power, current_stat_entries['PixelPower']['noise'])
 
-                for rcs_poly_name, units_name in DEFAULT_NAME_MAPPING.items():
+                for units_name, rcs_poly_name in DEFAULT_NAME_MAPPING.items():
                     the_poly = getattr(sicd.Radiometric, rcs_poly_name)
                     sf_data = the_poly(xarr, yarr)
                     calculate_statistics(sf_data*data, current_stat_entries[units_name]['value'])
@@ -277,6 +286,18 @@ class RCSStatistics(Jsonable):
             parent_dict[attr] = getattr(self, attr)
         return parent_dict
 
+    def get_field_list(self):
+        if self.mean is None:
+            return '', '', '', '', ''
+        else:
+            return (
+                '{0:0.5G}'.format(10*numpy.log10(self.mean)),
+                '{0:0.5G}'.format(self.mean),
+                '{0:0.5G}'.format(self.std) if self.std is not None else '',
+                '{0:0.5G}'.format(self.min) if self.min is not None else '',
+                '{0:0.5G}'.format(self.max) if self.max is not None else '',
+            )
+
 
 class RCSValue(Jsonable):
     """
@@ -342,7 +363,7 @@ class RCSValue(Jsonable):
         None|RCSStatistics: The noise
         """
 
-        return self._value
+        return self._noise
 
     @noise.setter
     def noise(self, val):
