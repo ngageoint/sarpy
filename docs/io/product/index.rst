@@ -12,3 +12,4 @@ Derived data product reading and writing elements (sarpy.io.product)
     sidd_structure_creation
     sidd2_elements/index
     sidd1_elements/index
+    converter

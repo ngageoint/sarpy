@@ -1,6 +1,6 @@
 """
 This module provides structures for annotating a given SICD type file for RCS
-calculations.
+calculations
 """
 
 __classification__ = "UNCLASSIFIED"
@@ -8,32 +8,249 @@ __author__ = "Thomas McCullough"
 
 
 import logging
-from collections import OrderedDict
-import os
+from collections import OrderedDict, defaultdict
 import json
-from typing import Union, Any, List, Dict
+from typing import Union, Any, List
 
-# noinspection PyProtectedMember
-from sarpy.geometry.geometry_elements import _Jsonable, FeatureCollection, Feature, Polygon, MultiPolygon
-from sarpy.compliance import string_types, int_func, integer_types
+import numpy
 
+from sarpy.geometry.geometry_elements import Jsonable, Polygon, MultiPolygon
+from sarpy.annotation.base import AnnotationFeature, AnnotationProperties, \
+    AnnotationCollection, FileAnnotationCollection
+
+from sarpy.io.complex.base import SICDTypeReader
+from sarpy.io.complex.sicd_elements.SICD import SICDType
+from sarpy.io.complex.utils import get_im_physical_coords
+
+
+_RCS_VERSION = "RCS:1.0"
 logger = logging.getLogger(__name__)
 
+DEFAULT_NAME_MAPPING = OrderedDict(
+    RCS='RCSSFPoly',
+    BetaZero='BetaZeroSFPoly',
+    GammaZero='GammaZeroSFPoly',
+    SigmaZero='SigmaZeroSFPoly')
 
-class RCSStatistics(_Jsonable):
-    __slots__ = ('name', 'mean', 'std', 'max', 'min')
+
+def _get_polygon_bounds(polygon, data_size):
+    """
+    Gets the row/column bounds for the polygon and a polygon inclusion mask for
+    the defined rectangular pixel grid.
+
+    Parameters
+    ----------
+    polygon : Polygon
+    data_size : Tuple[int, int]
+
+    Returns
+    -------
+    row_bounds : Tuple[int, int]
+        The lower and upper bounds for the rows.
+    col_bounds : Tuple[int, int]
+        The lower and upper bounds for the columns.
+    mask: numpy.ndarray
+        The boolean inclusion mask.
+    """
+
+    if not isinstance(polygon, Polygon):
+        raise TypeError('polygon must be an instance of Polygon, got type {}'.format(type(polygon)))
+
+    bounding_box = polygon.get_bbox()
+    if len(bounding_box) != 4:
+        raise ValueError('Got unexpected bounding box {}'.format(bounding_box))
+
+    row_min = max(0, int(numpy.floor(bounding_box[0])))
+    row_max = min(int(numpy.floor(bounding_box[2])) + 1, data_size[0])
+
+    col_min = max(0, int(numpy.floor(bounding_box[1])))
+    col_max = min(int(numpy.floor(bounding_box[3])) + 1, data_size[1])
+
+    row_bounds = (row_min, row_max)
+    col_bounds = (col_min, col_max)
+    mask = polygon.grid_contained(
+        numpy.arange(row_bounds[0], row_bounds[1]),
+        numpy.arange(col_bounds[0], col_bounds[1]))
+    return row_bounds, col_bounds, mask
+
+
+def create_rcs_value_collection_for_reader(reader, polygon):
+    """
+    Given a SICD type reader and a polygon with coordinates in pixel space
+    (all sicd footprint assumed applicable), construct the `RCSValueCollection`.
+
+    Parameters
+    ----------
+    reader : SICDTypeReader
+    polygon : Polygon|MultiPolygon
+
+    Returns
+    -------
+    RCSValueCollection
+    """
+
+    def evaluate_sicd(the_sicd):
+        # type: (SICDType) -> (bool, bool)
+        if the_sicd.Radiometric is None:
+            return False, False
+
+        if the_sicd.Radiometric.NoiseLevel is None:
+            return True, False
+        if the_sicd.Radiometric.NoiseLevel.NoiseLevelType == 'ABSOLUTE':
+            return True, True
+        else:
+            return True, False
+
+    def get_stat_entries():
+        def get_empty_dict():
+            return dict(total=0.0, total2=0.0, count=0, min=numpy.inf, max=-numpy.inf)
+
+        return defaultdict(
+            lambda: dict(value=get_empty_dict(), noise=get_empty_dict()) if has_noise else dict(value=get_empty_dict()))
+
+    def calculate_statistics(array, the_entry):
+        # type: (numpy.ndarray, dict) -> None
+        the_entry['total'] += numpy.sum(array)
+        the_entry['total2'] += numpy.sum(array*array)
+        the_entry['count'] += array.size
+        the_entry['min'] = min(the_entry['min'], numpy.min(array))
+        the_entry['max'] = max(the_entry['max'], numpy.max(array))
+
+    def get_total_rcs(the_stats, the_pol, the_ind, oversamp):
+        if has_radiometric:
+            the_entry = the_stats['RCS']
+            name = 'TotalRCS'
+            val = the_entry['value']['total']/oversamp
+            noise_val = the_entry['noise']['total']/oversamp if has_noise else None
+        else:
+            the_entry = the_stats['PixelPower']
+            name = 'TotalPixelPower'
+            val = the_entry['value']['total']
+            noise_val = the_entry['noise']['total'] if has_noise else None
+
+        out = RCSValue(the_pol, name, the_ind, value=RCSStatistics(mean=val))
+        if has_noise:
+            out.noise = RCSStatistics(mean=noise_val)
+        return out
+
+    def get_rcs_value(the_stats, the_pol, name, the_ind):
+        def make_stat_entry(vals):
+            the_count = vals['count']
+            if the_count == 0:
+                the_mean = float('NaN')
+                the_var = float('NaN')
+            else:
+                the_mean = float(vals['total']/the_count)
+                the_var = vals['total2']/the_count - the_mean*the_mean
+            return RCSStatistics(
+                mean=the_mean, std=float(numpy.sqrt(the_var)), min=float(vals['min']), max=float(vals['max']))
+
+        the_entry = the_stats[name]
+        noise_value = the_entry.get('noise', None)
+
+        out = RCSValue(the_pol, name, the_ind)
+        out.value = make_stat_entry(the_entry['value'])
+        if noise_value is not None:
+            out.noise = make_stat_entry(noise_value)
+        return out
+
+    # verify that all footprint are identical
+    data_sizes = reader.get_data_size_as_tuple()
+    if len(data_sizes) > 1:
+        for entry in data_sizes[1:]:
+            if entry != data_sizes[0]:
+                raise ValueError('Each image index must have identical size')
+    data_size = data_sizes[0]
+
+    if isinstance(polygon, Polygon):
+        polygons = [polygon, ]
+    elif isinstance(polygon, MultiPolygon):
+        polygons = polygon.polygons
+    else:
+        raise TypeError('polygon must be a Polygon or MultiPolygon, got type {}'.format(type(polygon)))
+
+    sicds = reader.get_sicds_as_tuple()
+    radiometric_signature = None
+    for sicd in sicds:
+        if radiometric_signature is None:
+            radiometric_signature = evaluate_sicd(sicd)
+        elif radiometric_signature != evaluate_sicd(sicd):
+            raise ValueError('All sicds in the reader must have compatible Radiometric definition')
+    has_radiometric, has_noise = radiometric_signature
+
+    # construct the statistics values - first/second moments and max/min
+    stat_values = [get_stat_entries() for _ in sicds]
+
+    for polygon in polygons:
+        row_bounds, col_bounds, mask = _get_polygon_bounds(polygon, data_size)
+        if not numpy.any(mask):
+            continue
+
+        for i, sicd in enumerate(sicds):
+            current_stat_entries = stat_values[i]
+
+            # define the pixel power array for the given polygon and image index
+            data = reader[row_bounds[0]:row_bounds[1], col_bounds[0]:col_bounds[1], i][mask]
+            data = data.real * data.real + data.imag * data.imag  # get pixel power
+
+            # define the pixel power statistics
+            calculate_statistics(data, current_stat_entries['PixelPower']['value'])
+
+            if has_radiometric:
+                noise_poly = sicd.Radiometric.NoiseLevel.NoisePoly if has_noise else None
+                # construct the physical coordinate arrays
+                row_array = numpy.arange(row_bounds[0], row_bounds[1], 1, dtype=numpy.int32)
+                x_array = get_im_physical_coords(row_array, sicd.Grid, sicd.ImageData, 'Row')
+                col_array = numpy.arange(col_bounds[0], col_bounds[1], 1, dtype=numpy.int32)
+                y_array = get_im_physical_coords(col_array, sicd.Grid, sicd.ImageData, 'Col')
+                yarr, xarr = numpy.meshgrid(y_array, x_array)
+                xarr = xarr[mask]
+                yarr = yarr[mask]
+
+                noise_power = numpy.exp(numpy.log(10)*0.1*noise_poly(xarr, yarr)) if has_noise else None
+                if has_noise:
+                    # add the noise statistics for the pixel power
+                    calculate_statistics(noise_power, current_stat_entries['PixelPower']['noise'])
+
+                for units_name, rcs_poly_name in DEFAULT_NAME_MAPPING.items():
+                    the_poly = getattr(sicd.Radiometric, rcs_poly_name)
+                    sf_data = the_poly(xarr, yarr)
+                    calculate_statistics(sf_data*data, current_stat_entries[units_name]['value'])
+                    if has_noise:
+                        calculate_statistics(sf_data*noise_power, current_stat_entries[units_name]['noise'])
+
+    # convert this collection of raw data to the RCSStatistics collection
+    rcs_values = RCSValueCollection()
+    for i, sicd in enumerate(sicds):
+        polarization = sicd.get_processed_polarization()
+        oversample = sicd.Grid.Row.get_oversample_rate()*sicd.Grid.Col.get_oversample_rate()
+        raw_stats = stat_values[i]
+        # create the total rcs/power entry
+        rcs_values.insert_new_element(get_total_rcs(raw_stats, polarization, i, oversample))
+        rcs_values.insert_new_element(get_rcs_value(raw_stats, polarization, 'PixelPower', i))
+        if has_radiometric:
+            for the_units in DEFAULT_NAME_MAPPING.keys():
+                rcs_values.insert_new_element(get_rcs_value(raw_stats, polarization, the_units, i))
+    return rcs_values
+
+
+class RCSStatistics(Jsonable):
+    __slots__ = ('mean', 'std', 'max', 'min')
     _type = 'RCSStatistics'
 
-    def __init__(self, name=None, mean=None, std=None, max=None, min=None):
+    def __init__(self, mean=None, std=None, max=None, min=None):
         """
 
         Parameters
         ----------
-        name : None|str
         mean : None|float
+            All values are assumed the be stored here in units of power
         std : None|float
+            All values are assumed the be stored here in units of power
         max : None|float
+            All values are assumed the be stored here in units of power
         min : None|float
+            All values are assumed the be stored here in units of power
         """
 
         if mean is not None:
@@ -45,7 +262,6 @@ class RCSStatistics(_Jsonable):
         if min is not None:
             min = float(min)
 
-        self.name = name  # type: Union[None, str]
         self.mean = mean  # type: Union[None, float]
         self.std = std  # type: Union[None, float]
         self.max = max  # type: Union[None, float]
@@ -57,7 +273,6 @@ class RCSStatistics(_Jsonable):
         if typ != cls._type:
             raise ValueError('RCSStatistics cannot be constructed from {}'.format(the_json))
         return cls(
-            name=the_json.get('name', None),
             mean=the_json.get('mean', None),
             std=the_json.get('std', None),
             max=the_json.get('max', None),
@@ -71,183 +286,149 @@ class RCSStatistics(_Jsonable):
             parent_dict[attr] = getattr(self, attr)
         return parent_dict
 
+    def get_field_list(self):
+        if self.mean is None:
+            return '', '', '', '', ''
+        else:
+            mean_db_str = '' if self.mean <= 0 else '{0:0.5G}'.format(10*numpy.log10(self.mean))
+            return (
+                mean_db_str,
+                '{0:0.5G}'.format(self.mean),
+                '{0:0.5G}'.format(self.std) if self.std is not None else '',
+                '{0:0.5G}'.format(self.min) if self.min is not None else '',
+                '{0:0.5G}'.format(self.max) if self.max is not None else '',
+            )
 
-class RCSValue(_Jsonable):
+
+class RCSValue(Jsonable):
     """
     The collection of RCSStatistics elements.
     """
 
-    __slots__ = ('polarization', '_statistics', '_name_to_index')
+    __slots__ = ('polarization', 'units', '_index', '_value', '_noise')
     _type = 'RCSValue'
 
-    def __init__(self, polarization=None, statistics=None):
+    def __init__(self, polarization, units, index, value=None, noise=None):
         """
 
         Parameters
         ----------
-        polarization : None|str
-        statistics : None|List[RCSStatistics|dict]
+        polarization : str
+        units: str
+        index : int
+        value : None|RCSStatistics
+        noise : None|RCSStatistics
         """
-
-        self._statistics = None  # type: Union[None, List[RCSStatistics]]
-        self._name_to_index = None  # type: Union[None, Dict[str, int]]
-
-        self.polarization = polarization  # type: Union[None, str]
-        if statistics is not None:
-            self.statistics = statistics
-
-    def __len__(self):
-        if self._statistics is None:
-            return 0
-        return len(self._statistics)
-
-    def __getitem__(self, item):
-        # type: (Union[int, str]) -> Union[None, RCSStatistics]
-        if isinstance(item, string_types):
-            return self._statistics[self._name_to_index[item]]
-        return self._statistics[item]
+        self._value = None
+        self._noise = None
+        self._index = None
+        self.polarization = polarization
+        self.units = units
+        self.index = index
+        self.value = value
+        self.noise = noise
 
     @property
-    def statistics(self):
+    def value(self):
         """
-        The RCSStatistics elements.
-
-        Returns
-        -------
-        None|List[RCSStatistics]
+        None|RCSStatistics: The value
         """
 
-        return self._statistics
+        return self._value
 
-    @statistics.setter
-    def statistics(self, statistics):
-        if statistics is None:
-            self._statistics = None
-        if not isinstance(statistics, list):
-            raise TypeError('statistics must be a list of RCSStatistics elements')
-        for element in statistics:
-            self.insert_new_element(element)
+    @value.setter
+    def value(self, val):
+        if isinstance(val, dict):
+            val = RCSStatistics.from_dict(val)
+        if not (val is None or isinstance(val, RCSStatistics)):
+            raise TypeError('Got incompatible input for value')
+        self._value = val
 
-    def insert_new_element(self, element):
+    @property
+    def index(self):
         """
-        Inserts an element at the end of the elements list.
-
-        Parameters
-        ----------
-        element : RCSStatistics
-
-        Returns
-        -------
-        None
+        int: The image index to which this applies
         """
 
-        if isinstance(element, dict):
-            element = RCSStatistics.from_dict(element)
-        if not isinstance(element, RCSStatistics):
-            raise TypeError('element must be an RCSStatistics instance')
-        if self._statistics is None:
-            self._statistics = [element,]
-            self._name_to_index = {element.name : 0}
-        else:
-            self._statistics.append(element)
-            self._name_to_index[element.name] = len(self._statistics) - 1
+        return self._index
+
+    @index.setter
+    def index(self, value):
+        if value is None:
+            value = 0
+        self._index = int(value)
+
+    @property
+    def noise(self):
+        """
+        None|RCSStatistics: The noise
+        """
+
+        return self._noise
+
+    @noise.setter
+    def noise(self, val):
+        if isinstance(val, dict):
+            val = RCSStatistics.from_dict(val)
+        if not (val is None or isinstance(val, RCSStatistics)):
+            raise TypeError('Got incompatible input for noise')
+        self._noise = val
 
     @classmethod
     def from_dict(cls, the_json):  # type: (dict) -> RCSValue
         typ = the_json['type']
         if typ != cls._type:
             raise ValueError('RCSValue cannot be constructed from {}'.format(the_json))
-        return cls(polarization=the_json.get('polarization', None), statistics=the_json.get('statistics', None))
+        return cls(
+            the_json.get('polarization', None),
+            the_json.get('units', None),
+            the_json.get('index', None),
+            value=the_json.get('value', None),
+            noise=the_json.get('noise', None))
 
     def to_dict(self, parent_dict=None):
         if parent_dict is None:
             parent_dict = OrderedDict()
         parent_dict['type'] = self.type
         parent_dict['polarization'] = self.polarization
-        if self._statistics is None:
-            parent_dict['statistics'] = None
-        else:
-            parent_dict['statistics'] = [entry.to_dict() for entry in self._statistics]
+        parent_dict['units'] = self.units
+        parent_dict['index'] = self.index
+        if self.value is not None:
+            parent_dict['value'] = self.value.to_dict()
+        if self.noise is not None:
+            parent_dict['noise'] = self.noise.to_dict()
         return parent_dict
 
 
-class RCSValueCollection(_Jsonable):
+class RCSValueCollection(Jsonable):
     """
-    The collection of RCSValue elements, one for each polarization. Also, the pixel
-    count for the number of integer grid elements contained in the interior of the
-    associated geometry interior.
+    A specific type for the AnnotationProperties.parameters
     """
 
-    __slots__ = ('_name', '_description', '_pixel_count', '_elements')
+    __slots__ = ('_pixel_count', '_elements')
     _type = 'RCSValueCollection'
 
-    def __init__(self, name=None, description=None, pixel_count=None, elements=None):
+    def __init__(self, pixel_count=None, elements=None):
         """
 
         Parameters
         ----------
-        name : None|str
-        description : None|str
         pixel_count : None|int
         elements : None|List[RCSValue|dict]
         """
 
-        self._name = None
-        self._description = None
         self._pixel_count = None
-        self._elements = None
+        self._elements = []
 
-        self.name = name
-        self.description = description
         self.pixel_count = pixel_count
         self.elements = elements
 
     def __len__(self):
-        if self._elements is None:
-            return 0
         return len(self._elements)
 
     def __getitem__(self, item):
         # type: (Union[int, str]) -> Union[None, RCSValue]
         return self._elements[item]
-
-    @property
-    def name(self):
-        # type: () -> Union[None, str]
-        """
-        None|str: The name of the associated feature.
-        """
-
-        return self._name
-
-    @name.setter
-    def name(self, value):
-        if value is None:
-            self._name = None
-            return
-
-        if not isinstance(value, string_types):
-            raise TypeError('name is required to be of string type.')
-        self._name = value
-
-    @property
-    def description(self):
-        # type: () -> Union[None, str]
-        """
-        None|str: The description of the associated feature.
-        """
-
-        return self._description
-
-    @description.setter
-    def description(self, value):
-        if value is None:
-            self._description = None
-            return
-
-        if not isinstance(value, string_types):
-            raise TypeError('description is required to be of string type.')
-        self._description = value
 
     @property
     def pixel_count(self):
@@ -264,15 +445,15 @@ class RCSValueCollection(_Jsonable):
         if value is None:
             self._pixel_count = None
             return
-        if not isinstance(value, integer_types):
-            value = int_func(value)
+        if not isinstance(value, int):
+            value = int(value)
         self._pixel_count = value
 
     @property
     def elements(self):
         # type: () -> Union[None, List[RCSValue]]
         """
-        None|List[RCSValue]: The RCSValue elements.
+        List[RCSValue]: The RCSValue elements.
         """
 
         return self._elements
@@ -280,11 +461,12 @@ class RCSValueCollection(_Jsonable):
     @elements.setter
     def elements(self, elements):
         if elements is None:
-            self._elements = None
+            self._elements = []
             return
 
         if not isinstance(elements, list):
             raise TypeError('elements must be a list of RCSValue elements')
+        self._elements = []
         for element in elements:
             self.insert_new_element(element)
 
@@ -301,50 +483,68 @@ class RCSValueCollection(_Jsonable):
             element = RCSValue.from_dict(element)
         if not isinstance(element, RCSValue):
             raise TypeError('element must be an RCSValue instance')
-        if self._elements is None:
-            self._elements = [element,]
-        else:
-            self._elements.append(element)
+        self._elements.append(element)
 
     @classmethod
-    def from_dict(cls, the_json):  # type: (dict) -> RCSValueCollection
+    def from_dict(cls, the_json):
+        # type: (dict) -> RCSValueCollection
+
         typ = the_json['type']
         if typ != cls._type:
             raise ValueError('RCSValueCollection cannot be constructed from {}'.format(the_json))
         return cls(
-            name=the_json.get('name', None), description=the_json.get('description', None),
             pixel_count=the_json.get('pixel_count', None), elements=the_json.get('elements', None))
 
     def to_dict(self, parent_dict=None):
         if parent_dict is None:
             parent_dict = OrderedDict()
         parent_dict['type'] = self.type
-        if self.name is not None:
-            parent_dict['name'] = self.name
-        if self.description is not None:
-            parent_dict['description'] = self.description
         parent_dict['pixel_count'] = self.pixel_count
-        if self._elements is None:
-            parent_dict['elements'] = None
-        else:
+        if len(self._elements) > 0:
             parent_dict['elements'] = [entry.to_dict() for entry in self._elements]
         return parent_dict
 
 
-class RCSFeature(Feature):
+class RCSProperties(AnnotationProperties):
+    _type = 'RCSProperties'
+
+    @property
+    def parameters(self):
+        """
+        RCSValueCollection: The parameters
+        """
+
+        return self._parameters
+
+    @parameters.setter
+    def parameters(self, value):
+        if value is None:
+            self._parameters = RCSValueCollection()
+            return
+
+        if isinstance(value, dict):
+            value = RCSValueCollection.from_dict(value)
+        if not isinstance(value, RCSValueCollection):
+            raise TypeError('Got unexpected type for parameters')
+        self._parameters = value
+
+
+class RCSFeature(AnnotationFeature):
     """
     A specific extension of the Feature class which has the properties attribute
     populated with RCSValueCollection instance.
     """
+    _allowed_geometries = (Polygon, MultiPolygon)
 
     @property
     def properties(self):
+        # type: () -> RCSProperties
         """
         The properties.
 
         Returns
         -------
-        None|RCSValueCollection
+        RCSProperties
         """
 
         return self._properties
@@ -352,29 +552,36 @@ class RCSFeature(Feature):
     @properties.setter
     def properties(self, properties):
         if properties is None:
-            self._properties = None
-        elif isinstance(properties, RCSValueCollection):
+            self._properties = RCSProperties()
+        elif isinstance(properties, RCSProperties):
             self._properties = properties
         elif isinstance(properties, dict):
-            self._properties = RCSValueCollection.from_dict(properties)
+            self._properties = RCSProperties.from_dict(properties)
         else:
-            raise TypeError('properties must be an RCSValueCollection')
+            raise TypeError('properties must be an RCSProperties')
 
-    def to_dict(self, parent_dict=None):
-        if parent_dict is None:
-            parent_dict = OrderedDict()
-        parent_dict['type'] = self.type
-        parent_dict['id'] = self.uid
-        parent_dict['geometry'] = self.geometry.to_dict()
-        if self.properties is not None:
-            parent_dict['properties'] = self.properties.to_dict()
-        return parent_dict
+    def set_rcs_parameters_from_reader(self, reader):
+        """
+        Given a SICD type reader construct the `RCSValueCollection` and set that
+        as the properties.parameters value.
+
+        Parameters
+        ----------
+        reader : SICDTypeReader
+        """
+
+        if self.geometry is None or self.geometry_count == 0:
+            self.properties.parameters = None
+        else:
+            # noinspection PyTypeChecker
+            self.properties.parameters = create_rcs_value_collection_for_reader(
+                reader, self.geometry)
 
 
-class RCSCollection(FeatureCollection):
+class RCSCollection(AnnotationCollection):
     """
-    A specific extension of the FeatureCollection class which has the features are
-    RCSFeature instances.
+    A specific extension of the AnnotationCollection class which has that the
+    features are RCSFeature instances.
     """
 
     @property
@@ -417,9 +624,6 @@ class RCSCollection(FeatureCollection):
         if not isinstance(feature, RCSFeature):
             raise TypeError('This requires an RCSFeature instance, got {}'.format(type(feature)))
 
-        if not isinstance(feature.geometry, (Polygon, MultiPolygon)):
-            raise TypeError('RCS annotations require that geometry is a Polygon or Multipolygon.')
-
         if self._features is None:
             self._feature_dict = {feature.uid: 0}
             self._features = [feature, ]
@@ -429,7 +633,10 @@ class RCSCollection(FeatureCollection):
 
     def __getitem__(self, item):
         # type: (Any) -> Union[RCSFeature, List[RCSFeature]]
-        if isinstance(item, string_types):
+        if self._features is None:
+            raise StopIteration
+
+        if isinstance(item, str):
             index = self._feature_dict[item]
             return self._features[index]
         return self._features[item]
@@ -438,67 +645,20 @@ class RCSCollection(FeatureCollection):
 ###########
 # serialized file object
 
-class FileRCSCollection(object):
+class FileRCSCollection(FileAnnotationCollection):
     """
-    An collection of annotation elements associated with a given single image element file.
+    An collection of RCS statistics elements.
     """
+    _type = 'FileRCSCollection'
 
-    __slots__ = (
-         '_image_file_name', '_image_id', '_core_name', '_annotations')
+    def __init__(self, version=None, annotations=None, image_file_name=None,
+                 image_id=None, core_name=None):
+        if version is None:
+            version = _RCS_VERSION
 
-    def __init__(self, annotations=None, image_file_name=None, image_id=None, core_name=None):
-        self._annotations = None
-
-        if image_file_name is None:
-            self._image_file_name = None
-        elif isinstance(image_file_name, str):
-            self._image_file_name = os.path.split(image_file_name)[1]
-        else:
-            raise TypeError('image_file_name must be a None or a string')
-
-        self._image_id = image_id
-        self._core_name = core_name
-
-        if self._image_file_name is None and self._image_id is None and self._core_name is None:
-            logger.error('One of image_file_name, image_id, or core_name should be defined.')
-
-        self.annotations = annotations
-
-    @property
-    def image_file_name(self):
-        """
-        The image file name, if appropriate.
-
-        Returns
-        -------
-        None|str
-        """
-
-        return self._image_file_name
-
-    @property
-    def image_id(self):
-        """
-        The image id, if appropriate.
-
-        Returns
-        -------
-        None|str
-        """
-
-        return self._image_id
-
-    @property
-    def core_name(self):
-        """
-        The image core name, if appropriate.
-
-        Returns
-        -------
-        None|str
-        """
-
-        return self._core_name
+        FileAnnotationCollection.__init__(
+            self, version=version, annotations=annotations, image_file_name=image_file_name,
+            image_id=image_id, core_name=core_name)
 
     @property
     def annotations(self):
@@ -507,7 +667,7 @@ class FileRCSCollection(object):
 
         Returns
         -------
-        LabelCollection
+        RCSCollection
         """
 
         return self._annotations
@@ -529,12 +689,11 @@ class FileRCSCollection(object):
 
     def add_annotation(self, annotation):
         """
-        Add an annotation, with a check that the geometry type is a polygon or
-        Multipolygon.
+        Add an annotation.
 
         Parameters
         ----------
-        annotation : LabelFeature
+        annotation : RCSFeature
             The prospective annotation.
         """
 
@@ -570,7 +729,7 @@ class FileRCSCollection(object):
 
         Returns
         -------
-        FileLabelCollection
+        FileRCSCollection
         """
 
         with open(file_name, 'r') as fi:
@@ -593,25 +752,14 @@ class FileRCSCollection(object):
 
         if not isinstance(the_dict, dict):
             raise TypeError('This requires a dict. Got type {}'.format(type(the_dict)))
+
+        typ = the_dict.get('type', 'NONE')
+        if typ != cls._type:
+            raise ValueError('FileRCSCollection cannot be constructed from the input dictionary')
+
         return cls(
+            version=the_dict.get('version', 'UNKNOWN'),
             annotations=the_dict.get('annotations', None),
             image_file_name=the_dict.get('image_file_name', None),
             image_id=the_dict.get('image_id', None),
             core_name=the_dict.get('core_name', None))
-
-    def to_dict(self, parent_dict=None):
-        if parent_dict is None:
-            parent_dict = OrderedDict()
-        if self.image_file_name is not None:
-            parent_dict['image_file_name'] = self.image_file_name
-        if self.image_id is not None:
-            parent_dict['image_id'] = self.image_id
-        if self.core_name is not None:
-            parent_dict['core_name'] = self.core_name
-        if self.annotations is not None:
-            parent_dict['annotations'] = self.annotations.to_dict()
-        return parent_dict
-
-    def to_file(self, file_name):
-        with open(file_name, 'w') as fi:
-            json.dump(self.to_dict(), fi, indent=1)
