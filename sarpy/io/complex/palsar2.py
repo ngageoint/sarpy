@@ -1215,6 +1215,8 @@ class PALSARDetails(object):
         if not os.path.exists(file_name):
             raise SarpyIOError('path {} does not exists'.format(file_name))
 
+        file_name = os.path.abspath(file_name)
+
         if os.path.isfile(file_name):
             the_dir = os.path.split(file_name)[0]
         elif os.path.isdir(file_name):

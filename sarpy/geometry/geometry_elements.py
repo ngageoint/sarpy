@@ -5,7 +5,7 @@ This module provides basic geometry elements generally geared towards (geo)json 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
-
+import copy
 from collections import OrderedDict
 from uuid import uuid4
 from typing import Union, List, Tuple, Dict, Callable, Any
@@ -13,8 +13,6 @@ import json
 import logging
 
 import numpy
-
-from sarpy.compliance import string_types, integer_types
 
 
 logger = logging.getLogger(__name__)
@@ -126,7 +124,7 @@ def _line_segments_intersect(pt0, pt1, pt2, pt3):
         # one of these is a trivial line segment. No legitimate intersection is possible.
         return False
 
-    dir_cross = float(numpy.cross(R, S)) # the scalar cross product of the direction vectors
+    dir_cross = float(numpy.cross(R, S))  # the scalar cross product of the direction vectors
 
     if dir_cross == 0:
         # direction vectors are parallel, we will consider all of this as False
@@ -197,11 +195,11 @@ def _line_segment_distance(line_coord, coord):
 ###############
 # Geojson base object
 
-class _Jsonable(object):
+class Jsonable(object):
     """
     Abstract class for json serializability.
     """
-    _type = '_Jsonable'
+    _type = 'Jsonable'
 
     @property
     def type(self):
@@ -264,11 +262,26 @@ class _Jsonable(object):
         the_type = self.__class__
         return the_type.from_dict(self.to_dict())
 
+    def replicate(self):
+        """
+        Make a replica of the item, where uid has not been copied.
+
+        Returns
+        -------
+
+        """
+
+        out_dict = self.to_dict().copy()
+        if 'uid' in out_dict:
+            del out_dict['uid']
+        the_type = self.__class__
+        return the_type.from_dict(out_dict)
+
 
 #######
 # Geojson object definitions
 
-class Feature(_Jsonable):
+class Feature(Jsonable):
     """
     Generic feature class - basic geojson functionality. Should generally be extended
     to coherently handle properties for specific use case.
@@ -289,7 +302,7 @@ class Feature(_Jsonable):
 
         if uid is None:
             self._uid = str(uuid4())
-        elif not isinstance(uid, string_types):
+        elif not isinstance(uid, str):
             raise TypeError('uid must be a string.')
         else:
             self._uid = uid
@@ -313,7 +326,7 @@ class Feature(_Jsonable):
 
         Returns
         -------
-        Geometry
+        GeometryObject|GeometryCollection
         """
 
         return self._geometry
@@ -330,19 +343,23 @@ class Feature(_Jsonable):
             raise TypeError('geometry must be an instance of Geometry base class')
 
     @property
-    def properties(self):  # type: () -> _Jsonable
+    def properties(self):  # type: () -> Union[None, int, float, str, list, dict, Jsonable]
         """
         The properties.
 
         Returns
         -------
-
+        None|int|float|str|dict|list|Jsonable: The properties.
         """
 
         return self._properties
 
     @properties.setter
     def properties(self, properties):
+        if not isinstance(properties, (int, float, str, dict, list, Jsonable)):
+            logger.warning(
+                'Got unexpected type `{}` for properties.\n\t'
+                'This may effect serialization ability'.format(type(properties)))
         self._properties = properties
 
     @classmethod
@@ -350,7 +367,12 @@ class Feature(_Jsonable):
         typ = the_json['type']
         if typ != cls._type:
             raise ValueError('Feature cannot be constructed from {}'.format(the_json))
-        return cls(uid=the_json.get('id', None),
+
+        the_id = the_json.get('id', None)
+        if the_id is None:
+            the_id = the_json.get('uid', None)
+
+        return cls(uid=the_id,
                    geometry=the_json.get('geometry', None),
                    properties=the_json.get('properties', None))
 
@@ -359,11 +381,19 @@ class Feature(_Jsonable):
             parent_dict = OrderedDict()
         parent_dict['type'] = self.type
         parent_dict['id'] = self.uid
-        if self.geometry is None:
-            parent_dict['geometry'] = None
-        else:
+
+        if self.geometry is not None:
             parent_dict['geometry'] = self.geometry.to_dict()
-        parent_dict['properties'] = self.properties
+
+        if self.properties is not None:
+            if isinstance(self.properties, (int, float, str, list, dict)):
+                parent_dict['properties'] = self.properties
+            elif isinstance(self.properties, Jsonable):
+                parent_dict['properties'] = self.properties.to_dict()
+            else:
+                logger.warning(
+                    'Got unexpected Feature properties type `{}`,'
+                    '\n\tnot serializing'.format(type(self.properties)))
         return parent_dict
 
     def add_to_kml(self, doc, coord_transform, parent=None):
@@ -396,8 +426,21 @@ class Feature(_Jsonable):
         if self.geometry is not None:
             self.geometry.add_to_kml(doc, placemark, coord_transform)
 
+    def replicate(self):
+        geometry = None if self.geometry is None else self.geometry.replicate()
+        old_properties = self.properties
+        if old_properties is None:
+            new_properties = None
+        elif isinstance(old_properties, Jsonable):
+            new_properties = old_properties.replicate()
+        else:
+            new_properties = copy.deepcopy(old_properties)
 
-class FeatureCollection(_Jsonable):
+        the_type = self.__class__
+        return the_type(geometry=geometry, properties=new_properties)
+
+
+class FeatureCollection(Jsonable):
     """
     Generic FeatureCollection class - basic geojson functionality. Should generally be
     extended to coherently handle specific Feature extension.
@@ -419,7 +462,10 @@ class FeatureCollection(_Jsonable):
 
     def __getitem__(self, item):
         # type: (Any) -> Union[Feature, List[Feature]]
-        if isinstance(item, string_types):
+        if self._features is None:
+            raise StopIteration
+
+        if isinstance(item, str):
             index = self._feature_dict[item]
             return self._features[index]
         return self._features[item]
@@ -431,10 +477,10 @@ class FeatureCollection(_Jsonable):
 
         if isinstance(item, Feature):
             item = Feature.uid
-        if not(isinstance(item, string_types) or isinstance(item, integer_types)):
-            raise ValueError('Unexpected type {}'.format(type(item)))
+        if not isinstance(item, (str, int)):
+            raise ValueError('Unexpected type `{}`'.format(type(item)))
 
-        if isinstance(item, string_types):
+        if isinstance(item, str):
             index = self._feature_dict[item]
             del self._features[index]
         else:
@@ -558,12 +604,18 @@ class FeatureCollection(_Jsonable):
                 for feat in self.features:
                     feat.add_to_kml(doc, coord_transform)
 
+    def replicate(self):
+        features = [feat.replicate() for feat in self.features]
+        the_type = self.__class__
+        return the_type(features=features)
 
-class Geometry(_Jsonable):
+
+class Geometry(Jsonable):
     """
     Abstract Geometry base class.
     """
     _type = 'Geometry'
+    _is_collection = False
 
     @classmethod
     def from_dict(cls, geometry):
@@ -635,6 +687,14 @@ class Geometry(_Jsonable):
 
         raise NotImplementedError
 
+    @property
+    def is_collection(self):
+        """
+        bool: Is this a collection object?
+        """
+
+        return self._is_collection
+
 
 class GeometryCollection(Geometry):
     """
@@ -643,6 +703,7 @@ class GeometryCollection(Geometry):
 
     __slots__ = ('_geometries', )
     _type = 'GeometryCollection'
+    _is_collection = True
 
     def __init__(self, geometries=None):
         """
@@ -652,15 +713,19 @@ class GeometryCollection(Geometry):
         geometries : None|List[Geometry]
         """
 
-        self._geometries = None
+        self._geometries = []
         if geometries is not None:
             self.geometries = geometries
 
     @property
+    def collection(self):
+        return self.geometries
+
+    @property
     def geometries(self):
-        # type: () -> Union[List[Geometry], None]
+        # type: () -> List[Geometry]
         """
-        None|List[Geometry]: The geometry collection.
+        List[Geometry]: The geometry collection.
         """
 
         return self._geometries
@@ -668,7 +733,7 @@ class GeometryCollection(Geometry):
     @geometries.setter
     def geometries(self, geometries):
         if geometries is None:
-            self._geometries = None
+            self._geometries = []
             return
         elif not isinstance(geometries, list):
             raise TypeError(
@@ -731,10 +796,7 @@ class GeometryCollection(Geometry):
         if parent_dict is None:
             parent_dict = OrderedDict()
         parent_dict['type'] = self.type
-        if self.geometries is None:
-            parent_dict['geometries'] = None
-        else:
-            parent_dict['geometries'] = [entry.to_dict() for entry in self.geometries]
+        parent_dict['geometries'] = [entry.to_dict() for entry in self.geometries]
         return parent_dict
 
     def add_to_kml(self, doc, parent, coord_transform):
@@ -761,6 +823,39 @@ class GeometryCollection(Geometry):
         if self.geometries is None:
             return GeometryCollection()
         return GeometryCollection(geometries=[geom.apply_projection(proj_method) for geom in self.geometries])
+
+    @classmethod
+    def assemble_from_collection(cls, *args):
+        """
+        Assemble a geometry collection from the input constituents.
+
+        Parameters
+        ----------
+        args
+            A list of input GeometryObjects
+
+        Returns
+        -------
+        GeometryCollection
+        """
+
+        def handle_arg(arg_in):
+            if isinstance(arg_in, (Point, LineString, Polygon)):
+                geometries.append(arg_in)
+            elif arg_in.is_collection:
+                for entry in arg_in.collection:
+                    handle_arg(entry)
+            else:
+                raise ValueError('Got unhandled argument type `{}`'.format(type(arg)))
+
+        if len(args) == 0:
+            return cls()
+
+        geometries = []
+        for arg in args:
+            handle_arg(arg)
+
+        return cls(geometries=geometries)
 
 
 class GeometryObject(Geometry):
@@ -913,7 +1008,7 @@ class Point(GeometryObject):
         # type: (Dict) -> Point
         if not geometry.get('type', None) == cls._type:
             raise ValueError('Poorly formed json {}'.format(geometry))
-        cls(coordinates=geometry['coordinates'])
+        return cls(coordinates=geometry['coordinates'])
 
     def add_to_kml(self, doc, parent, coord_transform):
         if self.coordinates is None:
@@ -940,6 +1035,7 @@ class MultiPoint(GeometryObject):
 
     _type = 'MultiPoint'
     __slots__ = ('_points', )
+    _is_collection = True
 
     def __init__(self, coordinates=None):
         """
@@ -954,6 +1050,10 @@ class MultiPoint(GeometryObject):
             coordinates = coordinates.get_coordinate_list()
         if coordinates is not None:
             self.points = coordinates
+
+    @property
+    def collection(self):
+        return self.points
 
     @property
     def points(self):
@@ -1010,7 +1110,7 @@ class MultiPoint(GeometryObject):
         # type: (Dict) -> MultiPoint
         if not geometry.get('type', None) == cls._type:
             raise ValueError('Poorly formed json {}'.format(geometry))
-        cls(coordinates=geometry['coordinates'])
+        return cls(coordinates=geometry['coordinates'])
 
     def add_to_kml(self, doc, parent, coord_transform):
         if self._points is None:
@@ -1029,6 +1129,40 @@ class MultiPoint(GeometryObject):
             return float('inf')
 
         return min(entry.get_minimum_distance(point) for entry in self.points)
+
+    @classmethod
+    def assemble_from_collection(cls, *args):
+        """
+        Assemble a multipoint collection from input constituents.
+
+        Parameters
+        ----------
+        args
+            A list of input Point and MultiPoint objects.
+
+        Returns
+        -------
+        MultiPoint
+        """
+
+        def handle_arg(arg_in):
+            if isinstance(arg_in, Point):
+                points.append(arg_in)
+            elif isinstance(arg_in, MultiPoint):
+                points.extend(arg_in.points)
+            elif isinstance(arg_in, GeometryCollection):
+                for entry in arg_in.geometries:
+                    handle_arg(entry)
+            else:
+                raise ValueError('got disallowed type {}'.format(type(arg_in)))
+
+        if len(args) == 0:
+            return cls()
+
+        points = []
+        for arg in args:
+            handle_arg(arg)
+        return cls(points)
 
 
 class LineString(GeometryObject):
@@ -1136,7 +1270,7 @@ class LineString(GeometryObject):
         # type: (dict) -> LineString
         if not geometry.get('type', None) == cls._type:
             raise ValueError('Poorly formed json {}'.format(geometry))
-        cls(coordinates=geometry['coordinates'])
+        return cls(coordinates=geometry['coordinates'])
 
     def get_length(self):
         """
@@ -1170,7 +1304,9 @@ class LineString(GeometryObject):
         elif self._coordinates.shape[0] == 2:
             return _line_segment_distance(self._coordinates[:, :2], p_coord)
         else:
-            return min(_line_segment_distance(self._coordinates[i:i+2, :2], p_coord) for i in range(self._coordinates.shape[0]-1))
+            return min(
+                _line_segment_distance(self._coordinates[i:i+2, :2], p_coord)
+                for i in range(self._coordinates.shape[0]-1))
 
 
 class MultiLineString(GeometryObject):
@@ -1180,6 +1316,7 @@ class MultiLineString(GeometryObject):
 
     __slots__ = ('_lines', )
     _type = 'MultiLineString'
+    _is_collection = True
 
     def __init__(self, coordinates=None):
         """
@@ -1194,6 +1331,10 @@ class MultiLineString(GeometryObject):
             coordinates = coordinates.get_coordinate_list()
         if coordinates is not None:
             self.lines = coordinates
+
+    @property
+    def collection(self):
+        return self.lines
 
     @property
     def lines(self):
@@ -1248,7 +1389,7 @@ class MultiLineString(GeometryObject):
         # type: (Dict) -> MultiLineString
         if not geometry.get('type', None) == cls._type:
             raise ValueError('Poorly formed json {}'.format(geometry))
-        cls(coordinates=geometry['coordinates'])
+        return cls(coordinates=geometry['coordinates'])
 
     def get_length(self):
         """
@@ -1279,6 +1420,40 @@ class MultiLineString(GeometryObject):
         if self._lines is None:
             return float('inf')
         return min(entry.get_minimum_distance(point) for entry in self.lines)
+
+    @classmethod
+    def assemble_from_collection(cls, *args):
+        """
+        Assemble a multiline collection from input constituents.
+
+        Parameters
+        ----------
+        args
+            A list of input LineString and MultiLineString objects.
+
+        Returns
+        -------
+        MultiLineString
+        """
+
+        def handle_arg(arg_in):
+            if isinstance(arg_in, LineString):
+                points.append(arg_in)
+            elif isinstance(arg_in, MultiLineString):
+                points.extend(arg_in.lines)
+            elif isinstance(arg_in, GeometryCollection):
+                for entry in arg_in.geometries:
+                    handle_arg(entry)
+            else:
+                raise ValueError('got disallowed type {}'.format(type(arg_in)))
+
+        if len(args) == 0:
+            return cls()
+
+        points = []
+        for arg in args:
+            handle_arg(arg)
+        return cls(points)
 
 
 class LinearRing(LineString):
@@ -1407,7 +1582,9 @@ class LinearRing(LineString):
             self._segmentation = None
             self._diffs = None
             return
+
         if not isinstance(coordinates, numpy.ndarray):
+            # noinspection PyTypeChecker
             coordinates = numpy.array(coordinates, dtype=numpy.float64)
         if len(coordinates.shape) != 2:
             raise ValueError(
@@ -1460,7 +1637,9 @@ class LinearRing(LineString):
             segment['max_value'] = max(val1, val2, segment['max_value'])
 
         if len(coords) == 1:
-            return ({'min': coords[0], 'max': coords[0], 'inds': [0, ], 'min_value': numpy.inf, 'max_value': -numpy.inf}, )
+            return (
+                {'min': coords[0], 'max': coords[0], 'inds': [0, ],
+                 'min_value': numpy.inf, 'max_value': -numpy.inf}, )
 
         inds = numpy.argsort(coords[:-1])
         segments = []
@@ -1469,16 +1648,21 @@ class LinearRing(LineString):
         for ind in inds[1:]:
             val = coords[ind]
             if val > beg_val:  # make a new segment
-                segments.append({'min': beg_val, 'max': val, 'inds': [], 'min_value': numpy.inf, 'max_value': -numpy.inf})
+                segments.append(
+                    {'min': beg_val, 'max': val, 'inds': [],
+                     'min_value': numpy.inf, 'max_value': -numpy.inf})
                 beg_val = val
         else:
             # it may have ended without appending the segment
             if val > beg_val:
-                segments.append({'min': beg_val, 'max': val, 'inds': [], 'min_value': numpy.inf, 'max_value': -numpy.inf})
+                segments.append(
+                    {'min': beg_val, 'max': val, 'inds': [],
+                     'min_value': numpy.inf, 'max_value': -numpy.inf})
         del beg_val, val
 
         # now, let's populate the inds lists and min/max_values elements
-        for i, (beg_value, end_value, ocoord1, ocoord2) in enumerate(zip(coords[:-1], coords[1:], o_coords[:-1], o_coords[1:])):
+        for i, (beg_value, end_value, ocoord1, ocoord2) in \
+                enumerate(zip(coords[:-1], coords[1:], o_coords[:-1], o_coords[1:])):
             first, last = (beg_value, end_value) if beg_value <= end_value else (end_value, beg_value)
             # check all the segments for overlap
             for j, seg in enumerate(segments):
@@ -1844,7 +2028,7 @@ class Polygon(GeometryObject):
         # type: (Dict) -> Polygon
         if not geometry.get('type', None) == cls._type:
             raise ValueError('Poorly formed json {}'.format(geometry))
-        cls(coordinates=geometry['coordinates'])
+        return cls(coordinates=geometry['coordinates'])
 
     def get_bbox(self):
         if self._outer_ring is None:
@@ -2054,6 +2238,7 @@ class MultiPolygon(GeometryObject):
 
     __slots__ = ('_polygons', )
     _type = 'MultiPolygon'
+    _is_collection = True
 
     def __init__(self, coordinates=None):
         """
@@ -2068,6 +2253,10 @@ class MultiPolygon(GeometryObject):
             coordinates = coordinates.get_coordinate_list()
         if coordinates is not None:
             self.polygons = coordinates
+
+    @property
+    def collection(self):
+        return self.polygons
 
     @property
     def polygons(self):
@@ -2120,7 +2309,7 @@ class MultiPolygon(GeometryObject):
         # type: (Dict) -> MultiPolygon
         if not geometry.get('type', None) == cls._type:
             raise ValueError('Poorly formed json {}'.format(geometry))
-        cls(coordinates=geometry['coordinates'])
+        return cls(coordinates=geometry['coordinates'])
 
     def get_coordinate_list(self):
         if self._polygons is None:
@@ -2231,3 +2420,71 @@ class MultiPolygon(GeometryObject):
         if self._polygons is None:
             return float('inf')
         return min(entry.get_minimum_distance(point) for entry in self.polygons)
+
+    @classmethod
+    def assemble_from_collection(cls, *args):
+        """
+        Assemble a multipolygon collection from input constituents.
+
+        Parameters
+        ----------
+        args
+            A list of input Polygon and MultiPolygon objects.
+
+        Returns
+        -------
+        MultiPolygon
+        """
+
+        def handle_arg(arg_in):
+            if isinstance(arg_in, LinearRing):
+                polygons.append(Polygon([arg_in, ]))
+            elif isinstance(arg_in, Polygon):
+                polygons.append(arg_in)
+            elif isinstance(arg_in, MultiPolygon):
+                polygons.extend(arg_in.polygons)
+            elif isinstance(arg_in, GeometryCollection):
+                for entry in arg_in.geometries:
+                    handle_arg(entry)
+            else:
+                raise ValueError('got disallowed type {}'.format(type(arg_in)))
+
+        if len(args) == 0:
+            return cls()
+
+        polygons = []
+        for arg in args:
+            handle_arg(arg)
+        return cls(polygons)
+
+
+def basic_assemble_from_collection(*args):
+    """
+    Assemble the most suitable (flat) collective type from the input collection.
+
+    Parameters
+    ----------
+    args
+        The input geometry objects.
+
+    Returns
+    -------
+    GeometryCollection|MultiPoint|MultiLineString|MultiPolygon
+    """
+
+    try:
+        return MultiPoint.assemble_from_collection(*args)
+    except ValueError:
+        pass
+
+    try:
+        return MultiLineString.assemble_from_collection(*args)
+    except ValueError:
+        pass
+
+    try:
+        return MultiPolygon.assemble_from_collection(*args)
+    except ValueError:
+        pass
+
+    return GeometryCollection.assemble_from_collection(*args)

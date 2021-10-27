@@ -14,7 +14,7 @@ import struct
 
 import numpy
 
-from sarpy.compliance import int_func, integer_types, string_types, bytes_to_string
+from sarpy.compliance import bytes_to_string
 from .tres.registration import find_tre
 
 logger = logging.getLogger(__name__)
@@ -93,10 +93,10 @@ class BaseNITFElement(object):
 def _get_bytes(val, length):
     if val is None:
         return b''
-    elif isinstance(val, integer_types):
+    elif isinstance(val, int):
         frm_str = '{0:0' + str(length) + 'd}'
         return frm_str.format(val).encode('utf-8')
-    elif isinstance(val, string_types):
+    elif isinstance(val, str):
         frm_str = '{0:' + str(length) + 's}'
         if sys.version_info[0] >= 3:
             return frm_str.format(val).encode('utf-8')
@@ -136,9 +136,9 @@ def _parse_int(val, length, default, name, instance):
     if val is None:
         return default
     else:
-        val = int_func(val)
+        val = int(val)
 
-    if -int_func(10)**(length-1) < val < int_func(10)**length:
+    if -int(10)**(length-1) < val < int(10)**length:
         return val
     raise ValueError(
         'Integer {} cannot be rendered as a string of {} characters for '
@@ -165,7 +165,7 @@ def _parse_str(val, length, default, name, instance):
 
     if isinstance(val, bytes):
         val = bytes_to_string(val)
-    elif not isinstance(val, string_types):
+    elif not isinstance(val, str):
         val = str(val)
 
     val = val.rstrip()
@@ -623,8 +623,7 @@ class NITFElement(BaseNITFElement):
             value = getattr(self, fld)
             if value is None:
                 out[fld] = ''
-            elif isinstance(value, string_types) or isinstance(value, integer_types) \
-                    or isinstance(value, bytes):
+            elif isinstance(value, (str, bytes, int)):
                 out[fld] = value
             elif isinstance(value, BaseNITFElement):
                 out[fld] = value.to_json()
@@ -648,7 +647,8 @@ class NITFLoop(NITFElement):
         super(NITFLoop, self).__init__(values=values, **kwargs)
 
     @property
-    def values(self):  # type: () -> Tuple[_child_class, ...]
+    def values(self):
+        # type: () -> Tuple[_child_class, ...]
         return self._values
 
     @values.setter
@@ -661,13 +661,15 @@ class NITFLoop(NITFElement):
         for i, entry in enumerate(value):
             if not isinstance(entry, self._child_class):
                 raise TypeError(
-                    'values must be of type {}, got entry {} of type {}'.format(self._child_class, i, type(entry)))
+                    'values must be of type {}, got entry {} of type {}'.format(
+                        self._child_class, i, type(entry)))
         self._values = value
 
     def __len__(self):
         return len(self._values)
 
-    def __getitem__(self, item):  # type: (Union[int, slice]) -> Union[_child_class, List[_child_class]]
+    def __getitem__(self, item):
+        # type: (Union[int, slice]) -> Union[_child_class, List[_child_class]]
         return self._values[item]
 
     def get_bytes_length(self):
@@ -680,7 +682,7 @@ class NITFLoop(NITFElement):
     @classmethod
     def _parse_count(cls, value, start):
         loc = start
-        count = int_func(value[loc:loc+cls._count_size])
+        count = int(value[loc:loc+cls._count_size])
         loc += cls._count_size
         return count, loc
 
@@ -798,7 +800,7 @@ class Unstructured(NITFElement):
     @classmethod
     def _parse_attribute(cls, fields, attribute, value, start):
         if attribute == 'data':
-            length = int_func(value[start:start + cls._size_len])
+            length = int(value[start:start + cls._size_len])
             start += cls._size_len
             fields['data'] = value[start:start + length]
             return start + length
@@ -866,11 +868,11 @@ class _ItemArrayHeaders(BaseNITFElement):
         _ItemArrayHeaders
         """
 
-        subhead_len, item_len = int_func(cls._subhead_len), int_func(cls._item_len)
+        subhead_len, item_len = int(cls._subhead_len), int(cls._item_len)
         if len(value) < start + 3:
             raise ValueError('value must have length at least {}. Got {}'.format(start+3, len(value)))
         loc = start
-        count = int_func(value[loc:loc+3])
+        count = int(value[loc:loc+3])
         length = 3 + count*(subhead_len + item_len)
         if len(value) < start + length:
             raise ValueError('value must have length at least {}. Got {}'.format(start+length, len(value)))
@@ -878,9 +880,9 @@ class _ItemArrayHeaders(BaseNITFElement):
         subhead_sizes = numpy.zeros((count, ), dtype=numpy.int64)
         item_sizes = numpy.zeros((count, ), dtype=numpy.int64)
         for i in range(count):
-            subhead_sizes[i] = int_func(value[loc: loc+subhead_len])
+            subhead_sizes[i] = int(value[loc: loc+subhead_len])
             loc += subhead_len
-            item_sizes[i] = int_func(value[loc: loc+item_len])
+            item_sizes[i] = int(value[loc: loc+item_len])
             loc += item_len
         return cls(subhead_sizes, item_sizes)
 
@@ -978,7 +980,7 @@ class UnknownTRE(TRE):
         if isinstance(TAG, bytes):
             TAG = TAG.decode('utf-8')
 
-        if not isinstance(TAG, string_types):
+        if not isinstance(TAG, str):
             raise TypeError('TAG must be a string. Got {}'.format(type(TAG)))
         if len(TAG) > 6:
             raise ValueError('TAG must be 6 or fewer characters')
@@ -1013,7 +1015,7 @@ class UnknownTRE(TRE):
     @classmethod
     def from_bytes(cls, value, start):
         tag = value[start:start+6]
-        lng = int_func(value[start+6:start+11])
+        lng = int(value[start+6:start+11])
         return cls(tag, value[start+11:start+11+lng])
 
 
@@ -1074,7 +1076,7 @@ class TREList(NITFElement):
             tres = []
             loc = start
             while loc < len(value):
-                anticipated_length = int_func(value[loc+6:loc+11]) + 11
+                anticipated_length = int(value[loc+6:loc+11]) + 11
                 tre = TRE.from_bytes(value, loc)
                 parsed_length = tre.get_bytes_length()
                 if parsed_length != anticipated_length:
@@ -1096,7 +1098,7 @@ class TREList(NITFElement):
         # type: (Union[int, slice, str]) -> Union[None, TRE, List[TRE]]
         if isinstance(item, (int, slice)):
             return self._tres[item]
-        elif isinstance(item, string_types):
+        elif isinstance(item, str):
             for entry in self.tres:
                 if entry.TAG == item:
                     return entry
@@ -1137,7 +1139,7 @@ class UserHeaderType(Unstructured):
             self._ofl = 0
             return
 
-        value = int_func(value)
+        value = int(value)
         if not (0 <= value <= 999):
             raise ValueError('ofl requires an integer value in the range 0-999.')
         self._ofl = value
@@ -1181,10 +1183,10 @@ class UserHeaderType(Unstructured):
     @classmethod
     def _parse_attribute(cls, fields, attribute, value, start):
         if attribute == 'data':
-            length = int_func(value[start:start + cls._size_len])
+            length = int(value[start:start + cls._size_len])
             start += cls._size_len
             if length > 0:
-                ofl = int_func(value[start:start+cls._ofl_len])
+                ofl = int(value[start:start+cls._ofl_len])
                 fields['OFL'] = ofl
                 fields['data'] = value[start+cls._ofl_len:start + length]
             else:

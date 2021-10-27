@@ -20,8 +20,9 @@ def open(file_name):
     """
 
     from .complex.converter import open_complex
-    from .phase_history.converter import open_phase_history
     from .product.converter import open_product
+    from .phase_history.converter import open_phase_history
+    from .received.converter import open_received
     from .other_image.converter import open_other
     from .general.converter import open_general
     from .general.base import SarpyIOError
@@ -42,6 +43,11 @@ def open(file_name):
         pass
 
     try:
+        return open_received(file_name)
+    except SarpyIOError:
+        pass
+
+    try:
         return open_other(file_name)
     except SarpyIOError:
         pass
@@ -53,4 +59,4 @@ def open(file_name):
 
     raise SarpyIOError(
         'The format of file {} does not match any reader in the complex, '
-        'product, phase_history, other_image, or general  modules.')
+        'product, phase_history, received, other_image, or general modules.')
