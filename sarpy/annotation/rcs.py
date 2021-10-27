@@ -290,8 +290,9 @@ class RCSStatistics(Jsonable):
         if self.mean is None:
             return '', '', '', '', ''
         else:
+            mean_db_str = '' if self.mean <= 0 else '{0:0.5G}'.format(10*numpy.log10(self.mean))
             return (
-                '{0:0.5G}'.format(10*numpy.log10(self.mean)),
+                mean_db_str,
                 '{0:0.5G}'.format(self.mean),
                 '{0:0.5G}'.format(self.std) if self.std is not None else '',
                 '{0:0.5G}'.format(self.min) if self.min is not None else '',
@@ -388,6 +389,7 @@ class RCSValue(Jsonable):
     def to_dict(self, parent_dict=None):
         if parent_dict is None:
             parent_dict = OrderedDict()
+        parent_dict['type'] = self.type
         parent_dict['polarization'] = self.polarization
         parent_dict['units'] = self.units
         parent_dict['index'] = self.index
@@ -416,7 +418,7 @@ class RCSValueCollection(Jsonable):
         """
 
         self._pixel_count = None
-        self._elements = None
+        self._elements = []
 
         self.pixel_count = pixel_count
         self.elements = elements
@@ -464,6 +466,7 @@ class RCSValueCollection(Jsonable):
 
         if not isinstance(elements, list):
             raise TypeError('elements must be a list of RCSValue elements')
+        self._elements = []
         for element in elements:
             self.insert_new_element(element)
 

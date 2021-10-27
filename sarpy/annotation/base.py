@@ -140,7 +140,7 @@ class AnnotationProperties(Jsonable):
         name : Optional[str]
         description : Optional[str]
         directory : Optional[str]
-        geometry_properties : Optional[List[GeometryProperties]]
+        geometry_properties : None|List[GeometryProperties]
         parameters : Optional[Jsonable]
         """
 
@@ -205,7 +205,7 @@ class AnnotationProperties(Jsonable):
 
     @property
     def geometry_properties(self):
-        # type: () -> Optional[List[GeometryProperties]]
+        # type: () -> List[GeometryProperties]
         """
         List[GeometryProperties]: The geometry properties.
         """
