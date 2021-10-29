@@ -15,7 +15,7 @@ from sarpy.io.xml.descriptors import StringDescriptor, StringEnumDescriptor, \
 from sarpy.io.phase_history.cphd1_elements.blocks import POLARIZATION_TYPE, AreaType
 from sarpy.io.phase_history.cphd1_elements.Channel import DwellTimesType
 
-from .base import DEFAULT_STRICT
+from .base import DEFAULT_STRICT, FLOAT_FORMAT
 
 
 class RcvAntennaType(Serializable):
@@ -61,7 +61,7 @@ class SignalRefLevelType(Serializable):
 
     _fields = ('PSCRSD', 'PRcvDensity')
     _required = _fields
-    _numeric_format = {fld: '0.17E' for fld in _fields}
+    _numeric_format = {fld: FLOAT_FORMAT for fld in _fields}
     # descriptors
     PSCRSD = FloatDescriptor(
         'PSCRSD', _required, strict=DEFAULT_STRICT,
@@ -99,7 +99,7 @@ class NoiseLevelType(Serializable):
 
     _fields = ('PNCRSD', 'BNCRSD')
     _required = _fields
-    _numeric_format = {fld: '0.17E' for fld in _fields}
+    _numeric_format = {fld: FLOAT_FORMAT for fld in _fields}
     # descriptors
     PNCRSD = FloatDescriptor(
         'PNCRSD', _required, strict=DEFAULT_STRICT,
@@ -229,7 +229,7 @@ class ChannelParametersType(Serializable):
         'Identifier', 'RefVectorIndex', 'RefFreqFixed', 'FrcvFixed', 'DemodFixed',
         'F0Ref', 'Fs', 'BWInst', 'RcvPol')
     _numeric_format = {
-        'F0Ref': '0.17E', 'Fs': '0.17E', 'BWInst': '0.17E'}
+        'F0Ref': FLOAT_FORMAT, 'Fs': FLOAT_FORMAT, 'BWInst': FLOAT_FORMAT}
     _collections_tags = {
         'AddedParameters': {'array': False, 'child_tag': 'AddedParameters'}}
     # descriptors

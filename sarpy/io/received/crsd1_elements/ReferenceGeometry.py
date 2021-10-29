@@ -14,7 +14,7 @@ from sarpy.io.xml.descriptors import FloatDescriptor, StringEnumDescriptor, \
 from sarpy.io.complex.sicd_elements.blocks import XYZType, LatLonHAEType
 from sarpy.geometry.geocoords import geodetic_to_ecf, ecf_to_geodetic
 
-from .base import DEFAULT_STRICT
+from .base import DEFAULT_STRICT, FLOAT_FORMAT
 
 
 class CRPType(Serializable):
@@ -89,8 +89,8 @@ class RcvParametersType(Serializable):
         'DopplerConeAngle', 'GrazeAngle', 'IncidenceAngle', 'AzimuthAngle')
     _required = _fields
     _numeric_format = {
-        'SlantRange': '0.17E', 'GroundRange': '0.17E', 'DopplerConeAngle': '0.17E',
-        'GrazeAngle': '0.17E', 'IncidenceAngle': '0.17E', 'AzimuthAngle': '0.17E'}
+        'SlantRange': FLOAT_FORMAT, 'GroundRange': FLOAT_FORMAT, 'DopplerConeAngle': FLOAT_FORMAT,
+        'GrazeAngle': FLOAT_FORMAT, 'IncidenceAngle': FLOAT_FORMAT, 'AzimuthAngle': FLOAT_FORMAT}
     # descriptors
     RcvTime = FloatDescriptor(
         'RcvTime', _required, strict=DEFAULT_STRICT,

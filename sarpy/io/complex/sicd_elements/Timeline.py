@@ -14,7 +14,7 @@ from sarpy.io.xml.base import Serializable, SerializableArray
 from sarpy.io.xml.descriptors import FloatDescriptor, IntegerDescriptor, \
     DateTimeDescriptor, SerializableDescriptor, SerializableArrayDescriptor
 
-from .base import DEFAULT_STRICT
+from .base import DEFAULT_STRICT, FLOAT_FORMAT
 from .blocks import Poly1DType
 
 
@@ -29,7 +29,7 @@ class IPPSetType(Serializable):
     _fields = ('TStart', 'TEnd', 'IPPStart', 'IPPEnd', 'IPPPoly', 'index')
     _required = _fields
     _set_as_attribute = ('index', )
-    _numeric_format = {'TStart': '0.17E', 'TEnd': '0.17E', }
+    _numeric_format = {'TStart': FLOAT_FORMAT, 'TEnd': FLOAT_FORMAT, }
     # descriptors
     TStart = FloatDescriptor(
         'TStart', _required, strict=DEFAULT_STRICT,
@@ -104,7 +104,7 @@ class TimelineType(Serializable):
     _fields = ('CollectStart', 'CollectDuration', 'IPP')
     _required = ('CollectStart', 'CollectDuration', )
     _collections_tags = {'IPP': {'array': True, 'child_tag': 'Set'}}
-    _numeric_format = {'CollectDuration': '0.17E', }
+    _numeric_format = {'CollectDuration': FLOAT_FORMAT, }
     # descriptors
     CollectStart = DateTimeDescriptor(
         'CollectStart', _required, strict=DEFAULT_STRICT, numpy_datetime_units='us',

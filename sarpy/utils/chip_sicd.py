@@ -132,7 +132,7 @@ if __name__ == '__main__':
         help='Try to use a less recent version of SICD (1.1),\n'
              'for possible application compliance issues?')
 
-    args =  parser.parse_args()
+    args = parser.parse_args()
     create_chip(
         args.input_file, args.output_directory, output_file=args.output_file,
         row_limits=args.row_lims, col_limits=args.col_lims,

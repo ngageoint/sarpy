@@ -13,7 +13,7 @@ from sarpy.io.xml.descriptors import FloatDescriptor, StringDescriptor, BooleanD
 from sarpy.io.complex.sicd_elements.blocks import Poly1DType
 from sarpy.io.phase_history.cphd1_elements.Antenna import AntPhaseCenterType
 
-from .base import DEFAULT_STRICT
+from .base import DEFAULT_STRICT, FLOAT_FORMAT
 
 
 class AntCoordFrameType(Serializable):
@@ -56,7 +56,7 @@ class AntPatternType(Serializable):
     _required = (
         'Identifier', 'FreqZero', 'EBFreqShift', 'MLFreqDilation',
         'ArrayGPId', 'ElementGPId')
-    _numeric_format = {'FreqZero': '0.17E', 'GainZero': '0.17E'}
+    _numeric_format = {'FreqZero': FLOAT_FORMAT, 'GainZero': FLOAT_FORMAT}
     # descriptors
     Identifier = StringDescriptor(
         'Identifier', _required, strict=DEFAULT_STRICT,

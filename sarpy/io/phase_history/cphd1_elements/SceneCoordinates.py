@@ -14,7 +14,7 @@ from sarpy.io.xml.descriptors import FloatDescriptor, IntegerDescriptor, \
 from sarpy.io.complex.sicd_elements.base import SerializableCPArray, SerializableCPArrayDescriptor
 from sarpy.io.complex.sicd_elements.blocks import XYZType, LatLonType, LatLonCornerType
 from sarpy.io.complex.sicd_elements.GeoData import SCPType
-from .base import DEFAULT_STRICT
+from .base import DEFAULT_STRICT, FLOAT_FORMAT
 from .blocks import AreaType, LSType, LSVertexType
 
 
@@ -146,7 +146,7 @@ class IAXExtentType(Serializable):
     """
     _fields = ('LineSpacing', 'FirstLine', 'NumLines')
     _required = _fields
-    _numeric_format = {'LineSpacing': '0.17E'}
+    _numeric_format = {'LineSpacing': '0.17G'}
     # descriptors
     LineSpacing = FloatDescriptor(
         'LineSpacing', _required, strict=DEFAULT_STRICT, bounds=(0, None),
@@ -186,7 +186,7 @@ class IAYExtentType(Serializable):
 
     _fields = ('SampleSpacing', 'FirstSample', 'NumSamples')
     _required = _fields
-    _numeric_format = {'SampleSpacing': '0.17E'}
+    _numeric_format = {'SampleSpacing': '0.17G'}
     # descriptors
     SampleSpacing = FloatDescriptor(
         'SampleSpacing', _required, strict=DEFAULT_STRICT, bounds=(0, None),

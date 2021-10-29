@@ -9,7 +9,7 @@ from typing import Union, List
 
 import numpy
 
-from sarpy.io.phase_history.cphd1_elements.base import DEFAULT_STRICT
+from sarpy.io.phase_history.cphd1_elements.base import DEFAULT_STRICT, FLOAT_FORMAT
 from sarpy.io.complex.sicd_elements.base import SerializableCPArrayDescriptor, SerializableCPArray
 from sarpy.io.complex.sicd_elements.blocks import LatLonHAECornerRestrictionType, Poly2DType
 from sarpy.io.complex.sicd_elements.RadarCollection import ReferencePointType, XDirectionType, \
@@ -147,7 +147,7 @@ class GlobalType(Serializable):
         'DomainType', 'PhaseSGN', 'CollectStart', 'CollectDuration',
         'TxTime1', 'TxTime2', 'ImageArea')
     _numeric_format = {
-        'CollectDuration': '0.17E', 'TxTime1': '0.17E', 'TxTime2': '0.17E'}
+        'CollectDuration': FLOAT_FORMAT, 'TxTime1': FLOAT_FORMAT, 'TxTime2': FLOAT_FORMAT}
     # descriptors
     DomainType = StringEnumDescriptor(
         'DomainType', ('FX', 'TOA'), _required, strict=DEFAULT_STRICT,

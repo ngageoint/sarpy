@@ -12,7 +12,7 @@ from collections import OrderedDict
 import numpy
 
 from sarpy.compliance import int_func
-from sarpy.io.product.sidd2_elements.base import DEFAULT_STRICT
+from sarpy.io.product.sidd2_elements.base import DEFAULT_STRICT, FLOAT_FORMAT
 from sarpy.io.xml.base import Serializable, Arrayable, ParametersCollection, \
     create_text_node, create_new_node, get_node_value, find_first_child
 from sarpy.io.xml.descriptors import SerializableDescriptor, IntegerDescriptor, \
@@ -333,7 +333,7 @@ class MonitorCompensationAppliedType(Serializable):
     """
     _fields = ('Gamma', 'XMin')
     _required = ('Gamma', 'XMin')
-    _numeric_format = {key: '0.17E' for key in _fields}
+    _numeric_format = {key: FLOAT_FORMAT for key in _fields}
     # Descriptor
     Gamma = FloatDescriptor(
         'Gamma', _required, strict=DEFAULT_STRICT,

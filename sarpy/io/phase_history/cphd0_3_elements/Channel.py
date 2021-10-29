@@ -8,7 +8,7 @@ __author__ = "Thomas McCullough"
 
 from typing import Union, List
 
-from sarpy.io.phase_history.cphd1_elements.base import DEFAULT_STRICT
+from sarpy.io.phase_history.cphd1_elements.base import DEFAULT_STRICT, FLOAT_FORMAT
 from sarpy.io.xml.base import Serializable
 from sarpy.io.xml.descriptors import IntegerDescriptor, FloatDescriptor, \
     SerializableListDescriptor
@@ -25,8 +25,8 @@ class ParametersType(Serializable):
     _required = (
         'SRP_Index', 'NomTOARateSF', 'FxCtrNom', 'BWSavedNom', 'TOASavedNom')
     _numeric_format = {
-        'NomTOARateSF': '0.17E', 'FxCtrNom': '0.17E', 'BWSavedNom': '0.17E',
-        'TOASavedNom': '0.17E'}
+        'NomTOARateSF': FLOAT_FORMAT, 'FxCtrNom': FLOAT_FORMAT, 'BWSavedNom': FLOAT_FORMAT,
+        'TOASavedNom': FLOAT_FORMAT}
     # descriptors
     SRP_Index = IntegerDescriptor(
         'SRP_Index', _required, strict=DEFAULT_STRICT,

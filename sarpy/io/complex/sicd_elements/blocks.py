@@ -16,7 +16,7 @@ from sarpy.io.xml.base import Serializable, Arrayable, \
 from sarpy.io.xml.descriptors import IntegerDescriptor, StringEnumDescriptor, \
     FloatDescriptor, FloatModularDescriptor, SerializableDescriptor
 
-from .base import DEFAULT_STRICT
+from .base import DEFAULT_STRICT, FLOAT_FORMAT
 
 
 #########
@@ -39,7 +39,7 @@ class XYZType(Serializable, Arrayable):
     """A spatial point in ECF coordinates."""
     _fields = ('X', 'Y', 'Z')
     _required = _fields
-    _numeric_format = {'X': '0.17E', 'Y': '0.17E', 'Z': '0.17E'}
+    _numeric_format = {'X': FLOAT_FORMAT, 'Y': FLOAT_FORMAT, 'Z': FLOAT_FORMAT}
     # descriptors
     X = FloatDescriptor(
         'X', _required, strict=True,
@@ -113,7 +113,7 @@ class LatLonType(Serializable, Arrayable):
     """A two-dimensional geographic point in WGS-84 coordinates."""
     _fields = ('Lat', 'Lon')
     _required = _fields
-    _numeric_format = {'Lat': '0.17E', 'Lon': '0.17E'}
+    _numeric_format = {'Lat': FLOAT_FORMAT, 'Lon': FLOAT_FORMAT}
     # descriptors
     Lat = FloatDescriptor(
         'Lat', _required, strict=True,
@@ -316,7 +316,7 @@ class LatLonHAEType(LatLonType):
     """A three-dimensional geographic point in WGS-84 coordinates."""
     _fields = ('Lat', 'Lon', 'HAE')
     _required = _fields
-    _numeric_format = {'Lat': '0.17E', 'Lon': '0.17E', 'HAE': '0.17E'}
+    _numeric_format = {'Lat': FLOAT_FORMAT, 'Lon': FLOAT_FORMAT, 'HAE': FLOAT_FORMAT}
     # descriptors
     HAE = FloatDescriptor(
         'HAE', _required, strict=True,
@@ -782,7 +782,7 @@ class Poly1DType(Serializable, Arrayable):
     __slots__ = ('_coefs', )
     _fields = ('Coefs', 'order1')
     _required = ('Coefs', )
-    _numeric_format = {'Coefs': '0.17E'}
+    _numeric_format = {'Coefs': FLOAT_FORMAT}
 
     def __init__(self, Coefs=None, **kwargs):
         """
@@ -1055,7 +1055,7 @@ class Poly2DType(Serializable, Arrayable):
     __slots__ = ('_coefs', )
     _fields = ('Coefs', 'order1', 'order2')
     _required = ('Coefs', )
-    _numeric_format = {'Coefs': '0.17E'}
+    _numeric_format = {'Coefs': FLOAT_FORMAT}
 
     def __init__(self, Coefs=None, **kwargs):
         """
@@ -1666,7 +1666,7 @@ class ErrorDecorrFuncType(Serializable):
 
     _fields = ('CorrCoefZero', 'DecorrRate')
     _required = _fields
-    _numeric_format = {'CorrCoefZero': '0.17E', 'DecorrRate': '0.17E'}
+    _numeric_format = {'CorrCoefZero': FLOAT_FORMAT, 'DecorrRate': FLOAT_FORMAT}
     # descriptors
     CorrCoefZero = FloatDescriptor(
         'CorrCoefZero', _required, strict=True, bounds=(-1, 1),

@@ -12,7 +12,7 @@ import numpy
 from sarpy.io.xml.base import Serializable, Arrayable
 from sarpy.io.xml.descriptors import FloatDescriptor, DateTimeDescriptor, \
     StringEnumDescriptor, IntegerEnumDescriptor, SerializableDescriptor
-from .base import DEFAULT_STRICT
+from .base import DEFAULT_STRICT, FLOAT_FORMAT
 
 
 class TimelineType(Serializable):
@@ -22,7 +22,7 @@ class TimelineType(Serializable):
 
     _fields = ('CollectionStart', 'RcvCollectionStart', 'TxTime1', 'TxTime2')
     _required = ('CollectionStart', 'TxTime1', 'TxTime2')
-    _numeric_format = {'TxTime1': '0.17E', 'TxTime2': '0.17E'}
+    _numeric_format = {'TxTime1': FLOAT_FORMAT, 'TxTime2': FLOAT_FORMAT}
     # descriptors
     CollectionStart = DateTimeDescriptor(
         'CollectionStart', _required, strict=DEFAULT_STRICT, numpy_datetime_units='us',
@@ -74,7 +74,7 @@ class FxBandType(Serializable, Arrayable):
 
     _fields = ('FxMin', 'FxMax')
     _required = _fields
-    _numeric_format = {fld: '0.17E' for fld in _fields}
+    _numeric_format = {fld: FLOAT_FORMAT for fld in _fields}
     # descriptors
     FxMin = FloatDescriptor(
         'FxMin', _required, strict=DEFAULT_STRICT, bounds=(0, None),
@@ -126,7 +126,7 @@ class TOASwathType(Serializable, Arrayable):
 
     _fields = ('TOAMin', 'TOAMax')
     _required = _fields
-    _numeric_format = {fld: '0.17E' for fld in _fields}
+    _numeric_format = {fld: FLOAT_FORMAT for fld in _fields}
     # descriptors
     TOAMin = FloatDescriptor(
         'TOAMin', _required, strict=DEFAULT_STRICT,
@@ -177,7 +177,7 @@ class TropoParametersType(Serializable):
 
     _fields = ('N0', 'RefHeight')
     _required = _fields
-    _numeric_format = {'N0': '0.17E'}
+    _numeric_format = {'N0': FLOAT_FORMAT}
     # descriptors
     N0 = FloatDescriptor(
         'N0', _required, strict=DEFAULT_STRICT, bounds=(0, None),
@@ -214,7 +214,7 @@ class IonoParametersType(Serializable):
 
     _fields = ('TECV', 'F2Height')
     _required = ('TECV', )
-    _numeric_format = {fld: '0.17E' for fld in _fields}
+    _numeric_format = {fld: FLOAT_FORMAT for fld in _fields}
     # descriptor
     TECV = FloatDescriptor(
         'TECV', _required, strict=DEFAULT_STRICT, bounds=(0, None),

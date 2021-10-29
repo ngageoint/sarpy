@@ -15,7 +15,7 @@ from sarpy.io.xml.base import Serializable
 from sarpy.io.xml.descriptors import StringEnumDescriptor, FloatDescriptor, \
     BooleanDescriptor, SerializableDescriptor
 
-from .base import DEFAULT_STRICT
+from .base import DEFAULT_STRICT, FLOAT_FORMAT
 from .blocks import XYZType, Poly1DType, Poly2DType
 from .utils import _get_center_frequency
 
@@ -27,7 +27,7 @@ class RMRefType(Serializable):
 
     _fields = ('PosRef', 'VelRef', 'DopConeAngRef')
     _required = _fields
-    _numeric_format = {'DopConeAngRef': '0.17E', }
+    _numeric_format = {'DopConeAngRef': FLOAT_FORMAT, }
     # descriptors
     PosRef = SerializableDescriptor(
         'PosRef', XYZType, _required, strict=DEFAULT_STRICT,
@@ -81,7 +81,7 @@ class INCAType(Serializable):
         'FreqZero', _required, strict=DEFAULT_STRICT,
         docstring=r'*RF frequency* :\math:`(f_0)` in Hz used for computing '
                   r'Doppler Centroid values. Typical :math:`f_0` '
-                  r'set equal o center transmit frequency.')  # type: float
+                  r'set equal to center transmit frequency.')  # type: float
     DRateSFPoly = SerializableDescriptor(
         'DRateSFPoly', Poly2DType, _required, strict=DEFAULT_STRICT,
         docstring='Polynomial function that yields *Doppler Rate scale factor (DRSF)* '

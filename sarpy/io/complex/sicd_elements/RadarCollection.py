@@ -17,7 +17,8 @@ from sarpy.io.xml.descriptors import StringDescriptor, StringEnumDescriptor, \
     FloatDescriptor, IntegerDescriptor, SerializableDescriptor, \
     SerializableArrayDescriptor, UnitVectorDescriptor, ParametersDescriptor
 
-from .base import DEFAULT_STRICT, SerializableCPArrayDescriptor, SerializableCPArray
+from .base import DEFAULT_STRICT, FLOAT_FORMAT, \
+    SerializableCPArrayDescriptor, SerializableCPArray
 from .blocks import XYZType, LatLonHAECornerRestrictionType, \
     POLARIZATION1_VALUES, POLARIZATION2_VALUES, DUAL_POLARIZATION_VALUES
 from .utils import is_polstring_version1
@@ -76,7 +77,7 @@ class TxFrequencyType(Serializable, Arrayable):
 
     _fields = ('Min', 'Max')
     _required = _fields
-    _numeric_format = {'Min': '0.17E', 'Max': '0.17E'}
+    _numeric_format = {'Min': FLOAT_FORMAT, 'Max': FLOAT_FORMAT}
     # descriptors
     Min = FloatDescriptor(
         'Min', _required, strict=DEFAULT_STRICT,
@@ -195,7 +196,10 @@ class WaveformParametersType(Serializable):
         'ADCSampleRate', 'RcvIFBandwidth', 'RcvFreqStart', 'RcvFMRate', 'index')
     _required = ()
     _set_as_attribute = ('index', )
-    _numeric_format = {key: '0.17E' for key in _fields if key not in ('RcvDemodType', 'index')}
+    _numeric_format = {
+        'TxPulseLength': FLOAT_FORMAT, 'TxRFBandwidth': '0.17E', 'TxFreqStart': '0.17E',
+        'TxFMRate': '0.17E', 'RcvWindowLength': FLOAT_FORMAT, 'ADCSampleRate': '0.17E',
+        'RcvIFBandwidth': '0.17E', 'RcvFreqStart': '0.17E', 'RcvFMRate': '0.17E'}
 
     # descriptors
     TxPulseLength = FloatDescriptor(
@@ -438,7 +442,7 @@ class ReferencePointType(Serializable):
     _fields = ('ECF', 'Line', 'Sample', 'name')
     _required = ('ECF', 'Line', 'Sample')
     _set_as_attribute = ('name', )
-    _numeric_format = {'Line': '0.17E', 'Sample': '0.17E'}
+    _numeric_format = {'Line': FLOAT_FORMAT, 'Sample': FLOAT_FORMAT}
     # descriptors
     ECF = SerializableDescriptor(
         'ECF', XYZType, _required, strict=DEFAULT_STRICT,
@@ -480,7 +484,7 @@ class XDirectionType(Serializable):
     """The X direction of the collect"""
     _fields = ('UVectECF', 'LineSpacing', 'NumLines', 'FirstLine')
     _required = _fields
-    _numeric_format = {'LineSpacing': '0.17E', }
+    _numeric_format = {'LineSpacing': FLOAT_FORMAT, }
     # descriptors
     UVectECF = UnitVectorDescriptor(
         'UVectECF', XYZType, _required, strict=DEFAULT_STRICT,
@@ -522,7 +526,7 @@ class YDirectionType(Serializable):
     """The Y direction of the collect"""
     _fields = ('UVectECF', 'SampleSpacing', 'NumSamples', 'FirstSample')
     _required = _fields
-    _numeric_format = {'SampleSpacing': '0.17E', }
+    _numeric_format = {'SampleSpacing': FLOAT_FORMAT, }
     # descriptors
     UVectECF = UnitVectorDescriptor(
         'UVectECF', XYZType, _required, strict=DEFAULT_STRICT,

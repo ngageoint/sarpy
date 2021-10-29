@@ -14,7 +14,7 @@ from sarpy.io.xml.base import Serializable, Arrayable, SerializableArray
 from sarpy.io.xml.descriptors import SerializableDescriptor, SerializableArrayDescriptor, \
     IntegerDescriptor, FloatDescriptor
 
-from .base import DEFAULT_STRICT
+from .base import DEFAULT_STRICT, FLOAT_FORMAT
 
 
 ###################
@@ -29,7 +29,7 @@ class LSType(Serializable, Arrayable):
 
     _fields = ('Line', 'Sample')
     _required = _fields
-    _numeric_format = {'Line': '0.17E', 'Sample': '0.17E'}
+    _numeric_format = {'Line': '0.17G', 'Sample': '0.17G'}
     # Descriptor
     Line = FloatDescriptor(
         'Line', _required, strict=DEFAULT_STRICT,
@@ -158,7 +158,7 @@ class XYType(Serializable, Arrayable):
 
     _fields = ('X', 'Y')
     _required = _fields
-    _numeric_format = {'X': '0.17E', 'Y': '0.17E'}
+    _numeric_format = {'X': '0.17G', 'Y': '0.17G'}
     # descriptors
     X = FloatDescriptor(
         'X', _required, strict=True,

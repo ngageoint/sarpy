@@ -7,7 +7,7 @@ __author__ = "Thomas McCullough"
 
 from typing import Union, List
 
-from sarpy.io.phase_history.cphd1_elements.base import DEFAULT_STRICT
+from sarpy.io.phase_history.cphd1_elements.base import DEFAULT_STRICT, FLOAT_FORMAT
 from sarpy.io.complex.sicd_elements.blocks import XYZPolyType
 from sarpy.io.complex.sicd_elements.Antenna import AntParamType as AntParamTypeBase
 
@@ -23,7 +23,7 @@ class HPBWType(Serializable):
 
     _fields = ('DCX', 'DCY')
     _required = _fields
-    _numeric_format = {'DCX': '0.17E', 'DCY': '0.17E'}
+    _numeric_format = {'DCX': FLOAT_FORMAT, 'DCY': FLOAT_FORMAT}
     # descriptors
     DCX = FloatDescriptor(
         'DCX', _required, strict=DEFAULT_STRICT,
@@ -62,7 +62,7 @@ class AntParamType(AntParamTypeBase):
         'XAxisPoly', 'YAxisPoly', 'FreqZero', 'EB', 'HPBW', 'Array', 'Elem',
         'GainBSPoly', 'EBFreqShift', 'MLFreqDilation')
     _required = ('XAxisPoly', 'YAxisPoly', 'FreqZero', )
-    _numeric_format = {'FreqZero': '0.17E'}
+    _numeric_format = {'FreqZero': FLOAT_FORMAT}
     # descriptors
     HPBW = SerializableDescriptor(
         'HPBW', HPBWType, _required, strict=DEFAULT_STRICT,

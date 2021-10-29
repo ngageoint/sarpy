@@ -9,7 +9,7 @@ from typing import Union, List
 
 import numpy
 
-from .base import DEFAULT_STRICT
+from .base import DEFAULT_STRICT, FLOAT_FORMAT
 from sarpy.io.complex.sicd_elements.blocks import Poly1DType, XYZType, XYZPolyType, GainPhasePolyType
 from sarpy.io.complex.sicd_elements.Antenna import EBType
 from sarpy.io.xml.base import Serializable
@@ -108,7 +108,7 @@ class GainPhaseArrayType(Serializable):
 
     _fields = ('Freq', 'ArrayId', 'ElementId')
     _required = ('Freq', 'ArrayId')
-    _numeric_format = {'Freq', '0.17E'}
+    _numeric_format = {'Freq', FLOAT_FORMAT}
     # descriptors
     Freq = FloatDescriptor(
         'Freq', _required, strict=DEFAULT_STRICT, bounds=(0, None),
@@ -156,7 +156,7 @@ class AntPatternType(Serializable):
         'Identifier', 'FreqZero', 'EB', 'Array', 'Element')
     _collections_tags = {
         'GainPhaseArray': {'array': False, 'child_tag': 'GainPhaseArray'}}
-    _numeric_format = {'FreqZero': '0.17E', 'GainZero': '0.17E'}
+    _numeric_format = {'FreqZero': FLOAT_FORMAT, 'GainZero': FLOAT_FORMAT}
     # descriptors
     Identifier = StringDescriptor(
         'Identifier', _required, strict=DEFAULT_STRICT,
