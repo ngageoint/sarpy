@@ -1,5 +1,6 @@
 # This details the important differences introduced in sarpy 1.2
 
+* .37 - Centralizing the xml floating point serialization format
 * .36 - Making the annotation object definitions more coherent and useful for
             annotation tool usage
 * .35 - Correcting the Radiometric polynomials for SICD subaperture degradation
