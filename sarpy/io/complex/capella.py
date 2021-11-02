@@ -8,8 +8,7 @@ __author__ = ("Thomas McCullough", "Wade Schwartzkopf")
 
 import logging
 import json
-from typing import Dict, Any, Tuple
-from datetime import datetime
+from typing import Dict, Any, Tuple, Union
 from collections import OrderedDict
 
 from scipy.constants import speed_of_light
@@ -33,6 +32,8 @@ from sarpy.io.complex.sicd_elements.RadarCollection import RadarCollectionType, 
 from sarpy.io.complex.sicd_elements.Timeline import TimelineType, IPPSetType
 from sarpy.io.complex.sicd_elements.ImageFormation import ImageFormationType, \
     RcvChanProcType, ProcessingType
+from sarpy.io.complex.sicd_elements.RMA import RMAType, INCAType
+from sarpy.io.complex.sicd_elements.Radiometric import RadiometricType, NoiseLevelType_
 
 logger = logging.getLogger(__name__)
 
@@ -156,7 +157,7 @@ class CapellaDetails(object):
                 elif isinstance(val, int):
                     dict_out[key] = str(val)
                 elif isinstance(val, float):
-                    dict_out[key] = '{0:0.17E}'.format(val)
+                    dict_out[key] = '{0:0.17G}'.format(val)
                 else:
                     raise TypeError('Got unhandled type {}'.format(type(val)))
             return dict_out
@@ -185,7 +186,6 @@ class CapellaDetails(object):
         def get_collection_info():
             # type: () -> CollectionInfoType
             coll_name = collect['platform']
-            start_dt = start_time.astype('datetime64[us]').astype(datetime)
             mode = collect['mode'].strip().lower()
             if mode == 'stripmap':
                 radar_mode = RadarModeType(ModeType='STRIPMAP', ModeID=mode)
@@ -198,9 +198,7 @@ class CapellaDetails(object):
 
             return CollectionInfoType(
                 CollectorName=coll_name,
-                CoreName='{}{}{}'.format(start_dt.strftime('%d%b%y').upper(),
-                                         coll_name,
-                                         start_dt.strftime('%H%M%S')),
+                CoreName=collect['collect_id'],
                 RadarMode=radar_mode,
                 Classification='UNCLASSIFIED',
                 CollectType='MONOSTATIC')
@@ -216,7 +214,6 @@ class CapellaDetails(object):
 
         def get_image_data():
             # type: () -> ImageDataType
-            img = collect['image']
             rows = int(img['columns'])  # capella uses flipped row/column definition?
             cols = int(img['rows'])
             if img['data_type'] == 'CInt16':
@@ -259,19 +256,11 @@ class CapellaDetails(object):
                         WindowName=window_name,
                         Parameters=convert_string_dict(window_dict['parameters']))
 
-            img = collect['image']
-            img_geometry = img['image_geometry']
-            if img_geometry.get('type', None) == 'slant_plane':
-                image_plane = 'SLANT'
-            else:
-                image_plane = 'OTHER'
-
-            grid_type = 'PLANE'
-            if self._img_desc_tags['product_type'] == 'SLC' and img['algorithm'] != 'backprojection':
-                grid_type = 'RGZERO'
+            image_plane = 'SLANT'
+            grid_type = 'RGZERO'
 
             coa_time = parse_timestring(img['center_pixel']['center_time'], precision='ns')
-            row_imp_rsp_bw = 2*bw/speed_of_light
+            row_imp_rsp_bw = 2*img['processed_range_bandwidth']/speed_of_light
             row = DirParamType(
                 SS=img['pixel_spacing_column'],
                 Sgn=-1,
@@ -284,20 +273,16 @@ class CapellaDetails(object):
                 WgtType=get_weight(img['range_window']))
 
             # get timecoa value
-            timecoa_value = get_seconds(coa_time, start_time)  # TODO: this is not generally correct
+            timecoa_value = get_seconds(coa_time, start_time)
             # find an approximation for zero doppler spacing - necessarily rough for backprojected images
-            # find velocity at coatime
-            arp_velocity = position.ARPPoly.derivative_eval(timecoa_value, der_order=1)
-            arp_speed = numpy.linalg.norm(arp_velocity)
             col_ss = img['pixel_spacing_row']
             dop_bw = img['processed_azimuth_bandwidth']
-            # ss_zd_s = col_ss/arp_speed
 
             col = DirParamType(
                 SS=col_ss,
                 Sgn=-1,
                 ImpRespWid=img['azimuth_resolution'],
-                ImpRespBW=dop_bw/arp_speed,
+                ImpRespBW=dop_bw*abs(ss_zd_s)/col_ss,
                 KCtr=0,
                 WgtType=get_weight(img['azimuth_window']))
 
@@ -331,7 +316,7 @@ class CapellaDetails(object):
 
         def get_timeline():
             # type: () -> TimelineType
-            prf = collect['radar']['prf'][0]['prf']
+            prf = radar['prf'][0]['prf']
             return TimelineType(
                 CollectStart=start_time,
                 CollectDuration=duration,
@@ -346,8 +331,7 @@ class CapellaDetails(object):
         def get_image_formation():
             # type: () -> ImageFormationType
 
-            radar = collect['radar']
-            algo = collect['image']['algorithm'].upper()
+            algo = img['algorithm'].upper()
             processings = None
             if algo == 'BACKPROJECTION':
                 processings = [ProcessingType(Type='Backprojected to DEM', Applied=True), ]
@@ -377,10 +361,49 @@ class CapellaDetails(object):
                 RgAutofocus='NO',
                 Processings=processings)
 
-        # TODO: From Wade - Radiometric is not suitable?
+        def get_rma():
+            # type: () -> RMAType
+            img_geometry = img['image_geometry']
+            near_range = img_geometry['range_to_first_sample']
+            center_time = parse_timestring(img['center_pixel']['center_time'], precision='us')
+            first_time = parse_timestring(img_geometry['first_line_time'], precision='us')
+            zd_time_scp = get_seconds(center_time, first_time, 'us')
+
+            timecoa_value = get_seconds(center_time, start_time)
+            arp_velocity = position.ARPPoly.derivative_eval(timecoa_value, der_order=1)
+            vm_ca = numpy.linalg.norm(arp_velocity)
+            inca = INCAType(
+                R_CA_SCP=near_range + image_data.SCPPixel.Row*grid.Row.SS,
+                FreqZero=fc,
+                TimeCAPoly=[zd_time_scp, ss_zd_s/grid.Col.SS],
+                DRateSFPoly=[[1/(vm_ca*ss_zd_s/grid.Col.SS)], ],
+            )
+
+            return RMAType(
+                RMAlgoType='RG_DOP',
+                INCA=inca)
+
+        def get_radiometric():
+            # type: () -> Union[None, RadiometricType]
+            if img['radiometry'].lower() != 'beta_nought':
+                logger.warning(
+                    'Got unrecognized Capella radiometry {},\n\t'
+                    'skipping the radiometric metadata'.format(img['radiometry']))
+                return None
+
+            return RadiometricType(BetaZeroSFPoly=[[img['scale_factor']**2, ], ])
+
+        def add_noise():
+            if sicd.Radiometric is None:
+                return
+
+            sicd.Radiometric.NoiseLevel = NoiseLevelType_(
+                NoiseLevelType='ABSOLUTE',
+                NoisePoly=[[img['nesz_peak'] - 10*numpy.log10(sicd.Radiometric.SigmaZeroSFPoly[0, 0]), ], ])
 
         # extract general use information
         collect = self._img_desc_tags['collect']
+        img = collect['image']
         radar = collect['radar']
         radar_time_varying = radar.get('time_varying_parameters', [])
 
@@ -390,6 +413,7 @@ class CapellaDetails(object):
         state_time, state_position, state_velocity = extract_state_vector()
         bw = get_radar_parameter('pulse_bandwidth')
         fc = get_radar_parameter('center_frequency')
+        ss_zd_s = img['image_geometry']['delta_line_time']
 
         # define the sicd elements
         collection_info = get_collection_info()
@@ -401,6 +425,8 @@ class CapellaDetails(object):
         radar_collection = get_radar_collection()
         timeline = get_timeline()
         image_formation = get_image_formation()
+        rma = get_rma()
+        radiometric = get_radiometric()
 
         sicd = SICDType(
             CollectionInfo=collection_info,
@@ -411,11 +437,13 @@ class CapellaDetails(object):
             Grid=grid,
             RadarCollection=radar_collection,
             Timeline=timeline,
-            ImageFormation=image_formation)
+            ImageFormation=image_formation,
+            RMA=rma,
+            Radiometric=radiometric)
         sicd.derive()
 
-        # this would be a rough estimate - waiting for radiometric data
-        # sicd.populate_rniirs(override=False)
+        add_noise()
+        sicd.populate_rniirs(override=False)
         return sicd
 
 
