@@ -8,6 +8,7 @@ __author__ = ("Thomas McCullough", "Wade Schwartzkopf")
 
 import logging
 import json
+import os.path
 from typing import Dict, Any, Tuple, Union
 from collections import OrderedDict
 
@@ -260,7 +261,8 @@ class CapellaDetails(object):
             grid_type = 'RGZERO'
 
             coa_time = parse_timestring(img['center_pixel']['center_time'], precision='ns')
-            row_imp_rsp_bw = 2*img['processed_range_bandwidth']/speed_of_light
+            row_bw = img.get('processed_range_bandwidth', bw)
+            row_imp_rsp_bw = 2*row_bw/speed_of_light
             row = DirParamType(
                 SS=img['pixel_spacing_column'],
                 Sgn=-1,
@@ -487,3 +489,11 @@ class CapellaReader(BaseReader, SICDTypeReader):
     @property
     def file_name(self):
         return self.capella_details.file_name
+
+
+if __name__ == '__main__':
+    import json
+    fil_name = os.path.expanduser('~/Desktop/sarpy_testing/capella/CAPELLA_C02_SS_SLC_HH_20210223023836_20210223023852.tif')
+    details = CapellaDetails(fil_name)
+    with open(fil_name+'.json', 'w') as fi:
+        json.dump(details._img_desc_tags, fi, indent=1)
