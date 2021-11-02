@@ -2,13 +2,14 @@ import logging
 import os
 import json
 import tempfile
+import unittest
 
 import numpy.testing
 from sarpy.io.received.crsd import CRSDReader, CRSDReader1_0, CRSDWriter1_0
 from sarpy.io.received.converter import open_received
 from sarpy.io.received.crsd_schema import get_schema_path
 
-from tests import unittest, parse_file_entry
+from tests import parse_file_entry
 
 DEFAULT_SCHEMA = get_schema_path(version='1.0.0')
 

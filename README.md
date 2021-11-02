@@ -48,8 +48,6 @@ are in the environment. Attempts at using functionality depending on a missing
 optional dependency will generate an error **at run time** with accompanying 
 message indicating the missing optional dependency.
 
-- Use from Python 2.7 requires the `typing` package.
-
 - Support for reading single look complex data from certain sources which provide 
   data in hdf5 format require the `h5py` package, this includes Cosmo-Skymed, ICEYE, 
   and NISAR data.
@@ -70,13 +68,6 @@ message indicating the missing optional dependency.
 - Optional portions of running unit tests (unlikely to be of relevance to anyone 
   not performing development on the core sarpy package itself) require the `lxml`
   package
-
-Python 2.7
-----------
-As mentioned above, using sarpy in Python 2.7 requires the `typing` package, easily 
-installed using conda or pip. The development for sarpy has been geared towards 
-Python 3.6 and above, but efforts have been made towards remaining compatible with 
-Python 2.7. 
 
 Installation
 ------------
@@ -100,8 +91,7 @@ see [here](https://docs.python.org/3/install/index.html).
 
 Documentation
 -------------
-As of version 1.1.76, documentation for the project is available at 
-[readthedocs](https://sarpy.readthedocs.io/en/latest/).
+Documentation for the project is available at [readthedocs](https://sarpy.readthedocs.io/en/latest/).
 
 If this documentation is inaccessible, it can be built locally after checking out 
 this repository using sphinx via the command `python setup.py build_sphinx`. 
@@ -109,10 +99,12 @@ This depends on python packages `sphinx` and `sphinxcontrib-napoleon`.
 
 Issues and Bugs
 ---------------
-The core sarpy functionality has been tested for Python 2.7.17, 3.6, 3.7, 3.8, 
-and 3.9. Other versions should be considered unsupported. Changes to sarpy for 
-the sole purpose of supporting a Python version beyond end-of-life are unlikely 
-to be considered.
+Support for Python 2 has been dropped.
+
+The core sarpy functionality has been tested for Python 3.6, 3.7, 3.8, and 3.9. 
+Other versions should be considered unsupported. Changes to sarpy for the sole 
+purpose of supporting a Python version beyond end-of-life are unlikely to be 
+considered.
 
 Information regarding any discovered bugs would be greatly appreciated, so please
 feel free to create a github issue. If more appropriate, **do not hesitate to 

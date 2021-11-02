@@ -1,8 +1,7 @@
 
 import numpy
 from sarpy.geometry import geocoords
-
-from tests import unittest
+import unittest
 
 
 llh = numpy.array([[0, 0, 0], [0, 180, 0], [90, 0, 0], [-90, 0, 0]], dtype='float64')

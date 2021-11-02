@@ -3,9 +3,10 @@ import os
 import logging
 import numpy
 import json
+import unittest
 
 import sarpy.io.DEM.geoid as geoid
-from tests import unittest, parse_file_entry
+from tests import parse_file_entry
 
 
 test_file = None

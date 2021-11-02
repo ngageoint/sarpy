@@ -198,13 +198,8 @@ class SIDDDetails(NITFDetails):
 #  The actual reading implementation
 
 def _check_iid_format(iid1, i):
-    if sys.version_info[0] > 2:
-        if not (iid1[:4] == 'SIDD' and iid1[4:].isnumeric()):
-            raise ValueError('Got poorly formatted image segment id {} at position {}'.format(iid1, i))
-    else:
-        # noinspection PyUnresolvedReferences
-        if not (iid1[:4] == 'SIDD' and unicode(iid1[4:]).isnumeric()):
-            raise ValueError('Got poorly formatted image segment id {} at position {}'.format(iid1, i))
+    if not (iid1[:4] == 'SIDD' and iid1[4:].isnumeric()):
+        raise ValueError('Got poorly formatted image segment id {} at position {}'.format(iid1, i))
 
 
 class SIDDReader(NITFReader, SIDDTypeReader):
