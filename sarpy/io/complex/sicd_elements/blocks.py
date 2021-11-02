@@ -10,7 +10,6 @@ from collections import OrderedDict
 
 import numpy
 
-from sarpy.compliance import int_func
 from sarpy.io.xml.base import Serializable, Arrayable, \
     get_node_value, create_text_node, create_new_node, find_children
 from sarpy.io.xml.descriptors import IntegerDescriptor, StringEnumDescriptor, \
@@ -200,12 +199,12 @@ class LatLonType(Serializable, Arrayable):
 
         def reduce(value):
             val = abs(value)
-            deg = int_func(val)
+            deg = int(val)
             val = 60*(val - deg)
-            mins = int_func(val)
+            mins = int(val)
             secs = 60*(val - mins)
             if not frac_secs:
-                secs = int_func(secs)
+                secs = int(secs)
             return deg, mins, secs
 
         x = 'S' if self.Lat < 0 else 'N'
@@ -984,13 +983,13 @@ class Poly1DType(Serializable, Arrayable):
 
     @classmethod
     def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
-        order1 = int_func(node.attrib['order1'])
+        order1 = int(node.attrib['order1'])
         coefs = numpy.zeros((order1+1, ), dtype=numpy.float64)
 
         coef_key = cls._child_xml_ns_key.get('Coefs', ns_key)
         coef_nodes = find_children(node, 'Coef', xml_ns, coef_key)
         for cnode in coef_nodes:
-            ind = int_func(cnode.attrib['exponent1'])
+            ind = int(cnode.attrib['exponent1'])
             val = float(get_node_value(cnode))
             coefs[ind] = val
         return cls(Coefs=coefs)
@@ -1242,15 +1241,15 @@ class Poly2DType(Serializable, Arrayable):
 
     @classmethod
     def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
-        order1 = int_func(node.attrib['order1'])
-        order2 = int_func(node.attrib['order2'])
+        order1 = int(node.attrib['order1'])
+        order2 = int(node.attrib['order2'])
         coefs = numpy.zeros((order1+1, order2+1), dtype=numpy.float64)
 
         coef_key = cls._child_xml_ns_key.get('Coefs', ns_key)
         coef_nodes = find_children(node, 'Coef', xml_ns, coef_key)
         for cnode in coef_nodes:
-            ind1 = int_func(cnode.attrib['exponent1'])
-            ind2 = int_func(cnode.attrib['exponent2'])
+            ind1 = int(cnode.attrib['exponent1'])
+            ind2 = int(cnode.attrib['exponent2'])
             val = float(get_node_value(cnode))
             coefs[ind1, ind2] = val
         return cls(Coefs=coefs)

@@ -15,7 +15,6 @@ from collections import OrderedDict
 from scipy.constants import speed_of_light
 import numpy
 
-from sarpy.compliance import string_types
 from sarpy.io.general.base import BaseReader, SarpyIOError
 from sarpy.io.general.tiff import TiffDetails, NativeTiffChipper
 from sarpy.io.general.utils import parse_timestring, get_seconds, is_file_like
@@ -152,7 +151,7 @@ class CapellaDetails(object):
             # type: (dict) -> dict
             dict_out = OrderedDict()
             for key, val in dict_in.items():
-                if isinstance(val, string_types):
+                if isinstance(val, str):
                     dict_out[key] = val
                 elif isinstance(val, int):
                     dict_out[key] = str(val)
@@ -435,7 +434,7 @@ class CapellaReader(BaseReader, SICDTypeReader):
         capella_details : str|CapellaDetails
         """
 
-        if isinstance(capella_details, string_types):
+        if isinstance(capella_details, str):
             capella_details = CapellaDetails(capella_details)
 
         if not isinstance(capella_details, CapellaDetails):

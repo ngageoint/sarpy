@@ -48,7 +48,6 @@ https://sourceforge.net/projects/geographiclib/files/geoids-distrib/egm2008-5.zi
 import os
 import numpy
 
-from sarpy.compliance import string_types
 from sarpy.io.DEM.utils import argument_validation
 from sarpy.io.general.base import SarpyIOError
 
@@ -128,7 +127,7 @@ def find_geoid_file_from_dir(dir_name, search_files=None):
             'files in directory "geoid"')
     if search_files is None:
         search_files = []
-    elif isinstance(search_files, string_types):
+    elif isinstance(search_files, str):
         search_files = [search_files, ]
     else:
         search_files = list(search_files)

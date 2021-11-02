@@ -9,7 +9,6 @@ from xml.etree import ElementTree
 
 from typing import Union, List
 
-from sarpy.compliance import string_types
 from sarpy.io.xml.base import Serializable, ParametersCollection, get_node_value
 from sarpy.io.xml.descriptors import FloatDescriptor, StringDescriptor, StringEnumDescriptor, \
     ParametersDescriptor, SerializableListDescriptor
@@ -93,7 +92,7 @@ class SupportArrayCore(Serializable):
         if isinstance(value, ElementTree.Element):
             value = get_node_value(value)
 
-        if isinstance(value, string_types):
+        if isinstance(value, str):
             self._NODATA = value
         elif isinstance(value, bytes):
             self._NODATA = value.decode('utf-8')

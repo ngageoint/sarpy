@@ -14,7 +14,6 @@ import pkgutil
 
 import numpy
 
-from sarpy.compliance import int_func, integer_types, string_types
 from sarpy.io.general.utils import validate_range, reverse_range, is_file_like
 
 logger = logging.getLogger(__name__)
@@ -55,7 +54,7 @@ def validate_transform_data(transform_data):
 
     if transform_data is None or callable(transform_data):
         return transform_data
-    elif isinstance(transform_data, string_types):
+    elif isinstance(transform_data, str):
         transform_data = transform_data.upper()
         if transform_data not in _SUPPORTED_TRANSFORM_VALUES:
             raise ValueError('transform_data is string {}, which is not supported'.format(transform_data))
@@ -120,7 +119,7 @@ class BaseChipper(object):
         if len(data_size) != 2:
             raise ValueError(
                 'The data_size parameter must have length 2, and got {}.'.format(data_size))
-        data_size = (int_func(data_size[0]), int_func(data_size[1]))
+        data_size = (int(data_size[0]), int(data_size[1]))
         if data_size[0] < 0 or data_size[1] < 0:
             raise ValueError('All entries of data_size {} must be non-negative.'.format(data_size))
         if self._symmetry[2]:
@@ -200,7 +199,7 @@ class BaseChipper(object):
     def _slice_to_args(item):
         # type: (Union[None, int, slice, tuple]) -> tuple
         def parse(entry):
-            if isinstance(entry, integer_types):
+            if isinstance(entry, int):
                 return entry, entry+1, 1
             if isinstance(entry, slice):
                 return entry.start, entry.stop, entry.step
@@ -238,17 +237,17 @@ class BaseChipper(object):
         """
 
         if isinstance(range1, (numpy.ndarray, list)):
-            range1 = tuple(int_func(el) for el in range1)
+            range1 = tuple(int(el) for el in range1)
         if isinstance(range2, (numpy.ndarray, list)):
-            range2 = tuple(int_func(el) for el in range2)
+            range2 = tuple(int(el) for el in range2)
 
-        if not (range1 is None or isinstance(range1, integer_types) or isinstance(range1, tuple)):
+        if not (range1 is None or isinstance(range1, int) or isinstance(range1, tuple)):
             raise TypeError('range1 is of type {}, but must be an instance of None, '
                             'int or tuple.'.format(range1))
         if isinstance(range1, tuple) and len(range1) > 3:
             raise TypeError('range1 must have no more than 3 entries, received {}.'.format(range1))
 
-        if not (range2 is None or isinstance(range2, integer_types) or isinstance(range2, tuple)):
+        if not (range2 is None or isinstance(range2, int) or isinstance(range2, tuple)):
             raise TypeError('range2 is of type {}, but must be an instance of None, '
                             'int or tuple.'.format(range2))
         if isinstance(range2, tuple) and len(range2) > 3:
@@ -281,11 +280,11 @@ class BaseChipper(object):
             return data
         elif callable(self._transform_data):
             return self._transform_data(data)
-        elif isinstance(self._transform_data, string_types):
+        elif isinstance(self._transform_data, str):
             if self._transform_data == 'COMPLEX':
                 if numpy.iscomplexobj(data):
                     return data
-                out = numpy.zeros((data.shape[0], data.shape[1], int_func(data.shape[2]/2)), dtype=numpy.complex64)
+                out = numpy.zeros((data.shape[0], data.shape[1], int(data.shape[2]/2)), dtype=numpy.complex64)
                 out.real = data[:, :, 0::2]
                 out.imag = data[:, :, 1::2]
                 return out
@@ -359,7 +358,7 @@ class SubsetChipper(BaseChipper):
         def _get_start(entry, shift, bound, step):
             if entry is None:
                 return shift if step > 0 else bound + shift - 1
-            entry = int_func(entry)
+            entry = int(entry)
             if -bound < entry < 0:
                 return shift + bound + entry
             elif 0 <= entry < bound:
@@ -371,7 +370,7 @@ class SubsetChipper(BaseChipper):
         def _get_end(entry, shift, bound, step):
             if entry is None:
                 return bound + shift if step > 0 else shift - 1
-            entry = int_func(entry)
+            entry = int(entry)
             if -bound <= entry < 0:
                 return shift + bound + entry
             elif 0 <= entry <= bound:
@@ -429,7 +428,7 @@ class AggregateChipper(BaseChipper):
                 raise TypeError(
                     'Each entry of child_chippers must be an instance of BaseChipper, '
                     'got type {} at entry {}'.format(type(entry), i))
-            expected_shape = (int_func(data_sizes[i, 0]), int_func(data_sizes[i, 1]))
+            expected_shape = (int(data_sizes[i, 0]), int(data_sizes[i, 1]))
             if entry.data_size != expected_shape:
                 raise ValueError(
                     'chipper at index {} has expected shape {}, but '
@@ -437,10 +436,10 @@ class AggregateChipper(BaseChipper):
         self._child_chippers = child_chippers
         self._bounds = bounds
         self._dtype = output_dtype
-        self._output_bands = int_func(output_bands)
+        self._output_bands = int(output_bands)
         data_size = (
-            int_func(numpy.max(self._bounds[:, 1])),
-            int_func(numpy.max(self._bounds[:, 3])))
+            int(numpy.max(self._bounds[:, 1])),
+            int(numpy.max(self._bounds[:, 3])))
         # all of the actual reading and reorienting done by child chippers,
         # so do not reorient or change type at this level
         super(AggregateChipper, self).__init__(data_size, symmetry=(False, False, False), transform_data=None)
@@ -498,28 +497,28 @@ class AggregateChipper(BaseChipper):
                 # there is no overlap
                 return None, None
             # find smallest element rng[0] + mult*rng[2] which is >= start_ind
-            mult1 = 0 if start_ind <= rng[0] else int_func(numpy.ceil((start_ind - rng[0]) / rng[2]))
+            mult1 = 0 if start_ind <= rng[0] else int(numpy.ceil((start_ind - rng[0]) / rng[2]))
             ind1 = rng[0] + mult1 * rng[2]
             # find largest element rng[0] + mult*rng[2] which is <= min(stop_ind, rng[1])
             max_ind = min(rng[1], stop_ind)
-            mult2 = int_func(numpy.floor((max_ind - rng[0]) / rng[2]))
+            mult2 = int(numpy.floor((max_ind - rng[0]) / rng[2]))
             ind2 = rng[0] + mult2 * rng[2]
         else:
             if rng[0] < start_ind or rng[1] >= stop_ind:
                 return None, None
             # find largest element rng[0] + mult*rng[2] which is <= stop_ind-1
-            mult1 = 0 if rng[0] < stop_ind else int_func(numpy.floor((stop_ind - 1 - rng[0])/rng[2]))
+            mult1 = 0 if rng[0] < stop_ind else int(numpy.floor((stop_ind - 1 - rng[0])/rng[2]))
             ind1 = rng[0] + mult1*rng[2]
             # find smallest element rng[0] + mult*rng[2] which is >= max(start_ind, rng[1]+1)
-            mult2 = int_func(numpy.floor((start_ind - rng[0])/rng[2])) if rng[1] < start_ind \
-                else int_func(numpy.floor((rng[1] -1 - rng[0])/rng[2]))
+            mult2 = int(numpy.floor((start_ind - rng[0])/rng[2])) if rng[1] < start_ind \
+                else int(numpy.floor((rng[1] -1 - rng[0])/rng[2]))
             ind2 = rng[0] + mult2*rng[2]
         return (ind1-start_ind, ind2-start_ind, rng[2]), (mult1, mult2)
 
     def _read_raw_fun(self, range1, range2):
         range1, range2 = self._reorder_arguments(range1, range2)
-        rows_size = int_func((range1[1]-range1[0])/range1[2])
-        cols_size = int_func((range2[1]-range2[0])/range2[2])
+        rows_size = int((range1[1]-range1[0])/range1[2])
+        cols_size = int((range2[1]-range2[0])/range2[2])
 
         if self._output_bands == 1:
             out = numpy.zeros((rows_size, cols_size), dtype=self._dtype)
@@ -627,7 +626,7 @@ class AbstractReader(object):
         if isinstance(self._chipper, BaseChipper) or index is None:
             return 0
 
-        if not isinstance(index, integer_types):
+        if not isinstance(index, int):
             raise ValueError('Cannot slice in multiple indices on the third dimension.')
         index = int(index)
         siz = len(self._chipper)
@@ -785,7 +784,7 @@ class BaseReader(AbstractReader):
             "CPHD", or "OTHER".
         """
         # set the reader_type state
-        if not isinstance(reader_type, string_types):
+        if not isinstance(reader_type, str):
             raise ValueError('reader_type must be a string, got {}'.format(type(reader_type)))
         if reader_type not in READER_TYPES:
             logger.error(
@@ -1096,7 +1095,7 @@ def _validate_limit_to_raw_bands(limit_to_raw_bands, raw_bands):
     if limit_to_raw_bands is None:
         return None
 
-    if isinstance(limit_to_raw_bands, integer_types):
+    if isinstance(limit_to_raw_bands, int):
         limit_to_raw_bands = numpy.array([limit_to_raw_bands, ], dtype='int32')
     if isinstance(limit_to_raw_bands, (list, tuple)):
         limit_to_raw_bands = numpy.array(limit_to_raw_bands, dtype='int32')
@@ -1161,12 +1160,12 @@ class BIPChipper(BaseChipper):
         self._close_after = False  # type: bool
         super(BIPChipper, self).__init__(data_size, symmetry=symmetry, transform_data=transform_data)
 
-        raw_bands = int_func(raw_bands)
+        raw_bands = int(raw_bands)
         if raw_bands < 1:
             raise ValueError('raw_bands must be a positive integer')
         self._raw_bands = raw_bands
 
-        output_bands = int_func(output_bands)
+        output_bands = int(output_bands)
         if output_bands < 1:
             raise ValueError('output_bands must be a positive integer.')
         self._output_bands = output_bands
@@ -1174,12 +1173,12 @@ class BIPChipper(BaseChipper):
         self._raw_dtype = raw_dtype
         self._output_dtype = output_dtype
 
-        data_offset = int_func(data_offset)
+        data_offset = int(data_offset)
         if data_offset < 0:
             raise ValueError('data_offset must be a non-negative integer. Got {}'.format(data_offset))
-        self._data_offset = int_func(data_offset)
+        self._data_offset = int(data_offset)
 
-        self._shape = (int_func(data_size[0]), int_func(data_size[1]), self._raw_bands)
+        self._shape = (int(data_size[0]), int(data_size[1]), self._raw_bands)
 
         if isinstance(data_input, numpy.ndarray):
             self._memory_map = data_input
@@ -1310,8 +1309,8 @@ class BIPChipper(BaseChipper):
 
         init_location = self._file_object.tell()
         # we have to manually map out the stride and all that for the array ourselves
-        element_size = int_func(numpy.dtype(self._raw_dtype).itemsize*self._raw_bands)
-        stride = element_size*int_func(self._shape[1])  # how much to skip a whole (real) row?
+        element_size = int(numpy.dtype(self._raw_dtype).itemsize*self._raw_bands)
+        stride = element_size*int(self._shape[1])  # how much to skip a whole (real) row?
         # let's determine the specific row/column arrays that we are going to read
         dim1array = numpy.arange(*range1)
         dim2array = numpy.arange(*range2)
@@ -1325,8 +1324,8 @@ class BIPChipper(BaseChipper):
         start_loc = self._data_offset + start_row*stride
         self._file_object.seek(start_loc, os.SEEK_SET)
         # read our data
-        total_entries = int_func(rows)*self._shape[1]*self._raw_bands
-        total_size = int_func(rows)*stride
+        total_entries = int(rows)*self._shape[1]*self._raw_bands
+        total_size = int(rows)*stride
         data = self._file_object.read(total_size)
         if len(data) != total_size:
             raise ValueError(
@@ -1403,8 +1402,8 @@ class BSQChipper(BaseChipper):
 
     def _read_raw_fun(self, range1, range2):
         range1, range2 = self._reorder_arguments(range1, range2)
-        rows_size = int_func(numpy.ceil((range1[1]-range1[0])/range1[2]))
-        cols_size = int_func(numpy.ceil((range2[1]-range2[0])/range2[2]))
+        rows_size = int(numpy.ceil((range1[1]-range1[0])/range1[2]))
+        cols_size = int(numpy.ceil((range2[1]-range2[0])/range2[2]))
 
         if self._limit_to_raw_bands is None:
             out = numpy.zeros((rows_size, cols_size, self.output_bands), dtype=self._dtype)
@@ -1472,12 +1471,12 @@ class BIRChipper(BaseChipper):
         self._close_after = False  # type: bool
         super(BIRChipper, self).__init__(data_size, symmetry=symmetry, transform_data=transform_data)
 
-        raw_bands = int_func(raw_bands)
+        raw_bands = int(raw_bands)
         if raw_bands < 1:
             raise ValueError('raw_bands must be a positive integer')
         self._raw_bands = raw_bands
 
-        output_bands = int_func(output_bands)
+        output_bands = int(output_bands)
         if output_bands < 1:
             raise ValueError('output_bands must be a positive integer.')
         self._output_bands = output_bands
@@ -1485,12 +1484,12 @@ class BIRChipper(BaseChipper):
         self._raw_dtype = raw_dtype
         self._output_dtype = output_dtype
 
-        data_offset = int_func(data_offset)
+        data_offset = int(data_offset)
         if data_offset < 0:
             raise ValueError('data_offset must be a non-negative integer. Got {}'.format(data_offset))
-        self._data_offset = int_func(data_offset)
+        self._data_offset = int(data_offset)
 
-        self._shape = (int_func(data_size[0]), self._raw_bands, int_func(data_size[1]))
+        self._shape = (int(data_size[0]), self._raw_bands, int(data_size[1]))
 
         if isinstance(data_input, numpy.ndarray):
             self._memory_map = data_input
@@ -1607,8 +1606,8 @@ class BIRChipper(BaseChipper):
 
         init_location = self._file_object.tell()
         # we have to manually map out the stride and all that for the array ourselves
-        element_size = int_func(numpy.dtype(self._raw_dtype).itemsize)
-        stride = element_size*int_func(self._shape[2])*self._raw_bands  # how much to skip a whole (real) row?
+        element_size = int(numpy.dtype(self._raw_dtype).itemsize)
+        stride = element_size*int(self._shape[2])*self._raw_bands  # how much to skip a whole (real) row?
         # let's determine the specific row/column arrays that we are going to read
         dim1array = numpy.arange(*range1)
         dim2array = numpy.arange(*range2)
@@ -1622,7 +1621,7 @@ class BIRChipper(BaseChipper):
         start_loc = self._data_offset + start_row*stride
         self._file_object.seek(start_loc, os.SEEK_SET)
         # read our data, then cast and reduce
-        total_entries = int_func(rows)*self._shape[2]*self._raw_bands
+        total_entries = int(rows)*self._shape[2]*self._raw_bands
         total_size = self._shape[2]*stride
         data = self._file_object.read(total_size)
         data = numpy.frombuffer(data, self._raw_dtype, total_entries)
@@ -1690,11 +1689,11 @@ class BIPWriter(AbstractWriter):
         if len(data_size) != 2:
             raise ValueError(
                 'The data_size parameter must have length 2, and got {}.'.format(data_size))
-        data_size = (int_func(data_size[0]), int_func(data_size[1]))
+        data_size = (int(data_size[0]), int(data_size[1]))
         for i, entry in enumerate(data_size):
             if entry <= 0:
                 raise ValueError('Entries {} of data_size is {}, but must be strictly positive.'.format(i, entry))
-        output_bands = int_func(output_bands)
+        output_bands = int(output_bands)
         if output_bands < 1:
             raise ValueError('output_bands must be a positive integer.')
         self._shape = (data_size[0], data_size[1], output_bands)
@@ -1712,7 +1711,7 @@ class BIPWriter(AbstractWriter):
                 'and output is written as uint8 or uint16. '
                 'raw_dtype is given as {}.'.format(self._raw_dtype.name))
 
-        self._data_offset = int_func(data_offset)
+        self._data_offset = int(data_offset)
 
         self._memory_map = None
         self._fid = None
@@ -1792,10 +1791,10 @@ class BIPWriter(AbstractWriter):
             return
 
         # we have to fall-back to manually write
-        element_size = int_func(self._raw_dtype.itemsize)
+        element_size = int(self._raw_dtype.itemsize)
         if len(self._shape) == 3:
-            element_size *= int_func(self._shape[2])
-        stride = element_size*int_func(self._shape[0])
+            element_size *= int(self._shape[2])
+        stride = element_size*int(self._shape[0])
         # go to the appropriate spot in the file for first entry
         self._fid.seek(self._data_offset + stride*start1 + element_size*start2, os.SEEK_SET)
         if start1 == 0 and stop1 == self._shape[0]:

@@ -14,7 +14,6 @@ import os
 import argparse
 from typing import Tuple
 
-from sarpy.compliance import string_types
 from sarpy.io.complex.converter import conversion_utility
 from sarpy.io.complex.sicd import SICDReader
 
@@ -74,7 +73,7 @@ def create_chip(input_reader, out_directory, output_file=None, row_limits=None, 
         else:
             return '{0:d}-{1:d}'.format(shift+limits[0], shift+limits[1])
 
-    if isinstance(input_reader, string_types):
+    if isinstance(input_reader, str):
         input_reader = SICDReader(input_reader)
     if not isinstance(input_reader, SICDReader):
         raise TypeError('We require that the input is a SICD reader or path to a sicd file.')

@@ -15,7 +15,6 @@ import numpy
 from numpy.polynomial import polynomial
 from scipy.constants import speed_of_light
 
-from sarpy.compliance import int_func, string_types
 from sarpy.io.general.base import BaseChipper, SubsetChipper, BaseReader, BIPChipper, SarpyIOError
 
 from sarpy.io.general.utils import get_seconds, parse_timestring, is_file_like
@@ -207,8 +206,8 @@ class _CommonElements2(_CommonElements):
         self.loc_rec_len = fi.read(8).decode('utf-8')  # type: str
         self.len_rec_len = fi.read(4).decode('utf-8')  # type: str
         fi.seek(68, os.SEEK_CUR)  # skip reserved field
-        self.num_data_rec = int_func(struct.unpack('6s', fi.read(6))[0])  # type: int
-        self.data_len = int_func(struct.unpack('6s', fi.read(6))[0])  # type: int
+        self.num_data_rec = int(struct.unpack('6s', fi.read(6))[0])  # type: int
+        self.data_len = int(struct.unpack('6s', fi.read(6))[0])  # type: int
 
 
 # Elements common to LED and TRL
@@ -228,41 +227,41 @@ class _CommonElements3(_CommonElements2):
 
     def __init__(self, fi):
         super(_CommonElements3, self).__init__(fi)
-        self.num_map_rec = int_func(fi.read(6))  # type: int
-        self.map_len = int_func(fi.read(6))  # type: int
-        self.num_pos_rec = int_func(fi.read(6))  # type: int
-        self.pos_len = int_func(fi.read(6))  # type: int
-        self.num_att_rec = int_func(fi.read(6))  # type: int
-        self.att_len = int_func(fi.read(6))  # type: int
-        self.num_rad_rec = int_func(fi.read(6))  # type: int
-        self.rad_len = int_func(fi.read(6))  # type: int
-        self.num_rad_comp_rec = int_func(fi.read(6))  # type: int
-        self.rad_comp_len = int_func(fi.read(6))  # type: int
-        self.num_data_qual_rec = int_func(fi.read(6))  # type: int
-        self.data_qual_len = int_func(fi.read(6))  # type: int
-        self.num_hist_rec = int_func(fi.read(6))  # type: int
-        self.hist_len = int_func(fi.read(6))  # type: int
-        self.num_rng_spect_rec = int_func(fi.read(6))  # type: int
-        self.rng_spect_len = int_func(fi.read(6))  # type: int
-        self.num_dem_rec = int_func(fi.read(6))  # type: int
-        self.dem_len = int_func(fi.read(6))  # type: int
-        self.num_radar_rec = int_func(fi.read(6))  # type: int
-        self.radar_len = int_func(fi.read(6))  # type: int
-        self.num_annot_rec = int_func(fi.read(6))  # type: int
-        self.annot_len = int_func(fi.read(6))  # type: int
-        self.num_proc_rec = int_func(fi.read(6))  # type: int
-        self.proc_len = int_func(fi.read(6))  # type: int
-        self.num_cal_rec = int_func(fi.read(6))  # type: int
-        self.cal_len = int_func(fi.read(6))  # type: int
-        self.num_gcp_rec = int_func(fi.read(6))  # type: int
-        self.gcp_len = int_func(fi.read(6))  # type: int
+        self.num_map_rec = int(fi.read(6))  # type: int
+        self.map_len = int(fi.read(6))  # type: int
+        self.num_pos_rec = int(fi.read(6))  # type: int
+        self.pos_len = int(fi.read(6))  # type: int
+        self.num_att_rec = int(fi.read(6))  # type: int
+        self.att_len = int(fi.read(6))  # type: int
+        self.num_rad_rec = int(fi.read(6))  # type: int
+        self.rad_len = int(fi.read(6))  # type: int
+        self.num_rad_comp_rec = int(fi.read(6))  # type: int
+        self.rad_comp_len = int(fi.read(6))  # type: int
+        self.num_data_qual_rec = int(fi.read(6))  # type: int
+        self.data_qual_len = int(fi.read(6))  # type: int
+        self.num_hist_rec = int(fi.read(6))  # type: int
+        self.hist_len = int(fi.read(6))  # type: int
+        self.num_rng_spect_rec = int(fi.read(6))  # type: int
+        self.rng_spect_len = int(fi.read(6))  # type: int
+        self.num_dem_rec = int(fi.read(6))  # type: int
+        self.dem_len = int(fi.read(6))  # type: int
+        self.num_radar_rec = int(fi.read(6))  # type: int
+        self.radar_len = int(fi.read(6))  # type: int
+        self.num_annot_rec = int(fi.read(6))  # type: int
+        self.annot_len = int(fi.read(6))  # type: int
+        self.num_proc_rec = int(fi.read(6))  # type: int
+        self.proc_len = int(fi.read(6))  # type: int
+        self.num_cal_rec = int(fi.read(6))  # type: int
+        self.cal_len = int(fi.read(6))  # type: int
+        self.num_gcp_rec = int(fi.read(6))  # type: int
+        self.gcp_len = int(fi.read(6))  # type: int
         fi.seek(60, os.SEEK_CUR)  # skip reserved fields
         # the five data facility records
         num_fac_data_rec = []
         fac_data_len = []
         for i in range(5):
-            num_fac_data_rec.append(int_func(fi.read(6)))
-            fac_data_len.append(int_func(fi.read(8)))
+            num_fac_data_rec.append(int(fi.read(6)))
+            fac_data_len.append(int(fi.read(8)))
         self.num_fac_data_rec = tuple(num_fac_data_rec)  # type: Tuple[int]
         self.fac_data_len = tuple(fac_data_len)  # type: Tuple[int]
 
@@ -403,25 +402,25 @@ class _IMG_Elements(_CommonElements2):
         # this has advanced past the data_len field
         fi.seek(24, os.SEEK_CUR)  # skip reserved field
         # sample group data
-        self.sample_len = int_func(fi.read(4))  # type: int
-        self.num_samples = int_func(fi.read(4))  # type: int
-        self.num_bytes = int_func(fi.read(4))  # type: int
+        self.sample_len = int(fi.read(4))  # type: int
+        self.num_samples = int(fi.read(4))  # type: int
+        self.num_bytes = int(fi.read(4))  # type: int
         self.just_order = fi.read(4).decode('utf-8')  # type: str
         # SAR related data
-        self.num_chan = int_func(fi.read(4))  # type: int
-        self.num_lines = int_func(fi.read(8))  # type: int
-        self.num_left = int_func(fi.read(4))  # type: int
-        self.num_pixels = int_func(fi.read(8))  # type: int
-        self.num_right = int_func(fi.read(4))  # type: int
-        self.num_top = int_func(fi.read(4))  # type: int
-        self.num_bottom = int_func(fi.read(4))  # type: int
+        self.num_chan = int(fi.read(4))  # type: int
+        self.num_lines = int(fi.read(8))  # type: int
+        self.num_left = int(fi.read(4))  # type: int
+        self.num_pixels = int(fi.read(8))  # type: int
+        self.num_right = int(fi.read(4))  # type: int
+        self.num_top = int(fi.read(4))  # type: int
+        self.num_bottom = int(fi.read(4))  # type: int
         self.interleave = fi.read(4).decode('utf-8')  # type: str
         # record data
-        self.phys_rec_line = int_func(fi.read(2))  # type: int
-        self.phys_rec_multi_chan = int_func(fi.read(2))  # type: int
-        self.prefix_bytes = int_func(fi.read(4))  # type: int
-        self.sar_data_bytes = int_func(fi.read(8))  # type: int
-        self.suffix_bytes = int_func(fi.read(4))  # type: int
+        self.phys_rec_line = int(fi.read(2))  # type: int
+        self.phys_rec_multi_chan = int(fi.read(2))  # type: int
+        self.prefix_bytes = int(fi.read(4))  # type: int
+        self.sar_data_bytes = int(fi.read(8))  # type: int
+        self.suffix_bytes = int(fi.read(4))  # type: int
         self.pre_suf_rpt_flg = fi.read(4).decode('utf-8')  # type: str
         # prefix/suffix data locations
         self.loc_sar_data = fi.read(8).decode('utf-8')  # type: str
@@ -460,7 +459,7 @@ class _IMG_Elements(_CommonElements2):
         _IMG_SignalElements
         """
 
-        index = int_func(index)
+        index = int(index)
         if not (0 <= index < self.num_data_rec):
             raise KeyError('index {} must be in range [0, {})'.format(index, self.num_data_rec))
         # find offset for the given record, and traverse to it
@@ -641,8 +640,8 @@ class _LED_Data(_BaseElements):
         self.J4 = fi.read(16).decode('utf-8')  # type: str
         fi.seek(16, os.SEEK_CUR)  # skip reserved fields
         self.avg_terr = fi.read(16).decode('utf-8')  # type: str
-        self.ctr_line = int_func(fi.read(8))  # type: int
-        self.ctr_pixel = int_func(fi.read(8))  # type: int
+        self.ctr_line = int(fi.read(8))  # type: int
+        self.ctr_pixel = int(fi.read(8))  # type: int
         self.proc_length = fi.read(16).decode('utf-8')  # type: str
         self.proc_width = fi.read(16).decode('utf-8')  # type: str
         fi.seek(16, os.SEEK_CUR)  # skip reserved fields
@@ -757,11 +756,11 @@ class _LED_Position(_BaseElements):
         self.orb_elem = fi.read(32).decode('utf-8')  # type: str
         self.pos = numpy.array([float(fi.read(16)) for _ in range(3)], dtype='float64')  # type: numpy.ndarray
         self.vel = numpy.array([float(fi.read(16)) for _ in range(3)], dtype='float64')  # type: numpy.ndarray
-        self.num_pts = int_func(fi.read(4))  # type: int
-        self.year = int_func(fi.read(4))  # type: int
-        self.month = int_func(fi.read(4))  # type: int
-        self.day = int_func(fi.read(4))  # type: int
-        self.day_in_year = int_func(fi.read(4))  # type: int
+        self.num_pts = int(fi.read(4))  # type: int
+        self.year = int(fi.read(4))  # type: int
+        self.month = int(fi.read(4))  # type: int
+        self.day = int(fi.read(4))  # type: int
+        self.day_in_year = int(fi.read(4))  # type: int
         self.sec = float(fi.read(22))  # type: float
         self.int = float(fi.read(22))  # type: float
         self.ref_coord_sys = fi.read(64).decode('utf-8')  # type: str
@@ -794,8 +793,8 @@ class _LED_AttitudePoint(object):
         'pitch_rate', 'roll_rate', 'yaw_rate')
 
     def __init__(self, fi):
-        self.day_year = int_func(fi.read(4))  # type: int
-        self.msec_day = int_func(fi.read(8))  # type: int
+        self.day_year = int(fi.read(4))  # type: int
+        self.msec_day = int(fi.read(8))  # type: int
         self.pitch_flag = fi.read(4).decode('utf-8')  # type: str
         self.roll_flag = fi.read(4).decode('utf-8')  # type: str
         self.yaw_flag = fi.read(4).decode('utf-8')  # type: str
@@ -820,7 +819,7 @@ class _LED_Attitude(_BaseElements):
 
     def __init__(self, fi):
         super(_LED_Attitude, self).__init__(fi)
-        self.num_pts = int_func(fi.read(4))  # type: int
+        self.num_pts = int(fi.read(4))  # type: int
         self.pts = [_LED_AttitudePoint(fi) for _ in range(self.num_pts)]
         extra = self.rec_length - (16 + 120*self.num_pts)
         fi.seek(extra, os.SEEK_CUR)  # skip remaining reserved
@@ -836,8 +835,8 @@ class _LED_Radiometric(_BaseElements):
 
     def __init__(self, fi):
         super(_LED_Radiometric, self).__init__(fi)
-        self.seq_num = int_func(fi.read(4))  # type: int
-        self.num_pts = int_func(fi.read(4))  # type: int
+        self.seq_num = int(fi.read(4))  # type: int
+        self.num_pts = int(fi.read(4))  # type: int
         self.cal_factor = float(fi.read(16))  # type: float
         self.tx_distortion = numpy.zeros((2, 2), dtype='complex128')  # type: numpy.ndarray
         self.rcv_distortion = numpy.zeros((2, 2), dtype='complex128')  # type: numpy.ndarray
@@ -868,7 +867,7 @@ class _LED_DataQuality(_BaseElements):
         self.dq_rec_num = fi.read(4).decode('utf-8')  # type: str
         self.chan_id = fi.read(4).decode('utf-8')  # type: str
         self.date = fi.read(6).decode('utf-8')  # type: str
-        self.num_chans = int_func(fi.read(4))  # type: int
+        self.num_chans = int(fi.read(4))  # type: int
         self.islr = float(fi.read(16))  # type: float
         self.pslr = float(fi.read(16))  # type: float
         self.aar = float(fi.read(16))  # type: float
@@ -1019,10 +1018,10 @@ class _TRL_LowResRecord(object):
     __slots__ = ('length', 'pixels', 'lines', 'bytes')
 
     def __init__(self, fi):
-        self.length = int_func(fi.read(8))
-        self.pixels = int_func(fi.read(6))
-        self.lines = int_func(fi.read(6))
-        self.bytes = int_func(fi.read(6))
+        self.length = int(fi.read(8))
+        self.pixels = int(fi.read(6))
+        self.lines = int(fi.read(6))
+        self.bytes = int(fi.read(6))
 
 
 class _TRL_Elements(_CommonElements3):
@@ -1046,7 +1045,7 @@ class _TRL_Elements(_CommonElements3):
         self._file_name = file_name  # type: str
         with open(self._file_name, 'rb') as fi:
             super(_TRL_Elements, self).__init__(fi)
-            self.num_low_res_rec = int_func(fi.read(6))  # type: int
+            self.num_low_res_rec = int(fi.read(6))  # type: int
             self.low_res = tuple([_TRL_LowResRecord(fi) for _ in range(self.num_low_res_rec)])
             fi.seek(720, os.SEEK_CUR)  # skip reserved data
             # comment carried over from matlab -
@@ -1083,15 +1082,15 @@ class _VOL_File(_BaseElements2):
         self.clas_code = fi.read(4).decode('utf-8')  # type: str
         self.typ = fi.read(28).decode('utf-8')  # type: str
         self.typ_code = fi.read(4).decode('utf-8')  # type: str
-        self.num_recs = int_func(fi.read(8))  # type: int
-        self.len_first_rec = int_func(fi.read(8))  # type: int
-        self.max_rec_len = int_func(fi.read(8))  # type: int
+        self.num_recs = int(fi.read(8))  # type: int
+        self.len_first_rec = int(fi.read(8))  # type: int
+        self.max_rec_len = int(fi.read(8))  # type: int
         self.rec_len_type = fi.read(12).decode('utf-8')  # type: str
         self.rec_len_type_code = fi.read(4).decode('utf-8')  # type: str
-        self.phys_vol_first = int_func(fi.read(2))  # type: int
-        self.phys_vol_last = int_func(fi.read(2))  # type: int
-        self.rec_num_first = int_func(fi.read(8))  # type: int
-        self.rec_num_last = int_func(fi.read(8))  # type: int
+        self.phys_vol_first = int(fi.read(2))  # type: int
+        self.phys_vol_last = int(fi.read(2))  # type: int
+        self.rec_num_first = int(fi.read(8))  # type: int
+        self.rec_num_last = int(fi.read(8))  # type: int
         fi.seek(200, os.SEEK_CUR)  # skipping reserved fields
 
 
@@ -1153,8 +1152,8 @@ class _VOL_Elements(_CommonElements):
             self.log_vol_co = fi.read(12).decode('utf-8')  # type: str
             self.log_vol_agency = fi.read(8).decode('utf-8')  # type: str
             self.log_vol_facility = fi.read(12).decode('utf-8')  # type: str
-            self.num_file_ptr = int_func(fi.read(4))  # type: int
-            self.num_text_rec = int_func(fi.read(4))  # type: int
+            self.num_file_ptr = int(fi.read(4))  # type: int
+            self.num_text_rec = int(fi.read(4))  # type: int
             fi.seek(192, os.SEEK_CUR)
             self.files = tuple([_VOL_File(fi) for _ in range(self.num_file_ptr)])  # type: Tuple[_VOL_File]
             self.texts = tuple([_VOL_Text(fi) for _ in range(self.num_text_rec)])  # type: Tuple[_VOL_Text]
@@ -1365,7 +1364,7 @@ class PALSARDetails(object):
                 IPP=[IPPSetType(TStart=0,
                                 TEnd=duration,
                                 IPPStart=0,
-                                IPPEnd=int_func(prf*duration),
+                                IPPEnd=int(prf*duration),
                                 IPPPoly=[0, prf]), ])
 
         def get_position():
@@ -1373,7 +1372,7 @@ class PALSARDetails(object):
             pos_element = led_element.position
             position_start = numpy.datetime64(
                 '{0:04d}-{1:02d}-{2:02d}'.format(pos_element.year, pos_element.month, pos_element.day), 'us') + \
-                             int_func(pos_element.sec*1000000)
+                             int(pos_element.sec*1000000)
             arp_pos = pos_element.pts_pos
             arp_vel = pos_element.pts_vel
             diff_time = get_seconds(position_start, timeline.CollectStart, precision='us')
@@ -1639,7 +1638,7 @@ class PALSARReader(BaseReader, SICDTypeReader):
             Path name to file package or palsar details object.
         """
 
-        if isinstance(palsar_details, string_types):
+        if isinstance(palsar_details, str):
             palsar_details = PALSARDetails(palsar_details)
         if not isinstance(palsar_details, PALSARDetails):
             raise TypeError(

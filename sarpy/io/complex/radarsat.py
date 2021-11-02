@@ -18,7 +18,6 @@ from scipy.interpolate import RectBivariateSpline
 from numpy.polynomial import polynomial
 from scipy.constants import speed_of_light
 
-from sarpy.compliance import string_types, int_func
 from sarpy.io.general.base import BaseReader, SarpyIOError
 from sarpy.io.general.tiff import TiffDetails, TiffReader
 from sarpy.io.general.utils import get_seconds, parse_timestring, is_file_like
@@ -473,8 +472,8 @@ class RadarSatDetails(object):
                 self._bursts = []
                 for entry in image_attributes:
                     self._bursts.append((entry.attrib['beam'], entry.attrib['burst']))
-                    nlines = int_func(entry.find('./numLines').text)
-                    line_offset = int_func(entry.find('./lineOffset').text)
+                    nlines = int(entry.find('./numLines').text)
+                    line_offset = int(entry.find('./lineOffset').text)
                     num_lines_processed = max(num_lines_processed, nlines+line_offset)
                 self._num_lines_processed = num_lines_processed
 
@@ -632,11 +631,11 @@ class RadarSatDetails(object):
         def get_image_and_geo_data():
             if self.generation == 'RS2':
                 pixel_type = 'RE16I_IM16I'
-                cols = int_func(self._find('./imageAttributes/rasterAttributes/numberOfLines').text)
-                rows = int_func(self._find('./imageAttributes/rasterAttributes/numberOfSamplesPerLine').text)
+                cols = int(self._find('./imageAttributes/rasterAttributes/numberOfLines').text)
+                rows = int(self._find('./imageAttributes/rasterAttributes/numberOfSamplesPerLine').text)
             elif self.generation == 'RCM':
-                cols = int_func(self._find('./sceneAttributes/imageAttributes/numLines').text)
-                rows = int_func(self._find('./sceneAttributes/imageAttributes/samplesPerLine').text)
+                cols = int(self._find('./sceneAttributes/imageAttributes/numLines').text)
+                rows = int(self._find('./sceneAttributes/imageAttributes/samplesPerLine').text)
                 bits_per_sample = self._find('./imageReferenceAttributes/rasterAttributes/bitsPerSample').text
                 if bits_per_sample == '32':
                     pixel_type = 'RE32F_IM32F'
@@ -646,8 +645,8 @@ class RadarSatDetails(object):
                     raise ValueError('Got unhandled bites per sample {}'.format(bits_per_sample))
             else:
                 raise ValueError('unhandled generation {}'.format(self.generation))
-            scp_rows = int_func(0.5*rows)
-            scp_cols = int_func(0.5*cols)
+            scp_rows = int(0.5*rows)
+            scp_cols = int(0.5*cols)
             scp_ecf = self._get_image_location(scp_cols, scp_rows)
             im_data = ImageDataType(
                 NumRows=rows, NumCols=cols, FirstRow=0, FirstCol=0, PixelType=pixel_type,
@@ -1123,10 +1122,10 @@ class RadarSatDetails(object):
 
         def get_image_and_geo_data():
             img_attributes = self._find('./sceneAttributes/imageAttributes[@burst="{}"]'.format(burst))
-            sample_offset = int_func(img_attributes.find('./pixelOffset').text)
-            line_offset = int_func(img_attributes.find('./lineOffset').text)
-            cols = int_func(img_attributes.find('./numLines').text)
-            rows = int_func(img_attributes.find('./samplesPerLine').text)
+            sample_offset = int(img_attributes.find('./pixelOffset').text)
+            line_offset = int(img_attributes.find('./lineOffset').text)
+            cols = int(img_attributes.find('./numLines').text)
+            rows = int(img_attributes.find('./samplesPerLine').text)
             bits_per_sample = self._find('./imageReferenceAttributes/rasterAttributes/bitsPerSample').text
             if bits_per_sample == '32':
                 pixel_type = 'RE32F_IM32F'
@@ -1134,8 +1133,8 @@ class RadarSatDetails(object):
                 pixel_type = 'RE16I_IM16I'
             else:
                 raise ValueError('Got unhandled bites per sample {}'.format(bits_per_sample))
-            scp_rows = int_func(0.5*rows)
-            scp_cols = int_func(0.5*cols)
+            scp_rows = int(0.5*rows)
+            scp_cols = int(0.5*cols)
             scp_ecf = self._get_image_location(scp_cols+line_offset, scp_rows+sample_offset)
             im_data = ImageDataType(
                 NumRows=rows, NumCols=cols, FirstRow=0, FirstCol=0, PixelType=pixel_type,
@@ -1458,7 +1457,7 @@ class RadarSatDetails(object):
         tx_pols, tx_rcv_pols = self._get_sicd_polarizations()
 
         # extract some common use doppler information
-        num_of_pulses = int_func(
+        num_of_pulses = int(
             self._find('./sourceAttributes/radarParameters/numberOfPulseIntervalsPerDwell[@beam="{}"]'.format(beam)).text)
         # NB: I am neglecting that prfInformation is provided separately for pols data because
         #   it appears identical
@@ -1472,7 +1471,7 @@ class RadarSatDetails(object):
         dop_centroid_est_time = parse_timestring(
             dop_centroid_estimate_node.find('./timeOfDopplerCentroidEstimate').text, precision='us')
         processing_time_span = (num_of_pulses - 1)/pulse_rep_freq  # in seconds
-        collect_start = dop_centroid_est_time - int_func(0.5*(processing_time_span*1000000))
+        collect_start = dop_centroid_est_time - int(0.5*(processing_time_span*1000000))
 
         nitf, collection_info = self._get_sicd_collection_info(collect_start)
         image_creation = self._get_sicd_image_creation()
@@ -1555,7 +1554,7 @@ class RadarSatReader(BaseReader, SICDTypeReader):
             file name or RadarSatDetails object
         """
 
-        if isinstance(radar_sat_details, string_types):
+        if isinstance(radar_sat_details, str):
             radar_sat_details = RadarSatDetails(radar_sat_details)
         if not isinstance(radar_sat_details, RadarSatDetails):
             raise TypeError('The input argument for RadarSatReader must be a '

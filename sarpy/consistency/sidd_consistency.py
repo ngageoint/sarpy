@@ -22,7 +22,6 @@ import argparse
 import os
 import re
 
-from sarpy.compliance import string_types
 from sarpy.consistency.sicd_consistency import check_sicd_data_extension
 from sarpy.io.general.nitf import NITFDetails
 from sarpy.io.general.nitf_elements.des import DataExtensionHeader, \
@@ -321,7 +320,7 @@ def check_sidd_file(nitf_details):
 
         return valid_images
 
-    if isinstance(nitf_details, string_types):
+    if isinstance(nitf_details, str):
         if not os.path.isfile(nitf_details):
             raise ValueError('Got string input, but it is not a valid path')
         nitf_details = NITFDetails(nitf_details)
@@ -383,7 +382,7 @@ def check_file(file_name):
     bool
     """
 
-    if isinstance(file_name, string_types):
+    if isinstance(file_name, str):
         if not os.path.isfile(file_name):
             raise ValueError('Got string input, but it is not a valid path')
 

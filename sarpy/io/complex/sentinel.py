@@ -17,7 +17,6 @@ from numpy.polynomial import polynomial
 from scipy.constants import speed_of_light
 from scipy.interpolate import griddata
 
-from sarpy.compliance import string_types
 from sarpy.io.general.base import SubsetReader, BaseReader, SarpyIOError
 from sarpy.io.general.tiff import TiffDetails, TiffReader
 from sarpy.io.general.utils import get_seconds, parse_timestring, is_file_like
@@ -203,7 +202,7 @@ class SentinelDetails(object):
         """
 
         def get_file_location(schema_type, tids):
-            if isinstance(tids, string_types):
+            if isinstance(tids, str):
                 tids = [tids, ]
             for tid in tids:
                 do = self._find('dataObjectSection/dataObject[@repID="{}"]/[@ID="{}"]'.format(schema_type, tid))
@@ -1049,7 +1048,7 @@ class SentinelReader(BaseReader, SICDTypeReader):
         sentinel_details : str|SentinelDetails
         """
 
-        if isinstance(sentinel_details, string_types):
+        if isinstance(sentinel_details, str):
             sentinel_details = SentinelDetails(sentinel_details)
         if not isinstance(sentinel_details, SentinelDetails):
             raise TypeError('Input argument for SentinelReader must be a file name or SentinelReader object.')

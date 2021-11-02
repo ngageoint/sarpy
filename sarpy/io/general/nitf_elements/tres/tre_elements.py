@@ -9,7 +9,6 @@ import logging
 from collections import OrderedDict
 from typing import Union, List
 
-from sarpy.compliance import int_func, string_types, integer_types
 from ..base import TRE
 
 logger = logging.getLogger(__name__)
@@ -34,7 +33,7 @@ def _parse_type(typ_string, leng, value, start):
     if typ_string == 's':
         return byt.decode('utf-8').strip()
     elif typ_string == 'd':
-        return int_func(byt)
+        return int(byt)
     elif typ_string == 'b':
         return byt
     else:
@@ -153,7 +152,7 @@ class TREElement(object):
             return val.to_bytes()
         elif isinstance(val, bytes):
             return val
-        elif isinstance(val, integer_types) or isinstance(val, string_types):
+        elif isinstance(val, (int, str)):
             return self._field_format[attribute].format(val).encode('utf-8')
         else:
             raise TypeError('Got unhandled type {}'.format(type(val)))
@@ -170,10 +169,7 @@ class TREElement(object):
         out = OrderedDict()
         for fld in self._field_ordering:
             val = getattr(self, fld)
-            if val is None or \
-                    isinstance(val, bytes) or \
-                    isinstance(val, string_types) or \
-                    isinstance(val, integer_types):
+            if val is None or isinstance(val, (bytes, str, int)):
                 out[fld] = val
             elif isinstance(val, TREElement):
                 out[fld] = val.to_dict()
@@ -291,7 +287,7 @@ class TREExtension(TRE):
     def __init__(self, value):
         if not issubclass(self._data_type, TREElement):
             raise TypeError('_data_type must be a subclass of TREElement. Got type {}'.format(self._data_type))
-        if not isinstance(self._tag_value, string_types):
+        if not isinstance(self._tag_value, str):
             raise TypeError('_tag_value must be a string')
         if len(self._tag_value) > 6:
             raise ValueError('Tag value must have 6 or fewer characters.')
@@ -337,7 +333,7 @@ class TREExtension(TRE):
     @classmethod
     def from_bytes(cls, value, start):
         tag_value = value[start:start+6].decode('utf-8').strip()
-        lng = int_func(value[start+6:start+11])
+        lng = int(value[start+6:start+11])
         if tag_value != cls._tag_value:
             raise ValueError('tag value must be {}. Got {}'.format(cls._tag_value, tag_value))
         return cls(value[start+11:start+11+lng])

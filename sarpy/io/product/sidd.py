@@ -15,7 +15,6 @@ from datetime import datetime
 
 import numpy
 
-from sarpy.compliance import int_func, string_types
 from sarpy.io.xml.base import parse_xml_from_string
 from sarpy.io.general.utils import is_file_like
 from sarpy.io.general.base import AggregateChipper, SarpyIOError
@@ -222,7 +221,7 @@ class SIDDReader(NITFReader, SIDDTypeReader):
             filename, file-like object, or SIDDDetails object
         """
 
-        if isinstance(nitf_details, string_types) or is_file_like(nitf_details):
+        if isinstance(nitf_details, str) or is_file_like(nitf_details):
             nitf_details = SIDDDetails(nitf_details)
         if not isinstance(nitf_details, SIDDDetails):
             raise TypeError('The input argument for SIDDReader must be a filename or '
@@ -256,7 +255,7 @@ class SIDDReader(NITFReader, SIDDTypeReader):
 
             iid1 = img_header.IID1  # required to be of the form SIDD######
             _check_iid_format(iid1, i)
-            element = int_func(iid1[4:7])
+            element = int(iid1[4:7])
             if element > len(self._sidd_meta):
                 raise ValueError('Got image segment id {}, but there are only {} '
                                  'sidd elements'.format(iid1, len(self._sidd_meta)))

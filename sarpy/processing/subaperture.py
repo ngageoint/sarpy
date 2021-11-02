@@ -12,7 +12,6 @@ from typing import Union, Generator
 import numpy
 from scipy.constants.constants import speed_of_light
 
-from sarpy.compliance import int_func, integer_types
 from sarpy.processing.fft_base import FFTCalculator, fft, ifft, fftshift, fft2_sicd, ifft2_sicd
 from sarpy.io.general.slice_parsing import validate_slice, validate_slice_int
 from sarpy.processing.normalize_sicd import DeskewCalculator
@@ -61,20 +60,20 @@ def frame_definition(array_size, frame_count=9, aperture_fraction=0.2, fill=1, m
 
     # determine our functional array and processing sizes
     functional_array_size = array_size/fill
-    left_edge = int_func(numpy.round(0.5*(array_size - functional_array_size)))
+    left_edge = int(numpy.round(0.5*(array_size - functional_array_size)))
     processing_size = array_size - 2*left_edge
     # determine the (static) size of each sub-aperture
-    subaperture_size = int_func(numpy.ceil(aperture_fraction*processing_size))
+    subaperture_size = int(numpy.ceil(aperture_fraction*processing_size))
     # determine the step size
     step = 0 if frame_count == 1 else \
-        int_func(numpy.floor((processing_size - subaperture_size)/float(frame_count-1)))
+        int(numpy.floor((processing_size - subaperture_size)/float(frame_count-1)))
 
     if method == 'NORMAL':
-        output_resolution = int_func(numpy.ceil(aperture_fraction*array_size))
+        output_resolution = int(numpy.ceil(aperture_fraction*array_size))
     elif method == 'FULL':
         output_resolution = array_size
     elif method == 'MINIMAL':
-        output_resolution = int_func(numpy.ceil(processing_size/float(frame_count)))
+        output_resolution = int(numpy.ceil(processing_size/float(frame_count)))
     else:
         raise ValueError('Got unhandled method {}'.format(method))
 
@@ -224,7 +223,7 @@ class SubapertureCalculator(FFTCalculator):
 
     @frame_count.setter
     def frame_count(self, value):
-        value = int_func(value)
+        value = int(value)
         if value < 1:
             raise ValueError('frame_count must be a positive integer.')
         self._frame_count = value
@@ -265,7 +264,7 @@ class SubapertureCalculator(FFTCalculator):
         elif isinstance(the_frame, slice):
             the_frame = validate_slice(the_frame, self.frame_count)
             return numpy.arange(the_frame.start, the_frame.stop, the_frame.step)
-        elif isinstance(the_frame, integer_types):
+        elif isinstance(the_frame, int):
             return validate_slice_int(the_frame, self.frame_count)
         elif isinstance(the_frame, (list, tuple)):
             return self._parse_frame_argument(numpy.array(the_frame))
@@ -331,7 +330,7 @@ class SubapertureCalculator(FFTCalculator):
             raise ValueError('Unable to proceed unless the index and dimension are set.')
 
         frames = self._parse_frame_argument(frames)
-        if isinstance(frames, integer_types):
+        if isinstance(frames, int):
             frames = [frames, ]
 
         if self.dimension == 0:
@@ -360,7 +359,7 @@ class SubapertureCalculator(FFTCalculator):
             fill=self.fill, method=self.method)
         # iterate over frames and generate the results
         for frame_index in frames:
-            frame_def = frame_collection[int_func(frame_index)]
+            frame_def = frame_collection[int(frame_index)]
             this_subap_data = subaperture_processing_phase_history(
                 data, frame_def, output_resolution=output_resolution, dimension=self.dimension)
             if step == 1:
@@ -371,8 +370,8 @@ class SubapertureCalculator(FFTCalculator):
                 yield this_subap_data[:, ::step]
 
     def _prepare_output(self, row_range, col_range, frames=None):
-        row_count = int_func((row_range[1] - row_range[0]) / float(row_range[2]))
-        col_count = int_func((col_range[1] - col_range[0]) / float(col_range[2]))
+        row_count = int((row_range[1] - row_range[0]) / float(row_range[2]))
+        col_count = int((col_range[1] - col_range[0]) / float(col_range[2]))
         if frames is None or len(frames) == 1:
             out_size = (row_count, col_count)
         else:
@@ -400,7 +399,7 @@ class SubapertureCalculator(FFTCalculator):
 
         # parse the slicing to ensure consistent structure
         row_range, col_range, frames = self._parse_slicing(item)
-        if isinstance(frames, integer_types):
+        if isinstance(frames, int):
             frames = [frames, ]
 
         if self.dimension == 0:

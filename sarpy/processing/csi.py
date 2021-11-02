@@ -47,7 +47,6 @@ __author__ = 'Thomas McCullough'
 
 import numpy
 
-from sarpy.compliance import int_func
 from sarpy.processing.fft_base import FFTCalculator, fft, ifft, fftshift
 from sarpy.io.complex.base import SICDTypeReader
 from sarpy.io.complex.utils import get_fetch_block_size
@@ -71,8 +70,8 @@ def filter_map_construction(siz):
     if siz < 1:
         raise ValueError('Cannot create the filter map with fewer than 4 elements.')
 
-    siz = int_func(round(siz))
-    basic_size = int_func(numpy.ceil(0.25*siz))
+    siz = int(round(siz))
+    basic_size = int(numpy.ceil(0.25*siz))
 
     # create trapezoidal stack
     trapezoid = numpy.hstack(
@@ -81,7 +80,7 @@ def filter_map_construction(siz):
          numpy.arange(basic_size, 0, -1, dtype=numpy.int32)))/float(basic_size)
     out = numpy.zeros((siz, 3), dtype=numpy.float64)
     # create red, green, blue indices
-    green_inds = int_func(round(0.5*(siz - trapezoid.size))) + numpy.arange(trapezoid.size)
+    green_inds = int(round(0.5*(siz - trapezoid.size))) + numpy.arange(trapezoid.size)
     red_inds = ((green_inds + basic_size) % siz)
     blue_inds = ((green_inds - basic_size) % siz)
     # populate our array
@@ -121,7 +120,7 @@ def csi_array(array, dimension=0, platform_direction='R', fill=1, filter_map=Non
     if not (isinstance(array, numpy.ndarray) and len(array.shape) == 2 and numpy.iscomplexobj(array)):
         raise ValueError('array must be a two-dimensional numpy array of complex dtype')
 
-    dimension = int_func(dimension)
+    dimension = int(dimension)
     if dimension not in [0, 1]:
         raise ValueError('dimension must be 0 or 1, got {}'.format(dimension))
     if dimension == 0:
@@ -237,8 +236,8 @@ class CSICalculator(FFTCalculator):
             filter_map=filter_map)
 
     def _prepare_output(self, row_range, col_range):
-        row_count = int_func((row_range[1] - row_range[0]) / float(row_range[2]))
-        col_count = int_func((col_range[1] - col_range[0]) / float(col_range[2]))
+        row_count = int((row_range[1] - row_range[0]) / float(row_range[2]))
+        col_count = int((col_range[1] - col_range[0]) / float(col_range[2]))
         out_size = (row_count, col_count, 3)
         return numpy.zeros(out_size, dtype=numpy.float64)
 
@@ -259,7 +258,7 @@ class CSICalculator(FFTCalculator):
             raise ValueError('Unable to proceed unless the index and dimension are set.')
 
         def get_dimension_details(the_range):
-            full_count = abs(int_func(the_range[1] - the_range[0]))
+            full_count = abs(int(the_range[1] - the_range[0]))
             the_snip = -1 if the_range[2] < 0 else 1
             t_filter_map = filter_map_construction(full_count/self.fill)
             t_block_size = self.get_fetch_block_size(the_range[0], the_range[1])

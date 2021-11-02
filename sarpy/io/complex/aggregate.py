@@ -9,7 +9,6 @@ __author__ = "Thomas McCullough"
 
 from typing import Tuple, Sequence
 
-from sarpy.compliance import string_types
 from sarpy.io.complex.converter import open_complex
 from sarpy.io.general.base import AggregateReader, SarpyIOError
 from sarpy.io.complex.base import SICDTypeReader
@@ -58,7 +57,7 @@ class AggregateComplexReader(AggregateReader, SICDTypeReader):
         # validate each entry
         the_readers = []
         for i, entry in enumerate(readers):
-            if isinstance(entry, string_types):
+            if isinstance(entry, str):
                 try:
                     reader = open_complex(entry)
                 except SarpyIOError:

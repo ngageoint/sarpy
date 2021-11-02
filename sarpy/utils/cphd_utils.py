@@ -18,15 +18,9 @@ import functools
 from xml.dom import minidom
 from typing import Union, TextIO, BinaryIO
 import os
+from io import StringIO
 
-from sarpy.compliance import string_types
 from sarpy.io.phase_history.cphd import CPHDDetails
-
-if sys.version_info[0] < 3:
-    import cStringIO as StringIO
-else:
-    from io import StringIO
-
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
@@ -57,7 +51,7 @@ def _print_header(input_file):
         if initial_location is not None:
             file_object.seek(initial_location)
 
-    if isinstance(input_file, string_types):
+    if isinstance(input_file, str):
         file_object = open(input_file, 'rb')
         initial_location = None
         close_after = True
@@ -85,7 +79,7 @@ def _print_header(input_file):
 
 def _create_default_output_file(input_file):
     # type: (Union[str, BinaryIO]) -> str
-    if isinstance(input_file, string_types):
+    if isinstance(input_file, str):
         return os.path.splitext(input_file)[0] + '.meta_dump.txt'
     else:
         return os.path.expanduser('~/Desktop/phase_history.meta_dump.txt')
@@ -121,7 +115,7 @@ def print_cphd_metadata(input_file, destination=sys.stdout):
 
     _define_print_function(destination)
 
-    if isinstance(input_file, string_types):
+    if isinstance(input_file, str):
         print_func('Details for CPHD file {}'.format(input_file))
 
     print_func('---- CPHD Header Information ----')

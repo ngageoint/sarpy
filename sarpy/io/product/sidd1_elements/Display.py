@@ -11,7 +11,6 @@ from collections import OrderedDict
 
 import numpy
 
-from sarpy.compliance import int_func
 from sarpy.io.product.sidd2_elements.base import DEFAULT_STRICT, FLOAT_FORMAT
 from sarpy.io.xml.base import Serializable, Arrayable, ParametersCollection, \
     create_text_node, create_new_node, get_node_value, find_first_child
@@ -128,7 +127,7 @@ class ColorDisplayRemapType(Serializable, Arrayable):
         lut_key = cls._child_xml_ns_key.get('RemapLUT', ns_key)
         lut_node = find_first_child(node, 'RemapLUT', xml_ns, lut_key)
         if lut_node is not None:
-            dim1 = int_func(lut_node.attrib['size'])
+            dim1 = int(lut_node.attrib['size'])
             dim2 = 3
             arr = numpy.zeros((dim1, dim2), dtype=numpy.uint16)
             entries = get_node_value(lut_node).split()
@@ -254,7 +253,7 @@ class MonochromeDisplayRemapType(Serializable):
         lut_key = cls._child_xml_ns_key.get('RemapLUT', ns_key)
         lut_node = find_first_child(node, 'RemapLUT', xml_ns, lut_key)
         if lut_node is not None:
-            dim1 = int_func(lut_node.attrib['size'])
+            dim1 = int(lut_node.attrib['size'])
             arr = numpy.zeros((dim1, ), dtype=numpy.uint8)
             entries = get_node_value(lut_node).split()
             i = 0

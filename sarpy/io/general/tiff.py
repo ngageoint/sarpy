@@ -18,7 +18,6 @@ import numpy
 import re
 from typing import Tuple
 
-from sarpy.compliance import int_func, string_types
 from sarpy.io.general.base import BaseReader, BIPChipper, SarpyIOError
 
 
@@ -192,7 +191,7 @@ class TiffDetails(object):
         file_name : str
         """
 
-        if not (isinstance(file_name, string_types) and os.path.isfile(file_name)):
+        if not (isinstance(file_name, str) and os.path.isfile(file_name)):
             raise SarpyIOError('Not a TIFF file.')
 
         with open(file_name, 'rb') as fi:
@@ -468,13 +467,13 @@ class NativeTiffChipper(BIPChipper):
             output_bands = raw_bands
             output_dtype = None
 
-        data_size = (int_func(tiff_details.tags['ImageLength']), int_func(tiff_details.tags['ImageWidth']))
+        data_size = (int(tiff_details.tags['ImageLength']), int(tiff_details.tags['ImageWidth']))
         raw_dtype = numpy.dtype('{0:s}{1:s}{2:d}'.format(
             self._tiff_details.endian, self._SAMPLE_FORMATS[samp_form], int(bits_per_sample/8)))
 
         if output_dtype is None:
             output_dtype = raw_dtype
-        data_offset = int_func(tiff_details.tags['StripOffsets'][0])
+        data_offset = int(tiff_details.tags['StripOffsets'][0])
 
         super(NativeTiffChipper, self).__init__(
             tiff_details.file_name, raw_dtype, data_size, raw_bands, output_bands, output_dtype,

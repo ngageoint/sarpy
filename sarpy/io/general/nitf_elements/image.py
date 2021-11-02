@@ -13,7 +13,6 @@ from typing import Union
 
 import numpy
 
-from sarpy.compliance import int_func
 from .base import NITFElement, NITFLoop, UserHeaderType, _IntegerDescriptor,\
     _StringDescriptor, _StringEnumDescriptor, _NITFElementDescriptor, _parse_str
 from .security import NITFSecurityTags, NITFSecurityTags0
@@ -147,12 +146,12 @@ class ImageBand(NITFElement):
     def _parse_attribute(cls, fields, attribute, value, start):
         if attribute == 'LUTD':
             loc = start
-            nluts = int_func(value[loc:loc + 1])
+            nluts = int(value[loc:loc + 1])
             loc += 1
             if nluts == 0:
                 fields['LUTD'] = None
             else:
-                neluts = int_func(value[loc:loc + 5])
+                neluts = int(value[loc:loc + 5])
                 loc += 5
                 siz = nluts * neluts
                 lutd = numpy.array(
@@ -171,11 +170,11 @@ class ImageBands(NITFLoop):
     @classmethod
     def _parse_count(cls, value, start):
         loc = start
-        count = int_func(value[loc:loc + cls._count_size])
+        count = int(value[loc:loc + cls._count_size])
         loc += cls._count_size
         if count == 0:
             # (only) if there are more than 9, a longer field is used
-            count = int_func(value[loc:loc + 5])
+            count = int(value[loc:loc + 5])
             loc += 5
         return count, loc
 

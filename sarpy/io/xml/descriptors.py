@@ -12,7 +12,6 @@ from weakref import WeakKeyDictionary
 import numpy
 from numpy.linalg import norm
 
-from sarpy.compliance import integer_types, int_func, string_types
 from sarpy.io.xml.base import DEFAULT_STRICT, get_node_value, find_children, \
     Arrayable, ParametersCollection, SerializableArray, \
     parse_str, parse_bool, parse_int, parse_float, parse_complex, parse_datetime, \
@@ -176,8 +175,8 @@ class StringListDescriptor(BasicDescriptor):
 
     def __init__(self, name, required, strict=DEFAULT_STRICT, minimum_length=None, maximum_length=None,
                  default_value=None, docstring=None):
-        self.minimum_length = self._DEFAULT_MIN_LENGTH if minimum_length is None else int_func(minimum_length)
-        self.maximum_length = self._DEFAULT_MAX_LENGTH if maximum_length is None else int_func(maximum_length)
+        self.minimum_length = self._DEFAULT_MIN_LENGTH if minimum_length is None else int(minimum_length)
+        self.maximum_length = self._DEFAULT_MAX_LENGTH if maximum_length is None else int(maximum_length)
         if self.minimum_length > self.maximum_length:
             raise ValueError(
                 'Specified minimum length is {}, while specified maximum length is {}'.format(
@@ -208,12 +207,12 @@ class StringListDescriptor(BasicDescriptor):
         if super(StringListDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
             return
 
-        if isinstance(value, string_types):
+        if isinstance(value, str):
             set_value([value, ])
         elif isinstance(value, ElementTree.Element):
             set_value([get_node_value(value), ])
         elif isinstance(value, list):
-            if len(value) == 0 or isinstance(value[0], string_types):
+            if len(value) == 0 or isinstance(value[0], str):
                 set_value(value)
             elif isinstance(value[0], ElementTree.Element):
                 set_value([get_node_value(nod) for nod in value])
@@ -387,8 +386,8 @@ class IntegerListDescriptor(BasicDescriptor):
     def __init__(self, name, tag_dict, required, strict=DEFAULT_STRICT,
                  minimum_length=None, maximum_length=None, docstring=None):
         self.child_tag = tag_dict[name]['child_tag']
-        self.minimum_length = self._DEFAULT_MIN_LENGTH if minimum_length is None else int_func(minimum_length)
-        self.maximum_length = self._DEFAULT_MAX_LENGTH if maximum_length is None else int_func(maximum_length)
+        self.minimum_length = self._DEFAULT_MIN_LENGTH if minimum_length is None else int(minimum_length)
+        self.maximum_length = self._DEFAULT_MAX_LENGTH if maximum_length is None else int(maximum_length)
         if self.minimum_length > self.maximum_length:
             raise ValueError(
                 'Specified minimum length is {}, while specified maximum length is {}'.format(
@@ -418,15 +417,15 @@ class IntegerListDescriptor(BasicDescriptor):
         if super(IntegerListDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
             return
 
-        if isinstance(value, integer_types):
+        if isinstance(value, int):
             set_value([value, ])
         elif isinstance(value, ElementTree.Element):
-            set_value([int_func(get_node_value(value)), ])
+            set_value([int(get_node_value(value)), ])
         elif isinstance(value, list):
-            if len(value) == 0 or isinstance(value[0], integer_types):
+            if len(value) == 0 or isinstance(value[0], int):
                 set_value(value)
             elif isinstance(value[0], ElementTree.Element):
-                set_value([int_func(get_node_value(nod)) for nod in value])
+                set_value([int(get_node_value(nod)) for nod in value])
         else:
             raise TypeError(
                 'Field {} of class {} got incompatible type {}.'.format(
@@ -493,8 +492,8 @@ class FloatListDescriptor(BasicDescriptor):
     def __init__(self, name, tag_dict, required, strict=DEFAULT_STRICT,
                  minimum_length=None, maximum_length=None, docstring=None):
         self.child_tag = tag_dict[name]['child_tag']
-        self.minimum_length = self._DEFAULT_MIN_LENGTH if minimum_length is None else int_func(minimum_length)
-        self.maximum_length = self._DEFAULT_MAX_LENGTH if maximum_length is None else int_func(maximum_length)
+        self.minimum_length = self._DEFAULT_MIN_LENGTH if minimum_length is None else int(minimum_length)
+        self.maximum_length = self._DEFAULT_MAX_LENGTH if maximum_length is None else int(maximum_length)
         if self.minimum_length > self.maximum_length:
             raise ValueError(
                 'Specified minimum length is {}, while specified maximum length is {}'.format(
@@ -572,8 +571,8 @@ class FloatArrayDescriptor(BasicDescriptor):
                  docstring=None):
 
         self.child_tag = tag_dict[name]['child_tag']
-        self.minimum_length = self._DEFAULT_MIN_LENGTH if minimum_length is None else int_func(minimum_length)
-        self.maximum_length = self._DEFAULT_MAX_LENGTH if maximum_length is None else int_func(maximum_length)
+        self.minimum_length = self._DEFAULT_MIN_LENGTH if minimum_length is None else int(minimum_length)
+        self.maximum_length = self._DEFAULT_MAX_LENGTH if maximum_length is None else int(maximum_length)
         if self.minimum_length > self.maximum_length:
             raise ValueError(
                 'Specified minimum length is {}, while specified maximum length is {}'.format(
@@ -616,7 +615,7 @@ class FloatArrayDescriptor(BasicDescriptor):
             else:
                 xml_ns_key = getattr(instance, '_xml_ns_key', None)
 
-            size = int_func(value.attrib['size'])
+            size = int(value.attrib['size'])
             child_nodes = find_children(value, self.child_tag, xml_ns, xml_ns_key)
             if len(child_nodes) != size:
                 raise ValueError(
@@ -831,8 +830,8 @@ class SerializableArrayDescriptor(BasicDescriptor):
         self._typ_string = 'numpy.ndarray[{}]:'.format(str(child_type).strip().split('.')[-1][:-2])
         self.array_extension = array_extension
 
-        self.minimum_length = self._DEFAULT_MIN_LENGTH if minimum_length is None else int_func(minimum_length)
-        self.maximum_length = self._DEFAULT_MAX_LENGTH if maximum_length is None else int_func(maximum_length)
+        self.minimum_length = self._DEFAULT_MIN_LENGTH if minimum_length is None else int(minimum_length)
+        self.maximum_length = self._DEFAULT_MAX_LENGTH if maximum_length is None else int(maximum_length)
         if self.minimum_length > self.maximum_length:
             raise ValueError(
                 'Specified minimum length is {}, while specified maximum length is {}'.format(
