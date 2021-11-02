@@ -12,7 +12,7 @@ from sarpy.io.xml.base import Serializable
 from sarpy.io.xml.descriptors import BooleanDescriptor, FloatDescriptor, \
     SerializableDescriptor
 
-from .base import DEFAULT_STRICT
+from .base import DEFAULT_STRICT, FLOAT_FORMAT
 from .blocks import Poly1DType, XYZPolyType, GainPhasePolyType
 
 
@@ -80,7 +80,7 @@ class AntParamType(Serializable):
     _fields = (
         'XAxisPoly', 'YAxisPoly', 'FreqZero', 'EB', 'Array', 'Elem', 'GainBSPoly', 'EBFreqShift', 'MLFreqDilation')
     _required = ('XAxisPoly', 'YAxisPoly', 'FreqZero', 'Array')
-    _numeric_format = {'FreqZero': '0.17E'}
+    _numeric_format = {'FreqZero': FLOAT_FORMAT}
     # descriptors
     XAxisPoly = SerializableDescriptor(
         'XAxisPoly', XYZPolyType, _required, strict=DEFAULT_STRICT,
@@ -96,7 +96,8 @@ class AntParamType(Serializable):
                   'steering direction cosines.')  # type: float
     EB = SerializableDescriptor(
         'EB', EBType, _required, strict=DEFAULT_STRICT,
-        docstring='Electrical boresight *(EB)* steering directions for an electronically steered array.')  # type: EBType
+        docstring='Electrical boresight *(EB)* steering directions for an electronically '
+                  'steered array.')  # type: EBType
     Array = SerializableDescriptor(
         'Array', GainPhasePolyType, _required, strict=DEFAULT_STRICT,
         docstring='Array pattern polynomials that define the shape of the main-lobe.')  # type: GainPhasePolyType

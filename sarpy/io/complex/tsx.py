@@ -17,7 +17,6 @@ import numpy
 from numpy.polynomial import polynomial
 from scipy.constants import speed_of_light
 
-from sarpy.compliance import string_types, int_func
 from sarpy.io.general.base import BaseReader, SubsetChipper, BIPChipper, SarpyIOError
 from sarpy.io.general.utils import get_seconds, parse_timestring, is_file_like
 
@@ -137,7 +136,7 @@ class TSXDetails(object):
         None
         """
 
-        if not isinstance(file_name, string_types):
+        if not isinstance(file_name, str):
             raise SarpyIOError('file_name must be of string type.')
         if not os.path.exists(file_name):
             raise SarpyIOError('file {} does not exist'.format(file_name))
@@ -328,10 +327,10 @@ class TSXDetails(object):
             return None
 
         # determine the middle grid location
-        az_grid_pts = int_func(self._find_georef('./geolocationGrid/numberOfGridPoints/azimuth').text)
-        rg_grid_pts = int_func(self._find_georef('./geolocationGrid/numberOfGridPoints/range').text)
-        mid_az = int_func(round(az_grid_pts/2.0)) + 1
-        mid_rg = int_func(round(rg_grid_pts/2.0)) + 1
+        az_grid_pts = int(self._find_georef('./geolocationGrid/numberOfGridPoints/azimuth').text)
+        rg_grid_pts = int(self._find_georef('./geolocationGrid/numberOfGridPoints/range').text)
+        mid_az = int(round(az_grid_pts/2.0)) + 1
+        mid_rg = int(round(rg_grid_pts/2.0)) + 1
         test_nodes = self._findall_georef('./geolocationGrid/gridPoint[@iaz="{}"]'.format(mid_az))
         for entry in test_nodes:
             if entry.attrib['irg'] == '{}'.format(mid_rg):
@@ -586,19 +585,19 @@ class TSXDetails(object):
         """
 
         # NB: the role of rows and columns is switched in TSX/SICD convention
-        rows = int_func(self._find_main('./productInfo/imageDataInfo/imageRaster/numberOfColumns').text)
-        cols = int_func(self._find_main('./productInfo/imageDataInfo/imageRaster/numberOfRows').text)
+        rows = int(self._find_main('./productInfo/imageDataInfo/imageRaster/numberOfColumns').text)
+        cols = int(self._find_main('./productInfo/imageDataInfo/imageRaster/numberOfRows').text)
 
         if grid_node is not None:
-            scp_row = int_func(grid_node.find('./col').text)
-            scp_col = int_func(grid_node.find('./row').text)
+            scp_row = int(grid_node.find('./col').text)
+            scp_col = int(grid_node.find('./row').text)
             scp_llh = [
                 float(grid_node.find('./lat').text),
                 float(grid_node.find('./lon').text),
                 float(grid_node.find('./height').text)]
         else:
-            scp_row = int_func(self._find_main('./productInfo/sceneInfo/sceneCenterCoord/refColumn').text) - 1
-            scp_col = int_func(self._find_main('./productInfo/sceneInfo/sceneCenterCoord/refRow').text) - 1
+            scp_row = int(self._find_main('./productInfo/sceneInfo/sceneCenterCoord/refColumn').text) - 1
+            scp_col = int(self._find_main('./productInfo/sceneInfo/sceneCenterCoord/refRow').text) - 1
             scp_llh = [
                 float(self._find_main('./productInfo/sceneInfo/sceneCenterCoord/lat').text),
                 float(self._find_main('./productInfo/sceneInfo/sceneCenterCoord/lon').text),
@@ -692,7 +691,7 @@ class TSXDetails(object):
                                 TEnd=collect_duration,
                                 IPPPoly=ipp_poly,
                                 IPPStart=0,
-                                IPPEnd=int_func(ipp_poly(collect_duration)))])
+                                IPPEnd=int(ipp_poly(collect_duration)))])
 
         def set_position():
             times_s = numpy.array(
@@ -1005,11 +1004,11 @@ class COSARDetails(object):
                 csar, version, oversample, scaling_rate))
 
         # now, populate our appropriate details
-        data_offset = the_offset + (int_func(range_samples)+2)*4*4
-        burst_size = 4*(int_func(range_samples)+2)*(int_func(azimuth_samples) + 4)
+        data_offset = the_offset + (int(range_samples)+2)*4*4
+        burst_size = 4*(int(range_samples)+2)*(int(azimuth_samples) + 4)
         self._header_offsets.append(the_offset)
         self._data_offsets.append(data_offset)
-        self._burst_index.append(int_func(burst_index))
+        self._burst_index.append(int(burst_index))
         self._burst_size.append(burst_size)
         self._data_sizes.append((range_samples, azimuth_samples))
         if the_offset + burst_size > self._file_size:
@@ -1046,7 +1045,7 @@ class COSARDetails(object):
         SubsetChipper
         """
 
-        index = int_func(index)
+        index = int(index)
         if not (0 <= index < self.burst_count):
             raise KeyError('Provided index {} must be in the range [0, {})'.format(index, self.burst_count))
         # get data_size
@@ -1082,7 +1081,7 @@ class TSXReader(BaseReader, SICDTypeReader):
         tsx_details : str|TSXDetails
         """
 
-        if isinstance(tsx_details, string_types):
+        if isinstance(tsx_details, str):
             tsx_details = TSXDetails(tsx_details)
         if not isinstance(tsx_details, TSXDetails):
             raise TypeError(

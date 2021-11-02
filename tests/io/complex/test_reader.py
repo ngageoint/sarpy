@@ -1,6 +1,7 @@
 import logging
 import os
 import json
+import unittest
 
 from sarpy.io.complex.converter import open_complex
 from sarpy.io.complex.sicd import SICDReader
@@ -12,7 +13,7 @@ from sarpy.io.complex.iceye import ICEYEReader
 from sarpy.io.complex.palsar2 import PALSARReader
 from sarpy.io.complex.capella import CapellaReader
 
-from tests import unittest, parse_file_entry
+from tests import parse_file_entry
 
 
 complex_file_types = {}

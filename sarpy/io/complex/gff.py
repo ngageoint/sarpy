@@ -19,7 +19,6 @@ import gc
 import numpy
 from scipy.constants import speed_of_light
 
-from sarpy.compliance import int_func, string_types
 from sarpy.io.general.base import BaseReader, BIPChipper, BSQChipper, \
     is_file_like, SarpyIOError
 from sarpy.io.general.nitf import MemMap
@@ -276,7 +275,7 @@ class _GFFHeader_1_8(object):
         self.creator = _get_string(fi.read(24))
         self.date_time = struct.unpack(estr+'6H', fi.read(6*2))  # year, month, day, hour, minute, second
         fi.read(2)  # endian, already parsed
-        self.bytes_per_pixel = int_func(struct.unpack(estr+'f', fi.read(4))[0])
+        self.bytes_per_pixel = int(struct.unpack(estr+'f', fi.read(4))[0])
         self.frame_count, self.image_type, self.row_major, self.range_count, \
             self.azimuth_count = struct.unpack(estr+'5I', fi.read(5*4))
         self.scale_exponent, self.scale_mantissa, self.offset_exponent, self.offset_mantissa = \
@@ -1259,8 +1258,8 @@ class _GFFInterpreter1(_GFFInterpreter):
 
         num_rows = self.header.range_count
         num_cols = self.header.azimuth_count
-        scp_row = int_func(0.5*num_rows)
-        scp_col = int_func(0.5*num_cols)
+        scp_row = int(0.5*num_rows)
+        scp_col = int(0.5*num_cols)
 
         collection_info = get_collection_info()
         image_creation = get_image_creation()
@@ -1564,7 +1563,7 @@ class _GFFInterpreter2(_GFFInterpreter):
 
         collect_duration = self.header.ap_info.apertureTime
         scp_time_utc_us = numpy.datetime64(datetime(*self.header.ap_info.ApTimeUTC), 'us').astype('int64')
-        start_time = (scp_time_utc_us - int_func(0.5*collect_duration*1e6)).astype('datetime64[us]')
+        start_time = (scp_time_utc_us - int(0.5*collect_duration*1e6)).astype('datetime64[us]')
         tx_pol, tx_rcv_pol = _get_tx_rcv_polarization(
             self.header.ap_info.txPolarization, self.header.ap_info.rxPolarization)
         center_frequency = self.header.ap_info.ctrFreq
@@ -2100,7 +2099,7 @@ class GFFReader(BaseReader, SICDTypeReader):
             file name or GFFDetails object
         """
 
-        if isinstance(gff_details, string_types):
+        if isinstance(gff_details, str):
             gff_details = GFFDetails(gff_details)
         if not isinstance(gff_details, GFFDetails):
             raise TypeError('The input argument for a GFFReader must be a '

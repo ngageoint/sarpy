@@ -3,7 +3,7 @@ Relevance of these unit tests to user:
 There is no configuration of sarpy beyond establishing a python environment with 
 dependencies `numpy>=1.11`, `scipy` (no specific know version required). If you 
 hope to read formats for Cosmo Skymed, KompSat, ICEYE, or NISAR, then you also 
-need package `h5py`. For Python 2.7, you also need the `typing` package. 
+need package `h5py`. 
 
 **This suite of unit tests are really only relevant to developers adding or modifying 
 core capabilities of sarpy.** Users can otherwise safely ignore these tests.
@@ -43,8 +43,8 @@ There are two cases for paths provided for these tests:
 
 Run the Tests:
 --------------
-Unit tests can be run using the command `python setup.py test`. Performing these 
-tests using Python 2.7 also requires the package `unittest2`.
+Unit tests can be run using the command `python setup.py test` or `pytest`, if 
+using pytest.
 
 
 File Sources:

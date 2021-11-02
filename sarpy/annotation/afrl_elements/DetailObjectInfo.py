@@ -10,7 +10,6 @@ from typing import Optional, List
 
 import numpy
 
-from sarpy.compliance import string_types
 from sarpy.io.xml.base import Serializable, Arrayable, create_text_node, create_new_node
 from sarpy.io.xml.descriptors import StringDescriptor, FloatDescriptor, \
     IntegerDescriptor, SerializableDescriptor, SerializableListDescriptor
@@ -834,7 +833,7 @@ class TheObjectType(Serializable):
         self.Size = Size
         self.Orientation = Orientation
 
-        if isinstance(Articulation, string_types):
+        if isinstance(Articulation, str):
             self.Articulation = CompoundCommentType(Value=Articulation)
         elif isinstance(Articulation, list):
             self.Articulation = CompoundCommentType(Comments=Articulation)
@@ -843,7 +842,7 @@ class TheObjectType(Serializable):
         else:
             self.Articulation = Articulation
 
-        if isinstance(Configuration, string_types):
+        if isinstance(Configuration, str):
             self.Configuration = CompoundCommentType(Value=Configuration)
         elif isinstance(Configuration, list):
             self.Configuration = CompoundCommentType(Comments=Configuration)

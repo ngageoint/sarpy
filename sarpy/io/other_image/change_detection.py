@@ -16,7 +16,6 @@ from typing import Union, Dict, Tuple
 
 import numpy
 
-from sarpy.compliance import string_types
 from sarpy.io.general.base import AggregateReader, SarpyIOError
 from sarpy.io.general.nitf import NITFReader
 from sarpy.geometry.geometry_elements import FeatureCollection, Feature, Geometry
@@ -150,7 +149,7 @@ class ChangeDetectionDetails(object):
         self._features = None
         self._head_feature = None
 
-        if not isinstance(file_name, string_types):
+        if not isinstance(file_name, str):
             raise SarpyIOError('file_name is required to be a string path name.')
         if not os.path.isfile(file_name):
             raise SarpyIOError('file_name = {} is not a valid existing file'.format(file_name))
@@ -241,7 +240,7 @@ class ChangeDetectionReader(AggregateReader):
 
         self._pixel_geometries = {}  # type: Dict[str, Geometry]
 
-        if isinstance(change_details, string_types):
+        if isinstance(change_details, str):
             change_details = ChangeDetectionDetails(change_details)
         if not isinstance(change_details, ChangeDetectionDetails):
             raise TypeError(

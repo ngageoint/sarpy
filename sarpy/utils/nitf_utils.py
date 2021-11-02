@@ -18,8 +18,8 @@ import sys
 from xml.dom import minidom
 import os
 from typing import Union, BinaryIO, TextIO, List, Dict
+from io import StringIO
 
-from sarpy.compliance import string_types
 from sarpy.io.general.nitf import NITFDetails
 from sarpy.io.general.nitf_elements.base import NITFElement, TRE, TREList, UserHeaderType
 from sarpy.io.general.nitf_elements.des import DataExtensionHeader, DataExtensionHeader0, \
@@ -33,11 +33,6 @@ from sarpy.io.general.nitf_elements.res import ReservedExtensionHeader, Reserved
 from sarpy.io.general.nitf_elements.symbol import SymbolSegmentHeader
 from sarpy.io.general.nitf_elements.text import TextSegmentHeader, TextSegmentHeader0
 from sarpy.io.general.nitf_elements.tres.tre_elements import TREElement
-
-if sys.version_info[0] < 3:
-    import cStringIO as StringIO
-else:
-    from io import StringIO
 
 
 __classification__ = "UNCLASSIFIED"
@@ -72,7 +67,7 @@ def _filter_files(input_path):
 
 
 def _create_default_output_file(input_file, output_directory=None):
-    if not isinstance(input_file, string_types):
+    if not isinstance(input_file, str):
         if output_directory is None:
             return os.path.expanduser('~/Desktop/header_dump.txt')
         else:
@@ -311,7 +306,7 @@ def print_nitf(file_name, dest=sys.stdout):
 
     details = NITFDetails(file_name)
 
-    if isinstance(file_name, string_types):
+    if isinstance(file_name, str):
         print_func('')
         print_func('Details for file {}'.format(file_name))
         print_func('')

@@ -7,10 +7,6 @@ import re
 
 import numpy
 
-string_types = str
-if sys.version_info[0] < 3:
-    # noinspection PyUnresolvedReferences
-    string_types = basestring
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Wade Schwartzkopf"
@@ -186,7 +182,7 @@ def num(latlon_input):
         if len(latlon_input) == 3:
             return latlon_input[0] + latlon_input[1]/60. + latlon_input[2]/3600.
 
-    if not isinstance(latlon_input, string_types):
+    if not isinstance(latlon_input, str):
         raise ValueError('Expected a (degree, minutes, seconds) tuple of string. '
                          'Got type {}'.format(type(latlon_input)))
     # String input

@@ -1,7 +1,6 @@
 import numpy as np
 import sarpy.io.phase_history.cphd1_elements.utils
-
-from tests import unittest
+import unittest
 
 
 class TestCphd1Utils(unittest.TestCase):

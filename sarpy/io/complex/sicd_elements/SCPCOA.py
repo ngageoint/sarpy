@@ -15,7 +15,7 @@ from sarpy.io.xml.base import Serializable
 from sarpy.io.xml.descriptors import StringEnumDescriptor, FloatDescriptor, \
     SerializableDescriptor
 
-from .base import DEFAULT_STRICT
+from .base import DEFAULT_STRICT, FLOAT_FORMAT
 from .blocks import XYZType
 
 from sarpy.geometry import geocoords
@@ -157,9 +157,10 @@ class SCPCOAType(Serializable):
         'GrazeAng', 'IncidenceAng', 'TwistAng', 'SlopeAng', 'AzimAng', 'LayoverAng')
     _required = _fields
     _numeric_format = {
-        'SCPTime': '0.17E', 'SlantRange': '0.17E', 'GroundRange': '0.17E', 'DopplerConeAng': '0.17E',
-        'GrazeAng': '0.17E', 'IncidenceAng': '0.17E', 'TwistAng': '0.17E', 'SlopeAng': '0.17E',
-        'AzimAng': '0.17E', 'LayoverAng': '0.17E'}
+        'SCPTime': FLOAT_FORMAT, 'SlantRange': '0.17E', 'GroundRange': '0.17E',
+        'DopplerConeAng': FLOAT_FORMAT, 'GrazeAng': FLOAT_FORMAT, 'IncidenceAng': FLOAT_FORMAT,
+        'TwistAng': FLOAT_FORMAT, 'SlopeAng': FLOAT_FORMAT, 'AzimAng': FLOAT_FORMAT,
+        'LayoverAng': FLOAT_FORMAT}
     # class variables
     _SIDE_OF_TRACK_VALUES = ('L', 'R')
     # descriptors

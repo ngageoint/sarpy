@@ -9,7 +9,6 @@ __author__ = "Thomas McCullough"
 import struct
 import numpy
 
-from sarpy.compliance import int_func
 from .base import NITFElement, UserHeaderType, _IntegerDescriptor,\
     _StringDescriptor, _StringEnumDescriptor, _NITFElementDescriptor
 from .security import NITFSecurityTags0
@@ -121,7 +120,7 @@ class SymbolSegmentHeader(NITFElement):
     def _parse_attribute(cls, fields, attribute, value, start):
         if attribute == 'DLUT':
             loc = start
-            nelut = int_func(value[loc:loc + 3])
+            nelut = int(value[loc:loc + 3])
             loc += 3
             if nelut == 0:
                 fields['DLUT'] = None

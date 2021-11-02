@@ -14,7 +14,7 @@ from numpy.linalg import norm
 from sarpy.io.xml.base import Serializable
 from sarpy.io.xml.descriptors import FloatDescriptor, SerializableDescriptor
 
-from .base import DEFAULT_STRICT
+from .base import DEFAULT_STRICT, FLOAT_FORMAT
 from .blocks import Poly1DType
 
 
@@ -28,7 +28,7 @@ class RgAzCompType(Serializable):
 
     _fields = ('AzSF', 'KazPoly')
     _required = _fields
-    _numeric_format = {'AzSF': '0.17E'}
+    _numeric_format = {'AzSF': FLOAT_FORMAT}
     # descriptors
     AzSF = FloatDescriptor(
         'AzSF', _required, strict=DEFAULT_STRICT,

@@ -2,6 +2,7 @@ import os
 import time
 import logging
 import json
+import unittest
 
 from sarpy.io.general.nitf import NITFDetails
 from sarpy.io.general.nitf_elements.image import ImageSegmentHeader
@@ -9,7 +10,7 @@ from sarpy.io.general.nitf_elements.text import TextSegmentHeader
 from sarpy.io.general.nitf_elements.graphics import GraphicsSegmentHeader
 from sarpy.io.general.nitf_elements.des import DataExtensionHeader
 
-from tests import unittest, parse_file_entry
+from tests import parse_file_entry
 
 no_files = False
 test_files = []

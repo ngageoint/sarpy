@@ -10,7 +10,7 @@ from typing import Union, List
 
 import numpy
 
-from .base import DEFAULT_STRICT
+from .base import DEFAULT_STRICT, FLOAT_FORMAT
 
 from sarpy.io.xml.base import Serializable, create_new_node, create_text_node, \
     get_node_value, find_first_child, find_children
@@ -34,7 +34,7 @@ class ParameterType(Serializable):
 
     _fields = ('ParameterName', 'Value')
     _required = _fields
-    _numeric_format = {'Value': '0.17E'}
+    _numeric_format = {'Value': FLOAT_FORMAT}
     # Descriptor
     ParameterName = StringDescriptor(
         'ParameterName', _required, strict=DEFAULT_STRICT,
@@ -98,7 +98,7 @@ class PrimeMeridianType(Serializable):
 
     _fields = ('Name', 'Longitude')
     _required = _fields
-    _numeric_format = {'Longitude': '0.17E'}
+    _numeric_format = {'Longitude': FLOAT_FORMAT}
     # Descriptor
     Name = StringDescriptor(
         'Name', _required, strict=DEFAULT_STRICT,
@@ -132,7 +132,7 @@ class SpheroidType(Serializable):
     """
     _fields = ('SpheroidName', 'SemiMajorAxis', 'InverseFlattening')
     _required = _fields
-    _numeric_format = {'SemiMajorAxis': '0.17E', 'InverseFlattening': '0.17E'}
+    _numeric_format = {'SemiMajorAxis': FLOAT_FORMAT, 'InverseFlattening': FLOAT_FORMAT}
     # Descriptor
     SpheroidName = StringDescriptor(
         'SpheroidName', _required, strict=DEFAULT_STRICT,

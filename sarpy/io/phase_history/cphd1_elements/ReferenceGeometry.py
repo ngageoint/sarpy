@@ -14,7 +14,7 @@ from sarpy.io.xml.descriptors import FloatDescriptor, StringEnumDescriptor, \
     SerializableDescriptor
 from sarpy.io.complex.sicd_elements.blocks import XYZType
 
-from .base import DEFAULT_STRICT
+from .base import DEFAULT_STRICT, FLOAT_FORMAT
 
 
 class SRPType(Serializable):
@@ -61,8 +61,8 @@ class ReferenceGeometryCore(Serializable):
         'GrazeAngle', 'IncidenceAngle', 'AzimuthAngle')
     _required = _fields
     _numeric_format = {
-        'SlantRange': '0.17E', 'GroundRange': '0.17E', 'DopplerConeAngle': '0.17E',
-        'GrazeAngle': '0.17E', 'IncidenceAngle': '0.17E', 'AzimuthAngle': '0.17E'}
+        'SlantRange': FLOAT_FORMAT, 'GroundRange': FLOAT_FORMAT, 'DopplerConeAngle': FLOAT_FORMAT,
+        'GrazeAngle': FLOAT_FORMAT, 'IncidenceAngle': FLOAT_FORMAT, 'AzimuthAngle': FLOAT_FORMAT}
     # descriptors
     SideOfTrack = StringEnumDescriptor(
         'SideOfTrack', ('L', 'R'), _required, strict=DEFAULT_STRICT,
@@ -136,9 +136,9 @@ class MonostaticType(ReferenceGeometryCore):
         'TwistAngle', 'SlopeAngle', 'LayoverAngle')
     _required = _fields
     _numeric_format = {
-        'SlantRange': '0.17E', 'GroundRange': '0.17E', 'DopplerConeAngle': '0.17E',
-        'GrazeAngle': '0.17E', 'IncidenceAngle': '0.17E', 'AzimuthAngle': '0.17E',
-        'TwistAngle': '0.17E', 'SlopeAngle': '0.17E', 'LayoverAngle': '0.17E'}
+        'SlantRange': FLOAT_FORMAT, 'GroundRange': FLOAT_FORMAT, 'DopplerConeAngle': FLOAT_FORMAT,
+        'GrazeAngle': FLOAT_FORMAT, 'IncidenceAngle': FLOAT_FORMAT, 'AzimuthAngle': FLOAT_FORMAT,
+        'TwistAngle': FLOAT_FORMAT, 'SlopeAngle': FLOAT_FORMAT, 'LayoverAngle': FLOAT_FORMAT}
     # descriptors
     ARPPos = SerializableDescriptor(
         'ARPPos', XYZType, _required, strict=DEFAULT_STRICT,
@@ -238,8 +238,8 @@ class BistaticTxRcvType(ReferenceGeometryCore):
         'GrazeAngle', 'IncidenceAngle', 'AzimuthAngle')
     _required = _fields
     _numeric_format = {
-        'Time': '0.17E', 'SlantRange': '0.17E', 'GroundRange': '0.17E', 'DopplerConeAngle': '0.17E',
-        'GrazeAngle': '0.17E', 'IncidenceAngle': '0.17E', 'AzimuthAngle': '0.17E'}
+        'Time': FLOAT_FORMAT, 'SlantRange': FLOAT_FORMAT, 'GroundRange': FLOAT_FORMAT, 'DopplerConeAngle': FLOAT_FORMAT,
+        'GrazeAngle': FLOAT_FORMAT, 'IncidenceAngle': FLOAT_FORMAT, 'AzimuthAngle': FLOAT_FORMAT}
     # descriptors
     Time = FloatDescriptor(
         'Time', _required, strict=DEFAULT_STRICT,
@@ -295,9 +295,9 @@ class BistaticType(Serializable):
         'TxPlatform', 'RcvPlatform')
     _required = _fields
     _numeric_format = {
-        'AzimuthAngle': '0.17E', 'AzimuthAngleRate': '0.17E', 'BistaticAngle': '0.17E',
-        'BistaticAngleRate': '0.17E', 'GrazeAngle': '0.17E', 'TwistAngle': '0.17E',
-        'SlopeAngle': '0.17E', 'LayoverAngle': '0.17E'}
+        'AzimuthAngle': FLOAT_FORMAT, 'AzimuthAngleRate': FLOAT_FORMAT, 'BistaticAngle': FLOAT_FORMAT,
+        'BistaticAngleRate': FLOAT_FORMAT, 'GrazeAngle': FLOAT_FORMAT, 'TwistAngle': FLOAT_FORMAT,
+        'SlopeAngle': FLOAT_FORMAT, 'LayoverAngle': FLOAT_FORMAT}
 
     # descriptors
     AzimuthAngle = FloatDescriptor(
@@ -373,7 +373,7 @@ class ReferenceGeometryType(Serializable):
     _fields = ('SRP', 'ReferenceTime', 'SRPCODTime', 'SRPDwellTime', 'Monostatic', 'Bistatic')
     _required = ('SRP', 'ReferenceTime', 'SRPCODTime', 'SRPDwellTime')
     _choice = ({'required': True, 'collection': ('Monostatic', 'Bistatic')}, )
-    _numeric_format = {'ReferenceTime': '0.17E', 'SRPCODTime': '0.17E', 'SRPDwellTime': '0.17E'}
+    _numeric_format = {'ReferenceTime': FLOAT_FORMAT, 'SRPCODTime': FLOAT_FORMAT, 'SRPDwellTime': FLOAT_FORMAT}
     # descriptors
     SRP = SerializableDescriptor(
         'SRP', SRPType, _required, strict=DEFAULT_STRICT,

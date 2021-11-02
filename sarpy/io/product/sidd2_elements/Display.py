@@ -13,8 +13,9 @@ from sarpy.io.xml.descriptors import SerializableDescriptor, SerializableListDes
     IntegerDescriptor, FloatDescriptor, StringDescriptor, StringEnumDescriptor, \
     ParametersDescriptor, SerializableArrayDescriptor
 
-from .base import DEFAULT_STRICT
+from .base import DEFAULT_STRICT, FLOAT_FORMAT
 from .blocks import FilterType, NewLookupTableType
+
 
 #########
 # NonInteractiveProcessing
@@ -409,7 +410,7 @@ class DRAParametersType(Serializable):
     """
     _fields = ('Pmin', 'Pmax', 'EminModifier', 'EmaxModifier')
     _required = _fields
-    _numeric_format = {key: '0.17E' for key in _fields}
+    _numeric_format = {key: FLOAT_FORMAT for key in _fields}
     # Descriptor
     Pmin = FloatDescriptor(
         'Pmin', _required, strict=DEFAULT_STRICT, bounds=(0, 1),
@@ -457,7 +458,7 @@ class DRAOverridesType(Serializable):
     """
     _fields = ('Subtractor', 'Multiplier')
     _required = _fields
-    _numeric_format = {key: '0.17E' for key in _fields}
+    _numeric_format = {key: FLOAT_FORMAT for key in _fields}
     # Descriptor
     Subtractor = FloatDescriptor(
         'Subtractor', _required, strict=DEFAULT_STRICT, bounds=(0, 2047),

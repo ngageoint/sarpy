@@ -76,7 +76,6 @@ from typing import Union, Tuple, List, Any
 import numpy
 from scipy.interpolate import RectBivariateSpline
 
-from sarpy.compliance import int_func, integer_types, string_types
 from sarpy.io.complex.converter import open_complex
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.base import SICDTypeReader
@@ -1032,7 +1031,7 @@ class OrthorectificationHelper(object):
     def apply_radiometric(self, value):
         if value is None:
             self._apply_radiometric = None
-        elif isinstance(value, string_types):
+        elif isinstance(value, str):
             val = value.upper()
             allowed = ('RCS', 'SIGMA0', 'GAMMA0', 'BETA0')
             if val not in allowed:
@@ -1940,7 +1939,7 @@ class FullResolutionFetcher(object):
         self._block_size = None # set explicitly
 
         # validate the reader
-        if isinstance(reader, string_types):
+        if isinstance(reader, str):
             reader = open_complex(reader)
         if not isinstance(reader, SICDTypeReader):
             raise TypeError('reader is required to be a path name for a sicd-type image, '
@@ -1971,7 +1970,7 @@ class FullResolutionFetcher(object):
 
     @dimension.setter
     def dimension(self, value):
-        value = int_func(value)
+        value = int(value)
         if value not in [0, 1]:
             raise ValueError('dimension must be 0 or 1, got {}'.format(value))
         self._dimension = value
@@ -1999,7 +1998,7 @@ class FullResolutionFetcher(object):
         self._set_index(value)
 
     def _set_index(self, value):
-        value = int_func(value)
+        value = int(value)
         if value < 0:
             raise ValueError('The index must be a non-negative integer, got {}'.format(value))
 
@@ -2037,7 +2036,7 @@ class FullResolutionFetcher(object):
         None|int: The approximate processing block size in bytes.
         """
 
-        return None if self._block_size is None else int_func(self._block_size*(2**20))
+        return None if self._block_size is None else int(self._block_size*(2**20))
 
     @property
     def sicd(self):
@@ -2055,7 +2054,7 @@ class FullResolutionFetcher(object):
             bound = self.data_size[dimension]
             if entry is None:
                 return 0, bound, 1
-            elif isinstance(entry, integer_types):
+            elif isinstance(entry, int):
                 entry = validate_slice_int(entry, bound)
                 return entry, entry+1, 1
             elif isinstance(entry, slice):
@@ -2080,7 +2079,7 @@ class FullResolutionFetcher(object):
                 return parse(None, 0), parse(None, 1), None
         elif isinstance(item, slice):
             return parse(item, 0), parse(None, 1), None
-        elif isinstance(item, integer_types):
+        elif isinstance(item, int):
             return parse(item, 0), parse(None, 1), None
         else:
             raise TypeError('Slicing using type {} is unsupported'.format(type(item)))
@@ -2212,8 +2211,8 @@ class FullResolutionFetcher(object):
         numpy.ndarray
         """
 
-        row_count = int_func((row_range[1] - row_range[0]) / float(row_range[2]))
-        col_count = int_func((col_range[1] - col_range[0]) / float(col_range[2]))
+        row_count = int((row_range[1] - row_range[0]) / float(row_range[2]))
+        col_count = int((col_range[1] - col_range[0]) / float(col_range[2]))
         out_size = (row_count, col_count)
         return numpy.zeros(out_size, dtype=numpy.complex64)
 
@@ -2375,8 +2374,8 @@ class OrthorectificationIterator(object):
         """
 
         return (
-            int_func(self.ortho_bounds[1] - self.ortho_bounds[0]),
-            int_func(self.ortho_bounds[3] - self.ortho_bounds[2]))
+            int(self.ortho_bounds[1] - self.ortho_bounds[0]),
+            int(self.ortho_bounds[3] - self.ortho_bounds[2]))
 
     @property
     def remap_function(self):

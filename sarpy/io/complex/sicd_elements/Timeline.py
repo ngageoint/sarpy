@@ -14,7 +14,7 @@ from sarpy.io.xml.base import Serializable, SerializableArray
 from sarpy.io.xml.descriptors import FloatDescriptor, IntegerDescriptor, \
     DateTimeDescriptor, SerializableDescriptor, SerializableArrayDescriptor
 
-from .base import DEFAULT_STRICT
+from .base import DEFAULT_STRICT, FLOAT_FORMAT
 from .blocks import Poly1DType
 
 
@@ -29,7 +29,7 @@ class IPPSetType(Serializable):
     _fields = ('TStart', 'TEnd', 'IPPStart', 'IPPEnd', 'IPPPoly', 'index')
     _required = _fields
     _set_as_attribute = ('index', )
-    _numeric_format = {'TStart': '0.17E', 'TEnd': '0.17E', }
+    _numeric_format = {'TStart': FLOAT_FORMAT, 'TEnd': FLOAT_FORMAT, }
     # descriptors
     TStart = FloatDescriptor(
         'TStart', _required, strict=DEFAULT_STRICT,
@@ -104,7 +104,7 @@ class TimelineType(Serializable):
     _fields = ('CollectStart', 'CollectDuration', 'IPP')
     _required = ('CollectStart', 'CollectDuration', )
     _collections_tags = {'IPP': {'array': True, 'child_tag': 'Set'}}
-    _numeric_format = {'CollectDuration': '0.17E', }
+    _numeric_format = {'CollectDuration': FLOAT_FORMAT, }
     # descriptors
     CollectStart = DateTimeDescriptor(
         'CollectStart', _required, strict=DEFAULT_STRICT, numpy_datetime_units='us',
@@ -135,6 +135,18 @@ class TimelineType(Serializable):
         self.CollectDuration = CollectDuration
         self.IPP = IPP
         super(TimelineType, self).__init__(**kwargs)
+
+    @property
+    def CollectEnd(self):
+        """
+        None|numpy.datetime64: The collection end time, inferred from `CollectEnd` and `CollectDuration`,
+        provided that both are populated.
+        """
+
+        if self.CollectStart is None or self.CollectDuration is None:
+            return None
+
+        return self.CollectStart + numpy.timedelta64(int(self.CollectDuration*1e6), 'us')
 
     def _check_ipp_consecutive(self):
         if self.IPP is None or len(self.IPP) < 2:

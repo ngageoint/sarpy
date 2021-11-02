@@ -11,7 +11,6 @@ from typing import Union, Tuple, BinaryIO, Sequence
 import numpy
 import warnings
 
-from sarpy.compliance import string_types
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd_elements.utils import is_general_match
 from sarpy.io.general.base import AbstractReader, FlatReader, BaseChipper, is_file_like
@@ -182,7 +181,7 @@ class FlatSICDReader(FlatReader, SICDTypeReader):
             Should we check if the given file already exists, and raise an exception if so?
         """
 
-        if not isinstance(output_file, string_types):
+        if not isinstance(output_file, str):
             raise TypeError(
                 'output_file is expected to a be a string, got type {}'.format(type(output_file)))
 
@@ -257,7 +256,7 @@ def is_hdf5(file_name):
         file_name.seek(0, os.SEEK_SET)
         header = file_name.read(4)
         file_name.seek(current_location, os.SEEK_SET)
-    elif isinstance(file_name, string_types):
+    elif isinstance(file_name, str):
         if not os.path.isfile(file_name):
             return False
 

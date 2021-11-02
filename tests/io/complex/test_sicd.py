@@ -2,13 +2,14 @@ import os
 import json
 import tempfile
 import shutil
+import unittest
 
 from sarpy.io.complex.converter import open_complex, conversion_utility
 import sarpy.io.complex.sicd
 from sarpy.io.complex.sicd import SICDReader
 
 
-from tests import unittest, parse_file_entry
+from tests import parse_file_entry
 
 try:
     from lxml import etree

@@ -13,7 +13,7 @@ from sarpy.io.xml.base import Serializable
 from sarpy.io.xml.descriptors import BooleanDescriptor, FloatDescriptor, \
     SerializableDescriptor, UnitVectorDescriptor
 
-from .base import DEFAULT_STRICT
+from .base import DEFAULT_STRICT, FLOAT_FORMAT
 from .blocks import Poly1DType, Poly2DType, XYZType
 
 from sarpy.geometry import geocoords
@@ -62,7 +62,9 @@ class PFAType(Serializable):
         'FPN', 'IPN', 'PolarAngRefTime', 'PolarAngPoly', 'SpatialFreqSFPoly', 'Krg1', 'Krg2', 'Kaz1', 'Kaz2',
         'STDeskew')
     _required = ('FPN', 'IPN', 'PolarAngRefTime', 'PolarAngPoly', 'SpatialFreqSFPoly', 'Krg1', 'Krg2', 'Kaz1', 'Kaz2')
-    _numeric_format = {'PolarAngRefTime': '0.17E', 'Krg1': '0.17E', 'Krg2': '0.17E', 'Kaz1': '0.17E', 'Kaz2': '0.17E'}
+    _numeric_format = {
+        'PolarAngRefTime': FLOAT_FORMAT, 'Krg1': FLOAT_FORMAT, 'Krg2': FLOAT_FORMAT,
+        'Kaz1': FLOAT_FORMAT, 'Kaz2': FLOAT_FORMAT}
     # descriptors
     FPN = UnitVectorDescriptor(
         'FPN', XYZType, _required, strict=DEFAULT_STRICT,

@@ -10,12 +10,11 @@ from typing import Union
 
 import numpy
 
-from sarpy.compliance import int_func
 from sarpy.io.xml.base import Serializable, Arrayable, get_node_value, create_text_node, create_new_node, find_children
 from sarpy.io.xml.descriptors import SerializableDescriptor, IntegerDescriptor, \
     FloatDescriptor, FloatModularDescriptor, StringDescriptor, StringEnumDescriptor
 
-from .base import DEFAULT_STRICT
+from .base import DEFAULT_STRICT, FLOAT_FORMAT
 from sarpy.io.complex.sicd_elements.blocks import XYZType as XYZTypeBase, XYZPolyType as XYZPolyTypeBase, \
     LatLonType as LatLonTypeBase, LatLonCornerType as LatLonCornerTypeBase, \
     RowColType as RowColIntTypeBase, RowColArrayElement as RowColArrayElementBase, \
@@ -57,7 +56,7 @@ class RangeAzimuthType(Serializable, Arrayable):
     """
     _fields = ('Range', 'Azimuth')
     _required = ('Range', 'Azimuth')
-    _numeric_format = {key: '0.17E' for key in _fields}
+    _numeric_format = {key: FLOAT_FORMAT for key in _fields}
     _child_xml_ns_key = {'Range': 'sicommon', 'Azimuth': 'sicommon'}
     # Descriptor
     Range = FloatDescriptor(
@@ -132,7 +131,7 @@ class AngleMagnitudeType(Serializable, Arrayable):
 
     _fields = ('Angle', 'Magnitude')
     _required = ('Angle', 'Magnitude')
-    _numeric_format = {key: '0.17E' for key in _fields}
+    _numeric_format = {key: FLOAT_FORMAT for key in _fields}
     _child_xml_ns_key = {'Angle': 'sicommon', 'Magnitude': 'sicommon'}
     # Descriptor
     Angle = FloatModularDescriptor(
@@ -212,7 +211,7 @@ class RowColArrayElement(RowColArrayElementBase):
 class RowColDoubleType(Serializable, Arrayable):
     _fields = ('Row', 'Col')
     _required = _fields
-    _numeric_format = {key: '0.17E' for key in _fields}
+    _numeric_format = {key: FLOAT_FORMAT for key in _fields}
     _child_xml_ns_key = {'Row': 'sicommon', 'Col': 'sicommon'}
     # Descriptors
     Row = FloatDescriptor(
@@ -441,7 +440,7 @@ class BankCustomType(Serializable, Arrayable):
     __slots__ = ('_coefs', )
     _fields = ('Coefs', 'numPhasings', 'numPoints')
     _required = ('Coefs', )
-    _numeric_format = {'Coefs': '0.17E'}
+    _numeric_format = {'Coefs': FLOAT_FORMAT}
 
     def __init__(self, Coefs=None, **kwargs):
         """
@@ -538,14 +537,14 @@ class BankCustomType(Serializable, Arrayable):
 
     @classmethod
     def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
-        num_phasings = int_func(node.attrib['numPhasings'])
-        num_points = int_func(node.attrib['numPoints'])
+        num_phasings = int(node.attrib['numPhasings'])
+        num_points = int(node.attrib['numPoints'])
         coefs = numpy.zeros((num_phasings+1, num_points+1), dtype=numpy.float64)
         ckey = cls._child_xml_ns_key.get('Coefs', ns_key)
         coef_nodes = find_children(node, 'Coef', xml_ns, ckey)
         for cnode in coef_nodes:
-            ind1 = int_func(cnode.attrib['phasing'])
-            ind2 = int_func(cnode.attrib['point'])
+            ind1 = int(cnode.attrib['phasing'])
+            ind2 = int(cnode.attrib['point'])
             val = float(get_node_value(cnode))
             coefs[ind1, ind2] = val
         return cls(Coefs=coefs)
@@ -821,8 +820,8 @@ class LUTInfoType(Serializable, Arrayable):
 
     @classmethod
     def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
-        dim1 = int_func(node.attrib['size'])
-        dim2 = int_func(node.attrib['numLuts'])
+        dim1 = int(node.attrib['size'])
+        dim2 = int(node.attrib['numLuts'])
         arr = numpy.zeros((dim1, dim2), dtype=numpy.uint16)
 
         lut_key = cls._child_xml_ns_key.get('LUTValues', ns_key)

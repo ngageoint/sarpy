@@ -13,7 +13,7 @@ from sarpy.io.xml.base import Serializable
 from sarpy.io.xml.descriptors import SerializableDescriptor, IntegerDescriptor, \
     FloatDescriptor, FloatListDescriptor, StringEnumDescriptor
 
-from .base import DEFAULT_STRICT
+from .base import DEFAULT_STRICT, FLOAT_FORMAT
 from .blocks import LatLonType
 
 
@@ -25,7 +25,7 @@ class GeographicCoordinatesType(Serializable):
 
     _fields = ('LongitudeDensity', 'LatitudeDensity', 'ReferenceOrigin')
     _required = ('LongitudeDensity', 'LatitudeDensity', 'ReferenceOrigin')
-    _numeric_format = {'LongitudeDensity': '0.17E', 'LatitudeDensity': '0.17E'}
+    _numeric_format = {'LongitudeDensity': FLOAT_FORMAT, 'LatitudeDensity': FLOAT_FORMAT}
     # Descriptor
     LongitudeDensity = FloatDescriptor(
         'LongitudeDensity', _required, strict=DEFAULT_STRICT,
@@ -136,7 +136,7 @@ class AccuracyType(Serializable):
     _collections_tags = {
         'Horizontals': {'array': False, 'child_tag': 'Horizontal'},
         'Verticals': {'array': False, 'child_tag': 'Vertical'}}
-    _numeric_format = {key: '0.17E' for key in _fields}
+    _numeric_format = {key: FLOAT_FORMAT for key in _fields}
     # Descriptor
     Horizontals = FloatListDescriptor(
         'Horizontals', _collections_tags, _required, strict=DEFAULT_STRICT,

@@ -14,7 +14,6 @@ from numpy.polynomial import polynomial
 from scipy.constants import speed_of_light
 
 from sarpy.io.complex.nisar import _stringify
-from sarpy.compliance import string_types, int_func
 from sarpy.io.complex.base import SICDTypeReader, h5py, is_hdf5
 from sarpy.io.complex.sicd_elements.blocks import Poly2DType, Poly1DType
 from sarpy.io.complex.sicd_elements.SICD import SICDType
@@ -170,16 +169,16 @@ class ICEYEDetails(object):
             else:
                 raise ValueError('Got unhandled sample precision {}'.format(samp_prec))
 
-            num_rows = int_func(number_of_range_samples)
-            num_cols = int_func(number_of_azimuth_samples)
-            scp_row = int_func(coord_center[0]) - 1
-            scp_col = int_func(coord_center[1]) - 1
+            num_rows = int(number_of_range_samples)
+            num_cols = int(number_of_azimuth_samples)
+            scp_row = int(coord_center[0]) - 1
+            scp_col = int(coord_center[1]) - 1
             if 0 < scp_col < num_rows-1:
                 if look_side == 'left':
                     scp_col = num_cols - scp_col - 1
             else:
                 # early ICEYE processing bug led to nonsensical SCP
-                scp_col = int_func(num_cols/2.0)
+                scp_col = int(num_cols/2.0)
 
             return ImageDataType(
                 PixelType=pixel_type,
@@ -205,7 +204,7 @@ class ICEYEDetails(object):
                 CollectStart=start_time,
                 CollectDuration=duration,
                 IPP=[IPPSetType(index=0, TStart=0, TEnd=duration,
-                                IPPStart=0, IPPEnd=int_func(round(acq_prf*duration)),
+                                IPPStart=0, IPPEnd=int(round(acq_prf*duration)),
                                 IPPPoly=[0, acq_prf]), ])
 
         def get_position():
@@ -527,7 +526,7 @@ class ICEYEReader(BaseReader, SICDTypeReader):
             file name or ICEYEDetails object
         """
 
-        if isinstance(iceye_details, string_types):
+        if isinstance(iceye_details, str):
             iceye_details = ICEYEDetails(iceye_details)
         if not isinstance(iceye_details, ICEYEDetails):
             raise TypeError('The input argument for a ICEYEReader must be a '

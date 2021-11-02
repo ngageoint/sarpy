@@ -19,7 +19,7 @@ from sarpy.io.xml.descriptors import StringDescriptor, StringEnumDescriptor, \
     FloatDescriptor, FloatArrayDescriptor, IntegerEnumDescriptor, \
     SerializableDescriptor, UnitVectorDescriptor, ParametersDescriptor
 
-from .base import DEFAULT_STRICT
+from .base import DEFAULT_STRICT, FLOAT_FORMAT
 from .blocks import XYZType, Poly2DType
 from .utils import _get_center_frequency
 
@@ -129,8 +129,9 @@ class DirParamType(Serializable):
         'WgtType', 'WgtFunct')
     _required = ('UVectECF', 'SS', 'ImpRespWid', 'Sgn', 'ImpRespBW', 'KCtr', 'DeltaK1', 'DeltaK2')
     _numeric_format = {
-        'SS': '0.17E', 'ImpRespWid': '0.17E', 'Sgn': '+d', 'ImpRespBW': '0.17E', 'KCtr': '0.17E',
-        'DeltaK1': '0.17E', 'DeltaK2': '0.17E', 'WgtFunct': '0.17E'}
+        'SS': FLOAT_FORMAT, 'ImpRespWid': FLOAT_FORMAT, 'Sgn': '+d',
+        'ImpRespBW': FLOAT_FORMAT, 'KCtr': FLOAT_FORMAT,
+        'DeltaK1': FLOAT_FORMAT, 'DeltaK2': FLOAT_FORMAT, 'WgtFunct': FLOAT_FORMAT}
     _collections_tags = {'WgtFunct': {'array': True, 'child_tag': 'Wgt'}}
     # descriptors
     UVectECF = UnitVectorDescriptor(

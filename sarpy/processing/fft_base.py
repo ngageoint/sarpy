@@ -7,7 +7,6 @@ __author__ = 'Thomas McCullough'
 
 import logging
 
-from sarpy.compliance import int_func
 from sarpy.io.complex.base import SICDTypeReader
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.processing.ortho_rectify import FullResolutionFetcher
@@ -69,7 +68,7 @@ class FFTCalculator(FullResolutionFetcher):
 
     @dimension.setter
     def dimension(self, value):
-        value = int_func(value)
+        value = int(value)
         if value not in [0, 1]:
             raise ValueError('dimension must be 0 or 1, got {}'.format(value))
         self._dimension = value

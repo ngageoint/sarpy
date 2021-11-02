@@ -13,7 +13,7 @@ from sarpy.io.xml.base import Serializable
 from sarpy.io.xml.descriptors import SerializableDescriptor, IntegerDescriptor, \
     FloatArrayDescriptor
 
-from .base import DEFAULT_STRICT
+from .base import DEFAULT_STRICT, FLOAT_FORMAT
 
 
 class J2KSubtype(Serializable):
@@ -23,7 +23,7 @@ class J2KSubtype(Serializable):
     _fields = ('NumWaveletLevels', 'NumBands', 'LayerInfo')
     _required = ('NumWaveletLevels', 'NumBands')
     _collections_tags = {'LayerInfo': {'array': True, 'child_tag': 'Bitrate', 'size_attribute': 'numLayers'}}
-    _numeric_format = {'LayerInfo': '0.17E'}
+    _numeric_format = {'LayerInfo': FLOAT_FORMAT}
     # Descriptor
     NumWaveletLevels = IntegerDescriptor(
         'NumWaveletLevels', _required, strict=DEFAULT_STRICT,
