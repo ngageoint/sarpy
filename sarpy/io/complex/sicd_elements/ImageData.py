@@ -15,7 +15,7 @@ from sarpy.io.xml.descriptors import IntegerDescriptor, FloatArrayDescriptor, \
     StringEnumDescriptor, SerializableDescriptor, SerializableArrayDescriptor
 from sarpy.geometry.geometry_elements import LinearRing
 
-from .base import DEFAULT_STRICT
+from .base import DEFAULT_STRICT, FLOAT_FORMAT
 from .blocks import RowColType, RowColArrayElement
 
 
@@ -98,7 +98,7 @@ class ImageDataType(Serializable):
     _fields = (
         'PixelType', 'AmpTable', 'NumRows', 'NumCols', 'FirstRow', 'FirstCol', 'FullImage', 'SCPPixel', 'ValidData')
     _required = ('PixelType', 'NumRows', 'NumCols', 'FirstRow', 'FirstCol', 'FullImage', 'SCPPixel')
-    _numeric_format = {'AmpTable': '0.17E'}
+    _numeric_format = {'AmpTable': FLOAT_FORMAT}
     _PIXEL_TYPE_VALUES = ("RE32F_IM32F", "RE16I_IM16I", "AMP8I_PHS8I")
     # descriptors
     PixelType = StringEnumDescriptor(

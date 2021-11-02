@@ -16,7 +16,7 @@ import numpy
 from numpy.polynomial import polynomial
 from scipy.constants import speed_of_light
 
-from sarpy.compliance import string_types, bytes_to_string
+from sarpy.compliance import bytes_to_string
 from sarpy.io.complex.base import SICDTypeReader, H5Chipper, h5py, is_hdf5
 from sarpy.io.complex.sicd_elements.blocks import Poly1DType, Poly2DType, RowColType
 from sarpy.io.complex.sicd_elements.SICD import SICDType
@@ -690,7 +690,7 @@ class CSKReader(BaseReader, SICDTypeReader):
             file name or CSKDetails object
         """
 
-        if isinstance(csk_details, string_types):
+        if isinstance(csk_details, str):
             csk_details = CSKDetails(csk_details)
         if not isinstance(csk_details, CSKDetails):
             raise TypeError('The input argument for a CSKReader must be a '

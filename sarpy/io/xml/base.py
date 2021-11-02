@@ -12,10 +12,11 @@ from datetime import date, datetime
 from collections import OrderedDict
 import copy
 import re
+from io import StringIO
 
 import numpy
 
-from sarpy.compliance import string_types, integer_types, int_func, bytes_to_string, StringIO
+from sarpy.compliance import bytes_to_string
 
 
 logger = logging.getLogger(__name__)
@@ -186,7 +187,7 @@ def parse_xml_from_string(xml_string):
 def parse_str(value, name, instance):
     if value is None:
         return None
-    if isinstance(value, string_types):
+    if isinstance(value, str):
         return value
     elif isinstance(value, ElementTree.Element):
         node_value = get_node_value(value)
@@ -211,12 +212,12 @@ def parse_bool(value, name, instance):
         return None
     if isinstance(value, bool):
         return value
-    elif isinstance(value, integer_types) or isinstance(value, numpy.bool_):
+    elif isinstance(value, int) or isinstance(value, numpy.bool_):
         return bool(value)
     elif isinstance(value, ElementTree.Element):
         # from XML deserialization
         return parse_string(get_node_value(value))
-    elif isinstance(value, string_types):
+    elif isinstance(value, str):
         return parse_string(value)
     else:
         raise ValueError('Boolean field {} of class {} cannot assign from type {}.'.format(
@@ -226,14 +227,14 @@ def parse_bool(value, name, instance):
 def parse_int(value, name, instance):
     if value is None:
         return None
-    if isinstance(value, integer_types):
+    if isinstance(value, int):
         return value
     elif isinstance(value, ElementTree.Element):
         # from XML deserialization
         return parse_int(get_node_value(value), name, instance)
-    elif isinstance(value, string_types):
+    elif isinstance(value, str):
         try:
-            return int_func(value)
+            return int(value)
         except ValueError as e:
             logger.warning(
                 'Got non-integer value {}\n\t'
@@ -241,12 +242,12 @@ def parse_int(value, name, instance):
                     value, name, instance.__class__.__name__))
             # noinspection PyBroadException
             try:
-                return int_func(float(value))
+                return int(float(value))
             except Exception:
                 raise e
     else:
         # user or json deserialization
-        return int_func(value)
+        return int(value)
 
 
 # noinspection PyUnusedLocal
@@ -314,7 +315,7 @@ def parse_datetime(value, name, instance, units='us'):
         return None
     if isinstance(value, numpy.datetime64):
         return value
-    elif isinstance(value, string_types):
+    elif isinstance(value, str):
         # handle Z timezone identifier explicitly - any timezone identifier is deprecated
         if value[-1] == 'Z':
             return numpy.datetime64(value[:-1], units)
@@ -325,7 +326,7 @@ def parse_datetime(value, name, instance, units='us'):
         return parse_datetime(get_node_value(value), name, instance, units=units)
     elif isinstance(value, (date, datetime, numpy.int64, numpy.float64)):
         return numpy.datetime64(value, units)
-    elif isinstance(value, integer_types):
+    elif isinstance(value, int):
         # this is less safe, because the units are unknown...
         return numpy.datetime64(value, units)
     else:
@@ -396,7 +397,7 @@ def parse_serializable_array(value, name, instance, child_type, child_tag):
         else:
             xml_ns_key = getattr(instance, '_xml_ns_key', None)
         # this is the parent node from XML deserialization
-        size = int_func(value.attrib.get('size', -1))  # NB: Corner Point arrays don't have
+        size = int(value.attrib.get('size', -1))  # NB: Corner Point arrays don't have
         # extract child nodes at top level
         child_nodes = find_children(value, child_tag, xml_ns, xml_ns_key)
 
@@ -662,7 +663,7 @@ class Serializable(object):
         """
 
         entry = self._numeric_format.get(attribute, None)
-        if isinstance(entry, string_types):
+        if isinstance(entry, str):
             fmt_str = '{0:' + entry + '}'
             return fmt_str.format
         elif callable(entry):
@@ -996,9 +997,9 @@ class Serializable(object):
                 val.to_node(doc, ns_key=the_xml_ns_key, parent=node, check_validity=check_validity, strict=strict)
             elif isinstance(val, bool):  # this must come before int, where it would evaluate as true
                 create_text_node(doc, prim_tag, 'true' if val else 'false', parent=node)
-            elif isinstance(val, string_types):
+            elif isinstance(val, str):
                 create_text_node(doc, prim_tag, val, parent=node)
-            elif isinstance(val, integer_types):
+            elif isinstance(val, int):
                 create_text_node(doc, prim_tag, format_function(val), parent=node)
             elif isinstance(val, float):
                 create_text_node(doc, prim_tag, format_function(val), parent=node)
@@ -1156,7 +1157,7 @@ class Serializable(object):
                 return val.to_json_list(check_validity=check_validity, strict=strict)
             elif isinstance(val, ParametersCollection):
                 return val.to_dict()
-            elif isinstance(val, integer_types) or isinstance(val, string_types) or isinstance(val, float):
+            elif isinstance(val, int) or isinstance(val, str) or isinstance(val, float):
                 return val
             elif isinstance(val, numpy.datetime64):
                 out2 = str(val)
@@ -1254,7 +1255,7 @@ class Serializable(object):
 
         if urn is None:
             pass
-        elif isinstance(urn, string_types):
+        elif isinstance(urn, str):
             node.attrib['xmlns'] = urn
         elif isinstance(urn, dict):
             for key in urn:
@@ -1345,14 +1346,14 @@ class SerializableArray(object):
         self._array = None
         if name is None:
             raise ValueError('The name parameter is required.')
-        if not isinstance(name, string_types):
+        if not isinstance(name, str):
             raise TypeError(
                 'The name parameter is required to be an instance of str, got {}'.format(type(name)))
         self._name = name
 
         if child_tag is None:
             raise ValueError('The child_tag parameter is required.')
-        if not isinstance(child_tag, string_types):
+        if not isinstance(child_tag, str):
             raise TypeError(
                 'The child_tag parameter is required to be an instance of str, got {}'.format(type(child_tag)))
         self._child_tag = child_tag
@@ -1366,12 +1367,12 @@ class SerializableArray(object):
         if minimum_length is None:
             self._minimum_length = self._default_minimum_length
         else:
-            self._minimum_length = max(int_func(minimum_length), 0)
+            self._minimum_length = max(int(minimum_length), 0)
 
         if maximum_length is None:
             self._maximum_length = max(self._default_maximum_length, self._minimum_length)
         else:
-            self._maximum_length = max(int_func(maximum_length), self._minimum_length)
+            self._maximum_length = max(int(maximum_length), self._minimum_length)
 
         self.set_array(coords)
 
@@ -1569,14 +1570,14 @@ class ParametersCollection(object):
         self._xml_ns_key = _xml_ns_key
         if name is None:
             raise ValueError('The name parameter is required.')
-        if not isinstance(name, string_types):
+        if not isinstance(name, str):
             raise TypeError(
                 'The name parameter is required to be an instance of str, got {}'.format(type(name)))
         self._name = name
 
         if child_tag is None:
             raise ValueError('The child_tag parameter is required.')
-        if not isinstance(child_tag, string_types):
+        if not isinstance(child_tag, str):
             raise TypeError(
                 'The child_tag parameter is required to be an instance of str, got {}'.format(type(child_tag)))
         self._child_tag = child_tag
@@ -1593,9 +1594,9 @@ class ParametersCollection(object):
         raise KeyError('Dictionary does not contain key {}'.format(key))
 
     def __setitem__(self, name, value):
-        if not isinstance(name, string_types):
+        if not isinstance(name, str):
             raise ValueError('Parameter name must be of type str, got {}'.format(type(name)))
-        if not isinstance(value, string_types):
+        if not isinstance(value, str):
             raise ValueError('Parameter name must be of type str, got {}'.format(type(value)))
 
         if self._dict is None:
@@ -1622,7 +1623,7 @@ class ParametersCollection(object):
             return None  # nothing to be done
         for name in self._dict:
             value = self._dict[name]
-            if not isinstance(value, string_types):
+            if not isinstance(value, str):
                 value = str(value)
             if ns_key is None:
                 node = create_text_node(doc, self._child_tag, value, parent=parent)

@@ -2,8 +2,6 @@
 Utilities for parsing slice input.
 """
 
-from sarpy.compliance import integer_types, int_func
-
 __classification__ = "UNCLASSIFIED"
 __author__ = 'Thomas McCullough'
 
@@ -24,7 +22,7 @@ def validate_slice_int(the_int, bound, include=True):
     int
     """
 
-    if not isinstance(bound, integer_types) or bound <= 0:
+    if not isinstance(bound, int) or bound <= 0:
         raise TypeError('bound must be a positive integer.')
     if include:
         if the_int <= -bound or the_int >= bound:
@@ -53,7 +51,7 @@ def validate_slice(the_slice, bound):
 
     if not isinstance(the_slice, slice):
         raise TypeError('the_slice must be a of type slice, got type {}.'.format(type(the_slice)))
-    if not isinstance(bound, integer_types) or bound <= 0:
+    if not isinstance(bound, int) or bound <= 0:
         raise TypeError('bound must be a positive integer.')
 
     t_start = the_slice.start

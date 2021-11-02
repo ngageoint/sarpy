@@ -13,7 +13,6 @@ from collections import OrderedDict
 
 import numpy
 
-from sarpy.compliance import int_func, integer_types, string_types
 from sarpy.io.xml.base import parse_xml_from_string
 from sarpy.io.general.utils import validate_range, is_file_like
 from sarpy.io.general.base import AbstractWriter, BaseReader, BIPChipper, SarpyIOError
@@ -75,7 +74,7 @@ class CRSDDetails(object):
         self._crsd_meta = None
         self._close_after = False
 
-        if isinstance(file_object, string_types):
+        if isinstance(file_object, str):
             if not os.path.exists(file_object) or not os.path.isfile(file_object):
                 raise SarpyIOError('path {} does not exist or is not a file'.format(file_object))
             self._file_name = file_object
@@ -83,7 +82,7 @@ class CRSDDetails(object):
             self._close_after = True
         elif is_file_like(file_object):
             self._file_object = file_object
-            if hasattr(file_object, 'name') and isinstance(file_object.name, string_types):
+            if hasattr(file_object, 'name') and isinstance(file_object.name, str):
                 self._file_name = file_object.name
             else:
                 self._file_name = '<file like object>'
@@ -237,7 +236,7 @@ def _validate_crsd_details(crsd_details, version=None):
     CRSDDetails
     """
 
-    if isinstance(crsd_details, string_types):
+    if isinstance(crsd_details, str):
         crsd_details = CRSDDetails(crsd_details)
 
     if not isinstance(crsd_details, CRSDDetails):
@@ -614,13 +613,13 @@ class CRSDReader1_0(CRSDReader):
 
         crsd_meta = self.crsd_details.crsd_meta
 
-        if isinstance(index, string_types):
+        if isinstance(index, str):
             if index in self._channel_map:
                 return self._channel_map[index]
             else:
                 raise KeyError('Cannot find CRSD channel for identifier {}'.format(index))
         else:
-            int_index = int_func(index)
+            int_index = int(index)
             if not (0 <= int_index < crsd_meta.Data.NumCRSDChannels):
                 raise ValueError('index must be in the range [0, {})'.format(crsd_meta.Data.NumCRSDChannels))
             return int_index
@@ -640,13 +639,13 @@ class CRSDReader1_0(CRSDReader):
 
         crsd_meta = self.crsd_details.crsd_meta
 
-        if isinstance(index, string_types):
+        if isinstance(index, str):
             if index in self._channel_map:
                 return index
             else:
                 raise KeyError('Cannot find CRSD channel for identifier {}'.format(index))
         else:
-            int_index = int_func(index)
+            int_index = int(index)
             if not (0 <= int_index < crsd_meta.Data.NumCRSDChannels):
                 raise ValueError('index must be in the range [0, {})'.format(crsd_meta.Data.NumCRSDChannels))
             return crsd_meta.Data.Channels[int_index].Identifier
@@ -665,10 +664,10 @@ class CRSDReader1_0(CRSDReader):
     def read_support_array(self, index, dim1_range, dim2_range):
         # find the support array basic details
         the_entry = None
-        if isinstance(index, integer_types):
+        if isinstance(index, int):
             the_entry = self.crsd_meta.Data.SupportArrays[index]
             identifier = the_entry.Identifier
-        elif isinstance(index, string_types):
+        elif isinstance(index, str):
             identifier = index
             for entry in self.crsd_meta.Data.SupportArrays:
                 if entry.Identifier == index:
@@ -824,13 +823,13 @@ class CRSDWriter1_0(AbstractWriter):
         int
         """
 
-        if isinstance(index, string_types):
+        if isinstance(index, str):
             if index in self._channel_map:
                 return self._channel_map[index]
             else:
                 raise KeyError('Cannot find CRSD channel for identifier {}'.format(index))
         else:
-            int_index = int_func(index)
+            int_index = int(index)
             if not (0 <= int_index < self.crsd_meta.Data.NumCRSDChannels):
                 raise ValueError('index must be in the range [0, {})'.format(self.crsd_meta.Data.NumCRSDChannels))
             return int_index
@@ -848,13 +847,13 @@ class CRSDWriter1_0(AbstractWriter):
         str
         """
 
-        if isinstance(index, string_types):
+        if isinstance(index, str):
             if index in self._channel_map:
                 return index
             else:
                 raise KeyError('Cannot find CRSD channel for identifier {}'.format(index))
         else:
-            int_index = int_func(index)
+            int_index = int(index)
             if not (0 <= int_index < self.crsd_meta.Data.NumCRSDChannels):
                 raise ValueError('index must be in the range [0, {})'.format(self.crsd_meta.Data.NumCRSDChannels))
             return self.crsd_meta.Data.Channels[int_index].Identifier
@@ -872,13 +871,13 @@ class CRSDWriter1_0(AbstractWriter):
         int
         """
 
-        if isinstance(index, string_types):
+        if isinstance(index, str):
             if index in self._support_map:
                 return self._support_map[index]
             else:
                 raise KeyError('Cannot find support array for identifier {}'.format(index))
         else:
-            int_index = int_func(index)
+            int_index = int(index)
             if not (0 <= int_index < len(self.crsd_meta.Data.SupportArrays)):
                 raise ValueError('index must be in the range [0, {})'.format(len(self.crsd_meta.Data.SupportArrays)))
             return int_index
@@ -896,13 +895,13 @@ class CRSDWriter1_0(AbstractWriter):
         str
         """
 
-        if isinstance(index, string_types):
+        if isinstance(index, str):
             if index in self._support_map:
                 return index
             else:
                 raise KeyError('Cannot find support array for identifier {}'.format(index))
         else:
-            int_index = int_func(index)
+            int_index = int(index)
             if not (0 <= int_index < len(self.crsd_meta.Data.SupportArrays)):
                 raise ValueError('index must be in the range [0, {})'.format(len(self.crsd_meta.Data.SupportArrays)))
             return self.crsd_meta.Data.SupportArrays[int_index].Identifier
@@ -986,7 +985,7 @@ class CRSDWriter1_0(AbstractWriter):
         """
 
         def validate_bytes_per_pixel():
-            observed_bytes_per_pixel = int_func(data.nbytes/pixel_count)
+            observed_bytes_per_pixel = int(data.nbytes/pixel_count)
             if observed_bytes_per_pixel != entry.BytesPerElement:
                 raise ValueError(
                     'Observed bytes per pixel {} for support {}, expected '
@@ -1001,7 +1000,7 @@ class CRSDWriter1_0(AbstractWriter):
         entry = self.crsd_meta.Data.SupportArrays[int_index]
         validate_bytes_per_pixel()
 
-        start_indices = (int_func(start_indices[0]), int_func(start_indices[1]))
+        start_indices = (int(start_indices[0]), int(start_indices[1]))
         rows = (start_indices[0], start_indices[0] + data.shape[0])
         columns = (start_indices[1], start_indices[1] + data.shape[1])
 
@@ -1049,7 +1048,7 @@ class CRSDWriter1_0(AbstractWriter):
         entry = self.crsd_meta.Data.Channels[int_index]
         validate_dtype()
 
-        start_index = int_func(start_index)
+        start_index = int(start_index)
         rows = (start_index, start_index + data.shape[0])
 
         if start_index < 0:
@@ -1127,7 +1126,7 @@ class CRSDWriter1_0(AbstractWriter):
         """
 
         def validate_bytes_per_pixel():
-            observed_bytes_per_pixel = int_func(data.nbytes/pixel_count)
+            observed_bytes_per_pixel = int(data.nbytes/pixel_count)
             expected_bytes_per_pixel = self._signal_memmaps[identifier].dtype.itemsize
             if observed_bytes_per_pixel != expected_bytes_per_pixel:
                 raise ValueError(
@@ -1143,7 +1142,7 @@ class CRSDWriter1_0(AbstractWriter):
         entry = self.crsd_meta.Data.Channels[int_index]
         validate_bytes_per_pixel()
 
-        start_indices = (int_func(start_indices[0]), int_func(start_indices[1]))
+        start_indices = (int(start_indices[0]), int(start_indices[1]))
         rows = (start_indices[0], start_indices[0] + data.shape[0])
         columns = (start_indices[1], start_indices[1] + data.shape[1])
 

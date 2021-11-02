@@ -6,7 +6,6 @@ import re
 import logging
 from typing import List
 
-from sarpy.compliance import string_types
 
 logger = logging.getLogger('validation')
 
@@ -54,7 +53,7 @@ def check_urn(urn_string):
     urn_string : str
     """
 
-    if not isinstance(urn_string, string_types):
+    if not isinstance(urn_string, str):
         raise TypeError(
             'Expected a urn input of string type, got type {}'.format(type(urn_string)))
 

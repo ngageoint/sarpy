@@ -20,7 +20,6 @@ import gc
 
 import numpy
 
-from sarpy.compliance import int_func, string_types
 from sarpy.io.general.base import BaseReader, AbstractWriter, SubsetChipper, \
     AggregateChipper, BIPChipper, BIPWriter, BSQChipper, BIRChipper, SarpyIOError
 # noinspection PyProtectedMember
@@ -168,7 +167,7 @@ class NITFDetails(object):
         self._file_object = None
         self._close_after = False
 
-        if isinstance(file_object, string_types):
+        if isinstance(file_object, str):
             if not os.path.isfile(file_object):
                 raise SarpyIOError('Path {} is not a file'.format(file_object))
             self._file_name = file_object
@@ -176,7 +175,7 @@ class NITFDetails(object):
             self._close_after = True
         elif is_file_like(file_object):
             self._file_object = file_object
-            if hasattr(file_object, 'name') and isinstance(file_object.name, string_types):
+            if hasattr(file_object, 'name') and isinstance(file_object.name, str):
                 self._file_name = file_object.name
             else:
                 self._file_name = '<file like object>'
@@ -199,7 +198,7 @@ class NITFDetails(object):
             raise SarpyIOError('Unsupported NITF version {} for file {}'.format(self._nitf_version, self._file_name))
         if self._nitf_version == '02.10':
             self._file_object.seek(354, os.SEEK_SET)  # offset to header length field
-            header_length = int_func(self._file_object.read(6))
+            header_length = int(self._file_object.read(6))
             # go back to the beginning of the file, and parse the whole header
             self._file_object.seek(0, os.SEEK_SET)
             header_string = self._file_object.read(header_length)
@@ -212,7 +211,7 @@ class NITFDetails(object):
                 self._file_object.seek(40, os.SEEK_CUR)
             # seek to header length field
             self._file_object.seek(68, os.SEEK_CUR)
-            header_length = int_func(self._file_object.read(6))
+            header_length = int(self._file_object.read(6))
             self._file_object.seek(0, os.SEEK_SET)
             header_string = self._file_object.read(header_length)
             self._nitf_header = NITFHeader0.from_bytes(header_string, 0)
@@ -339,8 +338,8 @@ class NITFDetails(object):
                     offsets.size, name, index))
         the_offset = offsets[index]
         the_size = sizes[index]
-        self._file_object.seek(int_func(the_offset), os.SEEK_SET)
-        the_item = self._file_object.read(int_func(the_size))
+        self._file_object.seek(int(the_offset), os.SEEK_SET)
+        the_item = self._file_object.read(int(the_size))
         return the_item
 
     def get_image_subheader_bytes(self, index):
@@ -383,7 +382,7 @@ class NITFDetails(object):
             raise ValueError('Unhandled version {}'.format(self.nitf_version))
         if out.is_masked:
             # read the mask subheader bytes
-            the_offset = int_func(self.img_segment_offsets[index])
+            the_offset = int(self.img_segment_offsets[index])
             self._file_object.seek(the_offset, os.SEEK_SET)
             the_size = struct.unpack('>I', self._file_object.read(4))[0]
             self._file_object.seek(the_offset, os.SEEK_SET)
@@ -859,7 +858,7 @@ class NITFReader(BaseReader):
 
         self._symmetry = symmetry
         self._cached_files = []
-        if isinstance(nitf_details, string_types) or is_file_like(nitf_details):
+        if isinstance(nitf_details, str) or is_file_like(nitf_details):
             nitf_details = NITFDetails(nitf_details)
         if not isinstance(nitf_details, NITFDetails):
             raise TypeError('The input argument for NITFReader must be a NITFDetails object.')
@@ -951,7 +950,7 @@ class NITFReader(BaseReader):
 
         img_header = self.nitf_details.img_headers[index]
         nbpp = img_header.NBPP  # previously verified to be one of 8, 16, 32, 64
-        bpp = int_func(nbpp/8)  # bytes per pixel per band
+        bpp = int(nbpp/8)  # bytes per pixel per band
         pvtype = img_header.PVTYPE
         if img_header.ICAT.strip() in ['SAR', 'SARIQ'] and ((len(img_header.Bands) % 2) == 0):
             cont = True
@@ -1071,12 +1070,12 @@ class NITFReader(BaseReader):
         bounds = []
         chippers = []
         # NB: NBPP previously verified to be one of 8, 16, 32, 64
-        bytes_per_pixel = int_func(img_header.NBPP*raw_bands/8)
+        bytes_per_pixel = int(img_header.NBPP*raw_bands/8)
 
         # outer loop over rows inner loop over columns
         current_offset = 0
         block_row_end = 0
-        block_offset = int_func(img_header.NPPBH*img_header.NPPBV*bytes_per_pixel)
+        block_offset = int(img_header.NPPBH*img_header.NPPBV*bytes_per_pixel)
         enumerated_block = 0
         for vblock in range(img_header.NBPC):
             # define the current row block start/end
@@ -1117,7 +1116,7 @@ class NITFReader(BaseReader):
                             self.file_object, raw_dtype, (chip_rows, chip_cols),
                             raw_bands, output_bands, output_dtype,
                             symmetry=self._symmetry, transform_data=transform_data,
-                            data_offset=int_func(current_offset+data_offset), limit_to_raw_bands=limit_to_raw_bands))
+                            data_offset=int(current_offset+data_offset), limit_to_raw_bands=limit_to_raw_bands))
                 else:
                     c_row_start, c_row_end = 0, chip_rows
                     c_col_start, c_col_end = 0, block_col_end - block_col_start
@@ -1132,7 +1131,7 @@ class NITFReader(BaseReader):
                         self.file_object, raw_dtype, (chip_rows, chip_cols),
                         raw_bands, output_bands, output_dtype,
                         symmetry=self._symmetry, transform_data=transform_data,
-                        data_offset=int_func(current_offset+data_offset), limit_to_raw_bands=limit_to_raw_bands)
+                        data_offset=int(current_offset+data_offset), limit_to_raw_bands=limit_to_raw_bands)
                     chippers.append(SubsetChipper(p_chipper, (c_row_start, c_row_end), (c_col_start, c_col_end)))
 
                 # update the block and offset
@@ -1166,7 +1165,7 @@ class NITFReader(BaseReader):
             # it's one single block
             chippers = []
             current_offset = 0
-            block_offset = int_func(this_rows*this_cols*img_header.NBPP)
+            block_offset = int(this_rows*this_cols*img_header.NBPP)
 
             for i in range(raw_bands):
                 chippers.append(BIPChipper(
@@ -1198,7 +1197,7 @@ class NITFReader(BaseReader):
         exclude_value = 0xFFFFFFFF  # only used if there is a mask...
 
         row_block_size, column_block_size = self._get_block_sizes(img_header, this_rows, this_cols)
-        block_offset = int_func(row_block_size*column_block_size*img_header.NBPP/8)  # verified to be integer already
+        block_offset = int(row_block_size*column_block_size*img_header.NBPP/8)  # verified to be integer already
         num_blocks = img_header.NBPC*img_header.NBPR
         bip_chippers = [[] for _ in range(num_blocks)]
 
@@ -1220,12 +1219,12 @@ class NITFReader(BaseReader):
                 else:
                     this_offset = offsets[band_number, block_number]
                 block_bounds = bounds[block_number]
-                block_rows = int_func(block_bounds[1] - block_bounds[0])
-                block_cols = int_func(block_bounds[3] - block_bounds[2])
+                block_rows = int(block_bounds[1] - block_bounds[0])
+                block_cols = int(block_bounds[3] - block_bounds[2])
                 bip_chippers[block_number].append(
                     BIPChipper(
                         self.file_object, raw_dtype, (block_rows, block_cols), 1, 1, raw_dtype,
-                        symmetry=self._symmetry, transform_data=None, data_offset=int_func(data_offset+this_offset),
+                        symmetry=self._symmetry, transform_data=None, data_offset=int(data_offset+this_offset),
                         limit_to_raw_bands=None))
 
         bsq_chippers = []
@@ -1253,7 +1252,7 @@ class NITFReader(BaseReader):
             # it's one single block
             chippers = []
             current_offset = 0
-            block_offset = int_func(this_rows*this_cols*img_header.NBPP)
+            block_offset = int(this_rows*this_cols*img_header.NBPP)
 
             for i in range(raw_bands):
                 chippers.append(BIPChipper(
@@ -1284,7 +1283,7 @@ class NITFReader(BaseReader):
         exclude_value = 0xFFFFFFFF  # only used if there is a mask...
 
         row_block_size, column_block_size = self._get_block_sizes(img_header, this_rows, this_cols)
-        band_offset = int_func(row_block_size*column_block_size*img_header.NBPP/8)  # verified to be integer already
+        band_offset = int(row_block_size*column_block_size*img_header.NBPP/8)  # verified to be integer already
 
         num_blocks = img_header.NBPC*img_header.NBPR
         bsq_chippers = [None for _ in range(num_blocks)]  # type: List[Union[None, BSQChipper]]
@@ -1301,8 +1300,8 @@ class NITFReader(BaseReader):
             bip_chippers = []
             for band_number in range(raw_bands):
                 block_bounds = bounds[block_number]
-                block_rows = int_func(block_bounds[1] - block_bounds[0])
-                block_cols = int_func(block_bounds[3] - block_bounds[2])
+                block_rows = int(block_bounds[1] - block_bounds[0])
+                block_cols = int(block_bounds[3] - block_bounds[2])
                 this_offset = band_number*band_offset
                 bip_chippers.append(
                     BIPChipper(
@@ -1367,12 +1366,12 @@ class NITFReader(BaseReader):
         bounds = []
         chippers = []
         # NB: NBPP previously verified to be one of 8, 16, 32, 64
-        bytes_per_pixel = int_func(img_header.NBPP*raw_bands/8)
+        bytes_per_pixel = int(img_header.NBPP*raw_bands/8)
 
         # outer loop over rows inner loop over columns
         current_offset = 0
         block_row_end = 0
-        block_offset = int_func(img_header.NPPBH*img_header.NPPBV*bytes_per_pixel)
+        block_offset = int(img_header.NPPBH*img_header.NPPBV*bytes_per_pixel)
         enumerated_block = 0
         for vblock in range(img_header.NBPC):
             # define the current row block start/end
@@ -1415,7 +1414,7 @@ class NITFReader(BaseReader):
                             self.file_object, raw_dtype, (chip_rows, chip_cols),
                             raw_bands, output_bands, output_dtype,
                             symmetry=self._symmetry, transform_data=transform_data,
-                            data_offset=int_func(current_offset+data_offset), limit_to_raw_bands=limit_to_raw_bands))
+                            data_offset=int(current_offset+data_offset), limit_to_raw_bands=limit_to_raw_bands))
                 else:
                     c_row_start, c_row_end = 0, chip_rows
                     c_col_start, c_col_end = 0, block_col_end - block_col_start
@@ -1430,7 +1429,7 @@ class NITFReader(BaseReader):
                         self.file_object, raw_dtype, (chip_rows, chip_cols),
                         raw_bands, output_bands, output_dtype,
                         symmetry=self._symmetry, transform_data=transform_data,
-                        data_offset=int_func(current_offset+data_offset), limit_to_raw_bands=limit_to_raw_bands)
+                        data_offset=int(current_offset+data_offset), limit_to_raw_bands=limit_to_raw_bands)
                     chippers.append(SubsetChipper(p_chipper, (c_row_start, c_row_end), (c_col_start, c_col_end)))
 
                 # update the block and offset
@@ -1734,10 +1733,10 @@ class ImageDetails(object):
 
         self._subheader_offset = None
         self._item_offset = None
-        self._pixels_written = int_func(0)
+        self._pixels_written = 0
         self._subheader_written = False
 
-        self._bands = int_func(bands)
+        self._bands = int(bands)
         if self._bands <= 0:
             raise ValueError('bands must be positive.')
         self._dtype = dtype
@@ -1746,8 +1745,8 @@ class ImageDetails(object):
         if len(parent_index_range) != 4:
             raise ValueError('parent_index_range must have length 4.')
         self._parent_index_range = (
-            int_func(parent_index_range[0]), int_func(parent_index_range[1]),
-            int_func(parent_index_range[2]), int_func(parent_index_range[3]))
+            int(parent_index_range[0]), int(parent_index_range[1]),
+            int(parent_index_range[2]), int(parent_index_range[3]))
 
         if self._parent_index_range[0] < 0 or self._parent_index_range[1] <= self._parent_index_range[0]:
             raise ValueError(
@@ -1800,7 +1799,7 @@ class ImageDetails(object):
         if self._subheader_offset is not None:
             logger.warning("subheader_offset is read only after being initially defined.")
             return
-        self._subheader_offset = int_func(value)
+        self._subheader_offset = int(value)
         self._item_offset = self._subheader_offset + self._subheader.get_bytes_length()
 
     @property
@@ -1833,7 +1832,7 @@ class ImageDetails(object):
         int: The size of the image in bytes.
         """
 
-        return int_func(self.total_pixels*self.subheader.NBPP*len(self.subheader.Bands)/8)
+        return int(self.total_pixels*self.subheader.NBPP*len(self.subheader.Bands)/8)
 
     @property
     def pixels_written(self):
@@ -1910,10 +1909,10 @@ class ImageDetails(object):
             st, ed = None, None
             if this_start <= parent_start <= this_end:
                 st = parent_start
-                ed = min(int_func(this_end), parent_end)
+                ed = min(int(this_end), parent_end)
             elif parent_start <= this_start <= parent_end:
-                st = int_func(this_start)
-                ed = min(int_func(this_end), parent_end)
+                st = int(this_start)
+                ed = min(int(this_end), parent_end)
             return st, ed
 
         # do the rows overlap?
@@ -2016,7 +2015,7 @@ class DESDetails(object):
         if self._subheader_offset is not None:
             logger.warning("subheader_offset is read only after being initially defined.")
             return
-        self._subheader_offset = int_func(value)
+        self._subheader_offset = int(value)
         self._item_offset = self._subheader_offset + self._subheader.get_bytes_length()
 
     @property
@@ -2110,7 +2109,7 @@ def image_segmentation(rows, cols, pixel_size):
         # how many bytes per row for this column section
         row_memory_size = (col_limit - col_offset) * pixel_size
         # how many rows can we use
-        row_count = min(dim_limit, rows - row_offset, int_func(im_seg_limit / row_memory_size))
+        row_count = min(dim_limit, rows - row_offset, int(im_seg_limit / row_memory_size))
         im_segments.append((row_offset, row_offset + row_count, col_offset, col_limit))
         row_offset += row_count  # move the next row offset
         if row_offset == rows:
@@ -2481,9 +2480,9 @@ class NITFWriter(AbstractWriter):
                 return 3
             elif file_size < (1024**3):
                 return 5
-            elif file_size < 2*(int_func(1024)**3):
+            elif file_size < 2*(int(1024)**3):
                 return 6
-            elif file_size < 10*(int_func(1024)**3):
+            elif file_size < 10*(int(1024)**3):
                 return 7
             else:
                 return 9
@@ -2547,7 +2546,7 @@ class NITFWriter(AbstractWriter):
         self.prepare_for_writing()  # no effect if already called
 
         # validate the index and data arguments
-        start_indices = (int_func(start_indices[0]), int_func(start_indices[1]))
+        start_indices = (int(start_indices[0]), int(start_indices[1]))
         shape = self._shapes[index]
 
         if (start_indices[0] < 0) or (start_indices[1] < 0):
@@ -2765,8 +2764,8 @@ class MemMap(object):
         """
 
         # length and offset validation
-        length = int_func(length)
-        offset = int_func(offset)
+        length = int(length)
+        offset = int(offset)
         if length < 0 or offset < 0:
             raise ValueError(
                 'length ({}) and offset ({}) must be non-negative integers'.format(length, offset))
@@ -2785,8 +2784,8 @@ class MemMap(object):
         return self._mem_map.tell() - self._offset_shift
 
     def seek(self, pos, whence=0):
-        whence = int_func(whence)
-        pos = int_func(pos)
+        whence = int(whence)
+        pos = int(pos)
         if whence == 0:
             self._mem_map.seek(pos+self._offset_shift, 0)
         else:

@@ -15,7 +15,7 @@ import numpy
 from numpy.polynomial import polynomial
 from scipy.constants import speed_of_light
 
-from sarpy.compliance import string_types, int_func, bytes_to_string
+from sarpy.compliance import bytes_to_string
 from sarpy.io.complex.base import SICDTypeReader, H5Chipper, h5py, is_hdf5
 from sarpy.io.complex.sicd_elements.blocks import Poly2DType
 from sarpy.io.complex.sicd_elements.SICD import SICDType
@@ -613,7 +613,7 @@ class NISARDetails(object):
             t_sicd.GeoData.SCP = SCPType(ECF=ecf)  # LLH will be populated
 
         t_sicd = base_sicd.copy()
-        shape = (int_func(ds.shape[1]), int_func(ds.shape[0]))
+        shape = (int(ds.shape[1]), int(ds.shape[0]))
 
         define_image_data()
         update_image_formation()
@@ -704,7 +704,7 @@ class NISARReader(BaseReader, SICDTypeReader):
             file name or NISARDetails object
         """
 
-        if isinstance(nisar_details, string_types):
+        if isinstance(nisar_details, str):
             nisar_details = NISARDetails(nisar_details)
         if not isinstance(nisar_details, NISARDetails):
             raise TypeError('The input argument for NISARReader must be a '

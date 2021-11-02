@@ -14,7 +14,7 @@ from sarpy.io.xml.descriptors import FloatDescriptor, SerializableDescriptor, \
 from sarpy.io.complex.sicd_elements.blocks import ErrorDecorrFuncType
 from sarpy.io.complex.sicd_elements.ErrorStatistics import PosVelErrType, TropoErrorType
 
-from .base import DEFAULT_STRICT
+from .base import DEFAULT_STRICT, FLOAT_FORMAT
 
 
 class RadarSensorType(Serializable):
@@ -24,7 +24,7 @@ class RadarSensorType(Serializable):
 
     _fields = ('RangeBias', 'ClockFreqSF', 'RefTimeError', 'RangeBiasDecorr')
     _required = ('RangeBias', )
-    _numeric_format = {'RangeBias': '0.17E', 'ClockFreqSF': '0.17E', 'RefTimeError': '0.17E'}
+    _numeric_format = {'RangeBias': FLOAT_FORMAT, 'ClockFreqSF': FLOAT_FORMAT, 'RefTimeError': FLOAT_FORMAT}
     # descriptors
     RangeBias = FloatDescriptor(
         'RangeBias', _required, strict=DEFAULT_STRICT, bounds=(0, None),
@@ -71,7 +71,7 @@ class IonoErrorType(Serializable):
 
     _fields = ('IonoRangeVertical', 'IonoRangeRateVertical', 'IonoRgRgRateCC', 'IonoRangeVertDecorr')
     _required = ('IonoRangeVertical', )
-    _numeric_format = {'IonoRangeVertical': '0.17E', 'IonoRangeRateVertical': '0.17E', 'IonoRgRgRateCC': '0.17E'}
+    _numeric_format = {'IonoRangeVertical': FLOAT_FORMAT, 'IonoRangeRateVertical': FLOAT_FORMAT, 'IonoRgRgRateCC': FLOAT_FORMAT}
     # descriptors
     IonoRangeVertical = FloatDescriptor(
         'IonoRangeVertical', _required, strict=DEFAULT_STRICT, bounds=(0, None),
@@ -119,7 +119,7 @@ class BistaticRadarSensorType(Serializable):
 
     _fields = ('ClockFreqSF', 'RefTimeError')
     _required = tuple()
-    _numeric_format = {'ClockFreqSF': '0.17E', 'RefTimeError': '0.17E'}
+    _numeric_format = {'ClockFreqSF': FLOAT_FORMAT, 'RefTimeError': FLOAT_FORMAT}
     # descriptors
     ClockFreqSF = FloatDescriptor(
         'ClockFreqSF', _required, strict=DEFAULT_STRICT, bounds=(0, None),
@@ -155,7 +155,7 @@ class ReceiveSensorType(Serializable):
 
     _fields = ('RcvDelayBias', 'ClockFreqSF', 'RefTimeError')
     _required = ('RcvDelayBias', )
-    _numeric_format = {'ClockFreqSF': '0.17E', 'RefTimeError': '0.17E'}
+    _numeric_format = {'ClockFreqSF': FLOAT_FORMAT, 'RefTimeError': FLOAT_FORMAT}
     # descriptors
     RcvDelayBias = FloatDescriptor(
         'RcvDelayBias', _required, strict=DEFAULT_STRICT, bounds=(0, None),

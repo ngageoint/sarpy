@@ -34,7 +34,6 @@ import os
 
 import numpy
 
-from sarpy.compliance import int_func, integer_types
 from sarpy.processing.ortho_rectify import OrthorectificationHelper, \
     NearestNeighborMethod, PGProjection, FullResolutionFetcher, \
     OrthorectificationIterator
@@ -207,8 +206,8 @@ def _get_sicd_time_args(sicd, subdivisions=24):
     if sicd.Timeline.CollectDuration is None:
         return {'when': str(beg_time)+'Z',}, None
 
-    end_time = beg_time + int_func(sicd.Timeline.CollectDuration*1e6)
-    if not isinstance(subdivisions, integer_types) or subdivisions < 2:
+    end_time = beg_time + int(sicd.Timeline.CollectDuration*1e6)
+    if not isinstance(subdivisions, int) or subdivisions < 2:
         time_array = None
     else:
         time_array = numpy.linspace(0, sicd.Timeline.CollectDuration, subdivisions)
@@ -346,7 +345,7 @@ def _write_arp_location(kmz_document, sicd, time_args, time_array, folder):
     if numpy.any(~numpy.isfinite(arp_llh)):
         logger.error('There are nonsense entries (nan or +/- infinity) in the aperture location.')
     coords = ['{1:0.8f},{0:0.8f},{2:0.2f}'.format(*el) for el in arp_llh]
-    whens = [str(sicd.Timeline.CollectStart.astype('datetime64[us]') + int_func(el*1e6)) + 'Z' for el in time_array]
+    whens = [str(sicd.Timeline.CollectStart.astype('datetime64[us]') + int(el*1e6)) + 'Z' for el in time_array]
     placemark = kmz_document.add_container(par=folder, description='aperture position for {}'.format(_get_sicd_name(sicd)), styleUrl='#arp', **time_args)
     kmz_document.add_gx_track(coords, whens, par=placemark, extrude=True, tesselate=True, altitudeMode='absolute')
     return arp_llh
@@ -598,7 +597,7 @@ def add_sicd_to_kmz(kmz_document, reader, index=0, pixel_limit=2048,
         raise TypeError('reader must be a instance of SICDTypeReader. Got type {}'.format(type(reader)))
 
     if pixel_limit is not None:
-        pixel_limit = int_func(pixel_limit)
+        pixel_limit = int(pixel_limit)
         if pixel_limit < 512:
             pixel_limit = 512
 

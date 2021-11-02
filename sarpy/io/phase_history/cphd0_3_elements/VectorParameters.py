@@ -8,7 +8,6 @@ __author__ = "Thomas McCullough"
 from typing import Union
 import numpy
 
-from sarpy.compliance import integer_types
 from sarpy.io.phase_history.cphd1_elements.base import DEFAULT_STRICT
 from sarpy.io.xml.base import Serializable
 from sarpy.io.xml.descriptors import SerializableDescriptor, IntegerEnumDescriptor
@@ -262,7 +261,7 @@ class VectorParametersType(Serializable):
             val = getattr(self, fld)
             if val is None:
                 pass
-            elif isinstance(val, integer_types):
+            elif isinstance(val, int):
                 out += val
             elif isinstance(val, (FxParametersType, TOAParametersType)):
                 out += val.get_size()
@@ -294,7 +293,7 @@ class VectorParametersType(Serializable):
 
             if val is None:
                 pass
-            elif isinstance(val, integer_types):
+            elif isinstance(val, int):
                 out += val
             elif isinstance(val, (FxParametersType, TOAParametersType)):
                 res = val.get_position_offset_and_size(field)
@@ -324,8 +323,8 @@ class VectorParametersType(Serializable):
             if fld in ['FxParameters', 'TOAParameters']:
                 the_type_info.extend(val.get_dtype_components())
             else:
-                assert isinstance(val, integer_types), 'CPHD 0.3 PVP field {} ' \
-                                                       'should be an integer, got {}'.format(fld, val)
+                assert isinstance(val, int), 'CPHD 0.3 PVP field {} ' \
+                                             'should be an integer, got {}'.format(fld, val)
                 if val == 8:
                     the_type_info.append((fld, '>f8'))
                 elif val == 24:

@@ -12,7 +12,6 @@ import numpy
 import logging
 from typing import Union, List, Tuple
 
-from sarpy.compliance import int_func
 from sarpy.io.general.base import SarpyIOError, check_for_openers
 from sarpy.io.general.nitf import NITFReader
 from sarpy.io.general.utils import is_file_like
@@ -180,7 +179,7 @@ class Converter(object):
         if frame is None:
             self._frame = 0
         else:
-            self._frame = int_func(frame)
+            self._frame = int(frame)
         if not (0 <= self._frame < len(sicds)):
             raise ValueError(
                 'Got a frame {}, but it must be between 0 and {}'.format(frame, len(sicds)))
@@ -191,7 +190,7 @@ class Converter(object):
         if row_limits is None:
             row_limits = (0, this_shape[0])
         else:
-            row_limits = (int_func(row_limits[0]), int_func(row_limits[1]))
+            row_limits = (int(row_limits[0]), int(row_limits[1]))
             if not ((0 <= row_limits[0] < this_shape[0]) and (row_limits[0] < row_limits[1] <= this_shape[0])):
                 raise ValueError(
                     'Entries of row_limits must be monotonically increasing '
@@ -199,7 +198,7 @@ class Converter(object):
         if col_limits is None:
             col_limits = (0, this_shape[1])
         else:
-            col_limits = (int_func(col_limits[0]), int_func(col_limits[1]))
+            col_limits = (int(col_limits[0]), int(col_limits[1]))
             if not ((0 <= col_limits[0] < this_shape[1]) and (col_limits[0] < col_limits[1] <= this_shape[1])):
                 raise ValueError(
                     'Entries of col_limits must be monotonically increasing '
@@ -225,7 +224,7 @@ class Converter(object):
 
     def _get_rows_per_block(self, max_block_size):
         pixel_type = self._writer.sicd_meta.ImageData.PixelType
-        cols = int_func(self._writer.sicd_meta.ImageData.NumCols)
+        cols = int(self._writer.sicd_meta.ImageData.NumCols)
         bytes_per_row = 8*cols
         if pixel_type == 'RE32F_IM32F':
             bytes_per_row = 8*cols
@@ -233,7 +232,7 @@ class Converter(object):
             bytes_per_row = 4*cols
         elif pixel_type == 'AMP8I_PHS8I':
             bytes_per_row = 2*cols
-        return max(1, int_func(round(max_block_size/bytes_per_row)))
+        return max(1, int(round(max_block_size/bytes_per_row)))
 
     @property
     def writer(self):  # type: () -> Union[SICDWriter, SIOWriter]
@@ -260,7 +259,7 @@ class Converter(object):
         if max_block_size is None:
             max_block_size = 2**26
         else:
-            max_block_size = int_func(max_block_size)
+            max_block_size = int(max_block_size)
             if max_block_size < 2**20:
                 max_block_size = 2**20
 
@@ -349,8 +348,8 @@ def conversion_utility(
                 if o_lims.shape[0] != 2:
                     raise ValueError(
                         'row{}_limits must be of the form (<start>, <end>), got {}'.format(typ, lims))
-                t_start = int_func(o_lims[0])
-                t_end = int_func(o_lims[1])
+                t_start = int(o_lims[0])
+                t_end = int(o_lims[1])
                 for i_frame, shp in zip(frames, sizes):
                     validate_entry(t_start, t_end, shp, i_frame)
                     t_lims.append((t_start, t_end))
@@ -363,8 +362,8 @@ def conversion_utility(
                         'Got len({0:s}_limits) = {1:d} and len(frames) = {2:d}'.format(
                             typ, o_lims.shape[0], len(frames)))
                 for entry, i_frame, shp in zip(o_lims, frames, sizes):
-                    t_start = int_func(entry[0])
-                    t_end = int_func(entry[1])
+                    t_start = int(entry[0])
+                    t_end = int(entry[1])
                     validate_entry(t_start, t_end, shp, i_frame)
                     t_lims.append((t_start, t_end))
             return tuple(t_lims)
@@ -399,12 +398,12 @@ def conversion_utility(
     if isinstance(frames, int):
         frames = (frames, )
     if not isinstance(frames, tuple):
-        frames = tuple(int_func(entry) for entry in frames)
+        frames = tuple(int(entry) for entry in frames)
     if len(frames) == 0:
         raise ValueError('The list of frames is empty.')
     o_frames = []
     for frame in frames:
-        index = int_func(frame)
+        index = int(frame)
         if not (0 <= index < len(sicds)):
             raise ValueError(
                 'Got a frames entry {}, but it must be between 0 and {}'.format(index, len(sicds)))
@@ -427,7 +426,7 @@ def conversion_utility(
         if len(sicds) == 1:
             output_files = [output_files, ]
         else:
-            digits = int_func(numpy.ceil(numpy.log10(len(sicds))))
+            digits = int(numpy.ceil(numpy.log10(len(sicds))))
             frm_str = '{0:s}-{1:0' + str(digits) + 'd}{2:s}'
             fstem, fext = os.path.splitext(output_files)
             o_files = []

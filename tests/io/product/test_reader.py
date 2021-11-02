@@ -1,11 +1,12 @@
 import logging
 import os
 import json
+import unittest
 
 from sarpy.io.product.converter import open_product
 from sarpy.io.product.sidd import SIDDReader
 
-from tests import unittest, parse_file_entry
+from tests import parse_file_entry
 
 
 product_file_types = {}

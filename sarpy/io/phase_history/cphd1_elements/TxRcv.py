@@ -11,7 +11,7 @@ from sarpy.io.xml.base import Serializable
 from sarpy.io.xml.descriptors import FloatDescriptor, StringDescriptor, \
     StringEnumDescriptor, SerializableListDescriptor
 
-from .base import DEFAULT_STRICT
+from .base import DEFAULT_STRICT, FLOAT_FORMAT
 from .blocks import POLARIZATION_TYPE
 
 
@@ -26,8 +26,8 @@ class TxWFParametersType(Serializable):
     _required = (
         'Identifier', 'PulseLength', 'RFBandwidth', 'FreqCenter', 'Polarization')
     _numeric_format = {
-        'PulseLength': '0.17E', 'RFBandwidth': '0.17E', 'FreqCenter': '0.17E',
-        'LFMRate': '0.17E', 'Power': '0.17E'}
+        'PulseLength': FLOAT_FORMAT, 'RFBandwidth': FLOAT_FORMAT, 'FreqCenter': FLOAT_FORMAT,
+        'LFMRate': FLOAT_FORMAT, 'Power': FLOAT_FORMAT}
     # descriptors
     Identifier = StringDescriptor(
         'Identifier', _required, strict=DEFAULT_STRICT,
@@ -99,8 +99,8 @@ class RcvParametersType(Serializable):
         'Identifier', 'WindowLength', 'SampleRate', 'IFFilterBW', 'FreqCenter',
         'Polarization')
     _numeric_format = {
-        'WindowLength': '0.17E', 'SampleRate': '0.17E', 'IFFilterBW': '0.17E',
-        'FreqCenter': '0.17E', 'LFMRate': '0.17E', 'PathGain': '0.17E'}
+        'WindowLength': FLOAT_FORMAT, 'SampleRate': FLOAT_FORMAT, 'IFFilterBW': FLOAT_FORMAT,
+        'FreqCenter': FLOAT_FORMAT, 'LFMRate': FLOAT_FORMAT, 'PathGain': FLOAT_FORMAT}
     # descriptors
     Identifier = StringDescriptor(
         'Identifier', _required, strict=DEFAULT_STRICT,

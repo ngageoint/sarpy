@@ -12,8 +12,9 @@ import os
 import numpy
 from typing import Union, List
 from uuid import uuid4
+from io import BytesIO
+from xml.dom import minidom
 
-from sarpy.compliance import BytesIO, string_types, int_func, minidom
 from sarpy.geometry.geocoords import geodetic_to_ecf, ecf_to_geodetic
 
 try:
@@ -66,7 +67,7 @@ class Document(object):
 
     def __str__(self):
         xml = self._doc.toprettyxml(encoding='utf-8')
-        if not isinstance(xml, string_types):
+        if not isinstance(xml, str):
             return xml.decode('utf-8')
         else:
             return xml
@@ -188,7 +189,7 @@ class Document(object):
             return None
 
         nod = self._doc.createElement(tag)
-        if isinstance(value, string_types):
+        if isinstance(value, str):
             nod.appendChild(self._doc.createTextNode(value))
         else:
             nod.appendChild(self._doc.createTextNode(str(value)))
@@ -201,7 +202,7 @@ class Document(object):
             return None
 
         nod = self._doc.createElement(tag)
-        if isinstance(value, string_types):
+        if isinstance(value, str):
             nod.appendChild(self._doc.createCDATASection(value))
         else:
             nod.appendChild(self._doc.createCDATASection(str(value)))
@@ -948,7 +949,7 @@ class Document(object):
             llq = self._create_new_node(overlay, 'gx:LatLonQuad')
             coords = ''
             for entry in lat_lon_quad:
-                if isinstance(entry, string_types):
+                if isinstance(entry, str):
                     coords += entry.strip() + ' '
                 elif len(entry) >= 2:
                     coords += '{0:0.8f},{1:0.8f} '.format(entry[1], entry[0])
@@ -1051,8 +1052,8 @@ class Document(object):
         col_min, row_min, col_max, row_max = image_bounds
 
         # determine how to resample this image
-        row_length = int_func(row_max - row_min)
-        col_length = int_func(col_max - col_min)
+        row_length = int(row_max - row_min)
+        col_length = int(col_max - col_min)
         cont_recursion = True
         if max(row_length, col_length) < 1.5*nominal_image_size:
             cont_recursion = False
@@ -1060,14 +1061,14 @@ class Document(object):
             sample_cols = col_length
         elif row_length >= col_length:
             sample_rows = nominal_image_size
-            sample_cols = int_func(col_length*nominal_image_size/float(row_length))
+            sample_cols = int(col_length*nominal_image_size/float(row_length))
         else:
             sample_cols = nominal_image_size
-            sample_rows = int_func(row_length*nominal_image_size/float(col_length))
+            sample_rows = int(row_length*nominal_image_size/float(col_length))
 
         archive_name = 'images/{}.{}'.format(image_name, img_format)
         # resample our image
-        pil_box = tuple(int_func(el) for el in image_bounds)
+        pil_box = tuple(int(el) for el in image_bounds)
         this_img = img.crop(pil_box).resize((sample_cols, sample_rows), PIL.Image.ANTIALIAS)
         self.write_image_to_archive(archive_name, this_img, img_format=img_format)
         # create the ground overlay parameters
@@ -1100,7 +1101,7 @@ class Document(object):
         if cont_recursion:
             # create a list of [(start row, end row)]
             if row_length > 1.5*nominal_image_size:
-                split_row = row_min + int_func(0.5*row_length)
+                split_row = row_min + int(0.5*row_length)
                 split_lat = bounding_box[0] + (split_row/float(row_length))*(bounding_box[1] - bounding_box[0])
                 row_sizes = [(row_min, split_row), (split_row, row_max)]
                 lats = [(bounding_box[0], split_lat), (split_lat, bounding_box[1])]
@@ -1109,7 +1110,7 @@ class Document(object):
                 lats = [(bounding_box[0], bounding_box[1]), ]
 
             if col_length > 1.5*nominal_image_size:
-                split_col = col_min + int_func(0.5*col_length)
+                split_col = col_min + int(0.5*col_length)
                 split_lon = bounding_box[2] + (split_col/float(row_length))*(bounding_box[3] - bounding_box[2])
                 col_sizes = [(col_min, split_col), (split_col, col_max)]
                 lons = [(bounding_box[2], split_lon), (split_lon, bounding_box[3])]
@@ -1214,8 +1215,8 @@ class Document(object):
         col_min, row_min, col_max, row_max = image_bounds
 
         # determine how to resample this image
-        row_length = int_func(row_max - row_min)
-        col_length = int_func(col_max - col_min)
+        row_length = int(row_max - row_min)
+        col_length = int(col_max - col_min)
         cont_recursion = True
         if max(row_length, col_length) <= 1.5*nominal_image_size:
             cont_recursion = False
@@ -1223,10 +1224,10 @@ class Document(object):
             sample_cols = col_length
         elif row_length >= col_length:
             sample_rows = nominal_image_size
-            sample_cols = int_func(col_length*nominal_image_size/float(row_length))
+            sample_cols = int(col_length*nominal_image_size/float(row_length))
         else:
             sample_cols = nominal_image_size
-            sample_rows = int_func(row_length*nominal_image_size/float(col_length))
+            sample_rows = int(row_length*nominal_image_size/float(col_length))
 
         logger.info(
             'Processing ({}:{}, {}:{}) into a downsampled image\n\t'
@@ -1234,7 +1235,7 @@ class Document(object):
                 row_min, row_max, col_min, col_max, sample_rows, sample_cols))
 
         archive_name = 'images/{}.{}'.format(image_name, img_format)
-        pil_box = tuple(int_func(el) for el in image_bounds)
+        pil_box = tuple(int(el) for el in image_bounds)
         # resample our image
         this_img = img.crop(pil_box).resize((sample_cols, sample_rows), PIL.Image.ANTIALIAS)
         self.write_image_to_archive(archive_name, this_img, img_format=img_format)
@@ -1269,13 +1270,13 @@ class Document(object):
 
         if cont_recursion:
             if row_length >= 1.5*nominal_image_size:
-                split_row = row_min + int_func(0.5*row_length)
+                split_row = row_min + int(0.5*row_length)
                 row_sizes = [(row_min, split_row), (split_row, row_max)]
             else:
                 row_sizes = [(row_min, row_max), ]
 
             if col_length >= 1.5*nominal_image_size:
-                split_col = col_min + int_func(0.5*col_length)
+                split_col = col_min + int(0.5*col_length)
                 col_sizes = [(col_min, split_col), (split_col, col_max)]
             else:
                 col_sizes = [(col_min, col_max), ]
@@ -1335,7 +1336,7 @@ class Document(object):
         minidom.Element
         """
 
-        nominal_image_size = int_func(nominal_image_size)
+        nominal_image_size = int(nominal_image_size)
         if nominal_image_size < 512:
             nominal_image_size = 512
 

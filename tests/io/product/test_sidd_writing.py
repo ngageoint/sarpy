@@ -1,17 +1,16 @@
-import logging
 import os
 import json
 import tempfile
 import shutil
+import unittest
 
 from sarpy.io.complex.sicd import SICDReader
-import sarpy.io.product.sidd
 from sarpy.io.product.sidd import SIDDReader
 from sarpy.io.product.sidd_schema import get_schema_path
 from sarpy.io.product.sidd_product_creation import create_detected_image_sidd, create_dynamic_image_sidd, create_csi_sidd
 from sarpy.processing.ortho_rectify import NearestNeighborMethod
 
-from tests import unittest, parse_file_entry
+from tests import parse_file_entry
 
 try:
     from lxml import etree

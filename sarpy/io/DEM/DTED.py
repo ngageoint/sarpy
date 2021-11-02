@@ -11,7 +11,6 @@ import struct
 
 import numpy
 
-from sarpy.compliance import integer_types, string_types
 from sarpy.io.DEM.DEM import DEMList, DEMInterpolator
 from sarpy.io.DEM.utils import argument_validation
 from sarpy.io.DEM.geoid import GeoidHeight
@@ -218,11 +217,11 @@ class DTEDList(DEMList):
         # validate the dem types list
         if dem_type is None:
             dem_type = get_default_prioritization()
-        elif isinstance(dem_type, string_types):
+        elif isinstance(dem_type, str):
             dem_type = [dem_type, ]
         # loop over the prioritized list of types and check
         for entry in dem_type:
-            if not isinstance(entry, string_types):
+            if not isinstance(entry, str):
                 raise TypeError(
                     'Got entry {} of dem_type, this is required to be of string type'.format(entry))
             # validate dem_type options
@@ -326,7 +325,7 @@ class DTEDReader(object):
             if len(item) > 2:
                 raise ValueError('Cannot slice on more than 2 dimensions')
             it = item[1]
-            if isinstance(it, integer_types):
+            if isinstance(it, int):
                 it1 = new_col_int(it, True)
             elif isinstance(it, slice):
                 start = new_col_int(it.start, True)
@@ -604,7 +603,7 @@ class DTEDInterpolator(DEMInterpolator):
         DTEDInterpolator
         """
 
-        if isinstance(dted_list, string_types):
+        if isinstance(dted_list, str):
             dted_list = DTEDList(dted_list)
         if not isinstance(dted_list, DTEDList):
             raise ValueError(

@@ -2,18 +2,16 @@
 Module for maintaining the TRE registry
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas Mccullough"
+
+
 import logging
 import pkgutil
 from importlib import import_module
 import inspect
-import os
-import sys
 
-from sarpy.compliance import string_types, bytes_to_string
-
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas Mccullough"
+from sarpy.compliance import bytes_to_string
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +50,7 @@ def register_tre(tre_type, tre_id=None, replace=False):
 
     if tre_id is None:
         tre_id = tre_type.__name__
-    if not isinstance(tre_id, string_types):
+    if not isinstance(tre_id, str):
         raise TypeError('tre_id must be a string, got type {}'.format(type(tre_id)))
 
     if tre_id in _TRE_Registry:
@@ -86,7 +84,7 @@ def find_tre(tre_id):
 
     if isinstance(tre_id, bytes):
         tre_id = bytes_to_string(tre_id)
-    if not isinstance(tre_id, string_types):
+    if not isinstance(tre_id, str):
         raise TypeError('tre_id must be of type string. Got {}'.format(tre_id))
     return _TRE_Registry.get(tre_id.strip(), None)
 
@@ -115,7 +113,7 @@ def parse_package(packages=None):
             _parsed_package = True
             packages = _default_tre_packages
 
-    if isinstance(packages, string_types):
+    if isinstance(packages, str):
         packages = [packages, ]
 
     logger.info('Finding and registering TREs contained in packages {}'.format(packages))

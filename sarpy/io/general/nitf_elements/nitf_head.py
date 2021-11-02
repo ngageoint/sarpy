@@ -11,7 +11,6 @@ from .base import NITFElement, UserHeaderType, _IntegerDescriptor,\
     _StringDescriptor, _StringEnumDescriptor, _NITFElementDescriptor, _RawDescriptor, \
     _ItemArrayHeaders
 from .security import NITFSecurityTags, NITFSecurityTags0
-from sarpy.compliance import string_types
 
 logger = logging.getLogger(__name__)
 
@@ -348,9 +347,9 @@ class NITFHeader0(NITFElement):
 
     @FVER.setter
     def FVER(self, value):
-        if isinstance(value, bytes) and not isinstance(value, string_types):
+        if isinstance(value, bytes) and not isinstance(value, str):
             value = value.decode('utf-8')
-        if not isinstance(value, string_types):
+        if not isinstance(value, str):
             raise TypeError('FVER is required to be a string')
         if len(value) != 5:
             raise ValueError('FVER must have length 5')

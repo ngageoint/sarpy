@@ -15,7 +15,7 @@ from sarpy.io.xml.descriptors import FloatDescriptor, DateTimeDescriptor, \
 from sarpy.io.phase_history.cphd1_elements.Global import FxBandType, TropoParametersType, \
     IonoParametersType
 
-from .base import DEFAULT_STRICT
+from .base import DEFAULT_STRICT, FLOAT_FORMAT
 
 
 class TimelineType(Serializable):
@@ -25,7 +25,7 @@ class TimelineType(Serializable):
 
     _fields = ('CollectionRefTime', 'RcvTime1', 'RcvTime2')
     _required = ('CollectionRefTime', 'RcvTime1', 'RcvTime2')
-    _numeric_format = {'RcvTime1': '0.17E', 'RcvTime2': '0.17E'}
+    _numeric_format = {'RcvTime1': FLOAT_FORMAT, 'RcvTime2': FLOAT_FORMAT}
     # descriptors
     CollectionRefTime = DateTimeDescriptor(
         'CollectionRefTime', _required, strict=DEFAULT_STRICT, numpy_datetime_units='us',
@@ -69,7 +69,7 @@ class FrcvBandType(Serializable, Arrayable):
 
     _fields = ('FrcvMin', 'FrcvMax')
     _required = _fields
-    _numeric_format = {fld: '0.17E' for fld in _fields}
+    _numeric_format = {fld: FLOAT_FORMAT for fld in _fields}
     # descriptors
     FrcvMin = FloatDescriptor(
         'FrcvMin', _required, strict=DEFAULT_STRICT, bounds=(0, None),

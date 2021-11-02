@@ -9,12 +9,11 @@ from xml.etree import ElementTree
 
 from typing import Union, List
 
-from sarpy.compliance import string_types
 from sarpy.io.xml.base import Serializable, ParametersCollection, get_node_value
 from sarpy.io.xml.descriptors import FloatDescriptor, StringDescriptor, StringEnumDescriptor, \
     ParametersDescriptor, SerializableListDescriptor
 
-from .base import DEFAULT_STRICT
+from .base import DEFAULT_STRICT, FLOAT_FORMAT
 from .utils import homogeneous_dtype
 
 
@@ -25,7 +24,7 @@ class SupportArrayCore(Serializable):
 
     _fields = ('Identifier', 'ElementFormat', 'X0', 'Y0', 'XSS', 'YSS', 'NODATA')
     _required = ('Identifier', 'ElementFormat', 'X0', 'Y0', 'XSS', 'YSS')
-    _numeric_format = {'X0': '0.17E', 'Y0': '0.17E', 'XSS': '0.17E', 'YSS': '0.17E'}
+    _numeric_format = {'X0': FLOAT_FORMAT, 'Y0': FLOAT_FORMAT, 'XSS': FLOAT_FORMAT, 'YSS': FLOAT_FORMAT}
     # descriptors
     Identifier = StringDescriptor(
         'Identifier', _required, strict=DEFAULT_STRICT,
@@ -93,7 +92,7 @@ class SupportArrayCore(Serializable):
         if isinstance(value, ElementTree.Element):
             value = get_node_value(value)
 
-        if isinstance(value, string_types):
+        if isinstance(value, str):
             self._NODATA = value
         elif isinstance(value, bytes):
             self._NODATA = value.decode('utf-8')

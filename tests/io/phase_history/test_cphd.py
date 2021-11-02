@@ -2,6 +2,7 @@ import logging
 import os
 import json
 import tempfile
+import unittest
 
 import numpy.testing
 from sarpy.io.phase_history.cphd import CPHDReader, CPHDReader0_3, CPHDReader1_0, CPHDWriter1_0
@@ -9,7 +10,7 @@ from sarpy.io.phase_history.converter import open_phase_history
 import sarpy.consistency.cphd_consistency
 from sarpy.io.phase_history.cphd_schema import get_schema_path
 
-from tests import unittest, parse_file_entry
+from tests import parse_file_entry
 
 DEFAULT_SCHEMA = get_schema_path(version='1.0.1')
 

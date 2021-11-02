@@ -11,7 +11,7 @@ from sarpy.io.xml.base import Serializable, SerializableArray
 from sarpy.io.xml.descriptors import SerializableDescriptor, UnitVectorDescriptor, \
     FloatDescriptor, StringEnumDescriptor, SerializableArrayDescriptor
 
-from .base import DEFAULT_STRICT
+from .base import DEFAULT_STRICT, FLOAT_FORMAT
 from .blocks import ReferencePointType, RowColDoubleType, Poly2DType, XYZType, RowColIntType, \
     XYZPolyType, RowColArrayElement
 
@@ -164,7 +164,7 @@ class CylindricalProjectionType(MeasurableProjectionType):
 
     _fields = ('ReferencePoint', 'SampleSpacing', 'TimeCOAPoly', 'StripmapDirection', 'CurvatureRadius')
     _required = ('ReferencePoint', 'SampleSpacing', 'TimeCOAPoly', 'StripmapDirection')
-    _numeric_format = {'CurvatureRadius': '0.17E'}
+    _numeric_format = {'CurvatureRadius': FLOAT_FORMAT}
     # Descriptor
     StripmapDirection = SerializableDescriptor(
         'StripmapDirection', XYZType, _required, strict=DEFAULT_STRICT,
@@ -263,7 +263,7 @@ class MeasurementType(Serializable):
         'PixelFootprint', 'ARPFlag', 'ARPPoly', 'ValidData')
     _required = ('PixelFootprint', 'ARPPoly', 'ValidData')
     _collections_tags = {'ValidData': {'array': True, 'child_tag': 'Vertex'}}
-    _numeric_format = {'ValidData': '0.17E'}
+    _numeric_format = {'ValidData': FLOAT_FORMAT}
     _choice = ({'required': False, 'collection': ('PolynomialProjection', 'GeographicProjection',
                                                   'PlaneProjection', 'CylindricalProjection')}, )
     # Descriptor

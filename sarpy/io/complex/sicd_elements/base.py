@@ -13,6 +13,7 @@ from sarpy.io.xml.descriptors import BasicDescriptor
 
 logger = logging.getLogger(__name__)
 DEFAULT_STRICT = False
+FLOAT_FORMAT = '0.17G'
 
 
 class SerializableCPArrayDescriptor(BasicDescriptor):

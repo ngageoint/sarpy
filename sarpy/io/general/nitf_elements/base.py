@@ -98,17 +98,7 @@ def _get_bytes(val, length):
         return frm_str.format(val).encode('utf-8')
     elif isinstance(val, str):
         frm_str = '{0:' + str(length) + 's}'
-        if sys.version_info[0] >= 3:
-            return frm_str.format(val).encode('utf-8')
-        else:
-            # noinspection PyBroadException
-            try:
-                return frm_str.format(val).encode('utf-8')
-            except Exception:
-                if len(val) >= length:
-                    return val[:length]
-                else:
-                    return val + b'\x00' * (length - len(val))
+        return frm_str.format(val).encode('utf-8')
     elif isinstance(val, bytes):
         if len(val) >= length:
             return val[:length]

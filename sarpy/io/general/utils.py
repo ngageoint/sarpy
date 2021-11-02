@@ -10,8 +10,6 @@ from typing import Union, Tuple
 
 import numpy
 
-from sarpy.compliance import integer_types, int_func
-
 
 def validate_range(arg, siz):
     # type: (Union[None, int, Tuple[int, int], Tuple[int, int, int]], int) -> tuple
@@ -32,7 +30,7 @@ def validate_range(arg, siz):
     start, stop, step = None, None, None
     if arg is None:
         pass
-    elif isinstance(arg, integer_types):
+    elif isinstance(arg, int):
         start = arg
         stop = arg + 1
         step = 1
@@ -45,9 +43,9 @@ def validate_range(arg, siz):
             start, stop = arg
         elif len(arg) == 3:
             start, stop, step = arg
-    start = 0 if start is None else int_func(start)
-    stop = siz if stop is None else int_func(stop)
-    step = 1 if step is None else int_func(step)
+    start = 0 if start is None else int(start)
+    stop = siz if stop is None else int(stop)
+    step = 1 if step is None else int(step)
     # basic validity check
     if not (-siz < start < siz):
         raise ValueError(

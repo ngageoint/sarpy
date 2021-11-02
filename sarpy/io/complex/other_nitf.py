@@ -12,8 +12,6 @@ from datetime import datetime
 import numpy
 from scipy.constants import foot
 
-from sarpy.compliance import string_types
-
 from sarpy.geometry.geocoords import geodetic_to_ecf, ned_to_ecf
 from sarpy.geometry.latlon import num as lat_lon_parser
 
@@ -1068,7 +1066,7 @@ class ComplexNITFReader(NITFReader, SICDTypeReader):
             Passed through to ComplexNITFDetails() in the event that `nitf_details` is a file name.
         """
 
-        if isinstance(nitf_details, string_types):
+        if isinstance(nitf_details, str):
             nitf_details = ComplexNITFDetails(nitf_details, symmetry=symmetry, split_bands=split_bands)
         if not isinstance(nitf_details, ComplexNITFDetails):
             raise TypeError('The input argument for ComplexNITFReader must be a filename or '

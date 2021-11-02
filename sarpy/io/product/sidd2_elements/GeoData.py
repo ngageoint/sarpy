@@ -13,7 +13,7 @@ from sarpy.io.xml.base import Serializable, SerializableArray, find_children
 from sarpy.io.xml.descriptors import SerializableArrayDescriptor, StringEnumDescriptor
 from sarpy.io.complex.sicd_elements.base import SerializableCPArray, SerializableCPArrayDescriptor
 
-from .base import DEFAULT_STRICT
+from .base import DEFAULT_STRICT, FLOAT_FORMAT
 from .blocks import LatLonCornerStringType, LatLonArrayElementType, GeoInfoType
 
 
@@ -30,7 +30,7 @@ class GeoDataType(Serializable):
     _collections_tags = {
         'ValidData': {'array': True, 'child_tag': 'Vertex'},
         'ImageCorners': {'array': True, 'child_tag': 'ICP'}}
-    _numeric_format = {'ImageCorners': '0.17E', 'ValidData': '0.17E'}
+    _numeric_format = {'ImageCorners': FLOAT_FORMAT, 'ValidData': FLOAT_FORMAT}
     # other class variables
     _EARTH_MODEL_VALUES = ('WGS_84', )
     # descriptors

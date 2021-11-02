@@ -80,7 +80,6 @@ from types import MethodType  # for binding a method dynamically to a class
 
 import numpy
 
-from sarpy.compliance import string_types, int_func
 from sarpy.geometry.geocoords import ecf_to_geodetic, geodetic_to_ecf, wgs_84_norm
 from sarpy.io.complex.sicd_elements.blocks import Poly2DType, XYZPolyType
 from sarpy.io.DEM.DEM import DEMInterpolator
@@ -1689,7 +1688,7 @@ def image_to_ground_dem(
     # validate the dem_interpolator
     if dem_interpolator is None:
         raise ValueError('dem_interpolator is None, this is unhandled.')
-    if isinstance(dem_interpolator, string_types):
+    if isinstance(dem_interpolator, str):
         dted_list = DTEDList(dem_interpolator)
         dem_interpolator = DTEDInterpolator.from_reference_point(
             ref_llh, dted_list, dem_type=dem_type, geoid_file=geoid_file, pad_value=pad_value)

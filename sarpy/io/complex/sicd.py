@@ -7,7 +7,6 @@ __author__ = ("Thomas McCullough", "Wade Schwartzkopf")
 
 
 import re
-import sys
 import logging
 import os
 from datetime import datetime
@@ -16,7 +15,6 @@ from typing import BinaryIO
 import numpy
 
 from sarpy.__about__ import __title__, __version__
-from sarpy.compliance import string_types
 from sarpy.io.general.base import AggregateChipper, SarpyIOError
 from sarpy.io.general.nitf import NITFReader, NITFWriter, ImageDetails, DESDetails, \
     image_segmentation, get_npp_block, interpolate_corner_points_string
@@ -31,13 +29,6 @@ from sarpy.io.general.nitf_elements.des import DataExtensionHeader, XMLDESSubhea
 from sarpy.io.general.nitf_elements.security import NITFSecurityTags
 from sarpy.io.general.nitf_elements.image import ImageSegmentHeader, ImageBands, ImageBand
 
-
-if sys.version_info[0] < 3:
-    # noinspection PyUnresolvedReferences
-    from cStringIO import StringIO
-else:
-    # noinspection PyUnresolvedReferences
-    from io import StringIO
 
 logger = logging.getLogger(__name__)
 
@@ -357,7 +348,7 @@ class SICDReader(NITFReader, SICDTypeReader):
             filename, file-like object, or SICDDetails object
         """
 
-        if isinstance(nitf_details, string_types) or is_file_like(nitf_details):
+        if isinstance(nitf_details, str) or is_file_like(nitf_details):
             nitf_details = SICDDetails(nitf_details)
         if not isinstance(nitf_details, SICDDetails):
             raise TypeError(

@@ -15,7 +15,6 @@ from numpy.polynomial import polynomial
 from numpy.random import randn
 from scipy.signal import resample
 
-from sarpy.compliance import int_func
 from sarpy.io.general.base import SarpyIOError
 from sarpy.processing.ortho_rectify import FullResolutionFetcher
 from sarpy.processing.fft_base import fft, ifft, fftshift, ifftshift, \
@@ -97,7 +96,7 @@ def determine_weight_array(input_data_shape, weight_array, oversample_rate, dime
     if weight_array.ndim != 1:
         raise ValueError('weight_array must be one dimensional.')
 
-    weight_ind_start = int_func(numpy.floor(0.5*(input_data_shape[dimension] - weight_size)))
+    weight_ind_start = int(numpy.floor(0.5*(input_data_shape[dimension] - weight_size)))
     weight_ind_end = weight_ind_start + weight_size
 
     if weight_array.size == weight_size:
@@ -303,7 +302,7 @@ def is_normalized(sicd, dimension=1):
                 return True
             return sicd.Grid.Col.Sgn == -1
 
-    dimension = int_func(dimension)
+    dimension = int(dimension)
     if dimension not in [0, 1]:
         raise ValueError('dimension must be either 0 or 1, got {}'.format(dimension))
 
@@ -382,7 +381,7 @@ class DeskewCalculator(FullResolutionFetcher):
 
     @dimension.setter
     def dimension(self, value):
-        value = int_func(value)
+        value = int(value)
         if value not in [0, 1]:
             raise ValueError('dimension must be 0 or 1, got {}'.format(value))
         self._dimension = value
@@ -390,7 +389,7 @@ class DeskewCalculator(FullResolutionFetcher):
             self._set_sicd(self._sicd)
 
     def _set_index(self, value):
-        value = int_func(value)
+        value = int(value)
         if value < 0:
             raise ValueError('The index must be a non-negative integer, got {}'.format(value))
 
@@ -506,8 +505,8 @@ class DeskewCalculator(FullResolutionFetcher):
             # can recenter the nonskewed dimension with a uniform shift
             if numpy.any(self._delta_kcoa_poly_off_axis != 0):
                 # get deltakcoa at midpoint, and treat as a constant polynomial
-                row_mid = row_array[int_func(round(0.5 * row_array.size)) - 1]
-                col_mid = col_array[int_func(round(0.5 * col_array.size)) - 1]
+                row_mid = row_array[int(round(0.5 * row_array.size)) - 1]
+                col_mid = col_array[int(round(0.5 * col_array.size)) - 1]
                 delta_kcoa_new_const = numpy.zeros((1, 1), dtype='float64')
                 delta_kcoa_new_const[0, 0] = polynomial.polyval2d(
                     row_mid, col_mid, self._delta_kcoa_poly_off_axis)
