@@ -1107,6 +1107,7 @@ class TSXReader(BaseReader, SICDTypeReader):
 
         SICDTypeReader.__init__(self, tuple(the_sicds))
         BaseReader.__init__(self, tuple(chippers), reader_type="SICD")
+        self._check_sizes()
 
     @property
     def file_name(self):

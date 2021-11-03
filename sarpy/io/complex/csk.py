@@ -712,6 +712,7 @@ class CSKReader(BaseReader, SICDTypeReader):
 
         SICDTypeReader.__init__(self, tuple(sicds))
         BaseReader.__init__(self, tuple(chippers), reader_type="SICD")
+        self._check_sizes()
 
     @property
     def csk_details(self):

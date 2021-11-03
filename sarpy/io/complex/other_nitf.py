@@ -1073,7 +1073,8 @@ class ComplexNITFReader(NITFReader, SICDTypeReader):
                             'ComplexNITFDetails object.')
 
         SICDTypeReader.__init__(self, nitf_details.sicd_meta)
-        super(ComplexNITFReader, self).__init__(nitf_details, reader_type="SICD", symmetry=symmetry)
+        NITFReader.__init__(self, nitf_details, reader_type="SICD", symmetry=symmetry)
+        self._check_sizes()
 
     @property
     def nitf_details(self):

@@ -357,6 +357,7 @@ class SICDReader(NITFReader, SICDTypeReader):
 
         SICDTypeReader.__init__(self, nitf_details.sicd_meta)
         NITFReader.__init__(self, nitf_details, reader_type='SICD')
+        self._check_sizes()
 
     @property
     def nitf_details(self):
