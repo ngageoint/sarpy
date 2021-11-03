@@ -135,6 +135,26 @@ def _parse_int(val, length, default, name, instance):
         'attribute {} of class {}'.format(val, length, name, instance.__class__.__name__))
 
 
+def _parse_float(val, default):
+    """
+    Sort of a special case.
+
+    Parameters
+    ----------
+    val : None|float|bytes
+    default : None|float
+
+    Returns
+    -------
+    float
+    """
+
+    if val is None:
+        return default
+    else:
+        return float(val)
+
+
 def _parse_str(val, length, default, name, instance):
     """
     Parse and/or validate the string input.
@@ -411,6 +431,30 @@ class _IntegerDescriptor(_BasicDescriptor):
             return
 
         iv = _parse_int(value, self.length, self._default_value, self.name, instance)
+        self.data[instance] = iv
+
+
+class _FloatDescriptor(_BasicDescriptor):
+    """A special case descriptor for float type"""
+    _typ_string = 'float:'
+
+    def __init__(self, name, required, length, default_value=0, docstring=None):
+        self._default_value = default_value
+        super(_FloatDescriptor, self).__init__(
+            name, required, length, docstring=docstring)
+
+    def _get_default(self, instance):
+        return self._default_value
+
+    def _docstring_suffix(self):
+        if self._default_value is not None:
+            return ' Default value is :code:`{}`.'.format(self._default_value)
+
+    def __set__(self, instance, value):
+        if super(_FloatDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
+            return
+
+        iv = _parse_float(value, self._default_value)
         self.data[instance] = iv
 
 
