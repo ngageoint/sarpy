@@ -8,7 +8,6 @@ __author__ = ("Thomas McCullough", "Wade Schwartzkopf")
 
 import logging
 import json
-import os.path
 from typing import Dict, Any, Tuple, Union
 from collections import OrderedDict
 
@@ -490,15 +489,3 @@ class CapellaReader(BaseReader, SICDTypeReader):
     @property
     def file_name(self):
         return self.capella_details.file_name
-
-
-if __name__ == '__main__':
-    fil_name = os.path.expanduser('~/Desktop/sarpy_testing/capella/CAPELLA_C02_SS_SLC_HH_20210223023836_20210223023852.tif')
-    details = CapellaDetails(fil_name)
-
-    # with open(fil_name+'.json', 'w') as fi:
-    #     json.dump(details._img_desc_tags, fi, indent=1)
-
-    with open(fil_name + '.sicd.xml', 'wb') as fi:
-        fi.write(details.get_sicd().to_xml_bytes())
-
