@@ -134,9 +134,9 @@ class CapellaDetails(object):
 
         pointing = self._img_desc_tags['collect']['radar']['pointing'].lower()
         if pointing == 'left':
-            return False, False, True
+            return True, False, True
         elif pointing == 'right':
-            return False, True, True
+            return False, False, True
         else:
             raise ValueError('Got unhandled pointing value {}'.format(pointing))
 
@@ -237,7 +237,7 @@ class CapellaDetails(object):
 
         def get_geo_data():
             # type: () -> GeoDataType
-            return GeoDataType(SCP=SCPType(ECF=collect['image']['center_pixel']['target_position']))
+            return GeoDataType(SCP=SCPType(ECF=img['center_pixel']['target_position']))
 
         def get_position():
             # type: () -> PositionType
@@ -476,6 +476,7 @@ class CapellaReader(BaseReader, SICDTypeReader):
 
         SICDTypeReader.__init__(self, sicd)
         BaseReader.__init__(self, chipper, reader_type="SICD")
+        self._check_sizes()
 
     @property
     def capella_details(self):
@@ -492,8 +493,12 @@ class CapellaReader(BaseReader, SICDTypeReader):
 
 
 if __name__ == '__main__':
-    import json
     fil_name = os.path.expanduser('~/Desktop/sarpy_testing/capella/CAPELLA_C02_SS_SLC_HH_20210223023836_20210223023852.tif')
     details = CapellaDetails(fil_name)
-    with open(fil_name+'.json', 'w') as fi:
-        json.dump(details._img_desc_tags, fi, indent=1)
+
+    # with open(fil_name+'.json', 'w') as fi:
+    #     json.dump(details._img_desc_tags, fi, indent=1)
+
+    with open(fil_name + '.sicd.xml', 'wb') as fi:
+        fi.write(details.get_sicd().to_xml_bytes())
+

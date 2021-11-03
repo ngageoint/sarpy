@@ -1085,6 +1085,7 @@ class SentinelReader(BaseReader, SICDTypeReader):
 
         SICDTypeReader.__init__(self, tuple(sicd_collection_out))
         BaseReader.__init__(self, chipper_tuple, reader_type="SICD")
+        self._check_sizes()
 
     @property
     def sentinel_details(self):

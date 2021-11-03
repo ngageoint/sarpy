@@ -1572,6 +1572,7 @@ class RadarSatReader(BaseReader, SICDTypeReader):
 
         SICDTypeReader.__init__(self, tuple(use_sicds))
         BaseReader.__init__(self, tuple(the_chippers), reader_type="SICD")
+        self._check_sizes()
 
     def _construct_chippers(self, sicds, data_files, symmetry):
         """
