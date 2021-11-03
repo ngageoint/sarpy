@@ -386,7 +386,7 @@ class SICDType(Serializable):
                 # noinspection PyProtectedMember
                 self.Grid._derive_pfa(
                     self.GeoData, self.RadarCollection, self.ImageFormation, self.Position, self.PFA)
-        elif im_form_algo == 'RMA':
+        elif im_form_algo == 'RMA' or self.RMA is not None:
             if self.RMA is not None:
                 # noinspection PyProtectedMember
                 self.RMA._derive_parameters(self.SCPCOA, self.Position, self.RadarCollection, self.ImageFormation)

@@ -985,7 +985,7 @@ def _validate_image_form_parameters(the_sicd, alg_type):
     # verify that the referenced received channels are consistent with radar collection
     if the_sicd.ImageFormation.RcvChanProc is not None:
         channels = the_sicd.ImageFormation.RcvChanProc.ChanIndices
-        if len(channels) < 1:
+        if channels is None or len(channels) < 1:
             the_sicd.ImageFormation.RcvChanProc.log_validity_error('No ChanIndex values populated')
             cond = False
         else:

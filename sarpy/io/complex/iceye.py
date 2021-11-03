@@ -537,6 +537,7 @@ class ICEYEReader(BaseReader, SICDTypeReader):
 
         SICDTypeReader.__init__(self, sicd)
         BaseReader.__init__(self, chipper, reader_type="SICD")
+        self._check_sizes()
 
     @property
     def iceye_details(self):

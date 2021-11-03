@@ -52,6 +52,20 @@ class SICDTypeReader(AbstractReader):
                 temp_list.append(el)
             self._sicd_meta = tuple(temp_list)
 
+    def _check_sizes(self):
+        data_sizes = self.get_data_size_as_tuple()
+        sicds = self.get_sicds_as_tuple()
+        agree = True
+        msg = ''
+        for i, (data_size, sicd) in enumerate(zip(data_sizes, sicds)):
+            expected_size = (sicd.ImageData.NumRows, sicd.ImageData.NumCols)
+            if data_size != expected_size:
+                agree = False
+                msg += 'image/chipper at index {} has data size {}\n\t' \
+                       'and expected size (from the sicd) {}\n'.format(i, data_size, expected_size)
+        if not agree:
+            raise ValueError(msg)
+
     @property
     def sicd_meta(self):
         # type: () -> Union[None, SICDType, Tuple[SICDType]]
@@ -167,6 +181,7 @@ class FlatSICDReader(FlatReader, SICDTypeReader):
             self, array, reader_type='SICD', output_bands=output_bands, output_dtype=output_dtype,
             symmetry=symmetry, transform_data=transform_data, limit_to_raw_bands=limit_to_raw_bands)
         SICDTypeReader.__init__(self, sicd_meta)
+        self._check_sizes()
 
     def write_to_file(self, output_file, check_older_version=False, check_existence=False):
         """

@@ -327,6 +327,7 @@ class SIOReader(BaseReader, SICDTypeReader):
 
         SICDTypeReader.__init__(self, sicd_meta)
         BaseReader.__init__(self, chipper, reader_type="SICD")
+        self._check_sizes()
 
     @property
     def sio_details(self):

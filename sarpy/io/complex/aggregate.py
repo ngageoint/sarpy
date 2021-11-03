@@ -34,6 +34,7 @@ class AggregateComplexReader(AggregateReader, SICDTypeReader):
 
         sicds = self._define_sicds()
         SICDTypeReader.__init__(self, sicds)
+        self._check_sizes()
 
     @staticmethod
     def _validate_readers(readers):

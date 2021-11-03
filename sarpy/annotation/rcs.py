@@ -142,6 +142,8 @@ def create_rcs_value_collection_for_reader(reader, polygon):
             else:
                 the_mean = float(vals['total']/the_count)
                 the_var = vals['total2']/the_count - the_mean*the_mean
+                if the_var < 0:
+                    the_var = 0  # to avoid floating point errors
             return RCSStatistics(
                 mean=the_mean, std=float(numpy.sqrt(the_var)), min=float(vals['min']), max=float(vals['max']))
 

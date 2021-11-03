@@ -783,12 +783,12 @@ class GridType(Serializable):
             return   # nothing can be derived
 
         im_type = RMA.ImageType
+
         if im_type is None:
             return
         if im_type == 'INCA':
             self._derive_rma_inca(RMA, GeoData, Position)
         else:
-
             if im_type == 'RMAT':
                 self._derive_rma_rmat(RMA, GeoData, RadarCollection, ImageFormation)
             elif im_type == 'RMCR':
