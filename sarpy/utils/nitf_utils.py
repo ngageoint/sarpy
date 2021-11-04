@@ -11,7 +11,10 @@ For a basic help on the command-line, check
 
 """
 
-from __future__ import print_function
+__classification__ = "UNCLASSIFIED"
+__author__ = "Austin Lan, L3/Harris"
+
+
 import argparse
 import functools
 import sys
@@ -35,12 +38,9 @@ from sarpy.io.general.nitf_elements.text import TextSegmentHeader, TextSegmentHe
 from sarpy.io.general.nitf_elements.tres.tre_elements import TREElement
 
 
-__classification__ = "UNCLASSIFIED"
-__author__ = "Austin Lan"
-
-
 # Custom print function
 print_func = print
+
 
 ############
 # helper methods
