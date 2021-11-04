@@ -17,6 +17,7 @@ import argparse
 
 import numpy
 
+import sarpy
 from sarpy.io.complex.sicd import SICDReader
 from sarpy.io.complex.converter import conversion_utility
 from sarpy.io.complex.sicd_elements.Radiometric import NoiseLevelType_
@@ -129,8 +130,16 @@ if __name__ == '__main__':
         '--older', action='store_true',
         help='Try to use a less recent version of SICD (1.1),\n'
              'for possible application compliance issues?')
+    parser.add_argument(
+        '-v', '--verbose', action='store_true', help='Verbose (level="INFO") logging?')
 
-    args =  parser.parse_args()
+    args = parser.parse_args()
+
+    level = 'INFO' if args.verbose else 'WARNING'
+    logging.basicConfig(level=level)
+    logger = logging.getLogger('sarpy')
+    logger.setLevel(level)
+
     nominal_sicd_noise(
         args.input_file, args.output_directory, output_file=args.output_file,
         noise_db_value=args.noise,

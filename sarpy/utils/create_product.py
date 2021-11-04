@@ -7,16 +7,17 @@ For a basic help on the command-line, check
 
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
 import argparse
 import logging
 
+import sarpy
 from sarpy.io.complex.converter import open_complex
 from sarpy.processing.ortho_rectify import BivariateSplineMethod, NearestNeighborMethod
 from sarpy.io.product.sidd_product_creation import create_detected_image_sidd, \
     create_csi_sidd, create_dynamic_image_sidd
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
 
 
 def _parse_method(method):
@@ -54,14 +55,16 @@ if __name__ == '__main__':
         '--version', default=2, type=int, choices=[1, 2],
         help="The version of the SIDD standard used.")
     parser.add_argument(
-        '-v', '--verbose', default=0, action='count', help='Verbose (level="INFO") logging?')
+        '-v', '--verbose', action='store_true', help='Verbose (level="INFO") logging?')
     parser.add_argument(
-        '-s', '--sicd', default=0, action='count', help='Include the SICD structure in the SIDD?')
+        '-s', '--sicd', action='store_true', help='Include the SICD structure in the SIDD?')
 
     args = parser.parse_args()
-    if args.verbose > 0:
-        logger = logging.getLogger('sarpy')
-        logger.setLevel('INFO')
+
+    level = 'INFO' if args.verbose else 'WARNING'
+    logging.basicConfig(level=level)
+    logger = logging.getLogger('sarpy')
+    logger.setLevel(level)
 
     reader = open_complex(args.input_file)
     degree = _parse_method(args.method)
@@ -71,10 +74,10 @@ if __name__ == '__main__':
         else:
             ortho_helper = NearestNeighborMethod(reader, index=i)
         if args.type == 'detected':
-            create_detected_image_sidd(ortho_helper, args.output_directory, version=args.version, include_sicd=(args.sicd > 0))
+            create_detected_image_sidd(ortho_helper, args.output_directory, version=args.version, include_sicd=args.sicd)
         elif args.type == 'csi':
-            create_csi_sidd(ortho_helper, args.output_directory, version=args.version, include_sicd=(args.sicd > 0))
+            create_csi_sidd(ortho_helper, args.output_directory, version=args.version, include_sicd=args.sicd)
         elif args.type == 'dynamic':
-            create_dynamic_image_sidd(ortho_helper, args.output_directory, version=args.version, include_sicd=(args.sicd > 0))
+            create_dynamic_image_sidd(ortho_helper, args.output_directory, version=args.version, include_sicd=args.sicd)
         else:
             raise ValueError('Got unhandled type {}'.format(args.type))

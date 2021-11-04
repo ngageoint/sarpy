@@ -1655,6 +1655,7 @@ class PALSARReader(BaseReader, SICDTypeReader):
 
         SICDTypeReader.__init__(self, tuple(sicds))
         BaseReader.__init__(self, tuple(chippers), reader_type="SICD")
+        self._check_sizes()
 
     @property
     def file_name(self):

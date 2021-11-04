@@ -2109,6 +2109,7 @@ class GFFReader(BaseReader, SICDTypeReader):
         chipper = gff_details.get_chipper()
         SICDTypeReader.__init__(self, sicd)
         BaseReader.__init__(self, chipper, reader_type="SICD")
+        self._check_sizes()
 
     @property
     def gff_details(self):

@@ -1,5 +1,8 @@
 # This details the important differences introduced in sarpy 1.2
 
+* .39 - Update the population of CSG Doppler Centroid meta data
+        Correcting logging issues for command-line utilities
+* .38 - Update, still incomplete, to population of sicd metadata from Capella SLC reader
 * .37 - Centralizing the xml floating point serialization format
         Adding a CollectEnd property for sicd.Timeline
 * .36 - Making the annotation object definitions more coherent and useful for

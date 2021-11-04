@@ -7,15 +7,16 @@ For a basic help on the command-line, check
 
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
 import argparse
 import logging
 import os
 
+import sarpy
 from sarpy.io.complex.converter import open_complex
 from sarpy.io.product.kmz_product_creation import create_kmz_view
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
 
 
 if __name__ == '__main__':
@@ -43,9 +44,10 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    if args.verbose:
-        logger = logging.getLogger('sarpy')
-        logger.setLevel('INFO')
+    level = 'INFO' if args.verbose else 'WARNING'
+    logging.basicConfig(level=level)
+    logger = logging.getLogger('sarpy')
+    logger.setLevel(level)
 
     reader = open_complex(args.input_file)
     file_stem = os.path.splitext(os.path.split(args.input_file)[1])[0]

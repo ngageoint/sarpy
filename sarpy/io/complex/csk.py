@@ -176,6 +176,10 @@ class CSKDetails(object):
                 band_dict[gp_name] = OrderedDict()
                 _extract_attrs(gp, out=band_dict[gp_name])
 
+                if 'B0001' in gp:
+                    beam_info = gp['B0001']
+                    _extract_attrs(beam_info, out=band_dict[gp_name])
+
                 if self._mission_id in ['CSK', 'KMPS']:
                     the_dataset = gp['SBI']
                 elif self._mission_id == 'CSG':
@@ -183,6 +187,7 @@ class CSKDetails(object):
                 else:
                     raise ValueError('Unhandled mission id {}'.format(self._mission_id))
                 _extract_attrs(the_dataset, out=band_dict[gp_name])
+
                 shape_dict[gp_name] = the_dataset.shape[:2]
                 if the_dataset.dtype.name == 'float32':
                     dtype_dict[gp_name] = 'RE32F_IM32F'
@@ -433,9 +438,20 @@ class CSKDetails(object):
             dop_poly_az = strip_poly(h5_dict['Centroid vs Azimuth Time Polynomial'])
             dop_poly_rg = strip_poly(h5_dict['Centroid vs Range Time Polynomial'])
         elif self._mission_id == 'CSG':
+            az_ref_time_nozd = band_dict[band_name]['Azimuth Polynomial Reference Time']
+            first_time = band_dict[band_name]['Azimuth First Time']
+            last_time = band_dict[band_name]['Azimuth Last Time']
+            az_fit_times = numpy.linspace(first_time, last_time, num=11)
+
+            geom_dop_cent_poly = band_dict[band_name]['Doppler Centroid vs Azimuth Time Polynomial - RAW']
+            dop_rate_poly = band_dict[band_name]['Doppler Rate vs Azimuth Time Polynomial']
+            centroid_values = polynomial.polyval(az_fit_times - az_ref_time_nozd, geom_dop_cent_poly)
+            rate_values = polynomial.polyval(az_fit_times - az_ref_time_nozd, dop_rate_poly)
+            zd_times = az_fit_times - centroid_values / rate_values
             az_ref_time = band_dict[band_name]['Azimuth Polynomial Reference Time - ZD']
+            dop_poly_az = strip_poly(polynomial.polyfit(zd_times - az_ref_time, centroid_values, 4))
+
             rg_ref_time = band_dict[band_name]['Range Polynomial Reference Time']
-            dop_poly_az = strip_poly(band_dict[band_name]['Doppler Centroid vs Azimuth Time Polynomial - ZD'])
             dop_poly_rg = strip_poly(band_dict[band_name]['Doppler Centroid vs Range Time Polynomial'])
         else:
             raise ValueError('Unhandled mission id {}'.format(self._mission_id))
@@ -712,6 +728,7 @@ class CSKReader(BaseReader, SICDTypeReader):
 
         SICDTypeReader.__init__(self, tuple(sicds))
         BaseReader.__init__(self, tuple(chippers), reader_type="SICD")
+        self._check_sizes()
 
     @property
     def csk_details(self):
