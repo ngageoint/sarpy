@@ -7,11 +7,14 @@ For a basic help on the command-line, check
 
 """
 
-import argparse
-from sarpy.io.complex.converter import conversion_utility
-
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
+
+import argparse
+import logging
+
+import sarpy
+from sarpy.io.complex.converter import conversion_utility
 
 
 def convert(input_file, output_dir, preserve_nitf_information=False):
@@ -51,6 +54,13 @@ if __name__ == '__main__':
         '-p', '--preserve', action='store_true',
         help='Try to preserve any NITF information?\n'
              'This only applies in the event that the file being read is a NITF')
+    parser.add_argument(
+        '-v', '--verbose', action='store_true', help='Verbose (level="INFO") logging?')
 
     args = parser.parse_args()
+    level = 'INFO' if args.verbose else 'WARNING'
+    logging.basicConfig(level=level)
+    logger = logging.getLogger('sarpy')
+    logger.setLevel(level)
+
     convert(args.input_file, args.output_directory, preserve_nitf_information=args.preserve)

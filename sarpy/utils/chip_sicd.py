@@ -13,7 +13,9 @@ __author__ = "John Gorman"
 import os
 import argparse
 from typing import Tuple
+import logging
 
+import sarpy
 from sarpy.io.complex.converter import conversion_utility
 from sarpy.io.complex.sicd import SICDReader
 
@@ -130,8 +132,16 @@ if __name__ == '__main__':
         '--older', action='store_true',
         help='Try to use a less recent version of SICD (1.1),\n'
              'for possible application compliance issues?')
+    parser.add_argument(
+        '-v', '--verbose', action='store_true', help='Verbose (level="INFO") logging?')
 
     args = parser.parse_args()
+
+    level = 'INFO' if args.verbose else 'WARNING'
+    logging.basicConfig(level=level)
+    logger = logging.getLogger('sarpy')
+    logger.setLevel(level)
+
     create_chip(
         args.input_file, args.output_directory, output_file=args.output_file,
         row_limits=args.row_lims, col_limits=args.col_lims,
