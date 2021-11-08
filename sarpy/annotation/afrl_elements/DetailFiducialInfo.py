@@ -196,13 +196,11 @@ class TheFiducialType(Serializable):
     _fields = (
         'Name', 'SerialNumber', 'FiducialType', 'DatasetFiducialNumber',
         'ImageLocation', 'GeoLocation',
-        'Width_3dB', 'Width_18dB', 'Ratio_3dB_18dB',
+        'IPRWidth_3dB', 'IPRWidth_18db', 'Ratio_3dB_18dB',
         'PeakSideLobeRatio', 'IntegratedSideLobeRatio',
         'SlantPlane', 'GroundPlane')
     _required = (
         'FiducialType', 'ImageLocation', 'GeoLocation')
-    _tag_overide = {
-        'Width_3dB': '_3dBWidth', 'Width_18dB': '_18dBWidth', 'Ratio_3dB_18dB': '_3dB_18dBRatio'}
     # descriptors
     Name = StringDescriptor(
         'Name', _required, strict=DEFAULT_STRICT,
@@ -225,16 +223,16 @@ class TheFiducialType(Serializable):
         'GeoLocation', GeoLocationType, _required,
         docstring='Real physical location of the fiducial'
     )  # type: Optional[GeoLocationType]
-    Width_3dB = SerializableDescriptor(
-        'Width_3dB', RangeCrossRangeType, _required,
+    IPRWidth_3dB = SerializableDescriptor(
+        'IPRWidth_3dB', RangeCrossRangeType, _required,
         docstring='The 3 dB impulse response width, in meters'
     )  # type: Optional[RangeCrossRangeType]
-    Width_18dB = SerializableDescriptor(
-        'Width_18dB', RangeCrossRangeType, _required,
+    IPRWidth_18db = SerializableDescriptor(
+        'IPRWidth_18db', RangeCrossRangeType, _required,
         docstring='The 18 dB impulse response width, in meters'
     )  # type: Optional[RangeCrossRangeType]
-    Ratio_3dB_18dB = SerializableDescriptor(
-        'Ratio_3dB_18dB', RangeCrossRangeType, _required,
+    IPRWidth_Ratio_3dB_18dB = SerializableDescriptor(
+        'IPRWidth_Ratio_3dB_18dB', RangeCrossRangeType, _required,
         docstring='Ratio of the 3 dB to 18 dB system impulse response width'
     )  # type: Optional[RangeCrossRangeType]
     PeakSideLobeRatio = SerializableDescriptor(
@@ -257,7 +255,7 @@ class TheFiducialType(Serializable):
 
     def __init__(self, Name=None, SerialNumber=None, FiducialType=None,
                  DatasetFiducialNumber=None, ImageLocation=None, GeoLocation=None,
-                 Width_3dB=None, Width_18dB=None, Ratio_3dB_18dB=None,
+                 IPRWidth_3dB=None, IPRWidth_18db=None, IPRWidth_Ratio_3dB_18dB=None,
                  PeakSideLobeRatio=None, IntegratedSideLobeRatio=None,
                  SlantPlane=None, GroundPlane=None,
                  **kwargs):
@@ -270,9 +268,9 @@ class TheFiducialType(Serializable):
         DatasetFiducialNumber : None|int
         ImageLocation : ImageLocationType
         GeoLocation : GeoLocationType
-        Width_3dB : None|RangeCrossRangeType|numpy.ndarray|list|tuple
-        Width_18dB : None|RangeCrossRangeType|numpy.ndarray|list|tuple
-        Ratio_3dB_18dB : None|RangeCrossRangeType|numpy.ndarray|list|tuple
+        IPRWidth_3dB : None|RangeCrossRangeType|numpy.ndarray|list|tuple
+        IPRWidth_18db : None|RangeCrossRangeType|numpy.ndarray|list|tuple
+        IPRWidth_Ratio_3dB_18dB : None|RangeCrossRangeType|numpy.ndarray|list|tuple
         PeakSideLobeRatio : None|RangeCrossRangeType|numpy.ndarray|list|tuple
         IntegratedSideLobeRatio : None|RangeCrossRangeType|numpy.ndarray|list|tuple
         SlantPlane : None|PhysicalLocationType
@@ -291,9 +289,9 @@ class TheFiducialType(Serializable):
         self.DatasetFiducialNumber = DatasetFiducialNumber
         self.ImageLocation = ImageLocation
         self.GeoLocation = GeoLocation
-        self.Width_3dB = Width_3dB
-        self.Width_18dB = Width_18dB
-        self.Ratio_3dB_18dB = Ratio_3dB_18dB
+        self.IPRWidth_3dB = IPRWidth_3dB
+        self.IPRWidth_18db = IPRWidth_18db
+        self.IPRWidth_Ratio_3dB_18dB = IPRWidth_Ratio_3dB_18dB
         self.PeakSideLobeRatio = PeakSideLobeRatio
         self.IntegratedSideLobeRatio = IntegratedSideLobeRatio
         self.SlantPlane = SlantPlane
@@ -311,8 +309,8 @@ class TheFiducialType(Serializable):
             Override any present value?
         """
 
-        if self.Width_3dB is None or override:
-            self.Width_3dB = RangeCrossRangeType.from_array(
+        if self.IPRWidth_3dB is None or override:
+            self.IPRWidth_3dB = RangeCrossRangeType.from_array(
                 (sicd.Grid.Row.ImpRespWid, sicd.Grid.Col.ImpRespWid))
             # TODO: this seems questionable to me?
 
