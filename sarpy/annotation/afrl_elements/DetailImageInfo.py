@@ -236,7 +236,7 @@ class DetailImageInfoType(Serializable):
         'DataFormat', 'DataByteOrder', 'NumPixels', 'ImageCollectionDate', 'ZuluOffset',
         'SensorReferencePoint', 'SensorCalibrationFactor', 'DataCalibrated',
         'Resolution', 'PixelSpacing', 'WeightingType', 'OverSamplingFactor',
-        'IPRWidth_3dB', 'ImageQualityDescription', 'ImageHeading',
+        'IPRWidth3dB', 'ImageQualityDescription', 'ImageHeading',
         'ImageCorners', 'SlantPlane', 'GroundPlane', 'SceneCenterReferenceLine')
     _required = (
         'DataFilename', 'ClassificationMarkings', 'DataPlane', 'DataType',
@@ -307,8 +307,8 @@ class DetailImageInfoType(Serializable):
     OverSamplingFactor = SerializableDescriptor(
         'OverSamplingFactor', RangeCrossRangeType, _required,
         docstring='The factor by which the pixel space is oversampled.')  # type: Optional[RangeCrossRangeType]
-    IPRWidth_3dB = SerializableDescriptor(
-        'IPRWidth_3dB', RangeCrossRangeType, _required,
+    IPRWidth3dB = SerializableDescriptor(
+        'IPRWidth3dB', RangeCrossRangeType, _required,
         docstring='The 3 dB system impulse response with, in meters')  # type: Optional[RangeCrossRangeType]
     ImageQualityDescription = StringDescriptor(
         'ImageQualityDescription', _required,
@@ -339,7 +339,7 @@ class DetailImageInfoType(Serializable):
                  ImageCollectionDate=None, ZuluOffset=None,
                  SensorReferencePoint=None, SensorCalibrationFactor=None,
                  DataCalibrated=None, Resolution=None, PixelSpacing=None,
-                 WeightingType=None, OverSamplingFactor=None, IPRWidth_3dB=None,
+                 WeightingType=None, OverSamplingFactor=None, IPRWidth3dB=None,
                  ImageQualityDescription=None, ImageHeading=None, ImageCorners=None,
                  SlantPlane=None, GroundPlane=None, SceneCenterReferenceLine=None,
                  **kwargs):
@@ -367,7 +367,7 @@ class DetailImageInfoType(Serializable):
         PixelSpacing : RangeCrossRangeType|numpy.ndarray|list|tuple
         WeightingType : StringRangeCrossRangeType
         OverSamplingFactor : None|RangeCrossRangeType
-        IPRWidth_3dB : None|RangeCrossRangeType|numpy.ndarray|list|tuple
+        IPRWidth3dB : None|RangeCrossRangeType|numpy.ndarray|list|tuple
         ImageQualityDescription : None|str
         ImageHeading : None|float
         ImageCorners : ImageCornerType
@@ -411,7 +411,7 @@ class DetailImageInfoType(Serializable):
         self.PixelSpacing = PixelSpacing
         self.WeightingType = WeightingType
         self.OverSamplingFactor = OverSamplingFactor
-        self.IPRWidth_3dB = IPRWidth_3dB
+        self.IPRWidth3dB = IPRWidth3dB
 
         self.ImageQualityDescription = ImageQualityDescription
         self.ImageHeading = ImageHeading
@@ -485,6 +485,6 @@ class DetailImageInfoType(Serializable):
             WeightingType=StringRangeCrossRangeType(
                 Range=sicd.Grid.Row.WgtType.WindowName,
                 CrossRange=sicd.Grid.Col.WgtType.WindowName),
-            IPRWidth_3dB=(sicd.Grid.Row.ImpRespWid, sicd.Grid.Col.ImpRespWid),  # TODO: I don't think that this is correct?
+            IPRWidth3dB=(sicd.Grid.Row.ImpRespWid, sicd.Grid.Col.ImpRespWid),  # TODO: I don't think that this is correct?
             ImageHeading=sicd.SCPCOA.AzimAng,
             ImageCorners=icps)

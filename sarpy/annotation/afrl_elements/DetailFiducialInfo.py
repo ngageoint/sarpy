@@ -196,7 +196,7 @@ class TheFiducialType(Serializable):
     _fields = (
         'Name', 'SerialNumber', 'FiducialType', 'DatasetFiducialNumber',
         'ImageLocation', 'GeoLocation',
-        'IPRWidth_3dB', 'IPRWidth_18db', 'Ratio_3dB_18dB',
+        'IPRWidth3dB', 'IPRWidth18dB', 'Ratio_3dB_18dB',
         'PeakSideLobeRatio', 'IntegratedSideLobeRatio',
         'SlantPlane', 'GroundPlane')
     _required = (
@@ -223,16 +223,16 @@ class TheFiducialType(Serializable):
         'GeoLocation', GeoLocationType, _required,
         docstring='Real physical location of the fiducial'
     )  # type: Optional[GeoLocationType]
-    IPRWidth_3dB = SerializableDescriptor(
-        'IPRWidth_3dB', RangeCrossRangeType, _required,
+    IPRWidth3dB = SerializableDescriptor(
+        'IPRWidth3dB', RangeCrossRangeType, _required,
         docstring='The 3 dB impulse response width, in meters'
     )  # type: Optional[RangeCrossRangeType]
-    IPRWidth_18db = SerializableDescriptor(
-        'IPRWidth_18db', RangeCrossRangeType, _required,
+    IPRWidth18dB = SerializableDescriptor(
+        'IPRWidth18dB', RangeCrossRangeType, _required,
         docstring='The 18 dB impulse response width, in meters'
     )  # type: Optional[RangeCrossRangeType]
-    IPRWidth_Ratio_3dB_18dB = SerializableDescriptor(
-        'IPRWidth_Ratio_3dB_18dB', RangeCrossRangeType, _required,
+    IPRWidth3dB18dBRatio = SerializableDescriptor(
+        'IPRWidth3dB18dBRatio', RangeCrossRangeType, _required,
         docstring='Ratio of the 3 dB to 18 dB system impulse response width'
     )  # type: Optional[RangeCrossRangeType]
     PeakSideLobeRatio = SerializableDescriptor(
@@ -255,7 +255,7 @@ class TheFiducialType(Serializable):
 
     def __init__(self, Name=None, SerialNumber=None, FiducialType=None,
                  DatasetFiducialNumber=None, ImageLocation=None, GeoLocation=None,
-                 IPRWidth_3dB=None, IPRWidth_18db=None, IPRWidth_Ratio_3dB_18dB=None,
+                 IPRWidth3dB=None, IPRWidth18dB=None, IPRWidth3dB18dBRatio=None,
                  PeakSideLobeRatio=None, IntegratedSideLobeRatio=None,
                  SlantPlane=None, GroundPlane=None,
                  **kwargs):
@@ -268,9 +268,9 @@ class TheFiducialType(Serializable):
         DatasetFiducialNumber : None|int
         ImageLocation : ImageLocationType
         GeoLocation : GeoLocationType
-        IPRWidth_3dB : None|RangeCrossRangeType|numpy.ndarray|list|tuple
-        IPRWidth_18db : None|RangeCrossRangeType|numpy.ndarray|list|tuple
-        IPRWidth_Ratio_3dB_18dB : None|RangeCrossRangeType|numpy.ndarray|list|tuple
+        IPRWidth3dB : None|RangeCrossRangeType|numpy.ndarray|list|tuple
+        IPRWidth18dB : None|RangeCrossRangeType|numpy.ndarray|list|tuple
+        IPRWidth3dB18dBRatio : None|RangeCrossRangeType|numpy.ndarray|list|tuple
         PeakSideLobeRatio : None|RangeCrossRangeType|numpy.ndarray|list|tuple
         IntegratedSideLobeRatio : None|RangeCrossRangeType|numpy.ndarray|list|tuple
         SlantPlane : None|PhysicalLocationType
@@ -289,9 +289,9 @@ class TheFiducialType(Serializable):
         self.DatasetFiducialNumber = DatasetFiducialNumber
         self.ImageLocation = ImageLocation
         self.GeoLocation = GeoLocation
-        self.IPRWidth_3dB = IPRWidth_3dB
-        self.IPRWidth_18db = IPRWidth_18db
-        self.IPRWidth_Ratio_3dB_18dB = IPRWidth_Ratio_3dB_18dB
+        self.IPRWidth3dB = IPRWidth3dB
+        self.IPRWidth18dB = IPRWidth18dB
+        self.IPRWidth3dB18dBRatio = IPRWidth3dB18dBRatio
         self.PeakSideLobeRatio = PeakSideLobeRatio
         self.IntegratedSideLobeRatio = IntegratedSideLobeRatio
         self.SlantPlane = SlantPlane
@@ -309,8 +309,8 @@ class TheFiducialType(Serializable):
             Override any present value?
         """
 
-        if self.IPRWidth_3dB is None or override:
-            self.IPRWidth_3dB = RangeCrossRangeType.from_array(
+        if self.IPRWidth3dB is None or override:
+            self.IPRWidth3dB = RangeCrossRangeType.from_array(
                 (sicd.Grid.Row.ImpRespWid, sicd.Grid.Col.ImpRespWid))
             # TODO: this seems questionable to me?
 
