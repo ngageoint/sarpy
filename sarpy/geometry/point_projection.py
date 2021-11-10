@@ -1481,7 +1481,7 @@ def image_to_ground_hae(im_points, structure, block_size=50000,
 # Image-to-DEM
 
 def _do_dem_iteration(previous_ecf, previous_diff, this_ecf, this_diff):
-    mask = (this_diff < 0)
+    mask = numpy.isfinite(this_diff) & (this_diff < 0)  # todo: skip NaN?
     if numpy.any(mask):
         d0 = (previous_diff[mask])
         d1 = numpy.abs(this_diff[mask])
@@ -1658,15 +1658,33 @@ def image_to_ground_dem(
     """
 
     def append_grid_elements(this_lon_min, this_lon_max, the_list):
-        lat_start = lat_min
-        while lat_start < lat_max:
-            lon_start = this_lon_min
-            lat_end = min(lat_start + lat_grid_size, lat_max)
-            while lon_start < this_lon_max:
-                lon_end = min(lon_start + lon_grid_size, this_lon_max)
-                the_list.append((lat_start, lat_end, lon_start, lon_end))
-                lon_start = lon_end
-            lat_start = lat_end
+        assert this_lon_min <= this_lon_max
+        if this_lon_min == this_lon_max:
+            if lat_min == lat_max:
+                the_list.append((lat_min, lat_max, this_lon_min, this_lon_max))
+            else:
+                lat_start = lat_min
+                while lat_start < lat_max:
+                    lat_end = min(lat_start + lat_grid_size, lat_max)
+                    the_list.append((lat_start, lat_end, this_lon_min, this_lon_max))
+                    lat_start = lat_end
+        else:
+            if lat_min == lat_max:
+                lon_start = this_lon_min
+                while lon_start < this_lon_max:
+                    lon_end = min(lon_start + lon_grid_size, this_lon_max)
+                    the_list.append((lat_min, lat_max, lon_start, lon_end))
+                    lon_start = lon_end
+            else:
+                lat_start = lat_min
+                while lat_start < lat_max:
+                    lon_start = this_lon_min
+                    lat_end = min(lat_start + lat_grid_size, lat_max)
+                    while lon_start < this_lon_max:
+                        lon_end = min(lon_start + lon_grid_size, this_lon_max)
+                        the_list.append((lat_start, lat_end, lon_start, lon_end))
+                        lon_start = lon_end
+                    lat_start = lat_end
 
     # coa projection creation
     im_points, orig_shape = _validate_im_points(im_points)
