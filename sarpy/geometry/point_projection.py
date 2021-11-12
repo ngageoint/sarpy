@@ -943,11 +943,13 @@ def ground_to_image(coords, structure, tolerance=1e-2, max_iterations=10, block_
 
     Returns
     -------
-    Tuple[numpy.ndarray, float, int]
-        * `image_points` - the determined image point array, of size `N x 2`. Following
-          the SICD convention, he upper-left pixel is [0, 0].
-        * `delta_gpn` - residual ground plane displacement (m).
-        * `iterations` - the number of iterations performed.
+    image_points: numpy.ndarray
+        The determined image point array. Following the SICD convention, t
+        the upper-left pixel is [0, 0].
+    delta_gpn: numpy.ndarray|float
+        The residual ground plane displacement (m).
+    iterations: numpy.ndarray|int
+        The number of iterations performed.
     """
 
     coords, orig_shape = _validate_coords(coords)
@@ -1001,6 +1003,8 @@ def ground_to_image(coords, structure, tolerance=1e-2, max_iterations=10, block_
 
     if len(orig_shape) == 1:
         image_points = numpy.reshape(image_points, (-1,))
+        delta_gpn = float(delta_gpn[0])
+        iters = int(iters[0])
     elif len(orig_shape) > 1:
         image_points = numpy.reshape(image_points, orig_shape[:-1]+(2, ))
         delta_gpn = numpy.reshape(delta_gpn, orig_shape[:-1])
@@ -1028,11 +1032,13 @@ def ground_to_image_geo(coords, structure, ordering='latlong', **kwargs):
 
     Returns
     -------
-    Tuple[numpy.ndarray, float, int]
-        * `image_points` - the determined image point array, of size `N x 2`. Following SICD convention,
-           the upper-left pixel is [0, 0].
-        * `delta_gpn` - residual ground plane displacement (m).
-        * `iterations` - the number of iterations performed.
+    image_points: numpy.ndarray
+        The determined image point array. Following the SICD convention, t
+        the upper-left pixel is [0, 0].
+    delta_gpn: numpy.ndarray|float
+        The residual ground plane displacement (m).
+    iterations: numpy.ndarray|int
+        The number of iterations performed.
     """
 
     return ground_to_image(geodetic_to_ecf(coords, ordering=ordering), structure, **kwargs)

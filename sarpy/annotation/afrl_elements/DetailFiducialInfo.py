@@ -77,9 +77,8 @@ class ImageLocationType(Serializable):
         else:
             image_shift = numpy.zeros((2, ), dtype='float64')
 
-        absolute_pixel_location = the_structure.project_ground_to_image_geo(
+        absolute_pixel_location, _, _ = the_structure.project_ground_to_image_geo(
             geo_location.CenterPixel.get_array(dtype='float64'), ordering='latlong')
-
         if numpy.any(numpy.isnan(absolute_pixel_location)):
             return None
 
@@ -196,7 +195,7 @@ class TheFiducialType(Serializable):
     _fields = (
         'Name', 'SerialNumber', 'FiducialType', 'DatasetFiducialNumber',
         'ImageLocation', 'GeoLocation',
-        'IPRWidth3dB', 'IPRWidth18dB', 'Ratio_3dB_18dB',
+        'IPRWidth3dB', 'IPRWidth18dB', 'IPRWidth3dB18dBRatio',
         'PeakSideLobeRatio', 'IntegratedSideLobeRatio',
         'SlantPlane', 'GroundPlane')
     _required = (
@@ -464,8 +463,7 @@ class DetailFiducialInfoType(Serializable):
 
         def update_fiducial(temp_fid, in_image_count):
             temp_fid.set_default_width_from_sicd(sicd)  # todo: I'm not sure that this is correct?
-            status = temp_fid.set_image_location_from_sicd(
-                sicd, populate_in_periphery=populate_in_periphery)
+            status = temp_fid.set_image_location_from_sicd(sicd)
             use_fid = False
             if status == 0:
                 raise ValueError('Fiducial already has image details set')
@@ -475,7 +473,6 @@ class DetailFiducialInfoType(Serializable):
                     sicd, populate_in_periphery=True)
                 in_image_count += 1
             return use_fid, in_image_count
-
 
         fid_in_image = 0
         if include_out_of_range:
