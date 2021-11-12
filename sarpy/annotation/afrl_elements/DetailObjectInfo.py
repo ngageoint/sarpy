@@ -18,6 +18,7 @@ from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.product.sidd2_elements.SIDD import SIDDType
 from sarpy.geometry.geocoords import geodetic_to_ecf, ecf_to_geodetic, wgs_84_norm
 from sarpy.geometry.geometry_elements import Point, Polygon, GeometryCollection, Geometry
+from sarpy.annotation.base import GeometryProperties
 
 from .base import DEFAULT_STRICT
 from .blocks import RangeCrossRangeType, RowColDoubleType, LatLonEleType
@@ -391,13 +392,15 @@ class ImageLocationType(Serializable):
 
         Returns
         -------
-        Geometry
+        geometry : None|Point|GeometryCollection
+        geometry_properties : None|List[GeometryProperties]
         """
 
-        point = None
-        polygon = None
+        geometries = []
+        geometry_properties = []
         if self.CenterPixel is not None:
-            point = Point(coordinates=self.CenterPixel.get_array(dtype='float64'))
+            geometries.append(Point(coordinates=self.CenterPixel.get_array(dtype='float64')))
+            geometry_properties.append(GeometryProperties(name='CenterPixel', color='blue'))
         if self.LeftFrontPixel is not None and \
                 self.RightFrontPixel is not None and \
                 self.RightRearPixel is not None and \
@@ -407,15 +410,15 @@ class ImageLocationType(Serializable):
             ring[1, :] = self.RightFrontPixel.get_array(dtype='float64')
             ring[2, :] = self.RightRearPixel.get_array(dtype='float64')
             ring[3, :] = self.LeftRearPixel.get_array(dtype='float64')
-            polygon = Polygon(coordinates=[ring, ])
-        if point is not None and polygon is not None:
-            return GeometryCollection(geometries=[point, polygon])
-        elif point is not None:
-            return point
-        elif polygon is not None:
-            return polygon
+            geometries.append(Polygon(coordinates=[ring, ]))
+            geometry_properties.append(GeometryProperties(name='Polygon', color='green'))
+
+        if len(geometries) == 0:
+            return None, None
+        elif len(geometries) == 1:
+            return geometries[0], geometry_properties
         else:
-            return None
+            return GeometryCollection(geometries=geometries), geometry_properties
 
 
 class GeoLocationType(Serializable):
@@ -1155,28 +1158,34 @@ class TheObjectType(Serializable):
 
         Returns
         -------
-        Geometry
+        geometry : Geometry
+            The geometry object
+        geometry_properties : List[GeometryProperties]
+            The associated geometry properties list
         """
 
         if self.ImageLocation is None:
             raise ValueError('No ImageLocation defined.')
 
-        image_geometry_object = self.ImageLocation.get_geometry_object()
+        image_geometry_object, geometry_properties = self.ImageLocation.get_geometry_object()
+        if image_geometry_object is None:
+            return None, None
+        if not include_chip or self.SlantPlane is None:
+            return image_geometry_object, geometry_properties
 
-        if include_chip and self.SlantPlane is not None:
-            center_pixel = self.SlantPlane.Physical.CenterPixel.get_array()
-            chip_size = self.SlantPlane.Physical.ChipSize.get_array()
-            shift = numpy.array([[-0.5, -0.5], [-0.5, 0.5], [0.5, 0.5], [0.5, -0.5]], dtype='float64')
-            shift[:, 0] *= chip_size[0]
-            shift[:, 1] *= chip_size[1]
-            chip_rect = center_pixel + shift
-            chip_area = Polygon(coordinates=[chip_rect, ])
-            if isinstance(image_geometry_object, GeometryCollection):
-                image_geometry_object.geometries.append(chip_area)
-                return image_geometry_object
-            else:
-                return GeometryCollection(geometries=[image_geometry_object, chip_area])
-        return image_geometry_object
+        center_pixel = self.SlantPlane.Physical.CenterPixel.get_array()
+        chip_size = self.SlantPlane.Physical.ChipSize.get_array()
+        shift = numpy.array([[-0.5, -0.5], [-0.5, 0.5], [0.5, 0.5], [0.5, -0.5]], dtype='float64')
+        shift[:, 0] *= chip_size[0]
+        shift[:, 1] *= chip_size[1]
+        chip_rect = center_pixel + shift
+        chip_area = Polygon(coordinates=[chip_rect, ])
+        geometry_properties.append(GeometryProperties(name='Chip', color='red'))
+        if isinstance(image_geometry_object, GeometryCollection):
+            image_geometry_object.geometries.append(chip_area)
+        else:
+            image_geometry_object = GeometryCollection(geometries=[image_geometry_object, chip_area])
+        return image_geometry_object, geometry_properties
 
 
 # other types for the DetailObjectInfo

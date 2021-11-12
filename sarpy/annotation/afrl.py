@@ -25,7 +25,7 @@ from sarpy.annotation.afrl_elements.DetailImageInfo import DetailImageInfoType
 from sarpy.annotation.afrl_elements.DetailSensorInfo import DetailSensorInfoType
 
 from sarpy.annotation.label import LabelSchema, FileLabelCollection, LabelCollection, \
-    LabelFeature, LabelMetadataList, LabelMetadata
+    LabelFeature, LabelProperties, LabelMetadata
 
 
 class GroundTruthConstructor(object):
@@ -509,12 +509,14 @@ def convert_afrl_to_native(research, include_chip=False):
 
     def _convert_object_to_json(t_object):
         # extract the "properties"
-        label_metadata = LabelMetadata(label_id=t_object.ObjectLabel)
-        label_metadata_list = LabelMetadataList(elements=[label_metadata, ])
-
-        return LabelFeature(
-            geometry=t_object.get_image_geometry_object_for_sicd(include_chip=include_chip),
-            properties=label_metadata_list)
+        geometry, geometry_properties = t_object.get_image_geometry_object_for_sicd(include_chip=include_chip)
+        feature = LabelFeature(
+            geometry=geometry,
+            properties=LabelProperties(
+                name=t_object.ObjectLabel,
+                geometry_properties=geometry_properties))
+        feature.add_annotation_metadata(LabelMetadata(label_id=t_object.ObjectLabel))
+        return feature
 
     if not isinstance(research, ResearchType):
         raise TypeError('Expected ResearchType, got type `{}`'.format(type(research)))
