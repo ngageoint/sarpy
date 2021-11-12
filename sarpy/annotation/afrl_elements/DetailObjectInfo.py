@@ -1182,11 +1182,21 @@ class TheObjectType(Serializable):
         shift[:, 1] *= chip_size[1]
         chip_rect = center_pixel + shift
         chip_area = Polygon(coordinates=[chip_rect, ])
-        geometry_properties.append(GeometryProperties(name='Chip', color='red'))
+        geometry_properties.append(GeometryProperties(name='Physical', color='red'))
         if isinstance(image_geometry_object, GeometryCollection):
             image_geometry_object.geometries.append(chip_area)
         else:
             image_geometry_object = GeometryCollection(geometries=[image_geometry_object, chip_area])
+
+        center_pixel = self.SlantPlane.PhysicalWithShadows.CenterPixel.get_array()
+        chip_size = self.SlantPlane.PhysicalWithShadows.ChipSize.get_array()
+        shift = numpy.array([[-0.5, -0.5], [-0.5, 0.5], [0.5, 0.5], [0.5, -0.5]], dtype='float64')
+        shift[:, 0] *= chip_size[0]
+        shift[:, 1] *= chip_size[1]
+        chip_rect = center_pixel + shift
+        chip_area = Polygon(coordinates=[chip_rect, ])
+        geometry_properties.append(GeometryProperties(name='PhysicalWithShadows', color='magenta'))
+        image_geometry_object.geometries.append(chip_area)
         return image_geometry_object, geometry_properties
 
 
