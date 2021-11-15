@@ -1134,9 +1134,8 @@ class TheObjectType(Serializable):
         shadow_size = self.Size.Height*shadow_magnitude*magnitude_factor
         shadow_angle = sicd.SCPCOA.Shadow
         shadow_angle = numpy.pi if shadow_angle is None else numpy.deg2rad(shadow_angle)
-        shadow_vector = shadow_size*numpy.array(
+        shadow_vector = -shadow_size*numpy.array(
             [numpy.cos(shadow_angle)/sicd.Grid.Row.SS, numpy.sin(shadow_angle)/sicd.Grid.Col.SS])
-
         shadow_box = pixel_box + shadow_vector
 
         min_rows = min(min_rows, numpy.min(shadow_box[:, 0]))
