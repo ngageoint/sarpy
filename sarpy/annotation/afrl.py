@@ -25,7 +25,7 @@ from sarpy.annotation.afrl_elements.DetailImageInfo import DetailImageInfoType
 from sarpy.annotation.afrl_elements.DetailSensorInfo import DetailSensorInfoType
 
 from sarpy.annotation.label import LabelSchema, FileLabelCollection, LabelCollection, \
-    LabelFeature, LabelMetadataList, LabelMetadata
+    LabelFeature, LabelProperties, LabelMetadata
 
 
 class GroundTruthConstructor(object):
@@ -211,7 +211,9 @@ class GroundTruthConstructor(object):
                 NumberOfObjectsInScene=len(self._objects),
                 Objects=self._objects)).copy()
 
-    def localize_for_sicd(self, sicd, base_sicd_file, populate_in_periphery=False, include_out_of_range=False):
+    def localize_for_sicd(
+            self, sicd, base_sicd_file, populate_in_periphery=False, include_out_of_range=False,
+            minimum_pad=20):
         """
         Localize the AFRL structure for the given sicd structure.
 
@@ -225,6 +227,7 @@ class GroundTruthConstructor(object):
         base_sicd_file : str
         populate_in_periphery : bool
         include_out_of_range : bool
+        minimum_pad : int|float
 
         Returns
         -------
@@ -237,10 +240,13 @@ class GroundTruthConstructor(object):
             sicd,
             base_sicd_file,
             populate_in_periphery=populate_in_periphery,
-            include_out_of_range=include_out_of_range)
+            include_out_of_range=include_out_of_range,
+            minimum_pad=minimum_pad)
         return out_research
 
-    def localize_for_sicd_reader(self, sicd_reader, populate_in_periphery=False, include_out_of_range=False):
+    def localize_for_sicd_reader(
+            self, sicd_reader, populate_in_periphery=False, include_out_of_range=False,
+            minimum_pad=20):
         """
         Localize the AFRL structure for the given sicd file.
 
@@ -253,6 +259,7 @@ class GroundTruthConstructor(object):
         sicd_reader : SICDReader
         populate_in_periphery : bool
         include_out_of_range : bool
+        minimum_pad : int|float
 
         Returns
         -------
@@ -263,7 +270,8 @@ class GroundTruthConstructor(object):
         out_research.apply_sicd_reader(
             sicd_reader,
             populate_in_periphery=populate_in_periphery,
-            include_out_of_range=include_out_of_range)
+            include_out_of_range=include_out_of_range,
+            minimum_pad=minimum_pad)
         return out_research
 
 
@@ -366,13 +374,15 @@ class AnalystTruthConstructor(object):
                 FiducialType=FiducialType,
                 ImageLocation=ImageLocation))
 
-    def add_object(self, the_object):
+    def add_object(self, the_object, minimum_pad=20):
         """
         Adds the object to the collection. Note that this object will be modified in place.
 
         Parameters
         ----------
         the_object : TheObjectType
+        minimum_pad : float|int
+            The minimum number of pixels by which to pad for the chip
         """
 
         if not isinstance(the_object, TheObjectType):
@@ -381,11 +391,11 @@ class AnalystTruthConstructor(object):
             raise ValueError('The object has GeoLocation already set.')
         the_object.set_geo_location_from_sicd(
             self._sicd, projection_type=self._projection_type, **self._proj_kwargs)
-        the_object.set_chip_details_from_sicd(self._sicd, populate_in_periphery=True)
+        the_object.set_chip_details_from_sicd(self._sicd, populate_in_periphery=True, minimum_pad=minimum_pad)
         self._objects.append(the_object)
 
     def add_object_from_arguments(
-            self, SystemName=None, SystemComponent=None, NATOName=None,
+            self, minimum_pad=20, SystemName=None, SystemComponent=None, NATOName=None,
             Function=None, Version=None, DecoyType=None, SerialNumber=None,
             ObjectClass='Unknown', ObjectSubClass='Unknown', ObjectTypeClass='Unknown',
             ObjectType='Unknown', ObjectLabel=None, Size=None,
@@ -402,6 +412,7 @@ class AnalystTruthConstructor(object):
 
         Parameters
         ----------
+        minimum_pad : float|int
         SystemName : str
         SystemComponent : None|str
         NATOName : None|str
@@ -462,7 +473,7 @@ class AnalystTruthConstructor(object):
                           UnderlyingTerrain=UnderlyingTerrain,
                           OverlyingTerrain=OverlyingTerrain,
                           TerrainTexture=TerrainTexture,
-                          SeasonalCover=SeasonalCover))
+                          SeasonalCover=SeasonalCover), minimum_pad=minimum_pad)
 
     def get_final_structure(self):
         """
@@ -509,12 +520,14 @@ def convert_afrl_to_native(research, include_chip=False):
 
     def _convert_object_to_json(t_object):
         # extract the "properties"
-        label_metadata = LabelMetadata(label_id=t_object.ObjectLabel)
-        label_metadata_list = LabelMetadataList(elements=[label_metadata, ])
-
-        return LabelFeature(
-            geometry=t_object.get_image_geometry_object_for_sicd(include_chip=include_chip),
-            properties=label_metadata_list)
+        geometry, geometry_properties = t_object.get_image_geometry_object_for_sicd(include_chip=include_chip)
+        feature = LabelFeature(
+            geometry=geometry,
+            properties=LabelProperties(
+                name=t_object.SystemName,
+                geometry_properties=geometry_properties))
+        feature.add_annotation_metadata(LabelMetadata(label_id=t_object.ObjectLabel))
+        return feature
 
     if not isinstance(research, ResearchType):
         raise TypeError('Expected ResearchType, got type `{}`'.format(type(research)))
@@ -528,7 +541,7 @@ def convert_afrl_to_native(research, include_chip=False):
     annotation_collection = LabelCollection()
     for the_object in research.DetailObjectInfo.Objects:
         new_key = the_object.ObjectLabel
-        if new_key not in label_schema:
+        if new_key not in label_schema.labels:
             label_schema.add_entry(new_key, new_key)
         annotation_collection.add_feature(_convert_object_to_json(the_object))
 

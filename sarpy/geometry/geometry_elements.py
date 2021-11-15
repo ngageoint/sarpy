@@ -1098,7 +1098,7 @@ class MultiPoint(GeometryObject):
                 if maxs[i] is None or (entry > maxs[i]):
                     maxs[i] = entry
         mins.extend(maxs)
-        return
+        return mins
 
     def get_coordinate_list(self):
         if self._points is None:
