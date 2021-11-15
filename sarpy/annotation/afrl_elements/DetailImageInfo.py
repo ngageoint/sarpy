@@ -6,13 +6,11 @@ __classification__ = "UNCLASSIFIED"
 __authors__ = ("Thomas McCullough", "Thomas Rackers")
 
 from typing import Optional
-import os
 import numpy
 
 from sarpy.io.xml.base import Serializable, Arrayable
 from sarpy.io.xml.descriptors import StringDescriptor, SerializableDescriptor, \
     IntegerDescriptor, StringEnumDescriptor, DateTimeDescriptor, FloatDescriptor
-from sarpy.io.complex.sicd import SICDReader
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd_elements.blocks import LatLonType
 
@@ -238,13 +236,12 @@ class DetailImageInfoType(Serializable):
         'DataFormat', 'DataByteOrder', 'NumPixels', 'ImageCollectionDate', 'ZuluOffset',
         'SensorReferencePoint', 'SensorCalibrationFactor', 'DataCalibrated',
         'Resolution', 'PixelSpacing', 'WeightingType', 'OverSamplingFactor',
-        'Width_3dB', 'ImageQualityDescription', 'ImageHeading',
+        'IPRWidth3dB', 'ImageQualityDescription', 'ImageHeading',
         'ImageCorners', 'SlantPlane', 'GroundPlane', 'SceneCenterReferenceLine')
     _required = (
         'DataFilename', 'ClassificationMarkings', 'DataPlane', 'DataType',
         'DataFormat', 'NumPixels', 'ImageCollectionDate', 'SensorReferencePoint',
         'Resolution', 'PixelSpacing', 'WeightingType', 'ImageCorners')
-    _tag_overide = {'Width_3dB': '_3dBWidth'}
     # descriptors
     DataFilename = StringDescriptor(
         'DataFilename', _required,
@@ -310,8 +307,8 @@ class DetailImageInfoType(Serializable):
     OverSamplingFactor = SerializableDescriptor(
         'OverSamplingFactor', RangeCrossRangeType, _required,
         docstring='The factor by which the pixel space is oversampled.')  # type: Optional[RangeCrossRangeType]
-    Width_3dB = SerializableDescriptor(
-        'Width_3dB', RangeCrossRangeType, _required,
+    IPRWidth3dB = SerializableDescriptor(
+        'IPRWidth3dB', RangeCrossRangeType, _required,
         docstring='The 3 dB system impulse response with, in meters')  # type: Optional[RangeCrossRangeType]
     ImageQualityDescription = StringDescriptor(
         'ImageQualityDescription', _required,
@@ -342,7 +339,7 @@ class DetailImageInfoType(Serializable):
                  ImageCollectionDate=None, ZuluOffset=None,
                  SensorReferencePoint=None, SensorCalibrationFactor=None,
                  DataCalibrated=None, Resolution=None, PixelSpacing=None,
-                 WeightingType=None, OverSamplingFactor=None, Width_3dB=None,
+                 WeightingType=None, OverSamplingFactor=None, IPRWidth3dB=None,
                  ImageQualityDescription=None, ImageHeading=None, ImageCorners=None,
                  SlantPlane=None, GroundPlane=None, SceneCenterReferenceLine=None,
                  **kwargs):
@@ -370,7 +367,7 @@ class DetailImageInfoType(Serializable):
         PixelSpacing : RangeCrossRangeType|numpy.ndarray|list|tuple
         WeightingType : StringRangeCrossRangeType
         OverSamplingFactor : None|RangeCrossRangeType
-        Width_3dB : None|RangeCrossRangeType|numpy.ndarray|list|tuple
+        IPRWidth3dB : None|RangeCrossRangeType|numpy.ndarray|list|tuple
         ImageQualityDescription : None|str
         ImageHeading : None|float
         ImageCorners : ImageCornerType
@@ -414,7 +411,7 @@ class DetailImageInfoType(Serializable):
         self.PixelSpacing = PixelSpacing
         self.WeightingType = WeightingType
         self.OverSamplingFactor = OverSamplingFactor
-        self.Width_3dB = Width_3dB
+        self.IPRWidth3dB = IPRWidth3dB
 
         self.ImageQualityDescription = ImageQualityDescription
         self.ImageHeading = ImageHeading
@@ -488,6 +485,6 @@ class DetailImageInfoType(Serializable):
             WeightingType=StringRangeCrossRangeType(
                 Range=sicd.Grid.Row.WgtType.WindowName,
                 CrossRange=sicd.Grid.Col.WgtType.WindowName),
-            Width_3dB=(sicd.Grid.Row.ImpRespWid, sicd.Grid.Col.ImpRespWid),  # TODO: I don't think that this is correct?
+            IPRWidth3dB=(sicd.Grid.Row.ImpRespWid, sicd.Grid.Col.ImpRespWid),  # TODO: I don't think that this is correct?
             ImageHeading=sicd.SCPCOA.AzimAng,
             ImageCorners=icps)

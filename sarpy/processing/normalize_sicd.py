@@ -834,7 +834,6 @@ def sicd_degrade_reweight(
             return
 
         sigma = numpy.sqrt(0.5*variance)
-
         if noise_level is not None:
             noise_constant_power = numpy.exp(numpy.log(10)*0.1*noise_level.NoisePoly[0, 0])
             noise_constant_power += variance

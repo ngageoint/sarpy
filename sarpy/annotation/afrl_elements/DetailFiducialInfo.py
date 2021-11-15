@@ -77,9 +77,8 @@ class ImageLocationType(Serializable):
         else:
             image_shift = numpy.zeros((2, ), dtype='float64')
 
-        absolute_pixel_location = the_structure.project_ground_to_image_geo(
+        absolute_pixel_location, _, _ = the_structure.project_ground_to_image_geo(
             geo_location.CenterPixel.get_array(dtype='float64'), ordering='latlong')
-
         if numpy.any(numpy.isnan(absolute_pixel_location)):
             return None
 
@@ -196,13 +195,11 @@ class TheFiducialType(Serializable):
     _fields = (
         'Name', 'SerialNumber', 'FiducialType', 'DatasetFiducialNumber',
         'ImageLocation', 'GeoLocation',
-        'Width_3dB', 'Width_18dB', 'Ratio_3dB_18dB',
+        'IPRWidth3dB', 'IPRWidth18dB', 'IPRWidth3dB18dBRatio',
         'PeakSideLobeRatio', 'IntegratedSideLobeRatio',
         'SlantPlane', 'GroundPlane')
     _required = (
         'FiducialType', 'ImageLocation', 'GeoLocation')
-    _tag_overide = {
-        'Width_3dB': '_3dBWidth', 'Width_18dB': '_18dBWidth', 'Ratio_3dB_18dB': '_3dB_18dBRatio'}
     # descriptors
     Name = StringDescriptor(
         'Name', _required, strict=DEFAULT_STRICT,
@@ -225,16 +222,16 @@ class TheFiducialType(Serializable):
         'GeoLocation', GeoLocationType, _required,
         docstring='Real physical location of the fiducial'
     )  # type: Optional[GeoLocationType]
-    Width_3dB = SerializableDescriptor(
-        'Width_3dB', RangeCrossRangeType, _required,
+    IPRWidth3dB = SerializableDescriptor(
+        'IPRWidth3dB', RangeCrossRangeType, _required,
         docstring='The 3 dB impulse response width, in meters'
     )  # type: Optional[RangeCrossRangeType]
-    Width_18dB = SerializableDescriptor(
-        'Width_18dB', RangeCrossRangeType, _required,
+    IPRWidth18dB = SerializableDescriptor(
+        'IPRWidth18dB', RangeCrossRangeType, _required,
         docstring='The 18 dB impulse response width, in meters'
     )  # type: Optional[RangeCrossRangeType]
-    Ratio_3dB_18dB = SerializableDescriptor(
-        'Ratio_3dB_18dB', RangeCrossRangeType, _required,
+    IPRWidth3dB18dBRatio = SerializableDescriptor(
+        'IPRWidth3dB18dBRatio', RangeCrossRangeType, _required,
         docstring='Ratio of the 3 dB to 18 dB system impulse response width'
     )  # type: Optional[RangeCrossRangeType]
     PeakSideLobeRatio = SerializableDescriptor(
@@ -257,7 +254,7 @@ class TheFiducialType(Serializable):
 
     def __init__(self, Name=None, SerialNumber=None, FiducialType=None,
                  DatasetFiducialNumber=None, ImageLocation=None, GeoLocation=None,
-                 Width_3dB=None, Width_18dB=None, Ratio_3dB_18dB=None,
+                 IPRWidth3dB=None, IPRWidth18dB=None, IPRWidth3dB18dBRatio=None,
                  PeakSideLobeRatio=None, IntegratedSideLobeRatio=None,
                  SlantPlane=None, GroundPlane=None,
                  **kwargs):
@@ -270,9 +267,9 @@ class TheFiducialType(Serializable):
         DatasetFiducialNumber : None|int
         ImageLocation : ImageLocationType
         GeoLocation : GeoLocationType
-        Width_3dB : None|RangeCrossRangeType|numpy.ndarray|list|tuple
-        Width_18dB : None|RangeCrossRangeType|numpy.ndarray|list|tuple
-        Ratio_3dB_18dB : None|RangeCrossRangeType|numpy.ndarray|list|tuple
+        IPRWidth3dB : None|RangeCrossRangeType|numpy.ndarray|list|tuple
+        IPRWidth18dB : None|RangeCrossRangeType|numpy.ndarray|list|tuple
+        IPRWidth3dB18dBRatio : None|RangeCrossRangeType|numpy.ndarray|list|tuple
         PeakSideLobeRatio : None|RangeCrossRangeType|numpy.ndarray|list|tuple
         IntegratedSideLobeRatio : None|RangeCrossRangeType|numpy.ndarray|list|tuple
         SlantPlane : None|PhysicalLocationType
@@ -291,9 +288,9 @@ class TheFiducialType(Serializable):
         self.DatasetFiducialNumber = DatasetFiducialNumber
         self.ImageLocation = ImageLocation
         self.GeoLocation = GeoLocation
-        self.Width_3dB = Width_3dB
-        self.Width_18dB = Width_18dB
-        self.Ratio_3dB_18dB = Ratio_3dB_18dB
+        self.IPRWidth3dB = IPRWidth3dB
+        self.IPRWidth18dB = IPRWidth18dB
+        self.IPRWidth3dB18dBRatio = IPRWidth3dB18dBRatio
         self.PeakSideLobeRatio = PeakSideLobeRatio
         self.IntegratedSideLobeRatio = IntegratedSideLobeRatio
         self.SlantPlane = SlantPlane
@@ -311,8 +308,8 @@ class TheFiducialType(Serializable):
             Override any present value?
         """
 
-        if self.Width_3dB is None or override:
-            self.Width_3dB = RangeCrossRangeType.from_array(
+        if self.IPRWidth3dB is None or override:
+            self.IPRWidth3dB = RangeCrossRangeType.from_array(
                 (sicd.Grid.Row.ImpRespWid, sicd.Grid.Col.ImpRespWid))
             # TODO: this seems questionable to me?
 
@@ -466,8 +463,7 @@ class DetailFiducialInfoType(Serializable):
 
         def update_fiducial(temp_fid, in_image_count):
             temp_fid.set_default_width_from_sicd(sicd)  # todo: I'm not sure that this is correct?
-            status = temp_fid.set_image_location_from_sicd(
-                sicd, populate_in_periphery=populate_in_periphery)
+            status = temp_fid.set_image_location_from_sicd(sicd)
             use_fid = False
             if status == 0:
                 raise ValueError('Fiducial already has image details set')
@@ -477,7 +473,6 @@ class DetailFiducialInfoType(Serializable):
                     sicd, populate_in_periphery=True)
                 in_image_count += 1
             return use_fid, in_image_count
-
 
         fid_in_image = 0
         if include_out_of_range:

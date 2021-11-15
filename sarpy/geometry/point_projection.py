@@ -943,11 +943,13 @@ def ground_to_image(coords, structure, tolerance=1e-2, max_iterations=10, block_
 
     Returns
     -------
-    Tuple[numpy.ndarray, float, int]
-        * `image_points` - the determined image point array, of size `N x 2`. Following
-          the SICD convention, he upper-left pixel is [0, 0].
-        * `delta_gpn` - residual ground plane displacement (m).
-        * `iterations` - the number of iterations performed.
+    image_points: numpy.ndarray
+        The determined image point array. Following the SICD convention, t
+        the upper-left pixel is [0, 0].
+    delta_gpn: numpy.ndarray|float
+        The residual ground plane displacement (m).
+    iterations: numpy.ndarray|int
+        The number of iterations performed.
     """
 
     coords, orig_shape = _validate_coords(coords)
@@ -1001,6 +1003,8 @@ def ground_to_image(coords, structure, tolerance=1e-2, max_iterations=10, block_
 
     if len(orig_shape) == 1:
         image_points = numpy.reshape(image_points, (-1,))
+        delta_gpn = float(delta_gpn[0])
+        iters = int(iters[0])
     elif len(orig_shape) > 1:
         image_points = numpy.reshape(image_points, orig_shape[:-1]+(2, ))
         delta_gpn = numpy.reshape(delta_gpn, orig_shape[:-1])
@@ -1028,11 +1032,13 @@ def ground_to_image_geo(coords, structure, ordering='latlong', **kwargs):
 
     Returns
     -------
-    Tuple[numpy.ndarray, float, int]
-        * `image_points` - the determined image point array, of size `N x 2`. Following SICD convention,
-           the upper-left pixel is [0, 0].
-        * `delta_gpn` - residual ground plane displacement (m).
-        * `iterations` - the number of iterations performed.
+    image_points: numpy.ndarray
+        The determined image point array. Following the SICD convention, t
+        the upper-left pixel is [0, 0].
+    delta_gpn: numpy.ndarray|float
+        The residual ground plane displacement (m).
+    iterations: numpy.ndarray|int
+        The number of iterations performed.
     """
 
     return ground_to_image(geodetic_to_ecf(coords, ordering=ordering), structure, **kwargs)
@@ -1481,7 +1487,7 @@ def image_to_ground_hae(im_points, structure, block_size=50000,
 # Image-to-DEM
 
 def _do_dem_iteration(previous_ecf, previous_diff, this_ecf, this_diff):
-    mask = (this_diff < 0)
+    mask = numpy.isfinite(this_diff) & (this_diff < 0)  # todo: skip NaN?
     if numpy.any(mask):
         d0 = (previous_diff[mask])
         d1 = numpy.abs(this_diff[mask])
@@ -1658,15 +1664,33 @@ def image_to_ground_dem(
     """
 
     def append_grid_elements(this_lon_min, this_lon_max, the_list):
-        lat_start = lat_min
-        while lat_start < lat_max:
-            lon_start = this_lon_min
-            lat_end = min(lat_start + lat_grid_size, lat_max)
-            while lon_start < this_lon_max:
-                lon_end = min(lon_start + lon_grid_size, this_lon_max)
-                the_list.append((lat_start, lat_end, lon_start, lon_end))
-                lon_start = lon_end
-            lat_start = lat_end
+        assert this_lon_min <= this_lon_max
+        if this_lon_min == this_lon_max:
+            if lat_min == lat_max:
+                the_list.append((lat_min, lat_max, this_lon_min, this_lon_max))
+            else:
+                lat_start = lat_min
+                while lat_start < lat_max:
+                    lat_end = min(lat_start + lat_grid_size, lat_max)
+                    the_list.append((lat_start, lat_end, this_lon_min, this_lon_max))
+                    lat_start = lat_end
+        else:
+            if lat_min == lat_max:
+                lon_start = this_lon_min
+                while lon_start < this_lon_max:
+                    lon_end = min(lon_start + lon_grid_size, this_lon_max)
+                    the_list.append((lat_min, lat_max, lon_start, lon_end))
+                    lon_start = lon_end
+            else:
+                lat_start = lat_min
+                while lat_start < lat_max:
+                    lon_start = this_lon_min
+                    lat_end = min(lat_start + lat_grid_size, lat_max)
+                    while lon_start < this_lon_max:
+                        lon_end = min(lon_start + lon_grid_size, this_lon_max)
+                        the_list.append((lat_start, lat_end, lon_start, lon_end))
+                        lon_start = lon_end
+                    lat_start = lat_end
 
     # coa projection creation
     im_points, orig_shape = _validate_im_points(im_points)

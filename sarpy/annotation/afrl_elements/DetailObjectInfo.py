@@ -18,6 +18,7 @@ from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.product.sidd2_elements.SIDD import SIDDType
 from sarpy.geometry.geocoords import geodetic_to_ecf, ecf_to_geodetic, wgs_84_norm
 from sarpy.geometry.geometry_elements import Point, Polygon, GeometryCollection, Geometry
+from sarpy.annotation.base import GeometryProperties
 
 from .base import DEFAULT_STRICT
 from .blocks import RangeCrossRangeType, RowColDoubleType, LatLonEleType
@@ -320,7 +321,7 @@ class ImageLocationType(Serializable):
         for attribute in cls._fields:
             value = getattr(geo_location, attribute)
             if value is not None:
-                absolute_pixel_location = the_structure.project_ground_to_image_geo(
+                absolute_pixel_location, _, _ = the_structure.project_ground_to_image_geo(
                     value.get_array(dtype='float64'), ordering='latlong')
                 if numpy.any(numpy.isnan(absolute_pixel_location)):
                     return None
@@ -391,13 +392,15 @@ class ImageLocationType(Serializable):
 
         Returns
         -------
-        Geometry
+        geometry : None|Point|GeometryCollection
+        geometry_properties : None|List[GeometryProperties]
         """
 
-        point = None
-        polygon = None
+        geometries = []
+        geometry_properties = []
         if self.CenterPixel is not None:
-            point = Point(coordinates=self.CenterPixel.get_array(dtype='float64'))
+            geometries.append(Point(coordinates=self.CenterPixel.get_array(dtype='float64')))
+            geometry_properties.append(GeometryProperties(name='CenterPixel', color='blue'))
         if self.LeftFrontPixel is not None and \
                 self.RightFrontPixel is not None and \
                 self.RightRearPixel is not None and \
@@ -407,15 +410,15 @@ class ImageLocationType(Serializable):
             ring[1, :] = self.RightFrontPixel.get_array(dtype='float64')
             ring[2, :] = self.RightRearPixel.get_array(dtype='float64')
             ring[3, :] = self.LeftRearPixel.get_array(dtype='float64')
-            polygon = Polygon(coordinates=[ring, ])
-        if point is not None and polygon is not None:
-            return GeometryCollection(geometries=[point, polygon])
-        elif point is not None:
-            return point
-        elif polygon is not None:
-            return polygon
+            geometries.append(Polygon(coordinates=[ring, ]))
+            geometry_properties.append(GeometryProperties(name='Polygon', color='green'))
+
+        if len(geometries) == 0:
+            return None, None
+        elif len(geometries) == 1:
+            return geometries[0], geometry_properties
         else:
-            return None
+            return GeometryCollection(geometries=geometries), geometry_properties
 
 
 class GeoLocationType(Serializable):
@@ -869,8 +872,7 @@ class TheObjectType(Serializable):
         self.SeasonalCover = SeasonalCover
         super(TheObjectType, self).__init__(**kwargs)
 
-    @staticmethod
-    def _check_placement(rows, cols, row_bounds, col_bounds, overlap_cutoff=0.5):
+    def _check_placement(self, rows, cols, row_bounds, col_bounds, overlap_cutoff=0.5):
         """
         Checks the bounds condition for the provided box.
 
@@ -899,7 +901,7 @@ class TheObjectType(Serializable):
         """
 
         if row_bounds[1] <= row_bounds[0] or col_bounds[1] <= col_bounds[0]:
-            raise ValueError('bounds out of order')
+            raise ValueError('bounds out of order ({}, {})'.format(row_bounds, col_bounds))
         if 0 <= row_bounds[0] and rows < row_bounds[1] and 0 <= col_bounds[0] and cols < col_bounds[1]:
             return 1  # completely in bounds
 
@@ -956,15 +958,17 @@ class TheObjectType(Serializable):
         if image_location is None:
             return -1
 
+        self.ImageLocation = image_location
         # get nominal object size in meters and pixels
         if self.Size is None:
             row_size = 2.0
             col_size = 2.0
         else:
             max_size = self.Size.get_max_diameter()
+            if max_size == 0:
+                max_size = 10.0  # todo: fix this...
             row_size = max_size/sicd.Grid.Row.SS
             col_size = max_size/sicd.Grid.Col.SS
-
         # check bounding information
         rows = sicd.ImageData.NumRows
         cols = sicd.ImageData.NumCols
@@ -1022,7 +1026,7 @@ class TheObjectType(Serializable):
         self.GeoLocation = GeoLocationType.from_image_location(
             self.ImageLocation, sicd, projection_type=projection_type, **kwargs)
 
-    def set_chip_details_from_sicd(self, sicd, layover_shift=False, populate_in_periphery=False):
+    def set_chip_details_from_sicd(self, sicd, layover_shift=False, populate_in_periphery=False, minimum_pad=5):
         """
         Set the chip information with respect to the given SICD, assuming that the
         image location and size are defined.
@@ -1039,6 +1043,8 @@ class TheObjectType(Serializable):
             space.
         populate_in_periphery : bool
             Should we populate for peripheral?
+        minimum_pad : int|float
+            The minimum number of pixels by which to pad for the chip definition
 
         Returns
         -------
@@ -1105,8 +1111,8 @@ class TheObjectType(Serializable):
         max_cols = max(numpy.max(pixel_box[:, 1]), numpy.max(layover_box[:, 1]))
 
         # determine the padding amount
-        row_pad = min(5, 0.3*(max_rows-min_rows))
-        col_pad = min(5, 0.3*(max_cols-min_cols))
+        row_pad = max(minimum_pad, 0.3*(max_rows-min_rows))
+        col_pad = max(minimum_pad, 0.3*(max_cols-min_cols))
 
         # check our bounding information
         rows = sicd.ImageData.NumRows
@@ -1114,7 +1120,6 @@ class TheObjectType(Serializable):
 
         chip_rows = [min_rows - row_pad, max_rows + row_pad]
         chip_cols = [min_cols - col_pad, max_cols + col_pad]
-
         placement = self._check_placement(rows, cols, chip_rows, chip_cols)
         if placement == 3 or (placement == 2 and not populate_in_periphery):
             return placement
@@ -1129,9 +1134,8 @@ class TheObjectType(Serializable):
         shadow_size = self.Size.Height*shadow_magnitude*magnitude_factor
         shadow_angle = sicd.SCPCOA.Shadow
         shadow_angle = numpy.pi if shadow_angle is None else numpy.deg2rad(shadow_angle)
-        shadow_vector = shadow_size*numpy.array(
+        shadow_vector = -shadow_size*numpy.array(
             [numpy.cos(shadow_angle)/sicd.Grid.Row.SS, numpy.sin(shadow_angle)/sicd.Grid.Col.SS])
-
         shadow_box = pixel_box + shadow_vector
 
         min_rows = min(min_rows, numpy.min(shadow_box[:, 0]))
@@ -1155,28 +1159,44 @@ class TheObjectType(Serializable):
 
         Returns
         -------
-        Geometry
+        geometry : Geometry
+            The geometry object
+        geometry_properties : List[GeometryProperties]
+            The associated geometry properties list
         """
 
         if self.ImageLocation is None:
             raise ValueError('No ImageLocation defined.')
 
-        image_geometry_object = self.ImageLocation.get_geometry_object()
+        image_geometry_object, geometry_properties = self.ImageLocation.get_geometry_object()
+        if image_geometry_object is None:
+            return None, None
+        if not include_chip or self.SlantPlane is None:
+            return image_geometry_object, geometry_properties
 
-        if include_chip and self.SlantPlane is not None:
-            center_pixel = self.SlantPlane.Physical.CenterPixel.get_array()
-            chip_size = self.SlantPlane.Physical.ChipSize.get_array()
-            shift = numpy.array([[-0.5, -0.5], [-0.5, 0.5], [0.5, 0.5], [0.5, -0.5]], dtype='float64')
-            shift[:, 0] *= chip_size[0]
-            shift[:, 1] *= chip_size[1]
-            chip_rect = center_pixel + shift
-            chip_area = Polygon(coordinates=[chip_rect, ])
-            if isinstance(image_geometry_object, GeometryCollection):
-                image_geometry_object.geometries.append(chip_area)
-                return image_geometry_object
-            else:
-                return GeometryCollection(geometries=[image_geometry_object, chip_area])
-        return image_geometry_object
+        center_pixel = self.SlantPlane.Physical.CenterPixel.get_array()
+        chip_size = self.SlantPlane.Physical.ChipSize.get_array()
+        shift = numpy.array([[-0.5, -0.5], [-0.5, 0.5], [0.5, 0.5], [0.5, -0.5]], dtype='float64')
+        shift[:, 0] *= chip_size[0]
+        shift[:, 1] *= chip_size[1]
+        chip_rect = center_pixel + shift
+        chip_area = Polygon(coordinates=[chip_rect, ])
+        geometry_properties.append(GeometryProperties(name='Physical', color='red'))
+        if isinstance(image_geometry_object, GeometryCollection):
+            image_geometry_object.geometries.append(chip_area)
+        else:
+            image_geometry_object = GeometryCollection(geometries=[image_geometry_object, chip_area])
+
+        center_pixel = self.SlantPlane.PhysicalWithShadows.CenterPixel.get_array()
+        chip_size = self.SlantPlane.PhysicalWithShadows.ChipSize.get_array()
+        shift = numpy.array([[-0.5, -0.5], [-0.5, 0.5], [0.5, 0.5], [0.5, -0.5]], dtype='float64')
+        shift[:, 0] *= chip_size[0]
+        shift[:, 1] *= chip_size[1]
+        chip_rect = center_pixel + shift
+        chip_area = Polygon(coordinates=[chip_rect, ])
+        geometry_properties.append(GeometryProperties(name='PhysicalWithShadows', color='magenta'))
+        image_geometry_object.geometries.append(chip_area)
+        return image_geometry_object, geometry_properties
 
 
 # other types for the DetailObjectInfo
@@ -1283,7 +1303,8 @@ class DetailObjectInfoType(Serializable):
         super(DetailObjectInfoType, self).__init__(**kwargs)
 
     def set_image_location_from_sicd(
-            self, sicd, layover_shift=True, populate_in_periphery=False, include_out_of_range=False):
+            self, sicd, layover_shift=True, populate_in_periphery=False,
+            include_out_of_range=False, minimum_pad=20):
         """
         Set the image location information with respect to the given SICD,
         assuming that the physical coordinates are populated. The `NumberOfObjectsInImage`
@@ -1298,6 +1319,7 @@ class DetailObjectInfoType(Serializable):
             Populate image information for objects on the periphery?
         include_out_of_range : bool
             Include the objects which are out of range (with no image location information)?
+        minimum_pad : int|float
         """
 
         def update_object(temp_object, in_image_count):
@@ -1309,7 +1331,8 @@ class DetailObjectInfoType(Serializable):
             if status == 1 or (status == 2 and populate_in_periphery):
                 use_object = True
                 temp_object.set_chip_details_from_sicd(
-                    sicd, layover_shift=layover_shift, populate_in_periphery=True)
+                    sicd, layover_shift=layover_shift, populate_in_periphery=True,
+                    minimum_pad=minimum_pad)
                 in_image_count += 1
             return use_object, in_image_count
 

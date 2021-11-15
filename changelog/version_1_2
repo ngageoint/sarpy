@@ -1,5 +1,6 @@
 # This details the important differences introduced in sarpy 1.2
 
+* .40 - Updating AFRL structures for new version
 * .39 - Update the population of CSG Doppler Centroid meta data
         Correcting logging issues for command-line utilities
 * .38 - Update, still incomplete, to population of sicd metadata from Capella SLC reader
