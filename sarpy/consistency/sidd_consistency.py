@@ -47,7 +47,7 @@ def evaluate_xml_versus_schema(xml_string, urn_string):
 
     Parameters
     ----------
-    xml_string : str
+    xml_string : str|bytes
     urn_string : str
 
     Returns
@@ -81,11 +81,13 @@ def _evaluate_xml_string_validity(xml_string=None):
 
     Parameters
     ----------
-    xml_string : str
+    xml_string : str|bytes
 
     Returns
     -------
-    (bool, str, SIDDType1|SIDDType2)
+    is_valid : bool
+    sidd_urn : str
+    sidd : SIDDType1|SIDDType2
     """
 
     root_node, xml_ns = parse_xml_from_string(xml_string)
@@ -130,11 +132,12 @@ def check_sidd_data_extension(nitf_details, des_header, xml_string):
     ----------
     nitf_details : NITFDetails
     des_header : DataExtensionHeader|DataExtensionHeader0
-    xml_string : str
+    xml_string : str|bytes
 
     Returns
     -------
-    (bool, SIDDType1|SIDDType2)
+    is_valid : bool
+    sidd : SIDDType1|SIDDType2
     """
 
     def check_des_header_fields():
@@ -236,33 +239,33 @@ def check_sidd_file(nitf_details):
                 raise ValueError('Got unhandled NITF version {}'.format(nitf_details.nitf_version))
 
             if subhead_bytes.startswith(b'DEXML_DATA_CONTENT'):
-                des_bytes = nitf_details.get_des_bytes(i).decode('utf-8').strip()
+                des_bytes = nitf_details.get_des_bytes(i).decode('utf-8').strip().encode()
                 # noinspection PyBroadException
                 try:
                     root_node, xml_ns = parse_xml_from_string(des_bytes)
                     if 'SIDD' in root_node.tag:  # namespace makes this ugly
-                        sidd_des.append((i, des_bytes.encode('utf-8'), root_node, xml_ns, des_header))
+                        sidd_des.append((i, des_bytes, root_node, xml_ns, des_header))
                     elif 'SICD' in root_node.tag:
-                        sicd_des.append((i, des_bytes.encode('utf-8'), root_node, xml_ns, des_header))
+                        sicd_des.append((i, des_bytes, root_node, xml_ns, des_header))
                 except Exception:
                     continue
             elif subhead_bytes.startswith(b'DESIDD_XML'):
                 # This is an old format SIDD
-                des_bytes = nitf_details.get_des_bytes(i).decode('utf-8').strip()
+                des_bytes = nitf_details.get_des_bytes(i).decode('utf-8').strip().encode()
                 try:
                     root_node, xml_ns = parse_xml_from_string(des_bytes)
                     if 'SIDD' in root_node.tag:  # namespace makes this ugly
-                        sidd_des.append((i, des_bytes.encode('utf-8'), root_node, xml_ns, des_header))
+                        sidd_des.append((i, des_bytes, root_node, xml_ns, des_header))
                 except Exception as e:
                     logger.exception('SIDD: Old-style SIDD DES header at index {}, but failed parsing'.format(i))
                     continue
             elif subhead_bytes.startswith(b'DESICD_XML'):
                 # This is an old format SICD
-                des_bytes = nitf_details.get_des_bytes(i).decode('utf-8').strip()
+                des_bytes = nitf_details.get_des_bytes(i).decode('utf-8').strip().encode()
                 try:
                     root_node, xml_ns = parse_xml_from_string(des_bytes)
                     if 'SICD' in root_node.tag:  # namespace makes this ugly
-                        sicd_des.append((i, des_bytes.encode('utf-8'), root_node, xml_ns, des_header))
+                        sicd_des.append((i, des_bytes, root_node, xml_ns, des_header))
                 except Exception as e:
                     logger.exception('SIDD: Old-style SICD DES header at index {}, but failed parsing'.format(i))
                     continue
