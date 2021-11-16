@@ -1,5 +1,6 @@
 # This details the important differences introduced in sarpy 1.2
 
+* .41 - Resolving bug with unicode handling in sicd validation
 * .40 - Updating AFRL structures for new version
 * .39 - Update the population of CSG Doppler Centroid meta data
         Correcting logging issues for command-line utilities
