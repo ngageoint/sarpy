@@ -13,6 +13,7 @@ from collections import OrderedDict
 import copy
 import re
 from io import StringIO
+from typing import Dict
 
 import numpy
 
@@ -159,7 +160,8 @@ def parse_xml_from_string(xml_string):
 
     Returns
     -------
-    (ElementTree.Element, dict)
+    root_node: ElementTree.Element
+    xml_ns: Dict[str, str]
     """
 
     xml_string = bytes_to_string(xml_string, encoding='utf-8')

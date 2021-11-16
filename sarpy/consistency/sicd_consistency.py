@@ -44,14 +44,13 @@ def evaluate_xml_versus_schema(xml_string, urn_string):
 
     Parameters
     ----------
-    xml_string : str
+    xml_string : str|bytes
     urn_string : str
 
     Returns
     -------
     None|bool
     """
-
     if etree is None:
         return None
 
@@ -78,7 +77,7 @@ def _evaluate_xml_string_validity(xml_string):
 
     Parameters
     ----------
-    xml_string : str
+    xml_string : str|bytes
 
     Returns
     -------
@@ -124,7 +123,7 @@ def check_sicd_data_extension(nitf_details, des_header, xml_string):
     ----------
     nitf_details : NITFDetails
     des_header : DataExtensionHeader|DataExtensionHeader0
-    xml_string : str
+    xml_string : str|bytes
 
     Returns
     -------
@@ -249,7 +248,7 @@ def check_sicd_file(nitf_details):
 
             try:
                 des_string = des_bytes.decode('utf-8').strip()
-                root_node, xml_ns = parse_xml_from_string(des_string)
+                root_node, xml_ns = parse_xml_from_string(des_string.encode())
                 # namespace makes this ugly
                 if 'SIDD' in root_node.tag:
                     raise ValueError(
@@ -382,7 +381,7 @@ def check_file(file_name):
         with open(file_name, 'rb') as fi:
             initial_bits = fi.read(30)
             if initial_bits.startswith(b'<?xml') or initial_bits.startswith(b'<SICD'):
-                sicd_xml = fi.read().decode('utf-8')
+                sicd_xml = fi.read()
                 return _evaluate_xml_string_validity(sicd_xml)[0]
 
     return check_sicd_file(file_name)
