@@ -68,6 +68,23 @@ def is_a(file_name):
         return None
 
 
+#########
+# helper functions
+
+def _avci_nacaroglu_window(M, alpha=1.25):
+    """
+    Avci-Nacaroglu Exponential window. See Doerry '17 paper window 4.40 p 154
+    Parameters
+    ----------
+    M : int
+    alpha : float
+    """
+
+    M2 = 0.5*M
+    t = (numpy.arange(M) - M2)/M
+    return numpy.exp(numpy.pi*alpha*(numpy.sqrt(1 - (2*t)**2) - 1))
+
+
 ###########
 # parser and interpreter for tiff attributes
 
@@ -240,7 +257,7 @@ class CapellaDetails(object):
 
         def get_position():
             # type: () -> PositionType
-            px, py, pz = fit_position_xvalidation(state_time, state_position, state_velocity, max_degree=6)
+            px, py, pz = fit_position_xvalidation(state_time, state_position, state_velocity, max_degree=8)
             return PositionType(ARPPoly=XYZPolyType(X=px, Y=py, Z=pz))
 
         def get_grid():
@@ -249,12 +266,16 @@ class CapellaDetails(object):
             def get_weight(window_dict):
                 window_name = window_dict['name']
                 if window_name.lower() == 'rectangular':
-                    return WgtTypeType(WindowName='UNIFORM')
+                    return WgtTypeType(WindowName='UNIFORM'), None
+                elif window_name.lower() == 'avci-nacaroglu':
+                    return WgtTypeType(
+                        WindowName=window_name.upper(),
+                        Parameters=convert_string_dict(window_dict['parameters'])), \
+                           _avci_nacaroglu_window(64, alpha=window_dict['parameters']['alpha'])
                 else:
-                    # TODO: what is the proper interpretation for the avci-nacaroglu window?
                     return WgtTypeType(
                         WindowName=window_name,
-                        Parameters=convert_string_dict(window_dict['parameters']))
+                        Parameters=convert_string_dict(window_dict['parameters'])), None
 
             image_plane = 'SLANT'
             grid_type = 'RGZERO'
@@ -262,6 +283,7 @@ class CapellaDetails(object):
             coa_time = parse_timestring(img['center_pixel']['center_time'], precision='ns')
             row_bw = img.get('processed_range_bandwidth', bw)
             row_imp_rsp_bw = 2*row_bw/speed_of_light
+            row_wgt, row_wgt_funct = get_weight(img['range_window'])
             row = DirParamType(
                 SS=img['pixel_spacing_column'],
                 Sgn=-1,
@@ -271,7 +293,8 @@ class CapellaDetails(object):
                 DeltaK1=-0.5*row_imp_rsp_bw,
                 DeltaK2=0.5*row_imp_rsp_bw,
                 DeltaKCOAPoly=[[0.0, ], ],
-                WgtType=get_weight(img['range_window']))
+                WgtFunct=row_wgt_funct,
+                WgtType=row_wgt)
 
             # get timecoa value
             timecoa_value = get_seconds(coa_time, start_time)
@@ -279,17 +302,18 @@ class CapellaDetails(object):
             col_ss = img['pixel_spacing_row']
             dop_bw = img['processed_azimuth_bandwidth']
 
+            col_wgt, col_wgt_funct = get_weight(img['azimuth_window'])
             col = DirParamType(
                 SS=col_ss,
                 Sgn=-1,
                 ImpRespWid=img['azimuth_resolution'],
                 ImpRespBW=dop_bw*abs(ss_zd_s)/col_ss,
                 KCtr=0,
-                WgtType=get_weight(img['azimuth_window']))
+                WgtFunct=col_wgt_funct,
+                WgtType=col_wgt)
 
             # TODO:
             #   column deltakcoa poly - it's in there at ["image"]["frequency_doppler_centroid_polynomial"]
-            #   weight functions?
 
             return GridType(
                 ImagePlane=image_plane,
@@ -376,7 +400,7 @@ class CapellaDetails(object):
             inca = INCAType(
                 R_CA_SCP=near_range + image_data.SCPPixel.Row*grid.Row.SS,
                 FreqZero=fc,
-                TimeCAPoly=[zd_time_scp, ss_zd_s/grid.Col.SS],
+                TimeCAPoly=[zd_time_scp, -look*ss_zd_s/grid.Col.SS],
                 DRateSFPoly=[[1/(vm_ca*ss_zd_s/grid.Col.SS)], ],
             )
 
@@ -415,6 +439,7 @@ class CapellaDetails(object):
         bw = get_radar_parameter('pulse_bandwidth')
         fc = get_radar_parameter('center_frequency')
         ss_zd_s = img['image_geometry']['delta_line_time']
+        look = -1 if radar['pointing'] == 'right' else 1
 
         # define the sicd elements
         collection_info = get_collection_info()
@@ -489,3 +514,14 @@ class CapellaReader(BaseReader, SICDTypeReader):
     @property
     def file_name(self):
         return self.capella_details.file_name
+
+
+if __name__ == '__main__':
+    import os
+    details = CapellaDetails(r'R:\sar\Data_SomeDomestic\public_SAR_data\Capella\Capella_open_data\sliding_spotlight_slc\CAPELLA_C02_SS_SLC_HH_20210129163354_20210129163410_untiled.tif')
+    # with open(os.path.expanduser('~/Desktop/capella1.json'), 'w') as fi:
+    #     json.dump(details._img_desc_tags, fi, indent=1)
+
+    sicd = details.get_sicd()
+    with open(os.path.expanduser('~/Desktop/capella1.sicd.xml'), 'wb') as fi:
+        fi.write(sicd.to_xml_bytes())
