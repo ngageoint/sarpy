@@ -19,7 +19,7 @@ from sarpy.io.general.base import BaseReader, SarpyIOError
 from sarpy.io.general.tiff import TiffDetails, NativeTiffChipper
 from sarpy.io.general.utils import parse_timestring, get_seconds, is_file_like
 from sarpy.io.complex.base import SICDTypeReader
-from sarpy.io.complex.utils import fit_position_xvalidation
+from sarpy.io.complex.utils import fit_position_xvalidation, fit_time_coa_polynomial
 from sarpy.io.complex.sicd_elements.blocks import XYZPolyType, Poly2DType
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd_elements.CollectionInfo import CollectionInfoType, RadarModeType
@@ -396,6 +396,11 @@ class CapellaDetails(object):
             zd_time_scp = get_seconds(center_time, first_time, 'us')
             r_ca_scp = near_range + image_data.SCPPixel.Row*grid.Row.SS
 
+            dop_freq_coeffs_raw = numpy.array(img['frequency_doppler_centroid_polynomial']['coefficients'], dtype='float64').T
+            dop_poly_raw = Poly2DType(Coefs=dop_freq_coeffs_raw)
+            dop_poly_coefficient = dop_poly_raw.shift(-r_ca_scp, 1, -zd_time_scp, ss_zd_s/grid.Row.SS, return_poly=False)
+            grid.Col.DeltaKCOAPoly = Poly2DType(Coefs=dop_poly_coefficient*ss_zd_s/grid.Col.SS)
+
             timecoa_value = get_seconds(center_time, start_time)
             arp_velocity = position.ARPPoly.derivative_eval(timecoa_value, der_order=1)
             vm_ca = numpy.linalg.norm(arp_velocity)
@@ -404,8 +409,15 @@ class CapellaDetails(object):
                 FreqZero=fc,
                 TimeCAPoly=[zd_time_scp, -look*ss_zd_s/grid.Col.SS],
                 DRateSFPoly=[[1/(vm_ca*ss_zd_s/grid.Col.SS)], ],
+                DopCentroidPoly=Poly2DType(Coefs=dop_poly_coefficient),
+                DopCentroidCOA=True
             )
 
+            # todo: correct and populate TimeCOA poly?
+            drate_poly = -2*vm_ca*vm_ca*r_ca_scp*numpy.array([inca.DRateSFPoly[0, 0], ], dtype='float64')/speed_of_light
+            time_coa_poly = fit_time_coa_polynomial(inca, image_data, grid, drate_poly, poly_order=3)
+            print(f'time_coa_poly = {time_coa_poly.Coefs}')
+            print(f'duration = {timeline.CollectDuration}')
             return RMAType(
                 RMAlgoType='RG_DOP',
                 INCA=inca)
