@@ -13,13 +13,14 @@ from collections import OrderedDict
 
 from scipy.constants import speed_of_light
 import numpy
+from numpy.polynomial import polynomial
 
 from sarpy.io.general.base import BaseReader, SarpyIOError
 from sarpy.io.general.tiff import TiffDetails, NativeTiffChipper
 from sarpy.io.general.utils import parse_timestring, get_seconds, is_file_like
 from sarpy.io.complex.base import SICDTypeReader
 from sarpy.io.complex.utils import fit_position_xvalidation
-from sarpy.io.complex.sicd_elements.blocks import XYZPolyType
+from sarpy.io.complex.sicd_elements.blocks import XYZPolyType, Poly2DType
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd_elements.CollectionInfo import CollectionInfoType, RadarModeType
 from sarpy.io.complex.sicd_elements.ImageCreation import ImageCreationType
@@ -393,12 +394,13 @@ class CapellaDetails(object):
             center_time = parse_timestring(img['center_pixel']['center_time'], precision='us')
             first_time = parse_timestring(img_geometry['first_line_time'], precision='us')
             zd_time_scp = get_seconds(center_time, first_time, 'us')
+            r_ca_scp = near_range + image_data.SCPPixel.Row*grid.Row.SS
 
             timecoa_value = get_seconds(center_time, start_time)
             arp_velocity = position.ARPPoly.derivative_eval(timecoa_value, der_order=1)
             vm_ca = numpy.linalg.norm(arp_velocity)
             inca = INCAType(
-                R_CA_SCP=near_range + image_data.SCPPixel.Row*grid.Row.SS,
+                R_CA_SCP=r_ca_scp,
                 FreqZero=fc,
                 TimeCAPoly=[zd_time_scp, -look*ss_zd_s/grid.Col.SS],
                 DRateSFPoly=[[1/(vm_ca*ss_zd_s/grid.Col.SS)], ],
@@ -422,9 +424,16 @@ class CapellaDetails(object):
             if sicd.Radiometric is None:
                 return
 
-            sicd.Radiometric.NoiseLevel = NoiseLevelType_(
-                NoiseLevelType='ABSOLUTE',
-                NoisePoly=[[img['nesz_peak'] - 10*numpy.log10(sicd.Radiometric.SigmaZeroSFPoly[0, 0]), ], ])
+            nesz_raw = numpy.array(img['nesz_polynomial']['coefficients'], dtype='float64')
+            test_value = polynomial.polyval(rma.INCA.R_CA_SCP, nesz_raw)
+            if abs(test_value - img['nez_peak']) > 100:
+                # this polynomial reversed in early versions, so reverse if evaluated results are nonsense
+                nesz_raw = nesz_raw[::-1]
+            nesz_poly_raw = Poly2DType(Coefs=numpy.reshape(nesz_raw, (-1, 1)))
+            noise_coeffs = nesz_poly_raw.shift(-rma.INCA.R_CA_SCP, 1, 0, 1, return_poly=False)
+            # this is in nesz units, so shift to absolute units
+            noise_coeffs[0] -= 10*numpy.log10(sicd.Radiometric.SigmaZeroSFPoly[0, 0])
+            sicd.Radiometric.NoiseLevel = NoiseLevelType_(NoiseLevelType='ABSOLUTE', NoisePoly=noise_coeffs)
 
         # extract general use information
         collect = self._img_desc_tags['collect']
@@ -514,14 +523,3 @@ class CapellaReader(BaseReader, SICDTypeReader):
     @property
     def file_name(self):
         return self.capella_details.file_name
-
-
-if __name__ == '__main__':
-    import os
-    details = CapellaDetails(r'R:\sar\Data_SomeDomestic\public_SAR_data\Capella\Capella_open_data\sliding_spotlight_slc\CAPELLA_C02_SS_SLC_HH_20210129163354_20210129163410_untiled.tif')
-    # with open(os.path.expanduser('~/Desktop/capella1.json'), 'w') as fi:
-    #     json.dump(details._img_desc_tags, fi, indent=1)
-
-    sicd = details.get_sicd()
-    with open(os.path.expanduser('~/Desktop/capella1.sicd.xml'), 'wb') as fi:
-        fi.write(sicd.to_xml_bytes())
