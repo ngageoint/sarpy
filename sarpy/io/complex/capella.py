@@ -426,7 +426,7 @@ class CapellaDetails(object):
 
             nesz_raw = numpy.array(img['nesz_polynomial']['coefficients'], dtype='float64')
             test_value = polynomial.polyval(rma.INCA.R_CA_SCP, nesz_raw)
-            if abs(test_value - img['nez_peak']) > 100:
+            if abs(test_value - img['nesz_peak']) > 100:
                 # this polynomial reversed in early versions, so reverse if evaluated results are nonsense
                 nesz_raw = nesz_raw[::-1]
             nesz_poly_raw = Poly2DType(Coefs=numpy.reshape(nesz_raw, (-1, 1)))
