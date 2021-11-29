@@ -71,7 +71,7 @@ def is_a(file_name):
 #########
 # helper functions
 
-def _avci_nacaroglu_window(M, alpha=1.25):
+def avci_nacaroglu_window(M, alpha=1.25):
     """
     Avci-Nacaroglu Exponential window. See Doerry '17 paper window 4.40 p 154
     Parameters
@@ -271,7 +271,7 @@ class CapellaDetails(object):
                     return WgtTypeType(
                         WindowName=window_name.upper(),
                         Parameters=convert_string_dict(window_dict['parameters'])), \
-                           _avci_nacaroglu_window(64, alpha=window_dict['parameters']['alpha'])
+                           avci_nacaroglu_window(64, alpha=window_dict['parameters']['alpha'])
                 else:
                     return WgtTypeType(
                         WindowName=window_name,
@@ -285,7 +285,7 @@ class CapellaDetails(object):
             row_imp_rsp_bw = 2*row_bw/speed_of_light
             row_wgt, row_wgt_funct = get_weight(img['range_window'])
             row = DirParamType(
-                SS=img['pixel_spacing_column'],
+                SS=img['image_geometry']['delta_range_sample'],
                 Sgn=-1,
                 ImpRespBW=row_imp_rsp_bw,
                 ImpRespWid=img['range_resolution'],
