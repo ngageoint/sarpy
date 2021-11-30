@@ -247,14 +247,14 @@ def check_sicd_file(nitf_details):
                 raise ValueError('Got unhandled NITF version {}'.format(nitf_details.nitf_version))
 
             try:
-                des_string = des_bytes.decode('utf-8').strip()
-                root_node, xml_ns = parse_xml_from_string(des_string.encode())
+                des_bytes = des_bytes.decode('utf-8').strip().encode()
+                root_node, xml_ns = parse_xml_from_string(des_bytes)
                 # namespace makes this ugly
                 if 'SIDD' in root_node.tag:
                     raise ValueError(
                         'This file contains a SIDD DES, and should be a SIDD file')
                 elif 'SICD' in root_node.tag:
-                    sicd_des.append((i, des_string, des_header))
+                    sicd_des.append((i, des_bytes, des_header))
             except Exception as e:
                 logger.error('Failed parsing the xml DES entry {} as xml'.format(i))
                 raise e
