@@ -13,13 +13,14 @@ from collections import OrderedDict
 
 from scipy.constants import speed_of_light
 import numpy
+from numpy.polynomial import polynomial
 
 from sarpy.io.general.base import BaseReader, SarpyIOError
 from sarpy.io.general.tiff import TiffDetails, NativeTiffChipper
 from sarpy.io.general.utils import parse_timestring, get_seconds, is_file_like
 from sarpy.io.complex.base import SICDTypeReader
 from sarpy.io.complex.utils import fit_position_xvalidation
-from sarpy.io.complex.sicd_elements.blocks import XYZPolyType
+from sarpy.io.complex.sicd_elements.blocks import XYZPolyType, Poly2DType
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd_elements.CollectionInfo import CollectionInfoType, RadarModeType
 from sarpy.io.complex.sicd_elements.ImageCreation import ImageCreationType
@@ -66,6 +67,23 @@ def is_a(file_name):
         return CapellaReader(capella_details)
     except SarpyIOError:
         return None
+
+
+#########
+# helper functions
+
+def avci_nacaroglu_window(M, alpha=1.25):
+    """
+    Avci-Nacaroglu Exponential window. See Doerry '17 paper window 4.40 p 154
+    Parameters
+    ----------
+    M : int
+    alpha : float
+    """
+
+    M2 = 0.5*M
+    t = (numpy.arange(M) - M2)/M
+    return numpy.exp(numpy.pi*alpha*(numpy.sqrt(1 - (2*t)**2) - 1))
 
 
 ###########
@@ -240,7 +258,7 @@ class CapellaDetails(object):
 
         def get_position():
             # type: () -> PositionType
-            px, py, pz = fit_position_xvalidation(state_time, state_position, state_velocity, max_degree=6)
+            px, py, pz = fit_position_xvalidation(state_time, state_position, state_velocity, max_degree=8)
             return PositionType(ARPPoly=XYZPolyType(X=px, Y=py, Z=pz))
 
         def get_grid():
@@ -249,12 +267,16 @@ class CapellaDetails(object):
             def get_weight(window_dict):
                 window_name = window_dict['name']
                 if window_name.lower() == 'rectangular':
-                    return WgtTypeType(WindowName='UNIFORM')
+                    return WgtTypeType(WindowName='UNIFORM'), None
+                elif window_name.lower() == 'avci-nacaroglu':
+                    return WgtTypeType(
+                        WindowName=window_name.upper(),
+                        Parameters=convert_string_dict(window_dict['parameters'])), \
+                           avci_nacaroglu_window(64, alpha=window_dict['parameters']['alpha'])
                 else:
-                    # TODO: what is the proper interpretation for the avci-nacaroglu window?
                     return WgtTypeType(
                         WindowName=window_name,
-                        Parameters=convert_string_dict(window_dict['parameters']))
+                        Parameters=convert_string_dict(window_dict['parameters'])), None
 
             image_plane = 'SLANT'
             grid_type = 'RGZERO'
@@ -262,8 +284,9 @@ class CapellaDetails(object):
             coa_time = parse_timestring(img['center_pixel']['center_time'], precision='ns')
             row_bw = img.get('processed_range_bandwidth', bw)
             row_imp_rsp_bw = 2*row_bw/speed_of_light
+            row_wgt, row_wgt_funct = get_weight(img['range_window'])
             row = DirParamType(
-                SS=img['pixel_spacing_column'],
+                SS=img['image_geometry']['delta_range_sample'],
                 Sgn=-1,
                 ImpRespBW=row_imp_rsp_bw,
                 ImpRespWid=img['range_resolution'],
@@ -271,7 +294,8 @@ class CapellaDetails(object):
                 DeltaK1=-0.5*row_imp_rsp_bw,
                 DeltaK2=0.5*row_imp_rsp_bw,
                 DeltaKCOAPoly=[[0.0, ], ],
-                WgtType=get_weight(img['range_window']))
+                WgtFunct=row_wgt_funct,
+                WgtType=row_wgt)
 
             # get timecoa value
             timecoa_value = get_seconds(coa_time, start_time)
@@ -279,17 +303,18 @@ class CapellaDetails(object):
             col_ss = img['pixel_spacing_row']
             dop_bw = img['processed_azimuth_bandwidth']
 
+            col_wgt, col_wgt_funct = get_weight(img['azimuth_window'])
             col = DirParamType(
                 SS=col_ss,
                 Sgn=-1,
                 ImpRespWid=img['azimuth_resolution'],
                 ImpRespBW=dop_bw*abs(ss_zd_s)/col_ss,
                 KCtr=0,
-                WgtType=get_weight(img['azimuth_window']))
+                WgtFunct=col_wgt_funct,
+                WgtType=col_wgt)
 
             # TODO:
             #   column deltakcoa poly - it's in there at ["image"]["frequency_doppler_centroid_polynomial"]
-            #   weight functions?
 
             return GridType(
                 ImagePlane=image_plane,
@@ -369,15 +394,17 @@ class CapellaDetails(object):
             center_time = parse_timestring(img['center_pixel']['center_time'], precision='us')
             first_time = parse_timestring(img_geometry['first_line_time'], precision='us')
             zd_time_scp = get_seconds(center_time, first_time, 'us')
+            r_ca_scp = near_range + image_data.SCPPixel.Row*grid.Row.SS
+            time_ca_poly = numpy.array([zd_time_scp, -look*ss_zd_s/grid.Col.SS], dtype='float64')
 
             timecoa_value = get_seconds(center_time, start_time)
             arp_velocity = position.ARPPoly.derivative_eval(timecoa_value, der_order=1)
             vm_ca = numpy.linalg.norm(arp_velocity)
             inca = INCAType(
-                R_CA_SCP=near_range + image_data.SCPPixel.Row*grid.Row.SS,
+                R_CA_SCP=r_ca_scp,
                 FreqZero=fc,
-                TimeCAPoly=[zd_time_scp, ss_zd_s/grid.Col.SS],
-                DRateSFPoly=[[1/(vm_ca*ss_zd_s/grid.Col.SS)], ],
+                TimeCAPoly=time_ca_poly,
+                DRateSFPoly=[[1/(vm_ca*ss_zd_s/grid.Col.SS)], ]
             )
 
             return RMAType(
@@ -398,9 +425,16 @@ class CapellaDetails(object):
             if sicd.Radiometric is None:
                 return
 
-            sicd.Radiometric.NoiseLevel = NoiseLevelType_(
-                NoiseLevelType='ABSOLUTE',
-                NoisePoly=[[img['nesz_peak'] - 10*numpy.log10(sicd.Radiometric.SigmaZeroSFPoly[0, 0]), ], ])
+            nesz_raw = numpy.array(img['nesz_polynomial']['coefficients'], dtype='float64')
+            test_value = polynomial.polyval(rma.INCA.R_CA_SCP, nesz_raw)
+            if abs(test_value - img['nesz_peak']) > 100:
+                # this polynomial reversed in early versions, so reverse if evaluated results are nonsense
+                nesz_raw = nesz_raw[::-1]
+            nesz_poly_raw = Poly2DType(Coefs=numpy.reshape(nesz_raw, (-1, 1)))
+            noise_coeffs = nesz_poly_raw.shift(-rma.INCA.R_CA_SCP, 1, 0, 1, return_poly=False)
+            # this is in nesz units, so shift to absolute units
+            noise_coeffs[0] -= 10*numpy.log10(sicd.Radiometric.SigmaZeroSFPoly[0, 0])
+            sicd.Radiometric.NoiseLevel = NoiseLevelType_(NoiseLevelType='ABSOLUTE', NoisePoly=noise_coeffs)
 
         # extract general use information
         collect = self._img_desc_tags['collect']
@@ -415,6 +449,7 @@ class CapellaDetails(object):
         bw = get_radar_parameter('pulse_bandwidth')
         fc = get_radar_parameter('center_frequency')
         ss_zd_s = img['image_geometry']['delta_line_time']
+        look = -1 if radar['pointing'] == 'right' else 1
 
         # define the sicd elements
         collection_info = get_collection_info()

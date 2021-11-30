@@ -2098,25 +2098,22 @@ def image_segmentation(rows, cols, pixel_size):
     """
 
     im_seg_limit = 10**10 - 2  # as big as can be stored in 10 digits, given at least 2 bytes per pixel
-    dim_limit = 10**5 - 1  # as big as can be stored in 5 digits
     im_segments = []
-
     row_offset = 0
-    col_offset = 0
-    col_limit = min(dim_limit, cols)
-    while (row_offset < rows) and (col_offset < cols):
-        # determine row count, given row_offset, col_offset, and col_limit
+    while row_offset < rows:
+        # determine row count, given row_offset and column size
         # how many bytes per row for this column section
-        row_memory_size = (col_limit - col_offset) * pixel_size
-        # how many rows can we use
-        row_count = min(dim_limit, rows - row_offset, int(im_seg_limit / row_memory_size))
-        im_segments.append((row_offset, row_offset + row_count, col_offset, col_limit))
+        row_memory_size = cols*pixel_size
+        # how many rows can we use?
+        row_count = min(rows - row_offset, int(im_seg_limit / row_memory_size))
+
+        if row_offset > 99999:
+            raise ValueError(
+                'NITF image segment ILOC field is limited to 5 digits in each of row/column,\n\t'
+                'and this segmentation will require row portion of ILOC to be {}'.format(row_offset))
+
+        im_segments.append((row_offset, row_offset + row_count, 0, cols))
         row_offset += row_count  # move the next row offset
-        if row_offset == rows:
-            # move over to the next column section
-            col_offset = col_limit
-            col_limit = min(col_offset + dim_limit, cols)
-            row_offset = 0
     return tuple(im_segments)
 
 
