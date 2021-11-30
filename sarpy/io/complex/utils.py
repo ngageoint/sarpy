@@ -108,7 +108,7 @@ def fit_time_coa_polynomial(inca, image_data, grid, dop_rate_scaled_coeffs, poly
     image_data : sarpy.io.complex.sicd_elements.ImageData.ImageDataType
     grid : sarpy.io.complex.sicd_elements.Grid.GridType
     dop_rate_scaled_coeffs : numpy.ndarray
-        the dop rate polynomial relative to physical coordinates - the is a
+        the dop rate polynomial relative to physical coordinates - this a
         common construct in converting metadata for csk/sentinel/radarsat
     poly_order : int
         the degree of the polynomial to fit.
