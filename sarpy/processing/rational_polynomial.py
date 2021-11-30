@@ -1,5 +1,5 @@
 """
-General rational polynomial tools
+General purpose rational polynomial tools
 """
 
 import logging
@@ -7,6 +7,8 @@ from typing import List, Sequence
 
 import numpy
 from numpy.polynomial import polynomial
+
+from sarpy.io.complex.sicd_elements.SICD import SICDType
 
 logger = logging.getLogger(__name__)
 
@@ -589,3 +591,44 @@ def get_rational_poly_3d(x, y, z, data, coeff_list=None, order=None, rcond=None)
         numerator, denominator, coeff_list,
         (offset_x, offset_y, offset_z), (scale_x, scale_y, scale_z),
         offset_data, scale_data)
+
+
+####################
+# collective rational polynomial function
+
+class CombinedRationalPolynomial(object):
+    """
+    Assemble a collection of RationalPolynomial objects with the same number of variables
+    into a single multi-variable output object.
+    """
+
+    __slots__ = ('_collection', )
+
+    def __init__(self, *collection):
+        if len(collection) == 1 and isinstance(collection[0], (list, tuple)):
+            collection = collection[0]
+        if len(collection) < 2:
+            raise ValueError('This requires more than a single input')
+
+        coll = []
+        variables = None
+        for entry in collection:
+            if not isinstance(entry, RationalPolynomial):
+                raise TypeError(
+                    'Every input must be an instance of RationalPolynomial,\n\t'
+                    'got type `{}`'.format(type(entry)))
+            if variables is None:
+                variables = entry.variables
+            elif variables != entry.variables:
+                raise TypeError(
+                    'Every input must be an instance of RationalPolynomial with\n\t'
+                    'the same number of variables, got type `{}` and `{}`'.format(variables, entry.variables))
+            coll.append(entry)
+        self._collection = tuple(coll)
+
+    def __call__(self, *args, combine=True):
+        out = tuple([entry(*args) for entry in self._collection])
+        if combine:
+            return numpy.stack(out, axis=-1)
+        else:
+            return out

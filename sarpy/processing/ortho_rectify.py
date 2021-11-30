@@ -85,6 +85,8 @@ from sarpy.io.complex.utils import get_fetch_block_size, extract_blocks
 from sarpy.io.complex.sicd_elements.blocks import Poly2DType
 from sarpy.geometry.geocoords import geodetic_to_ecf, ecf_to_geodetic, wgs_84_norm
 from sarpy.geometry.geometry_elements import GeometryObject
+from sarpy.processing.rational_polynomial import get_rational_poly_2d, \
+    get_rational_poly_3d, CombinedRationalPolynomial
 
 from sarpy.visualization.remap import RemapFunction
 
@@ -495,18 +497,10 @@ class ProjectionHelper(object):
              numpy.floor(numpy.nanmax(coords[:, 1], axis=0))), dtype=numpy.int64)
 
 
-# todo:
-#  fit rational polynomial approximation for
-#   a.) ECF -> pixel (a la rpc implementation)
-#   b.) ECF -> ortho (a la rpc implementation)
-#   c.) pixel -> ortho
-#   d.) ortho -> pixel
 class PGProjection(ProjectionHelper):
     """
     Class which helps perform the Planar Grid (i.e. Ground Plane) ortho-rectification
-    for a sicd-type object. **In this implementation, we have that the reference point
-    will have ortho-rectification coordinates (0, 0).** All ortho-rectification coordinate
-    interpretation should be relative to the fact.
+    for a sicd-type object using the SICD projection model directly.
     """
 
     __slots__ = (
@@ -552,8 +546,8 @@ class PGProjection(ProjectionHelper):
         self._normal_vector = None
         self._row_vector = None
         self._col_vector = None
-        super(PGProjection, self).__init__(
-            sicd, row_spacing=row_spacing, col_spacing=col_spacing, default_pixel_method=default_pixel_method)
+        ProjectionHelper.__init__(
+            self, sicd, row_spacing=row_spacing, col_spacing=col_spacing, default_pixel_method=default_pixel_method)
         self.set_reference_point(reference_point=reference_point)
         self.set_reference_pixels(reference_pixels=reference_pixels)
         self.set_plane_frame(
@@ -859,6 +853,136 @@ class PGProjection(ProjectionHelper):
         return self.sicd.project_image_to_ground(
             pixel_coords, projection_type='PLANE',
             gref=self.reference_point, ugpn=self.normal_vector)
+
+
+class PGRatPolyProjection(PGProjection):
+
+    __slots__ = (
+        '_reference_point', '_reference_pixels', '_row_vector', '_col_vector',
+        '_normal_vector', '_reference_hae',
+        '_row_samples', '_col_samples', '_alt_samples', '_alt_span',
+        '_ecf_to_pixel_func', '_pixel_to_ortho_func', '_ortho_to_pixel_func')
+
+    def __init__(self, sicd, reference_point=None, reference_pixels=None, normal_vector=None, row_vector=None,
+                 col_vector=None, row_spacing=None, col_spacing=None,
+                 default_pixel_method='GEOM_MEAN',
+                 row_samples=51, col_samples=51, alt_samples=11, alt_span=250):
+        r"""
+
+        Parameters
+        ----------
+        sicd : SICDType
+            The sicd object
+        reference_point : None|numpy.ndarray
+            The reference point (origin) of the planar grid. If None, a default
+            derived from the SICD will be used.
+        reference_pixels : None|numpy.ndarray
+            The projected pixel
+        normal_vector : None|numpy.ndarray
+            The unit normal vector of the plane.
+        row_vector : None|numpy.ndarray
+            The vector defining increasing column direction. If None, a default
+            derived from the SICD will be used.
+        col_vector : None|numpy.ndarray
+            The vector defining increasing column direction. If None, a default
+            derived from the SICD will be used.
+        row_spacing : None|float
+            The row pixel spacing.
+        col_spacing : None|float
+            The column pixel spacing.
+        default_pixel_method : str
+            Must be one of ('MAX', 'MIN', 'MEAN', 'GEOM_MEAN'). This determines
+            the default behavior for row_spacing/col_spacing. The default value for
+            row/column spacing will be the implied function applied to the range
+            and azimuth ground resolution. Note that geometric mean is defined as
+            :math:`\sqrt(x*x + y*y)`
+        row_samples : int
+            How many row samples to use in fitting
+        col_samples : int
+            How many column samples to use in fitting
+        alt_samples : int
+            How many altitude samples to use in fitting
+        alt_span : int|float
+            Fitting for reference point hae +/- alt_span information.
+        """
+
+        self._ecf_to_pixel_func = None
+        self._pixel_to_ortho_func = None
+        self._ortho_to_pixel_func = None
+        self._row_samples = int(row_samples)
+        self._col_samples = int(col_samples)
+        self._alt_samples = int(alt_samples)
+        self._alt_span = float(alt_span)
+
+        PGProjection.__init__(
+            self, sicd, reference_point=reference_point, reference_pixels=reference_pixels,
+            normal_vector=normal_vector, row_vector=row_vector, col_vector=col_vector,
+            row_spacing=row_spacing, col_spacing=col_spacing, default_pixel_method=default_pixel_method)
+        self.perform_rational_poly_fitting()
+
+    def _perform_ecf_func_fitting(self):
+        num_rows = self.sicd.ImageData.NumRows
+        num_cols = self.sicd.ImageData.NumCols
+
+        row_array = numpy.linspace(0, num_rows-1, self._row_samples)
+        col_array = numpy.linspace(0, num_cols-1, self._col_samples)
+        hae_array = self.reference_hae + numpy.linspace(
+            -self._alt_span, self._alt_span, self._alt_samples)
+
+        row_col_grid = numpy.empty((row_array.size, col_array.size, 2), dtype='float64')
+        row_col_grid[:, :, 1], row_col_grid[:, :, 0] = numpy.meshgrid(col_array, row_array)
+
+        ECF_data = numpy.empty((row_array.size, col_array.size, hae_array.size, 3))
+        for i, hae0 in enumerate(hae_array):
+            ECF_data[:, :, i, :] = sicd.project_image_to_ground(row_col_grid, projection_type='HAE', hae0=hae0)
+
+        if not numpy.all(numpy.isfinite(ECF_data)):
+            raise ValueError(
+                'NaN values are encountered when projecting across the image area,\n\t'
+                'this SICD is not a good candidate for projection using rational polynomials')
+        row_func = get_rational_poly_3d(
+            ECF_data[:, :, :, 0].flatten(), ECF_data[:, :, :, 1].flatten(), ECF_data[:, :, :, 2].flatten(),
+            numpy.stack([row_col_grid[:, :, 0] for _ in range(self._alt_samples)], axis=2).flatten(), order=5)
+        col_func = get_rational_poly_3d(
+            ECF_data[:, :, :, 0].flatten(), ECF_data[:, :, :, 1].flatten(), ECF_data[:, :, :, 2].flatten(),
+            numpy.stack([row_col_grid[:, :, 1] for _ in range(self._alt_samples)], axis=2).flatten(), order=5)
+        self._ecf_to_pixel_func = CombinedRationalPolynomial(row_func, col_func)
+
+    def _perform_pixel_fitting(self):
+        num_rows = self.sicd.ImageData.NumRows
+        num_cols = self.sicd.ImageData.NumCols
+        row_array = numpy.linspace(0, num_rows-1, 2*self._row_samples)
+        col_array = numpy.linspace(0, num_cols-1, 2*self._col_samples)
+        pixel_data = numpy.empty((row_array.size, col_array.size, 2), dtype='float64')
+        pixel_data[:, :, 1], pixel_data[:, :, 0] = numpy.meshgrid(col_array, row_array)
+
+        ecf_data = PGProjection.pixel_to_ecf(self, pixel_data)
+        ortho_data = PGProjection.ecf_to_ortho(self, ecf_data)
+        pix_to_orth_row = get_rational_poly_2d(
+            pixel_data[:, :, 0].flatten(), pixel_data[:, :, 1].flatten(),
+            ortho_data[:, :, 0], order=3)
+        pix_to_orth_col = get_rational_poly_2d(
+            pixel_data[:, :, 0].flatten(), pixel_data[:, :, 1].flatten(),
+            ortho_data[:, :, 1], order=3)
+        self._pixel_to_ortho_func = CombinedRationalPolynomial(pix_to_orth_row, pix_to_orth_col)
+
+        orth_to_pix_row = get_rational_poly_2d(
+            ortho_data[:, :, 0].flatten(), ortho_data[:, :, 1].flatten(),
+            pixel_data[:, :, 0], order=3)
+        orth_to_pix_col = get_rational_poly_2d(
+            ortho_data[:, :, 0].flatten(), ortho_data[:, :, 1].flatten(),
+            pixel_data[:, :, 1], order=3)
+        self._ortho_to_pixel_func = CombinedRationalPolynomial(orth_to_pix_row, orth_to_pix_col)
+
+    def perform_rational_poly_fitting(self):
+        """
+        Defined the rational polynomial functions via fitting.
+        """
+
+        self._perform_ecf_func_fitting()
+        self._perform_pixel_fitting()
+
+    # todo: replace base functions...
 
 
 ################
