@@ -495,6 +495,12 @@ class ProjectionHelper(object):
              numpy.floor(numpy.nanmax(coords[:, 1], axis=0))), dtype=numpy.int64)
 
 
+# todo:
+#  fit rational polynomial approximation for
+#   a.) ECF -> pixel (a la rpc implementation)
+#   b.) ECF -> ortho (a la rpc implementation)
+#   c.) pixel -> ortho
+#   d.) ortho -> pixel
 class PGProjection(ProjectionHelper):
     """
     Class which helps perform the Planar Grid (i.e. Ground Plane) ortho-rectification
