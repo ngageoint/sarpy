@@ -85,8 +85,8 @@ from sarpy.io.complex.utils import get_fetch_block_size, extract_blocks
 from sarpy.io.complex.sicd_elements.blocks import Poly2DType
 from sarpy.geometry.geocoords import geodetic_to_ecf, ecf_to_geodetic, wgs_84_norm
 from sarpy.geometry.geometry_elements import GeometryObject
-from sarpy.processing.rational_polynomial import get_rational_poly_2d, \
-    get_rational_poly_3d, CombinedRationalPolynomial
+from sarpy.processing.rational_polynomial import SarpyRatPolyError, \
+    get_rational_poly_2d, get_rational_poly_3d, CombinedRationalPolynomial
 
 from sarpy.visualization.remap import RemapFunction
 
@@ -784,7 +784,19 @@ class PGProjection(ProjectionHelper):
                 'The normal vector appears to be outward pointing, so reversing.')
             self._normal_vector *= -1
 
-    def ecf_to_ortho(self, coords):
+    def plane_ecf_to_ortho(self, coords):
+        """
+        Converts ECF coordinates **known to be in the ground plane** to ortho grid coordinates.
+
+        Parameters
+        ----------
+        coords : numpy.ndarray
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
         coords, o_shape = self._reshape(coords, 3)
         diff = coords - self.reference_point
         if len(o_shape) == 1:
@@ -797,6 +809,9 @@ class PGProjection(ProjectionHelper):
             out[:, 1] = self._reference_pixels[1] + numpy.sum(diff*self.col_vector, axis=1)/self.col_spacing
             out = numpy.reshape(out, o_shape[:-1] + (2, ))
         return out
+
+    def ecf_to_ortho(self, coords):
+        return self.pixel_to_ortho(self.ecf_to_pixel(coords))
 
     def ecf_to_pixel(self, coords):
         pixel, _, _ = self.sicd.project_ground_to_image(coords)
@@ -847,7 +862,7 @@ class PGProjection(ProjectionHelper):
         return numpy.reshape(pixel, o_shape)
 
     def pixel_to_ortho(self, pixel_coords):
-        return self.ecf_to_ortho(self.pixel_to_ecf(pixel_coords))
+        return self.plane_ecf_to_ortho(self.pixel_to_ecf(pixel_coords))
 
     def pixel_to_ecf(self, pixel_coords):
         return self.sicd.project_image_to_ground(
@@ -934,10 +949,10 @@ class PGRatPolyProjection(PGProjection):
 
         ECF_data = numpy.empty((row_array.size, col_array.size, hae_array.size, 3))
         for i, hae0 in enumerate(hae_array):
-            ECF_data[:, :, i, :] = sicd.project_image_to_ground(row_col_grid, projection_type='HAE', hae0=hae0)
+            ECF_data[:, :, i, :] = self.sicd.project_image_to_ground(row_col_grid, projection_type='HAE', hae0=hae0)
 
         if not numpy.all(numpy.isfinite(ECF_data)):
-            raise ValueError(
+            raise SarpyRatPolyError(
                 'NaN values are encountered when projecting across the image area,\n\t'
                 'this SICD is not a good candidate for projection using rational polynomials')
         row_func = get_rational_poly_3d(
@@ -956,8 +971,7 @@ class PGRatPolyProjection(PGProjection):
         pixel_data = numpy.empty((row_array.size, col_array.size, 2), dtype='float64')
         pixel_data[:, :, 1], pixel_data[:, :, 0] = numpy.meshgrid(col_array, row_array)
 
-        ecf_data = PGProjection.pixel_to_ecf(self, pixel_data)
-        ortho_data = PGProjection.ecf_to_ortho(self, ecf_data)
+        ortho_data = PGProjection.pixel_to_ortho(self, pixel_data)
         pix_to_orth_row = get_rational_poly_2d(
             pixel_data[:, :, 0].flatten(), pixel_data[:, :, 1].flatten(),
             ortho_data[:, :, 0], order=3)
@@ -982,7 +996,17 @@ class PGRatPolyProjection(PGProjection):
         self._perform_ecf_func_fitting()
         self._perform_pixel_fitting()
 
-    # todo: replace base functions...
+    def ecf_to_ortho(self, coords):
+        return self.pixel_to_ortho(self.ecf_to_pixel(coords))
+
+    def ecf_to_pixel(self, coords):
+        return self._ecf_to_pixel_func(coords, combine=True)
+
+    def ortho_to_pixel(self, ortho_coords):
+        return self._ortho_to_pixel_func(ortho_coords, combine=True)
+
+    def pixel_to_ortho(self, pixel_coords):
+        return self._pixel_to_ortho_func(pixel_coords, combine=True)
 
 
 ################
@@ -1008,10 +1032,11 @@ class OrthorectificationHelper(object):
         reader : SICDTypeReader
         index : int
         proj_helper : None|ProjectionHelper
-            If `None`, this will default to `PGProjection(<sicd>)`, where `<sicd>`
-            will be the sicd from `reader` at `index`. Otherwise, it is the user's
-            responsibility to ensure that `reader`, `index` and `proj_helper` are
-            in sync.
+            If `None`, this will default to `PGRatPolyProjection(<sicd>)` unless there is
+            a SarpyRatPolyError, when it will fall back to `PGProjection(<sicd>)`,
+            where `<sicd>` will be the sicd from `reader` at `index`. Otherwise,
+            it is the user's responsibility to ensure that `reader`, `index` and
+            `proj_helper` are in sync.
         complex_valued : bool
             Do we want complex values returned? If `False`, the magnitude values
             will be used.
@@ -1127,7 +1152,11 @@ class OrthorectificationHelper(object):
 
         default_ortho_bounds = None
         if proj_helper is None:
-            proj_helper = PGProjection(self.sicd)
+            try:
+                proj_helper = PGRatPolyProjection(self.sicd)
+            except SarpyRatPolyError:
+                proj_helper = PGProjection(self.sicd)
+
             if self.sicd.RadarCollection is not None and self.sicd.RadarCollection.Area is not None \
                     and self.sicd.RadarCollection.Area.Plane is not None:
                 plane = self.sicd.RadarCollection.Area.Plane
