@@ -7,10 +7,15 @@ from typing import List, Sequence
 
 import numpy
 from numpy.polynomial import polynomial
+from numpy.linalg import lstsq, LinAlgError
 
-from sarpy.io.complex.sicd_elements.SICD import SICDType
+from sarpy.compliance import SarpyError
 
 logger = logging.getLogger(__name__)
+
+
+class SarpyRatPolyError(SarpyError):
+    """A custom exception class for rational polynomial fitting errors."""
 
 
 #################
@@ -150,7 +155,11 @@ def rational_poly_fit_1d(x, data, coeff_list, rcond=None):
             A[:, i+len(coeff_list) - 1] = -u*data
 
     # perform least squares fit
-    sol, residuals, rank, sing_values = numpy.linalg.lstsq(A, data, rcond=rcond)
+    try:
+        sol, residuals, rank, sing_values = lstsq(A, data, rcond=rcond)
+    except LinAlgError as e:
+        raise SarpyRatPolyError(str(e))
+
     if len(residuals) != 0:
         residuals /= float(x.size)
     logger.info(
@@ -212,7 +221,11 @@ def rational_poly_fit_2d(x, y, data, coeff_list, rcond=None):
             A[:, i + len(coeff_list) - 1] = -u*data
 
     # perform least squares fit
-    sol, residuals, rank, sing_values = numpy.linalg.lstsq(A, data, rcond=rcond)
+    try:
+        sol, residuals, rank, sing_values = lstsq(A, data, rcond=rcond)
+    except LinAlgError as e:
+        raise SarpyRatPolyError(str(e))
+
     if len(residuals) != 0:
         residuals /= float(x.size)
     logger.info(
@@ -278,7 +291,11 @@ def rational_poly_fit_3d(x, y, z, data, coeff_list, rcond=None):
             A[:, i + len(coeff_list) - 1] = -u*data
 
     # perform least squares fit
-    sol, residuals, rank, sing_values = numpy.linalg.lstsq(A, data, rcond=rcond)
+    try:
+        sol, residuals, rank, sing_values = lstsq(A, data, rcond=rcond)
+    except LinAlgError as e:
+        raise SarpyRatPolyError(str(e))
+
     if len(residuals) != 0:
         residuals /= float(x.size)
     logger.info(
