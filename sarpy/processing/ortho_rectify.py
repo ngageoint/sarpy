@@ -756,14 +756,14 @@ class PGProjection(ProjectionHelper):
             if row_vector is None:
                 raise ValueError('col_vector is not defined, so both normal_vector and row_vector must be.')
             normal_vector = normalize(normal_vector, 'normal')
-            row_vector =  normalize(row_vector, 'row')
+            row_vector = normalize(row_vector, 'row')
             check_perp(normal_vector, row_vector, 'normal', 'row')
             self._normal_vector = normal_vector
             self._row_vector = row_vector
             self._col_vector = numpy.cross(self.normal_vector, self.row_vector)
         elif row_vector is None:
             normal_vector = normalize(normal_vector, 'normal')
-            col_vector =  normalize(col_vector, 'col')
+            col_vector = normalize(col_vector, 'col')
             check_perp(normal_vector, col_vector, 'normal', 'col')
             self._normal_vector = normal_vector
             self._col_vector = col_vector
@@ -771,7 +771,7 @@ class PGProjection(ProjectionHelper):
         else:
             normal_vector = normalize(normal_vector, 'normal')
             row_vector = normalize(row_vector, 'row')
-            col_vector =  normalize(col_vector, 'col')
+            col_vector = normalize(col_vector, 'col')
             check_perp(normal_vector, row_vector, 'normal', 'row')
             check_perp(normal_vector, col_vector, 'normal', 'col')
             check_perp(row_vector, col_vector, 'row', 'col')
@@ -837,7 +837,7 @@ class PGProjection(ProjectionHelper):
         llh_temp = numpy.zeros((ll_coords.shape[0], 3), dtype=numpy.float64)
         llh_temp[:, :2] = ll_coords
         llh_temp[:, 2] = self.reference_hae
-        llh_temp = numpy.reshape(llh_temp, o_shape[:-1]+ (3, ))
+        llh_temp = numpy.reshape(llh_temp, o_shape[:-1] + (3, ))
         return self.llh_to_ortho(llh_temp)
 
     def llh_to_ortho(self, llh_coords):
@@ -1250,17 +1250,20 @@ class OrthorectificationHelper(object):
                 self._rad_poly = self.sicd.Radiometric.RCSSFPoly
         elif self.apply_radiometric == 'SIGMA0':
             if self.sicd.Radiometric.SigmaZeroSFPoly is None:
-                raise ValueError('apply_radiometric is "SIGMA0", but the sicd.Radiometric.SigmaZeroSFPoly is not populated.')
+                raise ValueError(
+                    'apply_radiometric is "SIGMA0", but the sicd.Radiometric.SigmaZeroSFPoly is not populated.')
             else:
                 self._rad_poly = self.sicd.Radiometric.SigmaZeroSFPoly
         elif self.apply_radiometric == 'GAMMA0':
             if self.sicd.Radiometric.GammaZeroSFPoly is None:
-                raise ValueError('apply_radiometric is "GAMMA0", but the sicd.Radiometric.GammaZeroSFPoly is not populated.')
+                raise ValueError(
+                    'apply_radiometric is "GAMMA0", but the sicd.Radiometric.GammaZeroSFPoly is not populated.')
             else:
                 self._rad_poly = self.sicd.Radiometric.GammaZeroSFPoly
         elif self.apply_radiometric == 'BETA0':
             if self.sicd.Radiometric.BetaZeroSFPoly is None:
-                raise ValueError('apply_radiometric is "BETA0", but the sicd.Radiometric.BetaZeroSFPoly is not populated.')
+                raise ValueError(
+                    'apply_radiometric is "BETA0", but the sicd.Radiometric.BetaZeroSFPoly is not populated.')
             else:
                 self._rad_poly = self.sicd.Radiometric.BetaZeroSFPoly
         else:
@@ -1285,17 +1288,22 @@ class OrthorectificationHelper(object):
 
         # set the noise polynomial value
         if self.sicd.Radiometric is None:
-            raise ValueError('subtract_radiometric_noise is True, but sicd.Radiometric is unpopulated.')
+            raise ValueError(
+                'subtract_radiometric_noise is True,\n\t'
+                'but sicd.Radiometric is unpopulated.')
 
         if self.sicd.Radiometric.NoiseLevel is None:
             raise ValueError(
-                'subtract_radiometric_noise is set to True, but sicd.Radiometric.NoiseLevel is not populated.')
+                'subtract_radiometric_noise is set to True,\n\t'
+                'but sicd.Radiometric.NoiseLevel is not populated.')
         if self.sicd.Radiometric.NoiseLevel.NoisePoly is None:
             raise ValueError(
-                'subtract_radiometric_noise is set to True, but sicd.Radiometric.NoiseLevel.NoisePoly is not populated.')
+                'subtract_radiometric_noise is set to True,\n\t'
+                'but sicd.Radiometric.NoiseLevel.NoisePoly is not populated.')
         if self.sicd.Radiometric.NoiseLevel.NoiseLevelType == 'RELATIVE':
             raise ValueError(
-                'subtract_radiometric_noise is set to True, but sicd.Radiometric.NoiseLevel.NoiseLevelType is "RELATIVE"')
+                'subtract_radiometric_noise is set to True,\n\t'
+                'but sicd.Radiometric.NoiseLevel.NoiseLevelType is "RELATIVE"')
         self._noise_poly = self.sicd.Radiometric.NoiseLevel.NoisePoly
 
     def get_full_ortho_bounds(self):
@@ -1918,10 +1926,11 @@ class NearestNeighborMethod(OrthorectificationHelper):
         reader : SICDTypeReader
         index : int
         proj_helper : None|ProjectionHelper
-            If `None`, this will default to `PGProjection(<sicd>)`, where `<sicd>`
-            will be the sicd from `reader` at `index`. Otherwise, it is the user's
-            responsibility to ensure that `reader`, `index` and `proj_helper` are
-            in sync.
+            If `None`, this will default to `PGRatPolyProjection(<sicd>)` unless there is
+            a SarpyRatPolyError, when it will fall back to `PGProjection(<sicd>)`,
+            where `<sicd>` will be the sicd from `reader` at `index`. Otherwise,
+            it is the user's responsibility to ensure that `reader`, `index` and
+            `proj_helper` are in sync.
         complex_valued : bool
             Do we want complex values returned? If `False`, the magnitude values
             will be used.
@@ -1980,10 +1989,11 @@ class BivariateSplineMethod(OrthorectificationHelper):
         reader : SICDTypeReader
         index : int
         proj_helper : None|ProjectionHelper
-            If `None`, this will default to `PGProjection(<sicd>)`, where `<sicd>`
-            will be the sicd from `reader` at `index`. Otherwise, it is the user's
-            responsibility to ensure that `reader`, `index` and `proj_helper` are
-            in sync.
+            If `None`, this will default to `PGRatPolyProjection(<sicd>)` unless there is
+            a SarpyRatPolyError, when it will fall back to `PGProjection(<sicd>)`,
+            where `<sicd>` will be the sicd from `reader` at `index`. Otherwise,
+            it is the user's responsibility to ensure that `reader`, `index` and
+            `proj_helper` are in sync.
         complex_valued : bool
             Do we want complex values returned? If `False`, the magnitude values
             will be used.
@@ -2091,11 +2101,11 @@ class FullResolutionFetcher(object):
             as a single block.
         """
 
-        self._index = None # set explicitly
+        self._index = None  # set explicitly
         self._sicd = None  # set with index setter
-        self._dimension = None # set explicitly
+        self._dimension = None  # set explicitly
         self._data_size = None  # set with index setter
-        self._block_size = None # set explicitly
+        self._block_size = None  # set explicitly
 
         # validate the reader
         if isinstance(reader, str):
@@ -2647,7 +2657,8 @@ class OrthorectificationIterator(object):
         """
 
         row_array, col_array = self._get_ortho_helper(pixel_bounds, this_data)
-        ortho_data = self._ortho_helper.get_orthorectified_from_array(this_ortho_bounds, row_array, col_array, this_data)
+        ortho_data = self._ortho_helper.get_orthorectified_from_array(
+            this_ortho_bounds, row_array, col_array, this_data)
         if self.remap_function is None:
             return ortho_data
         else:

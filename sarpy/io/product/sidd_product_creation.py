@@ -10,7 +10,7 @@ Create a variety of sidd products.
     import os
 
     from sarpy.io.complex.converter import open_complex
-    from sarpy.processing.ortho_rectify import BivariateSplineMethod, NearestNeighborMethod, PGProjection
+    from sarpy.processing.ortho_rectify import BivariateSplineMethod, NearestNeighborMethod
     from sarpy.io.product.sidd_product_creation import create_detected_image_sidd, create_csi_sidd, create_dynamic_image_sidd
 
     # open a sicd type file
@@ -129,7 +129,7 @@ def create_detected_image_sidd(
         import os
 
         from sarpy.io.complex.converter import open_complex
-        from sarpy.processing.ortho_rectify import BivariateSplineMethod, NearestNeighborMethod, PGProjection
+        from sarpy.processing.ortho_rectify import BivariateSplineMethod, NearestNeighborMethod
         from sarpy.io.product.sidd_product_creation import create_detected_image_sidd
 
         reader = open_complex('<sicd type object file name>')

@@ -131,7 +131,7 @@ def rational_poly_fit_1d(x, data, coeff_list, rcond=None):
         Passed through to :func:`numpy.linalg.lstsq`.
     """
 
-    if coeff_list[0] != 0:
+    if coeff_list[0] not in [0, (0, )]:
         raise ValueError(
             'The first entry of coeff_list is required to be the constant term `0`')
 
@@ -147,8 +147,10 @@ def rational_poly_fit_1d(x, data, coeff_list, rcond=None):
 
     A = numpy.empty((x.size, 2*len(coeff_list) - 1), dtype=numpy.float64)
     for i, entry in enumerate(coeff_list):
-        if not isinstance(entry, int):
-            raise TypeError('coeff_list must be a list of integers')
+        if not (isinstance(entry, int) or (isinstance(entry, tuple) and len(entry) == 1 and isinstance(entry[0], int))):
+            raise TypeError('coeff_list must be a list of integers or length 1 tuples of ints')
+        if isinstance(entry, tuple):
+            entry = entry[0]
 
         u = 1
         if entry > 0:
@@ -194,9 +196,9 @@ def rational_poly_fit_2d(x, y, data, coeff_list, rcond=None):
         Passed through to :func:`numpy.linalg.lstsq`.
     """
 
-    if coeff_list[0] != 0:
+    if coeff_list[0] != (0, 0):
         raise ValueError(
-            'The first entry of coeff_list is required to be the constant term `0`')
+            'The first entry of coeff_list is required to be the constant term `(0, 0)`')
 
     if not (x.size == y.size and x.size == data.size):
         raise ValueError('Size mismatch among data entries')
@@ -261,9 +263,9 @@ def rational_poly_fit_3d(x, y, z, data, coeff_list, rcond=None):
         Passed through to :func:`numpy.linalg.lstsq`.
     """
 
-    if coeff_list[0] != 0:
+    if coeff_list[0] != (0, 0, 0):
         raise ValueError(
-            'The first entry of coeff_list is required to be the constant term `0`')
+            'The first entry of coeff_list is required to be the constant term `(0, 0, 0)`')
 
     if not (x.size == y.size and x.size == z.size and x.size == data.size):
         raise ValueError('Size mismatch among data entries')
@@ -453,7 +455,7 @@ class RationalPolynomial(object):
         if self.variables == 1:
             x = (inp_vars - self._input_offsets[0])/self._input_scales[0]
             value = polynomial.polyval(x, self._numerator_array) / \
-                    polynomial.polyval(x, self._denominator_array)
+                polynomial.polyval(x, self._denominator_array)
         elif self.variables == 2:
             if separate:
                 x = (inp_vars[0] - self._input_offsets[0])/self._input_scales[0]
@@ -466,7 +468,7 @@ class RationalPolynomial(object):
                 x = (inp_vars[..., 0] - self._input_offsets[0])/self._input_scales[0]
                 y = (inp_vars[..., 1] - self._input_offsets[1])/self._input_scales[1]
             value = polynomial.polyval2d(x, y, self._numerator_array) / \
-                    polynomial.polyval2d(x, y, self._denominator_array)
+                polynomial.polyval2d(x, y, self._denominator_array)
         elif self.variables == 3:
             if separate:
                 x = (inp_vars[0] - self._input_offsets[0])/self._input_scales[0]
@@ -481,7 +483,7 @@ class RationalPolynomial(object):
                 y = (inp_vars[..., 1] - self._input_offsets[1])/self._input_scales[1]
                 z = (inp_vars[..., 2] - self._input_offsets[2]) / self._input_scales[2]
             value = polynomial.polyval3d(x, y, z, self._numerator_array) / \
-                    polynomial.polyval3d(x, y, z, self._denominator_array)
+                polynomial.polyval3d(x, y, z, self._denominator_array)
         else:
             raise ValueError('More than 3 variables is unsupported')
         return value*self._output_scale + self._output_offset
@@ -520,7 +522,7 @@ def get_rational_poly_1d(x, data, coeff_list=None, order=None, rcond=None):
     if _get_num_variables(coeff_list) != 1:
         raise ValueError('The number of variables defined by the coefficient list must be 1.')
 
-    scale_x, offset_x =_get_scale_and_offset(x)
+    scale_x, offset_x = _get_scale_and_offset(x)
     scale_data, offset_data = _get_scale_and_offset(data)
 
     numerator, denominator = rational_poly_fit_1d(
@@ -558,8 +560,8 @@ def get_rational_poly_2d(x, y, data, coeff_list=None, order=None, rcond=None):
     if _get_num_variables(coeff_list) != 2:
         raise ValueError('The number of variables defined by the coefficient list must be 2.')
 
-    scale_x, offset_x =_get_scale_and_offset(x)
-    scale_y, offset_y =_get_scale_and_offset(y)
+    scale_x, offset_x = _get_scale_and_offset(x)
+    scale_y, offset_y = _get_scale_and_offset(y)
     scale_data, offset_data = _get_scale_and_offset(data)
 
     numerator, denominator = rational_poly_fit_2d(
