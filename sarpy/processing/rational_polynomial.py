@@ -2,6 +2,9 @@
 General purpose rational polynomial tools
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
 import logging
 from typing import List, Sequence
 

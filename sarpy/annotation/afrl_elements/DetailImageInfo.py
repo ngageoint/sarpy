@@ -286,7 +286,7 @@ class DetailImageInfoType(Serializable):
         'ZuluOffset', _required,
         docstring='The local time offset from UTC')  # type: Optional[int]  # TODO: this isn't always integer
     SensorReferencePoint = StringEnumDescriptor(
-        'DataPlane', {'Left', 'Right', 'Top', 'Bottom'}, _required,
+        'SensorReferencePoint', {'Left', 'Right', 'Top', 'Bottom'}, _required,
         docstring='Description of the sensor location relative to the scene.')  # type: Optional[str]
     SensorCalibrationFactor = FloatDescriptor(
         'SensorCalibrationFactor', _required,
