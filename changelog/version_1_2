@@ -1,5 +1,6 @@
 # This details the important differences introduced in sarpy 1.2
 
+* .44 - Correcting minor bugs for AFRL structures
 * .43 - Resolution of a SICD and SIDD segmentation methodology bug
         Incomplete improvements to Capella SLC reader implementation
 * .42 - Another effort at resolving bug with unicode handling in sicd validation

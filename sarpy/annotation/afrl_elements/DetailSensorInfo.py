@@ -27,7 +27,7 @@ from .blocks import LatLonEleType
 class BeamWidthType(Serializable, Arrayable):
     _fields = ('Azimuth', 'Elevation')
     _required = _fields
-    _numeric_format = {key: '0.17E' for key in _fields}
+    _numeric_format = {key: '0.17G' for key in _fields}
     # Descriptors
     Azimuth = FloatDescriptor(
         'Azimuth', _required, strict=True, docstring='The Azimuth attribute.')  # type: float
@@ -93,7 +93,7 @@ class BeamWidthType(Serializable, Arrayable):
 class SquintAngleType(Serializable):
     _fields = ('GroundPlane', 'SlantPlane')
     _required = _fields
-    _numeric_format = {el: '0.17E' for el in _fields}
+    _numeric_format = {el: '0.17G' for el in _fields}
     # descriptor
     GroundPlane = FloatDescriptor(
         'GroundPlane', _required,
@@ -129,7 +129,7 @@ class AircraftLocationType(Serializable, Arrayable):
     """A three-dimensional geographic point in WGS-84 coordinates."""
     _fields = ('Lat', 'Lon', 'Altitude')
     _required = _fields
-    _numeric_format = {'Lat': '0.17E', 'Lon': '0.17E', 'Altitude': '0.17E'}
+    _numeric_format = {'Lat': '0.17G', 'Lon': '0.17G', 'Altitude': '0.17G'}
     # descriptors
     Lat = FloatDescriptor(
         'Lat', _required, strict=True,
@@ -213,6 +213,10 @@ class DetailSensorInfoType(Serializable):
     _required = (
         'Type', 'Range', 'DepressionAngle', 'Aimpoint', 'Look', 'SquintAngle',
         'AircraftLocation', 'AircraftVelocity')
+    _numeric_format = {
+        'Bandwidth': '0.17G', 'CenterFrequency': '0.17G', 'NearRange': '0.17G',
+        'SlantRangeSwathWidth': '0.17G', 'Range': '0.17G', 'DepressionAngle': '0.17G',
+        'LinearDynamicRange': '0.17G', 'AircraftHeading': '0.17G', 'AircraftTrackAngle': '0.17G',}
     # descriptors
     Name = StringDescriptor(
         'Name', _required,
