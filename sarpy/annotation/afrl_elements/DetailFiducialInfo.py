@@ -313,7 +313,7 @@ class TheFiducialType(Serializable):
                 (sicd.Grid.Row.ImpRespWid, sicd.Grid.Col.ImpRespWid))
             # TODO: this seems questionable to me?
 
-    def set_image_location_from_sicd(self, sicd):
+    def set_image_location_from_sicd(self, sicd, populate_in_periphery=False):
         """
         Set the image location information with respect to the given SICD.
 
@@ -360,11 +360,12 @@ class TheFiducialType(Serializable):
         else:
             placement = 3
 
-        if placement in [2, 3]:
+        if placement == 3 or (placement == 2 and not populate_in_periphery):
             return placement
 
         self.ImageLocation = image_location
         self.SlantPlane = PhysicalLocationType(Physical=image_location)
+        return placement
 
     def set_geo_location_from_sicd(self, sicd, projection_type='HAE', **kwargs):
         """
@@ -463,14 +464,12 @@ class DetailFiducialInfoType(Serializable):
 
         def update_fiducial(temp_fid, in_image_count):
             temp_fid.set_default_width_from_sicd(sicd)  # todo: I'm not sure that this is correct?
-            status = temp_fid.set_image_location_from_sicd(sicd)
+            status = temp_fid.set_image_location_from_sicd(sicd, populate_in_periphery=populate_in_periphery)
             use_fid = False
             if status == 0:
                 raise ValueError('Fiducial already has image details set')
             if status == 1 or (status == 2 and populate_in_periphery):
                 use_fid = True
-                temp_fid.set_chip_details_from_sicd(
-                    sicd, populate_in_periphery=True)
                 in_image_count += 1
             return use_fid, in_image_count
 
