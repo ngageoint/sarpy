@@ -30,8 +30,8 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 import os
-from sarpy.processing.ortho_rectify import OrthorectificationHelper, \
-    FullResolutionFetcher, OrthorectificationIterator
+from sarpy.processing.ortho_rectify.base import FullResolutionFetcher, OrthorectificationIterator
+from sarpy.processing.ortho_rectify.ortho_methods import OrthorectificationHelper
 from sarpy.io.product.sidd_structure_creation import create_sidd_structure
 from sarpy.processing.csi import CSICalculator
 from sarpy.processing.subaperture import SubapertureCalculator, SubapertureOrthoIterator

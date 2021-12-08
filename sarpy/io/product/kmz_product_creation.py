@@ -34,9 +34,10 @@ import os
 
 import numpy
 
-from sarpy.processing.ortho_rectify import SarpyRatPolyError, OrthorectificationHelper, \
-    NearestNeighborMethod, PGProjection, PGRatPolyProjection, FullResolutionFetcher, \
-    OrthorectificationIterator
+from sarpy.processing.rational_polynomial import SarpyRatPolyError
+from sarpy.processing.ortho_rectify.base import FullResolutionFetcher, OrthorectificationIterator
+from sarpy.processing.ortho_rectify.ortho_methods import OrthorectificationHelper, NearestNeighborMethod
+from sarpy.processing.ortho_rectify.projection_helper import PGProjection, PGRatPolyProjection
 from sarpy.io.kml import Document
 from sarpy.io.complex.base import SICDTypeReader
 from sarpy.io.complex.sicd_elements.SICD import SICDType
