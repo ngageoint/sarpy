@@ -1,28 +1,19 @@
+"""
+Unified methods of projection between sicd pixel coordinates,
+some ortho-rectified pixel grid coordinates, and geophysical coordinates
+"""
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
 import logging
-import os
-from typing import Union, Tuple, List, Any
 
 import numpy
-from scipy.interpolate import RectBivariateSpline
-
-from sarpy.io.complex.converter import open_complex
 from sarpy.io.complex.sicd_elements.SICD import SICDType
-from sarpy.io.complex.base import SICDTypeReader
-from sarpy.io.general.slice_parsing import validate_slice_int, validate_slice
-from sarpy.io.complex.utils import get_fetch_block_size, extract_blocks
-
-from sarpy.io.complex.sicd_elements.blocks import Poly2DType
 from sarpy.geometry.geocoords import geodetic_to_ecf, ecf_to_geodetic, wgs_84_norm
-from sarpy.geometry.geometry_elements import GeometryObject
 from sarpy.processing.rational_polynomial import SarpyRatPolyError, \
     get_rational_poly_2d, get_rational_poly_3d, CombinedRationalPolynomial
-
-from sarpy.visualization.remap import RemapFunction
 
 
 logger = logging.getLogger(__name__)
@@ -696,7 +687,7 @@ class PGProjection(ProjectionHelper):
         return self.pixel_to_ortho(self.ecf_to_pixel(coords))
 
     def ecf_to_pixel(self, coords):
-        pixel, _, _ = self.sicd.project_ground_to_image(coords)
+        pixel, _, _ = self.sicd.project_ground_to_image(coords, tolerance=1e-3, max_iterations=25)
         return pixel
 
     def ll_to_ortho(self, ll_coords):
@@ -740,7 +731,7 @@ class PGProjection(ProjectionHelper):
 
     def ortho_to_pixel(self, ortho_coords):
         ortho_coords, o_shape = self._reshape(ortho_coords, 2)
-        pixel, _, _ = self.sicd.project_ground_to_image(self.ortho_to_ecf(ortho_coords))
+        pixel, _, _ = self.sicd.project_ground_to_image(self.ortho_to_ecf(ortho_coords), tolerance=1e-3, max_iterations=25)
         return numpy.reshape(pixel, o_shape)
 
     def pixel_to_ortho(self, pixel_coords):
@@ -889,3 +880,44 @@ class PGRatPolyProjection(PGProjection):
 
     def pixel_to_ortho(self, pixel_coords):
         return self._pixel_to_ortho_func(pixel_coords, combine=True)
+
+
+if __name__ == '__main__':
+    import os
+    from sarpy.io.complex.sicd import SICDReader
+    import time
+    # r'R:\sar\Data_SomeDomestic\Sandia\FARAD_Phoenix\SICD_example_170906\'
+    reader = SICDReader(r'C:\Users\jr80407\Desktop\WIP\rgiqe_example\data\sicd_example_1_PFA_RE32F_IM32F_HH.nitf')
+    sicd = reader.sicd_meta
+    proj1 = PGProjection(sicd)
+    proj2 = PGRatPolyProjection(sicd, row_samples=51, col_samples=51, alt_samples=11, alt_span=300)
+
+    the_size = 4
+    the_loops = 1
+    pixel_coords = numpy.random.randint(0, 1000, (the_size, 2))
+    print(pixel_coords.shape)
+    print(pixel_coords)
+    ortho_coords = proj2.pixel_to_ortho(pixel_coords)
+    ecf_coords = sicd.project_image_to_ground(pixel_coords, projection_type='HAE', hae0=sicd.GeoData.SCP.LLH.HAE+415.0)
+    # ecf_coords = proj2.pixel_to_ecf(pixel_coords)
+
+    print(sicd.project_ground_to_image(ecf_coords, tolerance=1e-6, max_iterations=35))
+
+    # X - pixel to ortho
+    # X - ortho to ecf
+    # ecf to pixel - what the fuck? (why is project ground to image retarded here?)
+    # ortho to pixel - what the fuck?
+    # ecf to ortho - what the fuck?
+
+    m1 = proj1.ecf_to_pixel
+    m2 = proj2.ecf_to_pixel
+    input_coords = ecf_coords
+    start_time = time.time()
+    for i in range(the_loops):
+        print(m1(input_coords))
+    print('PG method {} loops {}'.format(the_loops, time.time() - start_time))
+
+    start_time = time.time()
+    for i in range(the_loops):
+        print(m2(input_coords))
+    print('PG Rat Poly method {} loops {}'.format(the_loops, time.time() - start_time))

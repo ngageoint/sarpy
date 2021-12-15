@@ -1,4 +1,6 @@
-
+"""
+Methods for ortho-rectification
+"""
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
@@ -1134,4 +1136,3 @@ class BivariateSplineMethod(OrthorectificationHelper):
             # potentially apply the radiometric parameters
             ortho_array[mask] = result
         return ortho_array
-
