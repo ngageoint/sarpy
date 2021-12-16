@@ -140,6 +140,19 @@ class ICEYEDetails(object):
 
         def get_collection_info():
             # type: () -> CollectionInfoType
+
+            iceye_product_type_map = {
+                    "SpotlightExtendedArea":"sliding_spotlight",
+                    "SpotlightExtendedRange": "spotlight",
+                    "SpotlightExtendedDwell": "spotlight",
+                    "SpotlightHigh": "spotlight",
+                    }
+
+            if _stringify(hf['product_type'][()]) in iceye_product_type_map:
+                converted_mode = iceye_product_type_map[_stringify(hf['product_type'][()])]
+            else:
+                converted_mode = _stringify(hf['product_type'][()])
+
             return CollectionInfoType(
                 CollectorName=_stringify(hf['satellite_name'][()]),
                 CoreName=_stringify(hf['product_name'][()]),
@@ -147,7 +160,9 @@ class ICEYEDetails(object):
                 Classification='UNCLASSIFIED',
                 RadarMode=RadarModeType(
                     ModeType=_stringify(hf['acquisition_mode'][()]).upper(),
-                    ModeID=_stringify(hf['product_type'][()])))
+                    ModeID=converted_mode,
+                    )
+                )
 
         def get_image_creation():
             # type: () -> ImageCreationType
