@@ -10,7 +10,7 @@ from typing import List, Sequence
 
 import numpy
 from numpy.polynomial import polynomial
-from numpy.linalg import lstsq, LinAlgError
+from scipy.linalg import lstsq, LinAlgError
 
 from sarpy.compliance import SarpyError
 
@@ -117,7 +117,7 @@ def get_default_coefficient_ordering(variables, order):
 ###################
 # base rational polynomial fitting functions
 
-def rational_poly_fit_1d(x, data, coeff_list, rcond=None):
+def rational_poly_fit_1d(x, data, coeff_list, cond=None):
     """
     Fits a one variable rational polynomial according to the input coefficient
     listing order.
@@ -127,8 +127,8 @@ def rational_poly_fit_1d(x, data, coeff_list, rcond=None):
     x : numpy.ndarray
     data : numpy.ndarray
     coeff_list : List
-    rcond : None|float
-        Passed through to :func:`numpy.linalg.lstsq`.
+    cond : None|float
+        Passed through to :func:`scipy.linalg.lstsq`.
     """
 
     if coeff_list[0] not in [0, (0, )]:
@@ -161,12 +161,12 @@ def rational_poly_fit_1d(x, data, coeff_list, rcond=None):
 
     # perform least squares fit
     try:
-        sol, residuals, rank, sing_values = lstsq(A, data, rcond=rcond)
+        sol, residuals, rank, sing_values = lstsq(A, data, cond=cond)
     except LinAlgError as e:
         raise SarpyRatPolyError(str(e))
 
-    if len(residuals) != 0:
-        residuals /= float(x.size)
+    #if len(residuals) != 0:
+    residuals /= float(x.size)
     logger.info(
         'Performed rational polynomial fit, got\n\t'
         'residuals {}\n\t'
@@ -181,7 +181,7 @@ def rational_poly_fit_1d(x, data, coeff_list, rcond=None):
     return numerator, denominator
 
 
-def rational_poly_fit_2d(x, y, data, coeff_list, rcond=None):
+def rational_poly_fit_2d(x, y, data, coeff_list, cond=None):
     """
     Fits a two variable rational polynomial according to the input coefficient
     listing order.
@@ -192,8 +192,8 @@ def rational_poly_fit_2d(x, y, data, coeff_list, rcond=None):
     y : numpy.ndarray
     data : numpy.ndarray
     coeff_list : List
-    rcond : None|float
-        Passed through to :func:`numpy.linalg.lstsq`.
+    cond : None|float
+        Passed through to :func:`scipy.linalg.lstsq`.
     """
 
     if coeff_list[0] != (0, 0):
@@ -227,12 +227,12 @@ def rational_poly_fit_2d(x, y, data, coeff_list, rcond=None):
 
     # perform least squares fit
     try:
-        sol, residuals, rank, sing_values = lstsq(A, data, rcond=rcond)
+        sol, residuals, rank, sing_values = lstsq(A, data, cond=cond)
     except LinAlgError as e:
         raise SarpyRatPolyError(str(e))
 
-    if len(residuals) != 0:
-        residuals /= float(x.size)
+    # if len(residuals) != 0:
+    residuals /= float(x.size)
     logger.info(
         'Performed rational polynomial fit, got\n\t'
         'residuals {}\n\t'
@@ -247,7 +247,7 @@ def rational_poly_fit_2d(x, y, data, coeff_list, rcond=None):
     return numerator, denominator
 
 
-def rational_poly_fit_3d(x, y, z, data, coeff_list, rcond=None):
+def rational_poly_fit_3d(x, y, z, data, coeff_list, cond=None):
     """
     Fits a three variable rational polynomial according to the input coefficient
     listing order.
@@ -259,8 +259,8 @@ def rational_poly_fit_3d(x, y, z, data, coeff_list, rcond=None):
     z : numpy.ndarray
     data : numpy.ndarray
     coeff_list : List
-    rcond : None|float
-        Passed through to :func:`numpy.linalg.lstsq`.
+    cond : None|float
+        Passed through to :func:`scipy.linalg.lstsq`.
     """
 
     if coeff_list[0] != (0, 0, 0):
@@ -297,12 +297,12 @@ def rational_poly_fit_3d(x, y, z, data, coeff_list, rcond=None):
 
     # perform least squares fit
     try:
-        sol, residuals, rank, sing_values = lstsq(A, data, rcond=rcond)
+        sol, residuals, rank, sing_values = lstsq(A, data, cond=cond)
     except LinAlgError as e:
         raise SarpyRatPolyError(str(e))
 
-    if len(residuals) != 0:
-        residuals /= float(x.size)
+    #if len(residuals) != 0:
+    residuals /= float(x.size)
     logger.info(
         'Performed rational polynomial fit, got\n\t'
         'residuals {}\n\t'
@@ -498,7 +498,7 @@ def _get_scale_and_offset(array):
     return offset_value, scale_value
 
 
-def get_rational_poly_1d(x, data, coeff_list=None, order=None, rcond=None):
+def get_rational_poly_1d(x, data, coeff_list=None, order=None, cond=None):
     """
     Gets the RationalPolynomial instance that comes from fitting the provided data.
 
@@ -508,8 +508,8 @@ def get_rational_poly_1d(x, data, coeff_list=None, order=None, rcond=None):
     data : numpy.ndarray
     coeff_list : None|Sequence
     order : None|int
-    rcond : None|float
-        Passed through to :func:`numpy.linalg.lstsq`.
+    cond : None|float
+        Passed through to :func:`scipy.linalg.lstsq`.
     """
 
     if (coeff_list is None and order is None) or \
@@ -527,7 +527,7 @@ def get_rational_poly_1d(x, data, coeff_list=None, order=None, rcond=None):
 
     numerator, denominator = rational_poly_fit_1d(
         (x-offset_x)/scale_x,
-        (data-offset_data)/scale_data, coeff_list, rcond=rcond)
+        (data-offset_data)/scale_data, coeff_list, cond=cond)
 
     return RationalPolynomial(
         numerator, denominator, coeff_list,
@@ -535,7 +535,7 @@ def get_rational_poly_1d(x, data, coeff_list=None, order=None, rcond=None):
         offset_data, scale_data)
 
 
-def get_rational_poly_2d(x, y, data, coeff_list=None, order=None, rcond=None):
+def get_rational_poly_2d(x, y, data, coeff_list=None, order=None, cond=None):
     """
     Gets the RationalPolynomial instance that comes from fitting the provided data.
 
@@ -546,8 +546,8 @@ def get_rational_poly_2d(x, y, data, coeff_list=None, order=None, rcond=None):
     data : numpy.ndarray
     coeff_list : None|Sequence
     order : None|int
-    rcond : None|float
-        Passed through to :func:`numpy.linalg.lstsq`.
+    cond : None|float
+        Passed through to :func:`scipy.linalg.lstsq`.
     """
 
     if (coeff_list is None and order is None) or \
@@ -566,7 +566,7 @@ def get_rational_poly_2d(x, y, data, coeff_list=None, order=None, rcond=None):
 
     numerator, denominator = rational_poly_fit_2d(
         (x-offset_x)/scale_x, (y-offset_y)/scale_y,
-        (data-offset_data)/scale_data, coeff_list, rcond=rcond)
+        (data-offset_data)/scale_data, coeff_list, cond=cond)
 
     return RationalPolynomial(
         numerator, denominator, coeff_list,
@@ -574,7 +574,7 @@ def get_rational_poly_2d(x, y, data, coeff_list=None, order=None, rcond=None):
         offset_data, scale_data)
 
 
-def get_rational_poly_3d(x, y, z, data, coeff_list=None, order=None, rcond=None):
+def get_rational_poly_3d(x, y, z, data, coeff_list=None, order=None, cond=None):
     """
     Gets the RationalPolynomial instance that comes from fitting the provided data.
 
@@ -586,8 +586,8 @@ def get_rational_poly_3d(x, y, z, data, coeff_list=None, order=None, rcond=None)
     data : numpy.ndarray
     coeff_list : None|Sequence
     order : None|int
-    rcond : None|float
-        Passed through to :func:`numpy.linalg.lstsq`.
+    cond : None|float
+        Passed through to :func:`scipy.linalg.lstsq`.
     """
 
     if (coeff_list is None and order is None) or \
@@ -607,7 +607,7 @@ def get_rational_poly_3d(x, y, z, data, coeff_list=None, order=None, rcond=None)
 
     numerator, denominator = rational_poly_fit_3d(
         (x-offset_x)/scale_x, (y-offset_y)/scale_y, (z-offset_z)/scale_z,
-        (data-offset_data)/scale_data, coeff_list, rcond=rcond)
+        (data-offset_data)/scale_data, coeff_list, cond=cond)
 
     return RationalPolynomial(
         numerator, denominator, coeff_list,

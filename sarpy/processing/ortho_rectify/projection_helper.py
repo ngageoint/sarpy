@@ -687,7 +687,7 @@ class PGProjection(ProjectionHelper):
         return self.pixel_to_ortho(self.ecf_to_pixel(coords))
 
     def ecf_to_pixel(self, coords):
-        pixel, _, _ = self.sicd.project_ground_to_image(coords, tolerance=1e-3, max_iterations=25)
+        pixel, _, _ = self.sicd.project_ground_to_image(coords, tolerance=1e-6, max_iterations=40)
         return pixel
 
     def ll_to_ortho(self, ll_coords):
@@ -830,10 +830,10 @@ class PGRatPolyProjection(PGProjection):
                 'this SICD is not a good candidate for projection using rational polynomials')
         row_func = get_rational_poly_3d(
             ECF_data[:, :, :, 0].flatten(), ECF_data[:, :, :, 1].flatten(), ECF_data[:, :, :, 2].flatten(),
-            numpy.stack([row_col_grid[:, :, 0] for _ in range(self._alt_samples)], axis=2).flatten(), order=5)
+            numpy.stack([row_col_grid[:, :, 0] for _ in range(self._alt_samples)], axis=2).flatten(), order=3)
         col_func = get_rational_poly_3d(
             ECF_data[:, :, :, 0].flatten(), ECF_data[:, :, :, 1].flatten(), ECF_data[:, :, :, 2].flatten(),
-            numpy.stack([row_col_grid[:, :, 1] for _ in range(self._alt_samples)], axis=2).flatten(), order=5)
+            numpy.stack([row_col_grid[:, :, 1] for _ in range(self._alt_samples)], axis=2).flatten(), order=3)
         self._ecf_to_pixel_func = CombinedRationalPolynomial(row_func, col_func)
 
     def _perform_pixel_fitting(self):
@@ -880,44 +880,3 @@ class PGRatPolyProjection(PGProjection):
 
     def pixel_to_ortho(self, pixel_coords):
         return self._pixel_to_ortho_func(pixel_coords, combine=True)
-
-
-if __name__ == '__main__':
-    import os
-    from sarpy.io.complex.sicd import SICDReader
-    import time
-    # r'R:\sar\Data_SomeDomestic\Sandia\FARAD_Phoenix\SICD_example_170906\'
-    reader = SICDReader(r'C:\Users\jr80407\Desktop\WIP\rgiqe_example\data\sicd_example_1_PFA_RE32F_IM32F_HH.nitf')
-    sicd = reader.sicd_meta
-    proj1 = PGProjection(sicd)
-    proj2 = PGRatPolyProjection(sicd, row_samples=51, col_samples=51, alt_samples=11, alt_span=300)
-
-    the_size = 4
-    the_loops = 1
-    pixel_coords = numpy.random.randint(0, 1000, (the_size, 2))
-    print(pixel_coords.shape)
-    print(pixel_coords)
-    ortho_coords = proj2.pixel_to_ortho(pixel_coords)
-    ecf_coords = sicd.project_image_to_ground(pixel_coords, projection_type='HAE', hae0=sicd.GeoData.SCP.LLH.HAE+415.0)
-    # ecf_coords = proj2.pixel_to_ecf(pixel_coords)
-
-    print(sicd.project_ground_to_image(ecf_coords, tolerance=1e-6, max_iterations=35))
-
-    # X - pixel to ortho
-    # X - ortho to ecf
-    # ecf to pixel - what the fuck? (why is project ground to image retarded here?)
-    # ortho to pixel - what the fuck?
-    # ecf to ortho - what the fuck?
-
-    m1 = proj1.ecf_to_pixel
-    m2 = proj2.ecf_to_pixel
-    input_coords = ecf_coords
-    start_time = time.time()
-    for i in range(the_loops):
-        print(m1(input_coords))
-    print('PG method {} loops {}'.format(the_loops, time.time() - start_time))
-
-    start_time = time.time()
-    for i in range(the_loops):
-        print(m2(input_coords))
-    print('PG Rat Poly method {} loops {}'.format(the_loops, time.time() - start_time))
