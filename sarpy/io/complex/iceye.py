@@ -141,17 +141,14 @@ class ICEYEDetails(object):
         def get_collection_info():
             # type: () -> CollectionInfoType
 
-            iceye_product_type_map = {
-                    "SpotlightExtendedArea":"sliding_spotlight",
-                    "SpotlightExtendedRange": "spotlight",
-                    "SpotlightExtendedDwell": "spotlight",
-                    "SpotlightHigh": "spotlight",
+            iceye_product_type_mode_type = {
+                    "SpotlightExtendedArea":"DYNAMIC STRIPMAP",
                     }
 
-            if _stringify(hf['product_type'][()]) in iceye_product_type_map:
-                converted_mode = iceye_product_type_map[_stringify(hf['product_type'][()])]
+            if _stringify(hf['product_type'][()]) in iceye_product_type_mode_type:
+                converted_mode_type = iceye_product_type_mode_type[_stringify(hf['product_type'][()])]
             else:
-                converted_mode = _stringify(hf['product_type'][()])
+                converted_mode_type = _stringify(hf['acquisition_mode'][()]).upper()
 
             return CollectionInfoType(
                 CollectorName=_stringify(hf['satellite_name'][()]),
@@ -159,8 +156,8 @@ class ICEYEDetails(object):
                 CollectType='MONOSTATIC',
                 Classification='UNCLASSIFIED',
                 RadarMode=RadarModeType(
-                    ModeType=_stringify(hf['acquisition_mode'][()]).upper(),
-                    ModeID=converted_mode,
+                    ModeType=converted_mode_type,
+                    ModeID=_stringify(hf['product_type'][()]),
                     )
                 )
 
