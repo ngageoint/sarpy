@@ -1,5 +1,5 @@
 """
-Definition for the DetailFiducialInfo AFRL labeling object
+Definition for the DetailFiducialInfo NGA modified RDE/AFRL labeling object
 """
 
 __classification__ = "UNCLASSIFIED"
@@ -17,7 +17,8 @@ from sarpy.io.complex.sicd_elements.blocks import RowColType
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 
 from .base import DEFAULT_STRICT
-from .blocks import LatLonEleType, RangeCrossRangeType
+from .blocks import LatLonEleType, RangeCrossRangeType, \
+    ProjectionPerturbationType
 
 logger = logging.getLogger(__name__)
 
@@ -197,12 +198,9 @@ class TheFiducialType(Serializable):
         'ImageLocation', 'GeoLocation',
         'IPRWidth3dB', 'IPRWidth18dB', 'IPRWidth3dB18dBRatio',
         'PeakSideLobeRatio', 'IntegratedSideLobeRatio',
-        'SlantPlane', 'GroundPlane')
+        'SlantPlane', 'GroundPlane', 'ProjectionPerturbation')
     _required = (
         'FiducialType', 'ImageLocation', 'GeoLocation')
-    _tag_overide = {
-        'IPRWidth3dB': '_3dBWidth', 'IPRWidth18dB': '_18dBWidth', 
-        'IPRWidth3dB18dBRatio': '_3dB_18dBRatio'}
     # descriptors
     Name = StringDescriptor(
         'Name', _required, strict=DEFAULT_STRICT,
@@ -254,12 +252,15 @@ class TheFiducialType(Serializable):
         'GroundPlane', PhysicalLocationType, _required,
         docstring='Center of the object in the ground plane'
     )  # type: Optional[PhysicalLocationType]
+    ProjectionPerturbation = SerializableDescriptor(
+        'ProjectionPerturbation', ProjectionPerturbationType, _required, 
+        docstring='') # type: Optional[ProjectionPerturbationType]
 
     def __init__(self, Name=None, SerialNumber=None, FiducialType=None,
                  DatasetFiducialNumber=None, ImageLocation=None, GeoLocation=None,
                  IPRWidth3dB=None, IPRWidth18dB=None, IPRWidth3dB18dBRatio=None,
                  PeakSideLobeRatio=None, IntegratedSideLobeRatio=None,
-                 SlantPlane=None, GroundPlane=None,
+                 SlantPlane=None, GroundPlane=None, ProjectionPerturbation=None,
                  **kwargs):
         """
         Parameters
@@ -277,6 +278,7 @@ class TheFiducialType(Serializable):
         IntegratedSideLobeRatio : None|RangeCrossRangeType|numpy.ndarray|list|tuple
         SlantPlane : None|PhysicalLocationType
         GroundPlane : None|PhysicalLocationType
+        ProjectionPerturbation : None|ProjectionPerturbationType
         kwargs
             Other keyword arguments
         """
@@ -298,6 +300,7 @@ class TheFiducialType(Serializable):
         self.IntegratedSideLobeRatio = IntegratedSideLobeRatio
         self.SlantPlane = SlantPlane
         self.GroundPlane = GroundPlane
+        self.ProjectionPerturbation = ProjectionPerturbation
         super(TheFiducialType, self).__init__(**kwargs)
 
     def set_default_width_from_sicd(self, sicd, override=False):

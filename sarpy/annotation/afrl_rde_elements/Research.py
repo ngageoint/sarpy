@@ -1,5 +1,5 @@
 """
-Definition for the main AFRL labeling object
+Definition for the main NGA modified RDE/AFRL labeling object
 """
 
 __classification__ = "UNCLASSIFIED"
@@ -23,7 +23,7 @@ from .DetailFiducialInfo import DetailFiducialInfoType
 from .DetailObjectInfo import DetailObjectInfoType
 
 
-_AFRL_SPECIFICATION_NAMESPACE = None  # TODO: 'urn:AFRL:1.0'
+_AFRL_SPECIFICATION_NAMESPACE = 'urn:AFRL_RDE:1.0.0'
 
 
 class ResearchType(Serializable):

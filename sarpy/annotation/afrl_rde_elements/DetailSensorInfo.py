@@ -1,5 +1,5 @@
 """
-Definition for the DetailSensorInfo AFRL labeling object
+Definition for the DetailSensorInfo NGA modified RDE/AFRL labeling object
 """
 
 __classification__ = "UNCLASSIFIED"

@@ -1,5 +1,5 @@
 """
-Definition for the DetailSubCollectionInfo AFRL labeling object
+Definition for the DetailSubCollectionInfo NGA modified RDE/AFRL labeling object
 """
 
 __classification__ = "UNCLASSIFIED"
@@ -12,7 +12,7 @@ from sarpy.io.xml.base import Serializable
 from sarpy.io.xml.descriptors import SerializableDescriptor, StringDescriptor
 
 from .base import DEFAULT_STRICT
-from .blocks import DateRangeType, LatLonEleType
+from .blocks import DateTimeRangeType, LatLonEleType
 
 
 class DetailSubCollectionInfoType(Serializable):
@@ -37,8 +37,8 @@ class DetailSubCollectionInfoType(Serializable):
         'Description', _required,
         docstring="Description of the subcollection (e.g., Main array).")  # type: Optional[str]
     Duration = SerializableDescriptor(
-        'Duration', DateRangeType, _required, strict=DEFAULT_STRICT,
-        docstring="Begin and end dates of the subcollection.")  # type: Optional[DateRangeType]
+        'Duration', DateTimeRangeType, _required, strict=DEFAULT_STRICT,
+        docstring="Begin and end dates of the subcollection.")  # type: Optional[DateTimeRangeType]
     SiteCenterLocation = SerializableDescriptor(
         'SiteCenterLocation', LatLonEleType, _required, strict=DEFAULT_STRICT,
         docstring="Location of the center of the collection site.")  # type: LatLonEleType
@@ -61,7 +61,7 @@ class DetailSubCollectionInfoType(Serializable):
         SiteNumber : None|str
         SceneNumber : None|str
         Description : NOne|str
-        Duration : None|DateRangeType|list|tuple
+        Duration : None|DateTimeRangeType|list|tuple
         SiteCenterLocation : LatLonEleType|numpy.ndarray|list|tuple
         SceneContentDescription : None|str
         SiteBackgroundType : None|str

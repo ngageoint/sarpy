@@ -1,5 +1,5 @@
 """
-Common use elements for the AFRL labeling definition
+Common use elements for the NGA modified RDE/AFRL labeling definition
 """
 
 __classification__ = "UNCLASSIFIED"
@@ -11,8 +11,10 @@ from datetime import date, datetime
 from typing import Optional
 
 from sarpy.io.xml.base import Serializable, Arrayable
-from sarpy.io.xml.descriptors import DateTimeDescriptor, FloatDescriptor
+from sarpy.io.xml.descriptors import DateTimeDescriptor, FloatDescriptor, \
+    SerializableDescriptor, StringEnumDescriptor
 
+from sarpy.io.complex.sicd_elements.blocks import XYZType
 from .base import DEFAULT_STRICT
 
 
@@ -375,3 +377,47 @@ class LatLonEleType(Serializable, Arrayable):
                 raise ValueError('Expected array to be of length 3, and received {}'.format(array))
             return cls(Lat=array[0], Lon=array[1], Ele=array[2])
         raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
+
+
+class ProjectionPerturbationType(Serializable):
+    """
+    Basic information required for SICD/SIDD projection model perturbation.
+    """
+    
+    _fields = ('CoordinateFrame', 'DeltaArp', 'DeltaVarp', 'DeltaRange')
+    _required=('CoordinateFrame', )
+    _numeric_format = {'Lat': '0.17G', }
+    CoordinateFrame = StringEnumDescriptor(
+        'CoordinateFrame', {'ECF', 'RIC_ECI', 'RIC_ECF'}, _required)  # type: str
+    DeltaArp = SerializableDescriptor(
+        'DeltaArp', XYZType, _required)  # type: XYZType
+    DeltaVarp = SerializableDescriptor(
+        'DeltaVarp', XYZType, _required)  # type: XYZType
+    DeltaRange = FloatDescriptor(
+        'DeltaRange', _required)  # type: float
+
+    def __init__(self, CoordinateFrame=None, DeltaArp=None, DeltaVarp=None, DeltaRange=None, **kwargs):
+        """
+        Parameters
+        ----------
+        CoordinateFrame : str
+        DeltaArp : None|XYZType|numpy.ndarray|list|tuple
+        DeltaVarp : None|XYZType|numpy.ndarray|list|tuple
+        DeltaRange : None|float
+        kwargs
+            Other keywrod arguments
+        """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
+
+        self.CoordinateFrame = CoordinateFrame
+        self.DeltaArp = DeltaArp
+        self.DeltaVarp = DeltaVarp
+        self.DeltaRange = DeltaRange
+
+        super(ProjectionPerturbationType, self).__init__(**kwargs)
+
+    
