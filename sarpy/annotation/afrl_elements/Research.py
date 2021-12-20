@@ -23,7 +23,7 @@ from .DetailFiducialInfo import DetailFiducialInfoType
 from .DetailObjectInfo import DetailObjectInfoType
 
 
-_AFRL_SPECIFICATION_NAMESPACE = None  # TODO: 'urn:AFRL:1.0'
+_AFRL_SPECIFICATION_NAMESPACE = 'urn:AFRL:1.0.0'
 
 
 class ResearchType(Serializable):
