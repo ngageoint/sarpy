@@ -552,19 +552,19 @@ class GeoLocationType(Serializable):
 
 
 class FreeFormType(Serializable):
-    _fields = ('Name', 'Value')
+    _fields = ('Component', 'Value')
     _required = _fields
     Name = StringDescriptor(
-        'Name', _required)  # type: str
+        'Component', _required)  # type: str
     Value = StringDescriptor(
-        'Value', _required)  # type: str
+        'Component', _required)  # type: str
 
-    def __init__(self, Name=None, Value=None, **kwargs):
+    def __init__(self, Component=None, Value=None, **kwargs):
         """
 
         Parameters
         ----------
-        Name : str
+        Component : str
         Value : str
         kwargs
         """
@@ -573,7 +573,7 @@ class FreeFormType(Serializable):
             self._xml_ns = kwargs['_xml_ns']
         if '_xml_ns_key' in kwargs:
             self._xml_ns_key = kwargs['_xml_ns_key']
-        self.Name = Name
+        self.Component = Component
         self.Value = Value
         super(FreeFormType, self).__init__(**kwargs)
 
@@ -625,7 +625,7 @@ class CompoundCommentType(Serializable):
             value = []
             for element in node:
                 tag_name = element.tag[len(tag_start):]
-                value.append(FreeFormType(Name=tag_name, Value=element.text))
+                value.append(FreeFormType(Component=tag_name, Value=element.text))
             kwargs['Value'] = None
             kwargs['Comments'] = value
         return super(CompoundCommentType, cls).from_node(node, xml_ns, ns_key=ns_key, kwargs=kwargs)
@@ -638,7 +638,7 @@ class CompoundCommentType(Serializable):
             node = create_new_node(doc, the_tag, parent=parent)
             if self.Comments is not None:
                 for entry in self.Comments:
-                    child_tag = '{}:{}'.format(ns_key, entry.Name) if ns_key is not None else entry.Name
+                    child_tag = '{}:{}'.format(ns_key, entry.Name) if ns_key is not None else entry.Component
                     create_text_node(doc, child_tag, entry.Value, parent=node)
         return node
 
