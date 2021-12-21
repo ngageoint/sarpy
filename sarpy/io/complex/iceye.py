@@ -140,14 +140,20 @@ class ICEYEDetails(object):
 
         def get_collection_info():
             # type: () -> CollectionInfoType
+
+            mode_id_type_map = {
+                "SpotlightExtendedArea": "DYNAMIC STRIPMAP", }
+            mode_id = _stringify(hf['product_type'][()])
+            mode_type = mode_id_type_map.get(mode_id, _stringify(hf['acquisition_mode'][()]).upper())
+
             return CollectionInfoType(
                 CollectorName=_stringify(hf['satellite_name'][()]),
                 CoreName=_stringify(hf['product_name'][()]),
                 CollectType='MONOSTATIC',
                 Classification='UNCLASSIFIED',
                 RadarMode=RadarModeType(
-                    ModeType=_stringify(hf['acquisition_mode'][()]).upper(),
-                    ModeID=_stringify(hf['product_type'][()])))
+                    ModeType=mode_type,
+                    ModeID=mode_id))
 
         def get_image_creation():
             # type: () -> ImageCreationType
