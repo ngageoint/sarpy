@@ -121,7 +121,7 @@ class PlanePhysicalType(Serializable):
 class SizeType(Serializable, Arrayable):
     _fields = ('Length', 'Width', 'Height')
     _required = _fields
-    _numeric_format = {key: '0.17E' for key in _fields}
+    _numeric_format = {key: '0.17G' for key in _fields}
     # Descriptors
     Length = FloatDescriptor(
         'Length', _required, strict=True, docstring='The Length attribute.')  # type: float
@@ -202,7 +202,7 @@ class SizeType(Serializable, Arrayable):
 class OrientationType(Serializable):
     _fields = ('Roll', 'Pitch', 'Yaw', 'AzimuthAngle')
     _required = ()
-    _numeric_format = {key: '0.17E' for key in _fields}
+    _numeric_format = {key: '0.17G' for key in _fields}
     # descriptors
     Roll = FloatDescriptor(
         'Roll', _required)  # type: float
@@ -654,6 +654,7 @@ class TheObjectType(Serializable):
         'TargetToClutterRatio', 'VisualQualityMetric',
         'UnderlyingTerrain', 'OverlyingTerrain', 'TerrainTexture', 'SeasonalCover')
     _required = ('SystemName', 'ImageLocation', 'GeoLocation')
+    _numeric_format = {'ObscurationPercent': '0.17G', }
     # descriptors
     SystemName = StringDescriptor(
         'SystemName', _required, strict=DEFAULT_STRICT,

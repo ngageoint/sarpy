@@ -242,6 +242,9 @@ class DetailImageInfoType(Serializable):
         'DataFilename', 'ClassificationMarkings', 'DataPlane', 'DataType',
         'DataFormat', 'NumPixels', 'ImageCollectionDate', 'SensorReferencePoint',
         'Resolution', 'PixelSpacing', 'WeightingType', 'ImageCorners')
+    _numeric_format = {
+        'ImageHeading': '0.17G', 'SensorCalibrationFactor': '0.17G',
+        'SceneCenterReferenceLine': '0.17G', }
     # descriptors
     DataFilename = StringDescriptor(
         'DataFilename', _required,
