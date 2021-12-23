@@ -1,5 +1,7 @@
 # This details the important differences introduced in sarpy 1.2
 
+* .46 - Splitting of the NGA RDE AFRL strcture and original AFRL structure
+        Correction of various bugs and minor code smells
 * .45 - Correction of ICEYE ModeType for specific collection mode
 * .44 - Correcting minor bugs for AFRL structures
 * .43 - Resolution of a SICD and SIDD segmentation methodology bug

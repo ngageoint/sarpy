@@ -26,11 +26,10 @@ __all__ = ['__version__',
            '__title__', '__summary__',
            '__license__', '__copyright__']
 
+from .__details__ import __classification__, _post_identifier
 
-__version__ = "1.2.45"
+__version__ = "1.2.46" + _post_identifier
 
-
-__classification__ = "UNCLASSIFIED"  # This should be set appropriately in any high-side version
 __author__ = "National Geospatial-Intelligence Agency"
 __url__ = "https://github.com/ngageoint/sarpy"
 __email__ = "Wade.C.Schwartzkopf@nga.mil"
