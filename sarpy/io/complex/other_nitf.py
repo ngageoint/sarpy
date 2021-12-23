@@ -40,6 +40,7 @@ from sarpy.io.complex.sicd_elements.PFA import PFAType
 
 logger = logging.getLogger(__name__)
 
+_iso_date_format = '{}-{}-{}T{}:{}:{}'
 
 # NB: DO NOT implement is_a() here. This will explicitly happen after other readers
 
@@ -301,11 +302,12 @@ def extract_sicd(img_header, symmetry, nitf_header=None):
         try:
             date_str = cmetaa.T_UTC_YYYYMMMDD
             time_str = cmetaa.T_HHMMSSUTC
-            date_time = '{}-{}-{}T{}:{}:{}'.format(
+            date_time = _iso_date_format.format(
                 date_str[:4], date_str[4:6], date_str[6:8],
                 time_str[:2], time_str[2:4], time_str[4:6])
             the_sicd.Timeline.CollectStart = numpy.datetime64(date_time, 'us')
-        except:
+        except Exception:
+            logger.info('Failed extracting start time from CMETAA')
             pass
         the_sicd.Timeline.CollectDuration = float(cmetaa.WF_CDP)
         the_sicd.Timeline.IPP = [
@@ -383,7 +385,7 @@ def extract_sicd(img_header, symmetry, nitf_header=None):
             the_sicd.ImageFormation.SegmentIdentifier = aimidb.CURRENT_SEGMENT.strip()
 
         date_str = aimidb.ACQUISITION_DATE
-        collect_start = numpy.datetime64('{}-{}-{}T{}:{}:{}'.format(
+        collect_start = numpy.datetime64(_iso_date_format.format(
             date_str[:4], date_str[4:6], date_str[6:8],
             date_str[8:10], date_str[10:12], date_str[12:14]), 'us')
         set_collect_start(collect_start, override=False)
@@ -562,10 +564,12 @@ def extract_sicd(img_header, symmetry, nitf_header=None):
         # noinspection PyBroadException
         try:
             date_str = img_header.IDATIM
-            collect_start = numpy.datetime64('{}-{}-{}T{}:{}:{}'.format(
-                date_str[:4], date_str[4:6], date_str[6:8],
-                date_str[8:10], date_str[10:12], date_str[12:14]), 'us')
-        except:
+            collect_start = numpy.datetime64(
+                _iso_date_format.format(
+                    date_str[:4], date_str[4:6], date_str[6:8],
+                    date_str[8:10], date_str[10:12], date_str[12:14]), 'us')
+        except Exception:
+            logger.info('failed extracting start time from IDATIM tre')
             return
 
         set_collect_start(collect_start, override=False)
@@ -675,6 +679,7 @@ def get_log_power_scaling(scale_factor, db_per_step):
     """
 
     power_scaler = get_linear_power_scaling(scale_factor)
+
     def scaler(data):
         return power_scaler(numpy.exp(0.1*numpy.log(10)*db_per_step*data))
 
@@ -984,7 +989,7 @@ class ComplexNITFDetails(NITFDetails):
             elif pv_type == 'SI':
                 raw_dtype = '>i{}'.format(bpp)
             elif pv_type == 'R':
-                raw_dtype ='>f{}'.format(bpp)
+                raw_dtype = '>f{}'.format(bpp)
             else:
                 logger.warning(
                     'Got unhandled PVTYPE {} for image band {}\n\t'

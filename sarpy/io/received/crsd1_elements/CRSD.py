@@ -70,6 +70,7 @@ class CRSDHeaderBase(object):
     _required = ()
 
     def __init__(self, **kwargs):
+        # abstract class
         pass
 
     @classmethod

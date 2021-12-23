@@ -470,8 +470,7 @@ def get_data_extrema(bounds, reader, index, block_size_in_bytes, percentile=None
 
             min_value = temp_values[0] if min_value is None else min(min_value, temp_values[0])
             max_value = temp_values[1] if max_value is None else max(max_value, temp_values[1])
-            if percentile is not None:
-                percent = temp_values[2] if percent is None else temp_values[2]
+            percent = temp_values[2] if percentile is not None else None
 
     if percentile is None:
         return min_value, max_value

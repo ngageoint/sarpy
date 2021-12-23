@@ -17,6 +17,9 @@ import numpy
 
 logger = logging.getLogger(__name__)
 
+_poorly_formed_text = 'Poorly formed json {}'
+_disallowed_text = 'Got disallowed type {}'
+
 ##########
 # utility functions
 
@@ -1007,7 +1010,7 @@ class Point(GeometryObject):
     def from_dict(cls, geometry):
         # type: (Dict) -> Point
         if not geometry.get('type', None) == cls._type:
-            raise ValueError('Poorly formed json {}'.format(geometry))
+            raise ValueError(_poorly_formed_text.format(geometry))
         return cls(coordinates=geometry['coordinates'])
 
     def add_to_kml(self, doc, parent, coord_transform):
@@ -1109,7 +1112,7 @@ class MultiPoint(GeometryObject):
     def from_dict(cls, geometry):
         # type: (Dict) -> MultiPoint
         if not geometry.get('type', None) == cls._type:
-            raise ValueError('Poorly formed json {}'.format(geometry))
+            raise ValueError(_poorly_formed_text.format(geometry))
         return cls(coordinates=geometry['coordinates'])
 
     def add_to_kml(self, doc, parent, coord_transform):
@@ -1154,7 +1157,7 @@ class MultiPoint(GeometryObject):
                 for entry in arg_in.geometries:
                     handle_arg(entry)
             else:
-                raise ValueError('got disallowed type {}'.format(type(arg_in)))
+                raise ValueError(_disallowed_text.format(type(arg_in)))
 
         if len(args) == 0:
             return cls()
@@ -1269,7 +1272,7 @@ class LineString(GeometryObject):
     def from_dict(cls, geometry):
         # type: (dict) -> LineString
         if not geometry.get('type', None) == cls._type:
-            raise ValueError('Poorly formed json {}'.format(geometry))
+            raise ValueError(_poorly_formed_text.format(geometry))
         return cls(coordinates=geometry['coordinates'])
 
     def get_length(self):
@@ -1388,7 +1391,7 @@ class MultiLineString(GeometryObject):
     def from_dict(cls, geometry):
         # type: (Dict) -> MultiLineString
         if not geometry.get('type', None) == cls._type:
-            raise ValueError('Poorly formed json {}'.format(geometry))
+            raise ValueError(_poorly_formed_text.format(geometry))
         return cls(coordinates=geometry['coordinates'])
 
     def get_length(self):
@@ -1445,7 +1448,7 @@ class MultiLineString(GeometryObject):
                 for entry in arg_in.geometries:
                     handle_arg(entry)
             else:
-                raise ValueError('got disallowed type {}'.format(type(arg_in)))
+                raise ValueError(_disallowed_text.format(type(arg_in)))
 
         if len(args) == 0:
             return cls()
@@ -2027,7 +2030,7 @@ class Polygon(GeometryObject):
     def from_dict(cls, geometry):
         # type: (Dict) -> Polygon
         if not geometry.get('type', None) == cls._type:
-            raise ValueError('Poorly formed json {}'.format(geometry))
+            raise ValueError(_poorly_formed_text.format(geometry))
         return cls(coordinates=geometry['coordinates'])
 
     def get_bbox(self):
@@ -2308,7 +2311,7 @@ class MultiPolygon(GeometryObject):
     def from_dict(cls, geometry):
         # type: (Dict) -> MultiPolygon
         if not geometry.get('type', None) == cls._type:
-            raise ValueError('Poorly formed json {}'.format(geometry))
+            raise ValueError(_poorly_formed_text.format(geometry))
         return cls(coordinates=geometry['coordinates'])
 
     def get_coordinate_list(self):
@@ -2447,7 +2450,7 @@ class MultiPolygon(GeometryObject):
                 for entry in arg_in.geometries:
                     handle_arg(entry)
             else:
-                raise ValueError('got disallowed type {}'.format(type(arg_in)))
+                raise ValueError(_disallowed_text.format(type(arg_in)))
 
         if len(args) == 0:
             return cls()

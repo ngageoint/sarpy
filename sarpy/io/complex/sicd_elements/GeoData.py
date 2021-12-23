@@ -280,7 +280,7 @@ class GeoDataType(Serializable):
     # descriptors
     EarthModel = StringEnumDescriptor(
         'EarthModel', _EARTH_MODEL_VALUES, _required, strict=True, default_value='WGS_84',
-        docstring='The Earth Model.'.format(_EARTH_MODEL_VALUES))  # type: str
+        docstring='The Earth Model.')  # type: str
     SCP = SerializableDescriptor(
         'SCP', SCPType, _required, strict=DEFAULT_STRICT,
         docstring='The Scene Center Point *(SCP)* in full (global) image. This is the '

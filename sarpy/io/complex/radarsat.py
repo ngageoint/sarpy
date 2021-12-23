@@ -45,6 +45,8 @@ from sarpy.io.complex.utils import fit_time_coa_polynomial, fit_position_xvalida
 
 logger = logging.getLogger(__name__)
 
+_unhandled_generation_text = 'Unhandled generation `{}`'
+
 ########
 # base expected functionality for a module with an implemented Reader
 
@@ -530,7 +532,7 @@ class RadarSatDetails(object):
             classification = _format_class_str(class_str) if radarsat_addin is None else radarsat_addin.extract_radarsat_sec(nitf, class_str)
             core_name = '{}{}{}'.format(date_str, collector_name.replace('-', ''), start_time_dt.strftime('%H%M%S'))
         else:
-            raise ValueError('unhandled generation {}'.format(self.generation))
+            raise ValueError(_unhandled_generation_text.format(self.generation))
 
         return nitf, CollectionInfoType(
             Classification=classification,
@@ -644,7 +646,7 @@ class RadarSatDetails(object):
                 else:
                     raise ValueError('Got unhandled bites per sample {}'.format(bits_per_sample))
             else:
-                raise ValueError('unhandled generation {}'.format(self.generation))
+                raise ValueError(_unhandled_generation_text.format(self.generation))
             scp_rows = int(0.5*rows)
             scp_cols = int(0.5*cols)
             scp_ecf = self._get_image_location(scp_cols, scp_rows)
@@ -667,7 +669,7 @@ class RadarSatDetails(object):
                                               '/radarParameters'
                                               '/pulseBandwidth').text)/speed_of_light
             else:
-                raise ValueError('unhandled generation {}'.format(self.generation))
+                raise ValueError(_unhandled_generation_text.format(self.generation))
             row_wgt_type = WgtTypeType(
                 WindowName=self._find('./imageGenerationParameters'
                                       '/sarProcessingInformation'
@@ -735,7 +737,7 @@ class RadarSatDetails(object):
             elif self.generation == 'RCM':
                 pulse_rep_freq = float(self._find('./sourceAttributes/radarParameters/prfInformation/pulseRepetitionFrequency').text)
             else:
-                raise ValueError('unhandled generation {}'.format(self.generation))
+                raise ValueError(_unhandled_generation_text.format(self.generation))
 
             pulse_rep_freq *= pulse_parts
             if pulse_parts == 2 and collection_info.RadarMode.ModeType == 'STRIPMAP':
@@ -821,7 +823,7 @@ class RadarSatDetails(object):
                 doppler_centroid_node = self._find('./dopplerCentroid'
                                                    '/dopplerCentroidEstimate')
             else:
-                raise ValueError('unhandled generation {}'.format(self.generation))
+                raise ValueError(_unhandled_generation_text.format(self.generation))
 
             doppler_rate_ref_time = float(doppler_rate_node.find('./dopplerRateReferenceTime').text)
             doppler_cent_coeffs = numpy.array(
@@ -981,7 +983,7 @@ class RadarSatDetails(object):
                     base_path, 'calibration',
                     self._find('./imageReferenceAttributes/lookupTableFileName[@sarCalibrationType="Gamma"]').text)
             else:
-                raise ValueError('unhandled generation {}'.format(self.generation))
+                raise ValueError(_unhandled_generation_text.format(self.generation))
 
             if not os.path.isfile(beta_file):
                 logger.error(
@@ -1009,7 +1011,7 @@ class RadarSatDetails(object):
                 beta0s = [entry for entry in noise_levels if entry.find('sarCalibrationType').text.startswith('Beta')]
                 beta0_element = beta0s[0] if len(beta0s) > 0 else None
             else:
-                raise ValueError('unhandled generation {}'.format(self.generation))
+                raise ValueError(_unhandled_generation_text.format(self.generation))
 
             if beta0_element is not None:
                 pfv = float(beta0_element.find('pixelFirstNoiseValue').text)

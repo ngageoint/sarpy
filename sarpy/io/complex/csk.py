@@ -45,6 +45,8 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+_unhandled_id_text = 'Unhandled mission id `{}`'
+
 ########
 # base expected functionality for a module with an implemented Reader
 
@@ -185,7 +187,7 @@ class CSKDetails(object):
                 elif self._mission_id == 'CSG':
                     the_dataset = gp['IMG']
                 else:
-                    raise ValueError('Unhandled mission id {}'.format(self._mission_id))
+                    raise ValueError(_unhandled_id_text.format(self._mission_id))
                 _extract_attrs(the_dataset, out=band_dict[gp_name])
 
                 shape_dict[gp_name] = the_dataset.shape[:2]
@@ -254,7 +256,7 @@ class CSKDetails(object):
                         'setting to DYNAMIC STRIPMAP'.format(acq_mode))
                     mode_type = 'DYNAMIC STRIPMAP'
             else:
-                raise ValueError('Unhandled mission id {}'.format(self._mission_id))
+                raise ValueError(_unhandled_id_text.format(self._mission_id))
 
             start_time_dt = collect_start.astype('datetime64[s]').astype(datetime)
             date_str = start_time_dt.strftime('%d%b%y').upper()
@@ -454,7 +456,7 @@ class CSKDetails(object):
             rg_ref_time = band_dict[band_name]['Range Polynomial Reference Time']
             dop_poly_rg = strip_poly(band_dict[band_name]['Doppler Centroid vs Range Time Polynomial'])
         else:
-            raise ValueError('Unhandled mission id {}'.format(self._mission_id))
+            raise ValueError(_unhandled_id_text.format(self._mission_id))
         return az_ref_time, rg_ref_time, dop_poly_az, dop_poly_rg, dop_rate_poly_rg
 
     def _get_band_specific_sicds(self, base_sicd, h5_dict, band_dict, shape_dict, dtype_dict):
@@ -467,7 +469,7 @@ class CSKDetails(object):
             elif self._mission_id == 'CSG':
                 LLH = h5_dict['Scene Centre Geodetic Coordinates']
             else:
-                raise ValueError('Unhandled mission id {}'.format(self._mission_id))
+                raise ValueError(_unhandled_id_text.format(self._mission_id))
             sicd.GeoData = GeoDataType(SCP=SCPType(LLH=LLH))  # EarthModel & ECF will be populated
 
         def update_image_data(sicd, band_name):
@@ -721,7 +723,7 @@ class CSKReader(BaseReader, SICDTypeReader):
             elif self._csk_details.mission_id == 'CSG':
                 the_band = '{}/IMG'.format(band_name)
             else:
-                raise ValueError('Unhandled mission id {}'.format(self._csk_details.mission_id))
+                raise ValueError(_unhandled_id_text.format(self._csk_details.mission_id))
 
             sicds.append(sicd_data[band_name])
             chippers.append(H5Chipper(csk_details.file_name, the_band, shape_dict[band_name], symmetry))

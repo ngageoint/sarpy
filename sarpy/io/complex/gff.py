@@ -50,6 +50,9 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+_requires_array_text = 'Requires numpy.ndarray, got `{}`'
+_requires_3darray_text = 'Requires a three-dimensional numpy.ndarray\n\t' \
+                         '(with band in the last dimension), got shape {}'
 
 ########
 # base expected functionality for a module with an implemented Reader
@@ -1830,11 +1833,10 @@ def phase_amp_seq_to_complex():
     def converter(data):
         if not isinstance(data, numpy.ndarray):
             raise TypeError(
-                'Requires a numpy.ndarray, got {}'.format(type(data)))
+                _requires_array_text.format(type(data)))
 
         if len(data.shape) != 3 and data.shape[2] != 2:
-            raise ValueError('Requires a three-dimensional numpy.ndarray (with band '
-                             'in the last dimension), got shape {}'.format(data.shape))
+            raise ValueError(_requires_3darray_text.format(data.shape))
 
         if data.dtype.name not in ['uint8', 'uint16', 'uint32', 'uint64']:
             raise ValueError(
@@ -1864,11 +1866,10 @@ def phase_amp_int_to_complex():
     def converter(data):
         if not isinstance(data, numpy.ndarray):
             raise TypeError(
-                'Requires a numpy.ndarray, got {}'.format(type(data)))
+                _requires_array_text.format(type(data)))
 
         if len(data.shape) != 3 and data.shape[2] != 1:
-            raise ValueError('Requires a three-dimensional numpy.ndarray (with band '
-                             'in the last dimension), got shape {}'.format(data.shape))
+            raise ValueError(_requires_3darray_text.format(data.shape))
 
         if data.dtype['phase'].name not in ['uint8', 'uint16', 'uint32', 'uint64'] or \
                 data.dtype['magnitude'].name not in ['uint8', 'uint16', 'uint32', 'uint64']:
@@ -1899,11 +1900,10 @@ def I_Q_to_complex():
     def converter(data):
         if not isinstance(data, numpy.ndarray):
             raise TypeError(
-                'Requires a numpy.ndarray, got {}'.format(type(data)))
+                _requires_array_text.format(type(data)))
 
         if len(data.shape) != 3 and data.shape[2] != 1:
-            raise ValueError('Requires a three-dimensional numpy.ndarray (with band '
-                             'in the last dimension), got shape {}'.format(data.shape))
+            raise ValueError(_requires_3darray_text.format(data.shape))
 
         out = numpy.zeros(data.shape, dtype='complex64')
         out.real = data['real']

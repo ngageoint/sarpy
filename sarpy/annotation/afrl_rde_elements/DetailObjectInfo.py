@@ -28,6 +28,9 @@ from .blocks import RangeCrossRangeType, RowColDoubleType, LatLonEleType, \
 
 logger = logging.getLogger(__name__)
 
+_no_projection_text = 'This sicd does not permit projection,\n\t' \
+                      'so the image location can not be inferred'
+
 
 # the Object and sub-component definitions
 
@@ -301,9 +304,7 @@ class ImageLocationType(Serializable):
             return None
 
         if not the_structure.can_project_coordinates():
-            logger.warning(
-                'This sicd does not permit projection,\n\t'
-                'so the image location can not be inferred')
+            logger.warning(_no_projection_text)
             return None
 
         # make sure this is defined, for the sake of efficiency
@@ -499,9 +500,7 @@ class GeoLocationType(Serializable):
             return None
 
         if not the_structure.can_project_coordinates():
-            logger.warning(
-                'This sicd does not permit projection,\n\t'
-                'so the image location can not be inferred')
+            logger.warning(_no_projection_text)
             return None
 
         # make sure this is defined, for the sake of efficiency
@@ -912,9 +911,7 @@ class TheObjectType(Serializable):
             return -1
 
         if not sicd.can_project_coordinates():
-            logger.warning(
-                'This sicd does not permit projection,\n\t'
-                'so the image location can not be inferred')
+            logger.warning(_no_projection_text)
             return -1
 
         # gets the prospective image location
@@ -982,9 +979,7 @@ class TheObjectType(Serializable):
             return
 
         if not sicd.can_project_coordinates():
-            logger.warning(
-                'This sicd does not permit projection,\n\t'
-                'so the geographical location can not be inferred')
+            logger.warning(_no_projection_text)
             return
 
         self.GeoLocation = GeoLocationType.from_image_location(

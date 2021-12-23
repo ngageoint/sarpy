@@ -21,6 +21,9 @@ from .blocks import LatLonEleType, RangeCrossRangeType
 
 logger = logging.getLogger(__name__)
 
+_no_projection_text = 'This sicd does not permit projection,\n\t' \
+                      'so the image location can not be inferred'
+
 
 class ImageLocationType(Serializable):
     _fields = ('CenterPixel', )
@@ -66,9 +69,7 @@ class ImageLocationType(Serializable):
             return None
 
         if not the_structure.can_project_coordinates():
-            logger.warning(
-                'This sicd does not permit projection,\n\t'
-                'so the image location can not be inferred')
+            logger.warning(_no_projection_text)
             return None
 
         if isinstance(the_structure, SICDType):
@@ -142,9 +143,7 @@ class GeoLocationType(Serializable):
             return None
 
         if not the_structure.can_project_coordinates():
-            logger.warning(
-                'This sicd does not permit projection,\n\t'
-                'so the image location can not be inferred')
+            logger.warning(_no_projection_text)
             return None
 
         # make sure this is defined, for the sake of efficiency
@@ -346,9 +345,7 @@ class TheFiducialType(Serializable):
             return -1
 
         if not sicd.can_project_coordinates():
-            logger.warning(
-                'This sicd does not permit projection,\n\t'
-                'so the image location can not be inferred')
+            logger.warning(_no_projection_text)
             return -1
 
         image_location = ImageLocationType.from_geolocation(self.GeoLocation, sicd)
@@ -403,9 +400,7 @@ class TheFiducialType(Serializable):
             return
 
         if not sicd.can_project_coordinates():
-            logger.warning(
-                'This sicd does not permit projection,\n\t'
-                'so the geographical location can not be inferred')
+            logger.warning(_no_projection_text)
             return
 
         self.GeoLocation = GeoLocationType.from_image_location(

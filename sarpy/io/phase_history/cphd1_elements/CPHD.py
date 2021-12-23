@@ -71,6 +71,7 @@ class CPHDHeaderBase(object):
     _required = ()
 
     def __init__(self, **kwargs):
+        # intended as an abstract object
         pass
 
     @classmethod

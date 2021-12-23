@@ -572,14 +572,13 @@ class LabelSchema(object):
             # nothing is changing
             return False
 
+        # check if name is already being used by a different element, and warn if so
         if current_name != the_name:
-            # check if name is already being used by a different element, and warn if so
-            if current_name != the_name:
-                for key, value in self.labels.items():
-                    if value == the_name and key != the_id:
-                        logger.warning(
-                            'Note that id {} is already using name {}. Having repeated names is '
-                            'permitted, but may lead to confusion.'.format(key, value))
+            for key, value in self.labels.items():
+                if value == the_name and key != the_id:
+                    logger.warning(
+                        'Note that id {} is already using name {}. Having repeated names is '
+                        'permitted, but may lead to confusion.'.format(key, value))
 
         if current_parent != the_parent:
             labels = self.labels.copy()

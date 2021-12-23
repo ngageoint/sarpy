@@ -56,6 +56,8 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+_unhandled_version_text = 'Unhandled NITF version `{}`'
+
 
 ########
 # base expected functionality for a module with an implemented Reader
@@ -216,7 +218,7 @@ class NITFDetails(object):
             header_string = self._file_object.read(header_length)
             self._nitf_header = NITFHeader0.from_bytes(header_string, 0)
         else:
-            raise ValueError('Unhandled version {}'.format(self._nitf_version))
+            raise ValueError(_unhandled_version_text.format(self._nitf_version))
 
         if self._nitf_header.get_bytes_length() != header_length:
             logger.critical(
@@ -379,7 +381,7 @@ class NITFDetails(object):
         elif self.nitf_version == '02.00':
             out = ImageSegmentHeader0.from_bytes(ih, 0)
         else:
-            raise ValueError('Unhandled version {}'.format(self.nitf_version))
+            raise ValueError(_unhandled_version_text.format(self.nitf_version))
         if out.is_masked:
             # read the mask subheader bytes
             the_offset = int(self.img_segment_offsets[index])
@@ -449,7 +451,7 @@ class NITFDetails(object):
         elif self._nitf_version == '02.00':
             return TextSegmentHeader0.from_bytes(th, 0)
         else:
-            raise ValueError('Unhandled version {}'.format(self.nitf_version))
+            raise ValueError(_unhandled_version_text.format(self.nitf_version))
 
     def get_graphics_subheader_bytes(self, index):
         """
@@ -689,7 +691,7 @@ class NITFDetails(object):
         elif self.nitf_version == '02.00':
             return DataExtensionHeader0.from_bytes(dh, 0)
         else:
-            raise ValueError('Unhandled version {}'.format(self.nitf_version))
+            raise ValueError(_unhandled_version_text.format(self.nitf_version))
 
     def get_res_subheader_bytes(self, index):
         """
