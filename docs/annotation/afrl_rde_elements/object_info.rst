@@ -1,7 +1,7 @@
-AFRL labeling Collection Info (sarpy.annotation.afrl_elements.CollectionInfo)
+AFRL/RDE labeling Object Info (sarpy.annotation.afrl_rde_elements.ObjectInfo)
 =============================================================================
 
-.. automodule:: sarpy.annotation.afrl_elements.CollectionInfo
+.. automodule:: sarpy.annotation.afrl_rde_elements.ObjectInfo
     :members:
     :show-inheritance:
     :inherited-members:

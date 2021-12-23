@@ -1,7 +1,7 @@
-AFRL labeling Object Info (sarpy.annotation.afrl_elements.ObjectInfo)
+AFRL/RDE labeling general (sarpy.annotation.afrl_rde_elements.blocks)
 =====================================================================
 
-.. automodule:: sarpy.annotation.afrl_elements.ObjectInfo
+.. automodule:: sarpy.annotation.afrl_rde_elements.blocks
     :members:
     :show-inheritance:
     :inherited-members:
