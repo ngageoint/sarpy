@@ -160,7 +160,7 @@ class GeographicCoverageType(Serializable):
             for el in SubRegions:
                 self.addSubRegion(el)
         else:
-            raise ('SubRegions got unexpected type {}'.format(type(SubRegions)))
+            raise ValueError('SubRegions got unexpected type {}'.format(type(SubRegions)))
         super(GeographicCoverageType, self).__init__(**kwargs)
 
     @property

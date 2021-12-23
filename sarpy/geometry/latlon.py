@@ -178,9 +178,8 @@ def num(latlon_input):
     """
 
     # Vector format degrees/minutes/seconds
-    if isinstance(latlon_input, (numpy.ndarray, list, tuple)):
-        if len(latlon_input) == 3:
-            return latlon_input[0] + latlon_input[1]/60. + latlon_input[2]/3600.
+    if isinstance(latlon_input, (numpy.ndarray, list, tuple)) and len(latlon_input) == 3:
+        return float(latlon_input[0]) + float(latlon_input[1])/60. + float(latlon_input[2])/3600.
 
     if not isinstance(latlon_input, str):
         raise ValueError('Expected a (degree, minutes, seconds) tuple of string. '

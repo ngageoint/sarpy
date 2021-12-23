@@ -198,8 +198,8 @@ class TiffDetails(object):
             # Try to read the basic tiff header
             try:
                 fi_endian = fi.read(2).decode('utf-8')
-            except:
-                raise SarpyIOError('Not a TIFF file.')
+            except Exception as e:
+                raise SarpyIOError('Failed decoding the 2 character tiff header with error\n\t{}'.format(e))
 
             if fi_endian == 'II':
                 self._endian = '<'

@@ -25,6 +25,10 @@ from sarpy.io.phase_history.cphd0_3_elements.CPHD import CPHDType as CPHDType0_3
 
 logger = logging.getLogger(__name__)
 
+_unhandled_version_text = 'Got unhandled CPHD version number `{}`'
+_missing_channel_identifier_text = 'Cannot find CPHD channel for identifier `{}`'
+_index_range_text = 'index must be in the range `[0, {})`'
+
 
 def is_a(file_name):
     """
@@ -172,7 +176,7 @@ class CPHDDetails(object):
         elif self.cphd_version.startswith('1.0'):
             self._cphd_header = CPHDHeader1_0.from_file_object(self._file_object)
         else:
-            raise ValueError('Got unhandled version number {}'.format(self.cphd_version))
+            raise ValueError(_unhandled_version_text.format(self.cphd_version))
 
     def _extract_cphd(self):
         """
@@ -185,7 +189,7 @@ class CPHDDetails(object):
         elif self.cphd_version.startswith('1.0'):
             the_type = CPHDType1_0
         else:
-            raise ValueError('Got unhandled version number {}'.format(self.cphd_version))
+            raise ValueError(_unhandled_version_text.format(self.cphd_version))
 
         root_node, xml_ns = parse_xml_from_string(xml)
         if 'default' in xml_ns:
@@ -217,7 +221,7 @@ class CPHDDetails(object):
             self._file_object.seek(header.XML_BLOCK_BYTE_OFFSET, os.SEEK_SET)
             xml = self._file_object.read(header.XML_BLOCK_SIZE)
         else:
-            raise ValueError('Got unhandled version number {}'.format(self.cphd_version))
+            raise ValueError(_unhandled_version_text.format(self.cphd_version))
         return xml
 
     def __del__(self):
@@ -226,7 +230,7 @@ class CPHDDetails(object):
             # noinspection PyBroadException
             try:
                 self._file_object.close()
-            except:
+            except Exception:
                 pass
 
 
@@ -251,10 +255,9 @@ def _validate_cphd_details(cphd_details, version=None):
         raise TypeError('cphd_details is required to be a file path to a CPHD file '
                         'or CPHDDetails, got type {}'.format(cphd_details))
 
-    if version is not None:
-        if not cphd_details.cphd_version.startswith(version):
-            raise ValueError('This CPHD file is required to be version {}, '
-                             'got {}'.format(version, cphd_details.cphd_version))
+    if version is not None and not cphd_details.cphd_version.startswith(version):
+        raise ValueError('This CPHD file is required to be version {}, '
+                         'got {}'.format(version, cphd_details.cphd_version))
     return cphd_details
 
 
@@ -566,11 +569,11 @@ class CPHDReader1_0(CPHDReader):
             if index in self._channel_map:
                 return self._channel_map[index]
             else:
-                raise KeyError('Cannot find CPHD channel for identifier {}'.format(index))
+                raise KeyError(_missing_channel_identifier_text.format(index))
         else:
             int_index = int(index)
             if not (0 <= int_index < cphd_meta.Data.NumCPHDChannels):
-                raise ValueError('index must be in the range [0, {})'.format(cphd_meta.Data.NumCPHDChannels))
+                raise ValueError(_index_range_text.format(cphd_meta.Data.NumCPHDChannels))
             return int_index
 
     def _validate_index_key(self, index):
@@ -592,11 +595,11 @@ class CPHDReader1_0(CPHDReader):
             if index in self._channel_map:
                 return index
             else:
-                raise KeyError('Cannot find CPHD channel for identifier {}'.format(index))
+                raise KeyError(_missing_channel_identifier_text.format(index))
         else:
             int_index = int(index)
             if not (0 <= int_index < cphd_meta.Data.NumCPHDChannels):
-                raise ValueError('index must be in the range [0, {})'.format(cphd_meta.Data.NumCPHDChannels))
+                raise ValueError(_index_range_text.format(cphd_meta.Data.NumCPHDChannels))
             return cphd_meta.Data.Channels[int_index].Identifier
 
     def read_support_array(self, index, dim1_range, dim2_range):
@@ -758,7 +761,7 @@ class CPHDReader0_3(CPHDReader):
 
         int_index = int(index)
         if not (0 <= int_index < self.cphd_meta.Data.NumCPHDChannels):
-            raise ValueError('index must be in the range [0, {})'.format(self.cphd_meta.Data.NumCPHDChannels))
+            raise ValueError(_index_range_text.format(self.cphd_meta.Data.NumCPHDChannels))
         return int_index
 
     def _create_chippers(self):
@@ -946,11 +949,11 @@ class CPHDWriter1_0(AbstractWriter):
             if index in self._channel_map:
                 return self._channel_map[index]
             else:
-                raise KeyError('Cannot find CPHD channel for identifier {}'.format(index))
+                raise KeyError(_missing_channel_identifier_text.format(index))
         else:
             int_index = int(index)
             if not (0 <= int_index < self.cphd_meta.Data.NumCPHDChannels):
-                raise ValueError('index must be in the range [0, {})'.format(self.cphd_meta.Data.NumCPHDChannels))
+                raise ValueError(_index_range_text.format(self.cphd_meta.Data.NumCPHDChannels))
             return int_index
 
     def _validate_channel_key(self, index):
@@ -970,11 +973,11 @@ class CPHDWriter1_0(AbstractWriter):
             if index in self._channel_map:
                 return index
             else:
-                raise KeyError('Cannot find CPHD channel for identifier {}'.format(index))
+                raise KeyError(_missing_channel_identifier_text.format(index))
         else:
             int_index = int(index)
             if not (0 <= int_index < self.cphd_meta.Data.NumCPHDChannels):
-                raise ValueError('index must be in the range [0, {})'.format(self.cphd_meta.Data.NumCPHDChannels))
+                raise ValueError(_index_range_text.format(self.cphd_meta.Data.NumCPHDChannels))
             return self.cphd_meta.Data.Channels[int_index].Identifier
 
     def _validate_support_index(self, index):
@@ -998,7 +1001,7 @@ class CPHDWriter1_0(AbstractWriter):
         else:
             int_index = int(index)
             if not (0 <= int_index < len(self.cphd_meta.Data.SupportArrays)):
-                raise ValueError('index must be in the range [0, {})'.format(len(self.cphd_meta.Data.SupportArrays)))
+                raise ValueError(_index_range_text.format(len(self.cphd_meta.Data.SupportArrays)))
             return int_index
 
     def _validate_support_key(self, index):
@@ -1022,7 +1025,7 @@ class CPHDWriter1_0(AbstractWriter):
         else:
             int_index = int(index)
             if not (0 <= int_index < len(self.cphd_meta.Data.SupportArrays)):
-                raise ValueError('index must be in the range [0, {})'.format(len(self.cphd_meta.Data.SupportArrays)))
+                raise ValueError(_index_range_text.format(len(self.cphd_meta.Data.SupportArrays)))
             return self.cphd_meta.Data.SupportArrays[int_index].Identifier
 
     def _initialize_writing(self):
