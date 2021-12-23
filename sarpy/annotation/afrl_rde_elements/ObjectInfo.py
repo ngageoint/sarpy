@@ -1160,10 +1160,12 @@ class TheObjectType(Serializable):
     def add_articulation(self, value):
         if value is None:
             return
-        
+
         if isinstance(value, str):
             value = StringWithComponentType(Value=value)
-        
+        elif isinstance(value, dict):
+            value = StringWithComponentType(**value)
+
         if not isinstance(value, StringWithComponentType):
             raise TypeError('values for Articulation must be of type str or StringWithComponentType')
         
@@ -1175,18 +1177,20 @@ class TheObjectType(Serializable):
     def add_configuration(self, value):
         if value is None:
             return
-        
+
         if isinstance(value, str):
             value = StringWithComponentType(Value=value)
-        
+        elif isinstance(value, dict):
+            value = StringWithComponentType(**value)
+
         if not isinstance(value, StringWithComponentType):
-            raise TypeError('values for Articulation must be of type str or StringWithComponentType')
+            raise TypeError('values for Configuration must be of type str or StringWithComponentType')
         
         if self.Configuration is None:
             self.Configuration = [value, ]
         else:
             self.Configuration.append(value)
-        
+
 
 # other types for the ObjectInfo
 
