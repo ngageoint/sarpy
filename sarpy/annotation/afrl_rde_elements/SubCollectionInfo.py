@@ -1,5 +1,5 @@
 """
-Definition for the DetailSubCollectionInfo NGA modified RDE/AFRL labeling object
+Definition for the SubCollectionInfo NGA modified RDE/AFRL labeling object
 """
 
 __classification__ = "UNCLASSIFIED"
@@ -15,7 +15,7 @@ from .base import DEFAULT_STRICT
 from .blocks import DateTimeRangeType, LatLonEleType
 
 
-class DetailSubCollectionInfoType(Serializable):
+class SubCollectionInfoType(Serializable):
     _fields = ('Name', 'SiteName', 'SiteNumber', 'SceneNumber', 'Description',
                'Duration', 'SiteCenterLocation', 'SceneContentDescription',
                'SiteBackgroundType')
@@ -82,4 +82,4 @@ class DetailSubCollectionInfoType(Serializable):
         self.SiteCenterLocation = SiteCenterLocation
         self.SceneContentDescription = SceneContentDescription
         self.SiteBackgroundType = SiteBackgroundType
-        super(DetailSubCollectionInfoType, self).__init__(**kwargs)
+        super(SubCollectionInfoType, self).__init__(**kwargs)

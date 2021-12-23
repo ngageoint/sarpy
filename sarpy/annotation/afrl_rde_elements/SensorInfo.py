@@ -1,5 +1,5 @@
 """
-Definition for the DetailSensorInfo NGA modified RDE/AFRL labeling object
+Definition for the SensorInfo NGA modified RDE/AFRL labeling object
 """
 
 __classification__ = "UNCLASSIFIED"
@@ -198,7 +198,7 @@ class AircraftLocationType(Serializable, Arrayable):
         raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
 
 
-class DetailSensorInfoType(Serializable):
+class SensorInfoType(Serializable):
     _fields = (
         'Name', 'SensorMfg', 'OperatingAgency', 'Type', 'Mode', 'Band',
         'Bandwidth', 'CenterFrequency', 'NearRange', 'SlantRangeSwathWidth',
@@ -368,7 +368,7 @@ class DetailSensorInfoType(Serializable):
         self.AircraftVelocity = AircraftVelocity
         self.FlightNumber = FlightNumber
         self.PassNumber = PassNumber
-        super(DetailSensorInfoType, self).__init__(**kwargs)
+        super(SensorInfoType, self).__init__(**kwargs)
 
     @classmethod
     def from_sicd(cls, sicd):
@@ -381,7 +381,7 @@ class DetailSensorInfoType(Serializable):
 
         Returns
         -------
-        DetailSensorInfoType
+        SensorInfoType
         """
 
         transmit_freq_proc = sicd.ImageFormation.TxFrequencyProc
@@ -396,7 +396,7 @@ class DetailSensorInfoType(Serializable):
             )
         )
         arp_pos_llh = ecf_to_geodetic(sicd.SCPCOA.ARPPos.get_array())
-        return DetailSensorInfoType(
+        return SensorInfoType(
             Name=sicd.CollectionInfo.CollectorName,
             Type='SAR',
             Mode=sicd.CollectionInfo.RadarMode.ModeType,

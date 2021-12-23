@@ -1,5 +1,5 @@
 """
-Definition for the DetailImageInfo NGA modified RDE/AFRL labeling object
+Definition for the ImageInfo AFRL labeling object
 """
 
 __classification__ = "UNCLASSIFIED"
@@ -15,7 +15,7 @@ from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd_elements.blocks import LatLonType
 
 from .base import DEFAULT_STRICT
-from .blocks import RangeCrossRangeType, ProjectionPerturbationType
+from .blocks import RangeCrossRangeType
 
 
 class NumPixelsType(Serializable, Arrayable):
@@ -221,7 +221,7 @@ class PixelSpacingType(Serializable):
         super(PixelSpacingType, self).__init__(**kwargs)
 
 
-class DetailImageInfoType(Serializable):
+class ImageInfoType(Serializable):
     _fields = (
         'DataFilename', 'ClassificationMarkings', 'Filetype', 'DataCheckSum',
         'DataSize', 'DataPlane', 'DataDomain', 'DataType', 'BitsPerSample',
@@ -229,8 +229,7 @@ class DetailImageInfoType(Serializable):
         'SensorReferencePoint', 'SensorCalibrationFactor', 'DataCalibrated',
         'Resolution', 'PixelSpacing', 'WeightingType', 'OverSamplingFactor',
         'IPRWidth3dB', 'ImageQualityDescription', 'ImageHeading',
-        'ImageCorners', 'SlantPlane', 'GroundPlane', 'SceneCenterReferenceLine', 
-        'ProjectionPerturbation')
+        'ImageCorners', 'SlantPlane', 'GroundPlane', 'SceneCenterReferenceLine')
     _required = (
         'DataFilename', 'ClassificationMarkings', 'DataPlane', 'DataType',
         'DataFormat', 'NumPixels', 'ImageCollectionDate', 'SensorReferencePoint',
@@ -238,6 +237,8 @@ class DetailImageInfoType(Serializable):
     _numeric_format = {
         'ImageHeading': '0.17G', 'SensorCalibrationFactor': '0.17G',
         'SceneCenterReferenceLine': '0.17G', }
+    _tag_overide = {
+        'IPRWidth3dB': '_3dBWidth', }
     # descriptors
     DataFilename = StringDescriptor(
         'DataFilename', _required,
@@ -327,9 +328,6 @@ class DetailImageInfoType(Serializable):
                   'line-of-sight with the horizontal reference plane '
                   'created by the forward motion of the aircraft, '
                   'in degrees')  # type: Optional[float]
-    ProjectionPerturbation = SerializableDescriptor(
-        'ProjectionPerturbation', ProjectionPerturbationType, _required, 
-        docstring='')  # type: Optional[ProjectionPerturbationType]
 
     def __init__(self, DataFilename=None, ClassificationMarkings=None,
                  FileType=None, DataCheckSum=None, DataSize=None,
@@ -341,7 +339,6 @@ class DetailImageInfoType(Serializable):
                  WeightingType=None, OverSamplingFactor=None, IPRWidth3dB=None,
                  ImageQualityDescription=None, ImageHeading=None, ImageCorners=None,
                  SlantPlane=None, GroundPlane=None, SceneCenterReferenceLine=None,
-                 ProjectionPerturbation=None,
                  **kwargs):
         """
         Parameters
@@ -374,7 +371,6 @@ class DetailImageInfoType(Serializable):
         SlantPlane : None|PixelSpacingType
         GroundPlane : None|PixelSpacingType
         SceneCenterReferenceLine : None|float
-        ProjectionPerturbation : None|ProjectionPerturbationType
         kwargs
             Other keyword arguments
         """
@@ -420,8 +416,7 @@ class DetailImageInfoType(Serializable):
         self.SlantPlane = SlantPlane
         self.GroundPlane = GroundPlane
         self.SceneCenterReferenceLine = SceneCenterReferenceLine
-        self.ProjectionPerturbation = ProjectionPerturbation
-        super(DetailImageInfoType, self).__init__(**kwargs)
+        super(ImageInfoType, self).__init__(**kwargs)
 
     @classmethod
     def from_sicd(cls, sicd, base_file_name, file_type='NITF02.10'):
@@ -437,7 +432,7 @@ class DetailImageInfoType(Serializable):
 
         Returns
         -------
-        DetailImageInfoType
+        ImageInfoType
         """
 
         pixel_type = sicd.ImageData.PixelType
@@ -469,37 +464,7 @@ class DetailImageInfoType(Serializable):
         else:
             data_plane = None
 
-        
-        has_perturb = False
-        proj_perturb = None
-        coa = sicd.coa_projection
-        if coa is not None:
-            delta_arp = coa._delta_arp
-            if numpy.any(delta_arp != 0):
-                has_perturb = True
-            else:
-                delta_arp = None
-
-            delta_varp = coa._delta_varp
-            if numpy.any(delta_varp != 0):
-                has_perturb = True
-            else:
-                delta_varp = None
-
-            delta_range = coa._delta_range
-            if delta_range != 0:
-                has_perturb = True
-            else:
-                delta_range = None
-            
-            if has_perturb:
-                proj_perturb = ProjectionPerturbationType(
-                    CoordinateFrame='ECF', 
-                    DeltaArp=delta_arp, 
-                    DeltaVarp=delta_varp, 
-                    DeltaRange=delta_range)
-
-        return DetailImageInfoType(
+        return ImageInfoType(
             DataFilename=base_file_name,
             ClassificationMarkings=ClassificationMarkingsType(
                 Classification=sicd.CollectionInfo.Classification),
@@ -519,5 +484,4 @@ class DetailImageInfoType(Serializable):
                 CrossRange=sicd.Grid.Col.WgtType.WindowName),
             IPRWidth3dB=(sicd.Grid.Row.ImpRespWid, sicd.Grid.Col.ImpRespWid),  # TODO: I don't think that this is correct?
             ImageHeading=sicd.SCPCOA.AzimAng,
-            ImageCorners=icps, 
-            ProjectionPerturbation=proj_perturb)
+            ImageCorners=icps)

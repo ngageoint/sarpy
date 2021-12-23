@@ -1,5 +1,5 @@
 """
-Definition for the DetailCollectionInfo NGA modified RDE/AFRL labeling object
+Definition for the CollectionInfo AFRL labeling object
 """
 
 __classification__ = "UNCLASSIFIED"
@@ -13,7 +13,7 @@ from sarpy.io.xml.descriptors import IntegerDescriptor, SerializableDescriptor, 
     StringDescriptor, FloatDescriptor
 
 from .base import DEFAULT_STRICT
-from .blocks import DateTimeRangeType
+from .blocks import DateRangeType
 
 
 class LocationType(Serializable):
@@ -51,7 +51,7 @@ class LocationType(Serializable):
         super(LocationType, self).__init__(**kwargs)
 
 
-class DetailCollectionInfoType(Serializable):
+class CollectionInfoType(Serializable):
     _fields = ('Name', 'ProgramName', 'Sponsor', 'Date', 'Location',
                'NumberOfSites')
     _required = ()
@@ -66,8 +66,8 @@ class DetailCollectionInfoType(Serializable):
         'Sponsor', _required,
         docstring="Sponsoring agency/organization of the data collection.")  # type: Optional[str]
     Date = SerializableDescriptor(
-        'Date', DateTimeRangeType, _required, strict=DEFAULT_STRICT,
-        docstring="Begin and end dates of the data collection.")  # type: Optional[DateTimeRangeType]
+        'Date', DateRangeType, _required, strict=DEFAULT_STRICT,
+        docstring="Begin and end dates of the data collection.")  # type: Optional[DateRangeType]
     Location = SerializableDescriptor(
         'Location', LocationType, _required, strict=DEFAULT_STRICT,
         docstring="General location of the data collection.")  # type: Optional[LocationType]
@@ -83,7 +83,7 @@ class DetailCollectionInfoType(Serializable):
         Name : None|str
         ProgramName : None|str
         Sponsor : None|str
-        Date : None|DateTimeRangeType|list|tuple
+        Date : None|DateRangeType|list|tuple
         Location : None|LocationType
         NumberOfSites : None|int
         kwargs
@@ -100,4 +100,4 @@ class DetailCollectionInfoType(Serializable):
         self.Date = Date
         self.Location = Location
         self.NumberOfSites = NumberOfSites
-        super(DetailCollectionInfoType, self).__init__(**kwargs)
+        super(CollectionInfoType, self).__init__(**kwargs)
