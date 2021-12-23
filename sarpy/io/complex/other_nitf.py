@@ -40,6 +40,7 @@ from sarpy.io.complex.sicd_elements.PFA import PFAType
 
 logger = logging.getLogger(__name__)
 
+
 # NB: DO NOT implement is_a() here. This will explicitly happen after other readers
 
 def final_attempt(file_name):
@@ -447,9 +448,10 @@ def extract_sicd(img_header, symmetry, nitf_header=None):
             try:
                 lat_val = float(value[:10])
                 lon_val = float(value[10:21])
-            except:
+            except ValueError:
                 lat_val = lat_lon_parser(value[:10])
                 lon_val = lat_lon_parser(value[10:21])
+
             icps.append([lat_val, lon_val])
         set_image_corners(icps, override=False)
 
@@ -838,7 +840,7 @@ def _extract_transform_data(img_header):
         if remap_type == 'LINM':
             scaling_function = get_linear_magnitude_scaling(scale_factor)
         elif remap_type == 'LINP':
-            scaling_function = get_log_magnitude_scaling(scale_factor)
+            scaling_function = get_linear_power_scaling(scale_factor)
         elif remap_type == 'LOGM':
             # NB: there is nowhere in the CMETAA structure to define
             #   the db_per_step value. Strangely, the use of this value is laid

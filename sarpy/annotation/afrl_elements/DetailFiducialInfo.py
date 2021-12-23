@@ -323,6 +323,7 @@ class TheFiducialType(Serializable):
         Parameters
         ----------
         sicd : SICDType
+        populate_in_periphery : bool
 
         Returns
         -------

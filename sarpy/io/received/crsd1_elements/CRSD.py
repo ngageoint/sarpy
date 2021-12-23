@@ -290,7 +290,7 @@ class CRSDType(Serializable):
             for el in GeoInfo:
                 self.addGeoInfo(el)
         else:
-            raise ('GeoInfo got unexpected type {}'.format(type(GeoInfo)))
+            raise ValueError('GeoInfo got unexpected type {}'.format(type(GeoInfo)))
 
         super(CRSDType, self).__init__(**kwargs)
 
