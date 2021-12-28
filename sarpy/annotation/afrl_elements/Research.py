@@ -100,7 +100,7 @@ class ResearchType(Serializable):
     def to_xml_string(self, urn=None, tag='RESEARCH', check_validity=False, strict=DEFAULT_STRICT):
         return self.to_xml_bytes(urn=urn, tag=tag, check_validity=check_validity, strict=strict).decode('utf-8')
 
-    def apply_sicd(self, sicd, base_file_name, populate_in_periphery=False, include_out_of_range=False, minimum_pad=20):
+    def apply_sicd(self, sicd, base_file_name, populate_in_periphery=False, include_out_of_range=False, padding_fraction=0.05, minimum_pad=0):
         """
         Apply the given sicd to define all the relevant derived data, assuming
         that the starting point is physical ground truth populated, and image
@@ -113,6 +113,7 @@ class ResearchType(Serializable):
         base_file_name : str
         populate_in_periphery : bool
         include_out_of_range : bool
+        padding_fraction : None|float
         minimum_pad : int|float
         """
 
@@ -146,11 +147,12 @@ class ResearchType(Serializable):
                 layover_shift=True,
                 populate_in_periphery=populate_in_periphery,
                 include_out_of_range=include_out_of_range,
+                padding_fraction=padding_fraction,
                 minimum_pad=minimum_pad)
 
     def apply_sicd_reader(
             self, sicd_reader, populate_in_periphery=False, include_out_of_range=False,
-            minimum_pad=20):
+            padding_fraction=0.05, minimum_pad=0):
         """
         Apply the given sicd to define all the relevant derived data, assuming
         that the starting point is physical ground truth populated, and image
@@ -162,6 +164,7 @@ class ResearchType(Serializable):
         sicd_reader : SICDReader
         populate_in_periphery : bool
         include_out_of_range : bool
+        padding_fraction : None|float
         minimum_pad : int|float
         """
 
@@ -171,4 +174,5 @@ class ResearchType(Serializable):
             base_file,
             populate_in_periphery=populate_in_periphery,
             include_out_of_range=include_out_of_range,
+            padding_fraction=padding_fraction,
             minimum_pad=minimum_pad)

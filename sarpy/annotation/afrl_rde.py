@@ -214,7 +214,7 @@ class GroundTruthConstructor(object):
 
     def localize_for_sicd(
             self, sicd, base_sicd_file, populate_in_periphery=False, include_out_of_range=False,
-            minimum_pad=20):
+            padding_fraction=0.05, minimum_pad=0):
         """
         Localize the AFRL structure for the given sicd structure.
 
@@ -228,6 +228,7 @@ class GroundTruthConstructor(object):
         base_sicd_file : str
         populate_in_periphery : bool
         include_out_of_range : bool
+        padding_fraction : None|float
         minimum_pad : int|float
 
         Returns
@@ -242,12 +243,13 @@ class GroundTruthConstructor(object):
             base_sicd_file,
             populate_in_periphery=populate_in_periphery,
             include_out_of_range=include_out_of_range,
+            padding_fraction=padding_fraction,
             minimum_pad=minimum_pad)
         return out_research
 
     def localize_for_sicd_reader(
             self, sicd_reader, populate_in_periphery=False, include_out_of_range=False,
-            minimum_pad=20):
+            padding_fraction=0.05, minimum_pad=0):
         """
         Localize the AFRL structure for the given sicd file.
 
@@ -260,6 +262,7 @@ class GroundTruthConstructor(object):
         sicd_reader : SICDReader
         populate_in_periphery : bool
         include_out_of_range : bool
+        padding_fraction : None|float
         minimum_pad : int|float
 
         Returns
@@ -272,6 +275,7 @@ class GroundTruthConstructor(object):
             sicd_reader,
             populate_in_periphery=populate_in_periphery,
             include_out_of_range=include_out_of_range,
+            padding_fraction=padding_fraction,
             minimum_pad=minimum_pad)
         return out_research
 
@@ -375,13 +379,15 @@ class AnalystTruthConstructor(object):
                 FiducialType=FiducialType,
                 ImageLocation=ImageLocation))
 
-    def add_object(self, the_object, minimum_pad=20):
+    def add_object(self, the_object, padding_fraction=0.05, minimum_pad=0):
         """
         Adds the object to the collection. Note that this object will be modified in place.
 
         Parameters
         ----------
         the_object : TheObjectType
+        padding_fraction : None|float
+            Default fraction of box dimension by which to pad.
         minimum_pad : float|int
             The minimum number of pixels by which to pad for the chip
         """
@@ -392,11 +398,12 @@ class AnalystTruthConstructor(object):
             raise ValueError('The object has GeoLocation already set.')
         the_object.set_geo_location_from_sicd(
             self._sicd, projection_type=self._projection_type, **self._proj_kwargs)
-        the_object.set_chip_details_from_sicd(self._sicd, populate_in_periphery=True, minimum_pad=minimum_pad)
+        the_object.set_chip_details_from_sicd(
+            self._sicd, populate_in_periphery=True, padding_fraction=padding_fraction, minimum_pad=minimum_pad)
         self._objects.append(the_object)
 
     def add_object_from_arguments(
-            self, minimum_pad=20, SystemName=None, SystemComponent=None, NATOName=None,
+            self, padding_fraction=0.05, minimum_pad=0, SystemName=None, SystemComponent=None, NATOName=None,
             Function=None, Version=None, DecoyType=None, SerialNumber=None,
             ObjectClass='Unknown', ObjectSubClass='Unknown', ObjectTypeClass='Unknown',
             ObjectType='Unknown', ObjectLabel=None, Size=None,
@@ -413,6 +420,8 @@ class AnalystTruthConstructor(object):
 
         Parameters
         ----------
+        padding_fraction : None|float
+            Default fraction of box dimension by which to pad.
         minimum_pad : float|int
         SystemName : str
         SystemComponent : None|str
@@ -474,7 +483,9 @@ class AnalystTruthConstructor(object):
                           UnderlyingTerrain=UnderlyingTerrain,
                           OverlyingTerrain=OverlyingTerrain,
                           TerrainTexture=TerrainTexture,
-                          SeasonalCover=SeasonalCover), minimum_pad=minimum_pad)
+                          SeasonalCover=SeasonalCover),
+            padding_fraction=padding_fraction,
+            minimum_pad=minimum_pad)
 
     def get_final_structure(self):
         """

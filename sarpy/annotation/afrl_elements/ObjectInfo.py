@@ -1022,7 +1022,7 @@ class TheObjectType(Serializable):
         self.GeoLocation = GeoLocationType.from_image_location(
             self.ImageLocation, sicd, projection_type=projection_type, **kwargs)
 
-    def set_chip_details_from_sicd(self, sicd, layover_shift=False, populate_in_periphery=False, minimum_pad=5):
+    def set_chip_details_from_sicd(self, sicd, layover_shift=False, populate_in_periphery=False, padding_fraction=0.05, minimum_pad=0):
         """
         Set the chip information with respect to the given SICD, assuming that the
         image location and size are defined.
@@ -1039,6 +1039,8 @@ class TheObjectType(Serializable):
             space.
         populate_in_periphery : bool
             Should we populate for peripheral?
+        padding_fraction : None|float
+            Default fraction of box dimension by which to pad.
         minimum_pad : int|float
             The minimum number of pixels by which to pad for the chip definition
 
@@ -1107,8 +1109,11 @@ class TheObjectType(Serializable):
         max_cols = max(numpy.max(pixel_box[:, 1]), numpy.max(layover_box[:, 1]))
 
         # determine the padding amount
-        row_pad = max(minimum_pad, 0.3*(max_rows-min_rows))
-        col_pad = max(minimum_pad, 0.3*(max_cols-min_cols))
+        padding_fraction = 0.0 if padding_fraction is None else float(padding_fraction)
+        if padding_fraction < 0.0:
+            padding_fraction = 0.0
+        row_pad = max(minimum_pad, padding_fraction*(max_rows-min_rows))
+        col_pad = max(minimum_pad, padding_fraction*(max_cols-min_cols))
 
         # check our bounding information
         rows = sicd.ImageData.NumRows
@@ -1300,7 +1305,7 @@ class ObjectInfoType(Serializable):
 
     def set_image_location_from_sicd(
             self, sicd, layover_shift=True, populate_in_periphery=False,
-            include_out_of_range=False, minimum_pad=20):
+            include_out_of_range=False, padding_fraction=0.05, minimum_pad=0):
         """
         Set the image location information with respect to the given SICD,
         assuming that the physical coordinates are populated. The `NumberOfObjectsInImage`
@@ -1315,6 +1320,7 @@ class ObjectInfoType(Serializable):
             Populate image information for objects on the periphery?
         include_out_of_range : bool
             Include the objects which are out of range (with no image location information)?
+        padding_fraction : None|float
         minimum_pad : int|float
         """
 
@@ -1328,7 +1334,7 @@ class ObjectInfoType(Serializable):
                 use_object = True
                 temp_object.set_chip_details_from_sicd(
                     sicd, layover_shift=layover_shift, populate_in_periphery=True,
-                    minimum_pad=minimum_pad)
+                    padding_fraction=padding_fraction, minimum_pad=minimum_pad)
                 in_image_count += 1
             return use_object, in_image_count
 
