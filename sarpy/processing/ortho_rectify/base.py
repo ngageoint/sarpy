@@ -412,8 +412,8 @@ class OrthorectificationIterator(object):
                 'type {}'.format(type(calculator)))
         self._calculator = calculator
 
-        if os.path.abspath(ortho_helper.reader.file_name) != \
-                os.path.abspath(calculator.reader.file_name):
+        if ortho_helper.reader.file_name is not None and calculator.reader.file_name is not None and \
+                os.path.abspath(ortho_helper.reader.file_name) != os.path.abspath(calculator.reader.file_name):
             raise ValueError(
                 'ortho_helper has reader for file {}, while calculator has reader '
                 'for file {}'.format(ortho_helper.reader.file_name, calculator.reader.file_name))

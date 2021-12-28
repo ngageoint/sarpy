@@ -7,25 +7,16 @@ __author__ = "Thomas McCullough"
 
 
 import logging
-import os
-from typing import Union, Tuple, List, Any
+from typing import Union
 
 import numpy
 from scipy.interpolate import RectBivariateSpline
 
-from sarpy.io.complex.converter import open_complex
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.base import SICDTypeReader
-from sarpy.io.general.slice_parsing import validate_slice_int, validate_slice
-from sarpy.io.complex.utils import get_fetch_block_size, extract_blocks
 
 from sarpy.io.complex.sicd_elements.blocks import Poly2DType
-from sarpy.geometry.geocoords import geodetic_to_ecf, ecf_to_geodetic, wgs_84_norm
 from sarpy.geometry.geometry_elements import GeometryObject
-from sarpy.processing.rational_polynomial import SarpyRatPolyError, \
-    get_rational_poly_2d, get_rational_poly_3d, CombinedRationalPolynomial
-
-from sarpy.visualization.remap import RemapFunction
 
 from .projection_helper import ProjectionHelper, PGProjection, PGRatPolyProjection
 from ..rational_polynomial import SarpyRatPolyError
