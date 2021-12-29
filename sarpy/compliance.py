@@ -3,6 +3,11 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
+class SarpyError(Exception):
+    """A custom base exception class"""
+    pass
+
+
 def bytes_to_string(bytes_in, encoding='utf-8'):
     """
     Ensure that the input bytes is mapped to a string.

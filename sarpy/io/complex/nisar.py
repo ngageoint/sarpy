@@ -145,8 +145,8 @@ class NISARDetails(object):
             try:
                 # noinspection PyUnusedLocal
                 gp = hf['/science/LSAR/SLC']
-            except:
-                raise SarpyIOError('The hdf5 file does not have required path /science/LSAR/SLC')
+            except Exception as e:
+                raise SarpyIOError('Got an error when reading required path /science/LSAR/SLC\n\t{}'.format(e))
 
         self._file_name = file_name
 
@@ -258,7 +258,8 @@ class NISARDetails(object):
                 application = '{} {}'.format(
                     application,
                     _stringify(hf['/science/LSAR/SLC/metadata/processingInformation/algorithms/ISCEVersion'][()]))
-            except:
+            except Exception as e:
+                logger.info('Failed extracting the application details with error\n\t{}'.format(e))
                 pass
 
             from sarpy.__about__ import __version__

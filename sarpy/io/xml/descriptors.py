@@ -19,6 +19,10 @@ from sarpy.io.xml.base import DEFAULT_STRICT, get_node_value, find_children, \
 
 logger = logging.getLogger(__name__)
 
+_length_text = 'Specified minimum length is `{}`,\n\t' \
+               'while specified maximum length is `{}`'
+_type_text = 'Field {} of class {} got incompatible type {}.'
+
 
 class BasicDescriptor(object):
     """A descriptor object for reusable properties. Note that is is required that the calling instance is hashable."""
@@ -178,9 +182,7 @@ class StringListDescriptor(BasicDescriptor):
         self.minimum_length = self._DEFAULT_MIN_LENGTH if minimum_length is None else int(minimum_length)
         self.maximum_length = self._DEFAULT_MAX_LENGTH if maximum_length is None else int(maximum_length)
         if self.minimum_length > self.maximum_length:
-            raise ValueError(
-                'Specified minimum length is {}, while specified maximum length is {}'.format(
-                    self.minimum_length, self.maximum_length))
+            raise ValueError(_length_text.format(self.minimum_length, self.maximum_length))
         super(StringListDescriptor, self).__init__(
             name, required, strict=strict, default_value=default_value, docstring=docstring)
 
@@ -217,9 +219,7 @@ class StringListDescriptor(BasicDescriptor):
             elif isinstance(value[0], ElementTree.Element):
                 set_value([get_node_value(nod) for nod in value])
         else:
-            raise TypeError(
-                'Field {} of class {} got incompatible type {}.'.format(
-                    self.name, instance.__class__.__name__, type(value)))
+            raise TypeError(_type_text.format(self.name, instance.__class__.__name__, type(value)))
 
 
 class StringEnumDescriptor(BasicDescriptor):
@@ -389,9 +389,7 @@ class IntegerListDescriptor(BasicDescriptor):
         self.minimum_length = self._DEFAULT_MIN_LENGTH if minimum_length is None else int(minimum_length)
         self.maximum_length = self._DEFAULT_MAX_LENGTH if maximum_length is None else int(maximum_length)
         if self.minimum_length > self.maximum_length:
-            raise ValueError(
-                'Specified minimum length is {}, while specified maximum length is {}'.format(
-                    self.minimum_length, self.maximum_length))
+            raise ValueError(_length_text.format(self.minimum_length, self.maximum_length))
         super(IntegerListDescriptor, self).__init__(name, required, strict=strict, docstring=docstring)
 
     def __set__(self, instance, value):
@@ -427,9 +425,7 @@ class IntegerListDescriptor(BasicDescriptor):
             elif isinstance(value[0], ElementTree.Element):
                 set_value([int(get_node_value(nod)) for nod in value])
         else:
-            raise TypeError(
-                'Field {} of class {} got incompatible type {}.'.format(
-                    self.name, instance.__class__.__name__, type(value)))
+            raise TypeError(_type_text.format(self.name, instance.__class__.__name__, type(value)))
 
 
 class FloatDescriptor(BasicDescriptor):
@@ -495,9 +491,7 @@ class FloatListDescriptor(BasicDescriptor):
         self.minimum_length = self._DEFAULT_MIN_LENGTH if minimum_length is None else int(minimum_length)
         self.maximum_length = self._DEFAULT_MAX_LENGTH if maximum_length is None else int(maximum_length)
         if self.minimum_length > self.maximum_length:
-            raise ValueError(
-                'Specified minimum length is {}, while specified maximum length is {}'.format(
-                    self.minimum_length, self.maximum_length))
+            raise ValueError(_length_text.format(self.minimum_length, self.maximum_length))
         super(FloatListDescriptor, self).__init__(name, required, strict=strict, docstring=docstring)
 
     def __set__(self, instance, value):
@@ -533,9 +527,7 @@ class FloatListDescriptor(BasicDescriptor):
             elif isinstance(value[0], ElementTree.Element):
                 set_value([float(get_node_value(nod)) for nod in value])
         else:
-            raise TypeError(
-                'Field {} of class {} got incompatible type {}.'.format(
-                    self.name, instance.__class__.__name__, type(value)))
+            raise TypeError(_type_text.format(self.name, instance.__class__.__name__, type(value)))
 
 
 class ComplexDescriptor(BasicDescriptor):
@@ -574,9 +566,7 @@ class FloatArrayDescriptor(BasicDescriptor):
         self.minimum_length = self._DEFAULT_MIN_LENGTH if minimum_length is None else int(minimum_length)
         self.maximum_length = self._DEFAULT_MAX_LENGTH if maximum_length is None else int(maximum_length)
         if self.minimum_length > self.maximum_length:
-            raise ValueError(
-                'Specified minimum length is {}, while specified maximum length is {}'.format(
-                    self.minimum_length, self.maximum_length))
+            raise ValueError(_length_text.format(self.minimum_length, self.maximum_length))
         super(FloatArrayDescriptor, self).__init__(name, required, strict=strict, docstring=docstring)
 
     def __set__(self, instance, value):
@@ -630,9 +620,7 @@ class FloatArrayDescriptor(BasicDescriptor):
             # user or json deserialization
             set_value(numpy.array(value, dtype=numpy.float64))
         else:
-            raise TypeError(
-                'Field {} of class {} got incompatible type {}.'.format(
-                    self.name, instance.__class__.__name__, type(value)))
+            raise TypeError(_type_text.format(self.name, instance.__class__.__name__, type(value)))
 
 
 class DateTimeDescriptor(BasicDescriptor):
@@ -833,9 +821,7 @@ class SerializableArrayDescriptor(BasicDescriptor):
         self.minimum_length = self._DEFAULT_MIN_LENGTH if minimum_length is None else int(minimum_length)
         self.maximum_length = self._DEFAULT_MAX_LENGTH if maximum_length is None else int(maximum_length)
         if self.minimum_length > self.maximum_length:
-            raise ValueError(
-                'Specified minimum length is {}, while specified maximum length is {}'.format(
-                    self.minimum_length, self.maximum_length))
+            raise ValueError(_length_text.format(self.minimum_length, self.maximum_length))
         super(SerializableArrayDescriptor, self).__init__(name, required, strict=strict, docstring=docstring)
 
     def __set__(self, instance, value):

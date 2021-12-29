@@ -1052,8 +1052,7 @@ def _validate_image_formation(the_sicd):
         if the_sicd.ImageFormation.ImageFormAlgo is None:
             the_sicd.log_validity_warning(
                 'ImageFormation.ImageFormAlgo is not set, and there is no corresponding\n\t'
-                'RgAzComp, PFA, or RMA SICD parameters set. Setting ImageFormAlgo '
-                'to "OTHER".'.format(the_sicd.ImageFormation.ImageFormAlgo))
+                'RgAzComp, PFA, or RMA SICD parameters set. Setting ImageFormAlgo to "OTHER".')
             the_sicd.ImageFormation.ImageFormAlgo = 'OTHER'
         elif the_sicd.ImageFormation.ImageFormAlgo == 'OTHER':
             the_sicd.log_validity_warning(

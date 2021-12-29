@@ -14,6 +14,7 @@ import pkgutil
 
 import numpy
 
+from sarpy.compliance import SarpyError
 from sarpy.io.general.utils import validate_range, reverse_range, is_file_like
 
 logger = logging.getLogger(__name__)
@@ -22,14 +23,6 @@ logger = logging.getLogger(__name__)
 # module variables
 _SUPPORTED_TRANSFORM_VALUES = ('COMPLEX', )
 READER_TYPES = ('SICD', 'SIDD', 'CPHD', 'CRSD', 'OTHER')
-
-
-#################
-# some custom exceptions
-
-class SarpyError(Exception):
-    """A custom base exception class"""
-    pass
 
 
 class SarpyIOError(SarpyError):
@@ -288,6 +281,8 @@ class BaseChipper(object):
                 out.real = data[:, :, 0::2]
                 out.imag = data[:, :, 1::2]
                 return out
+            else:
+                raise ValueError('Unsupported transform_data value `{}`'.format(self._transform_data))
         raise ValueError('Unsupported transform_data value {}'.format(self._transform_data))
 
     def _reorder_data(self, data):

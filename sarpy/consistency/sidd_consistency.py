@@ -357,8 +357,6 @@ def check_sidd_file(nitf_details):
             sidd_nitf_details.append({'nbpp': 16, 'pvtype': 'INT', 'pixel_type': the_sidd.Display.PixelType})
         elif the_sidd.Display.PixelType == 'RGB24I':
             sidd_nitf_details.append({'nbpp': 24, 'pvtype': 'INT', 'pixel_type': the_sidd.Display.PixelType})
-        elif the_sidd.Display.PixelType == 'RGB24I':
-            sidd_nitf_details.append({'nbpp': 24, 'pvtype': 'INT', 'pixel_type': the_sidd.Display.PixelType})
         else:
             raise ValueError('Got unhandled pixel type {}'.format(the_sidd.Display.PixelType))
 

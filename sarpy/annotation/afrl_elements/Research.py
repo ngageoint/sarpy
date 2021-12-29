@@ -3,7 +3,7 @@ Definition for the main AFRL labeling object
 """
 
 __classification__ = "UNCLASSIFIED"
-__authors__ = ("Thomas McCullough", "Thomas Rackers")
+__authors__ = "Thomas McCullough"
 
 from typing import Optional
 import os
@@ -15,15 +15,15 @@ from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd import SICDReader
 
 from .base import DEFAULT_STRICT
-from .DetailCollectionInfo import DetailCollectionInfoType
-from .DetailSubCollectionInfo import DetailSubCollectionInfoType
-from .DetailImageInfo import DetailImageInfoType
-from .DetailSensorInfo import DetailSensorInfoType
-from .DetailFiducialInfo import DetailFiducialInfoType
-from .DetailObjectInfo import DetailObjectInfoType
+from .CollectionInfo import CollectionInfoType
+from .SubCollectionInfo import SubCollectionInfoType
+from .ImageInfo import ImageInfoType
+from .SensorInfo import SensorInfoType
+from .FiducialInfo import FiducialInfoType
+from .ObjectInfo import ObjectInfoType
 
 
-_AFRL_SPECIFICATION_NAMESPACE = None  # TODO: 'urn:AFRL:1.0'
+_AFRL_SPECIFICATION_NAMESPACE = 'urn:AFRL:1.0.0'
 
 
 class ResearchType(Serializable):
@@ -37,29 +37,29 @@ class ResearchType(Serializable):
         'MetadataVersion', _required,
         docstring='The version number')  # type: str
     DetailCollectionInfo = SerializableDescriptor(
-        'DetailCollectionInfo', DetailCollectionInfoType, _required,
+        'DetailCollectionInfo', CollectionInfoType, _required,
         docstring='High level information about the data collection'
-    )  # type: Optional[DetailCollectionInfoType]
+    )  # type: Optional[CollectionInfoType]
     DetailSubCollectionInfo = SerializableDescriptor(
-        'DetailSubCollectionInfo', DetailSubCollectionInfoType, _required,
+        'DetailSubCollectionInfo', SubCollectionInfoType, _required,
         docstring='Information about sub-division of the overall data collection'
-    )  # type: Optional[DetailSubCollectionInfoType]
+    )  # type: Optional[SubCollectionInfoType]
     DetailImageInfo = SerializableDescriptor(
-        'DetailImageInfo', DetailImageInfoType, _required,
+        'DetailImageInfo', ImageInfoType, _required,
         docstring='Information about the referenced image'
-    )  # type: Optional[DetailImageInfoType]
+    )  # type: Optional[ImageInfoType]
     DetailSensorInfo = SerializableDescriptor(
-        'DetailSensorInfo', DetailSensorInfoType, _required,
+        'DetailSensorInfo', SensorInfoType, _required,
         docstring='Information about the sensor'
-    )  # type: Optional[DetailSensorInfoType]
+    )  # type: Optional[SensorInfoType]
     DetailFiducialInfo = SerializableDescriptor(
-        'DetailFiducialInfo', DetailFiducialInfoType, _required,
+        'DetailFiducialInfo', FiducialInfoType, _required,
         docstring='Information about the ground-truthed fiducials'
-    )  # type: Optional[DetailFiducialInfoType]
+    )  # type: Optional[FiducialInfoType]
     DetailObjectInfo = SerializableDescriptor(
-        'DetailObjectInfo', DetailObjectInfoType, _required,
+        'DetailObjectInfo', ObjectInfoType, _required,
         docstring='Information about the ground-truthed objects'
-    )  # type: Optional[DetailObjectInfoType]
+    )  # type: Optional[ObjectInfoType]
 
     def __init__(self, MetadataVersion='Unknown', DetailCollectionInfo=None,
                  DetailSubCollectionInfo=None, DetailImageInfo=None,
@@ -69,12 +69,12 @@ class ResearchType(Serializable):
         Parameters
         ----------
         MetadataVersion : str
-        DetailCollectionInfo : DetailCollectionInfoType
-        DetailSubCollectionInfo : DetailSubCollectionInfoType
-        DetailImageInfo : DetailImageInfoType
-        DetailSensorInfo : DetailSensorInfo
-        DetailFiducialInfo : DetailFiducialInfoType
-        DetailObjectInfo : DetailObjectInfoType
+        DetailCollectionInfo : CollectionInfoType
+        DetailSubCollectionInfo : SubCollectionInfoType
+        DetailImageInfo : ImageInfoType
+        DetailSensorInfo : SensorInfo
+        DetailFiducialInfo : FiducialInfoType
+        DetailObjectInfo : ObjectInfoType
         kwargs
             Other keyword arguments
         """
@@ -100,7 +100,7 @@ class ResearchType(Serializable):
     def to_xml_string(self, urn=None, tag='RESEARCH', check_validity=False, strict=DEFAULT_STRICT):
         return self.to_xml_bytes(urn=urn, tag=tag, check_validity=check_validity, strict=strict).decode('utf-8')
 
-    def apply_sicd(self, sicd, base_file_name, populate_in_periphery=False, include_out_of_range=False, minimum_pad=20):
+    def apply_sicd(self, sicd, base_file_name, populate_in_periphery=False, include_out_of_range=False, padding_fraction=0.05, minimum_pad=0):
         """
         Apply the given sicd to define all the relevant derived data, assuming
         that the starting point is physical ground truth populated, and image
@@ -113,6 +113,7 @@ class ResearchType(Serializable):
         base_file_name : str
         populate_in_periphery : bool
         include_out_of_range : bool
+        padding_fraction : None|float
         minimum_pad : int|float
         """
 
@@ -121,15 +122,15 @@ class ResearchType(Serializable):
         # define the image info
         if self.DetailImageInfo is not None:
             raise ValueError('Image Info is already defined')
-        self.DetailImageInfo = DetailImageInfoType.from_sicd(sicd, base_file_name)
+        self.DetailImageInfo = ImageInfoType.from_sicd(sicd, base_file_name)
 
         # define sensor info
         if self.DetailSensorInfo is not None:
             raise ValueError('Sensor Info is already defined')
-        self.DetailSensorInfo = DetailSensorInfoType.from_sicd(sicd)
+        self.DetailSensorInfo = SensorInfoType.from_sicd(sicd)
 
         if self.DetailFiducialInfo is None:
-            self.DetailFiducialInfo = DetailFiducialInfoType(
+            self.DetailFiducialInfo = FiducialInfoType(
                 NumberOfFiducialsInImage=0, NumberOfFiducialsInScene=0)
         else:
             self.DetailFiducialInfo.set_image_location_from_sicd(
@@ -138,7 +139,7 @@ class ResearchType(Serializable):
                 include_out_of_range=include_out_of_range)
 
         if self.DetailObjectInfo is None:
-            self.DetailObjectInfo = DetailObjectInfoType(
+            self.DetailObjectInfo = ObjectInfoType(
                 NumberOfObjectsInImage=0, NumberOfObjectsInScene=0)
         else:
             self.DetailObjectInfo.set_image_location_from_sicd(
@@ -146,11 +147,12 @@ class ResearchType(Serializable):
                 layover_shift=True,
                 populate_in_periphery=populate_in_periphery,
                 include_out_of_range=include_out_of_range,
+                padding_fraction=padding_fraction,
                 minimum_pad=minimum_pad)
 
     def apply_sicd_reader(
             self, sicd_reader, populate_in_periphery=False, include_out_of_range=False,
-            minimum_pad=20):
+            padding_fraction=0.05, minimum_pad=0):
         """
         Apply the given sicd to define all the relevant derived data, assuming
         that the starting point is physical ground truth populated, and image
@@ -162,6 +164,7 @@ class ResearchType(Serializable):
         sicd_reader : SICDReader
         populate_in_periphery : bool
         include_out_of_range : bool
+        padding_fraction : None|float
         minimum_pad : int|float
         """
 
@@ -171,4 +174,5 @@ class ResearchType(Serializable):
             base_file,
             populate_in_periphery=populate_in_periphery,
             include_out_of_range=include_out_of_range,
+            padding_fraction=padding_fraction,
             minimum_pad=minimum_pad)

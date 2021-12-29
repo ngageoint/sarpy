@@ -1,9 +1,9 @@
 """
-Definition for the DetailFiducialInfo AFRL labeling object
+Definition for the FiducialInfo AFRL labeling object
 """
 
 __classification__ = "UNCLASSIFIED"
-__authors__ = ("Thomas McCullough", "Thomas Rackers")
+__authors__ = "Thomas McCullough"
 
 
 from typing import Optional, List
@@ -20,6 +20,9 @@ from .base import DEFAULT_STRICT
 from .blocks import LatLonEleType, RangeCrossRangeType
 
 logger = logging.getLogger(__name__)
+
+_no_projection_text = 'This sicd does not permit projection,\n\t' \
+                      'so the image location can not be inferred'
 
 
 class ImageLocationType(Serializable):
@@ -66,9 +69,7 @@ class ImageLocationType(Serializable):
             return None
 
         if not the_structure.can_project_coordinates():
-            logger.warning(
-                'This sicd does not permit projection,\n\t'
-                'so the image location can not be inferred')
+            logger.warning(_no_projection_text)
             return None
 
         if isinstance(the_structure, SICDType):
@@ -142,9 +143,7 @@ class GeoLocationType(Serializable):
             return None
 
         if not the_structure.can_project_coordinates():
-            logger.warning(
-                'This sicd does not permit projection,\n\t'
-                'so the image location can not be inferred')
+            logger.warning(_no_projection_text)
             return None
 
         # make sure this is defined, for the sake of efficiency
@@ -200,6 +199,9 @@ class TheFiducialType(Serializable):
         'SlantPlane', 'GroundPlane')
     _required = (
         'FiducialType', 'ImageLocation', 'GeoLocation')
+    _tag_overide = {
+        'IPRWidth3dB': '_3dBWidth', 'IPRWidth18dB': '_18dBWidth', 
+        'IPRWidth3dB18dBRatio': '_3dB_18dBRatio'}
     # descriptors
     Name = StringDescriptor(
         'Name', _required, strict=DEFAULT_STRICT,
@@ -320,6 +322,7 @@ class TheFiducialType(Serializable):
         Parameters
         ----------
         sicd : SICDType
+        populate_in_periphery : bool
 
         Returns
         -------
@@ -342,9 +345,7 @@ class TheFiducialType(Serializable):
             return -1
 
         if not sicd.can_project_coordinates():
-            logger.warning(
-                'This sicd does not permit projection,\n\t'
-                'so the image location can not be inferred')
+            logger.warning(_no_projection_text)
             return -1
 
         image_location = ImageLocationType.from_geolocation(self.GeoLocation, sicd)
@@ -399,16 +400,14 @@ class TheFiducialType(Serializable):
             return
 
         if not sicd.can_project_coordinates():
-            logger.warning(
-                'This sicd does not permit projection,\n\t'
-                'so the geographical location can not be inferred')
+            logger.warning(_no_projection_text)
             return
 
         self.GeoLocation = GeoLocationType.from_image_location(
             self.ImageLocation, sicd, projection_type=projection_type, **kwargs)
 
 
-class DetailFiducialInfoType(Serializable):
+class FiducialInfoType(Serializable):
     _fields = (
         'NumberOfFiducialsInImage', 'NumberOfFiducialsInScene', 'Fiducials')
     _required = (
@@ -444,7 +443,7 @@ class DetailFiducialInfoType(Serializable):
         self.NumberOfFiducialsInImage = NumberOfFiducialsInImage
         self.NumberOfFiducialsInScene = NumberOfFiducialsInScene
         self.Fiducials = Fiducials
-        super(DetailFiducialInfoType, self).__init__(**kwargs)
+        super(FiducialInfoType, self).__init__(**kwargs)
 
     def set_image_location_from_sicd(
             self, sicd, populate_in_periphery=False, include_out_of_range=False):

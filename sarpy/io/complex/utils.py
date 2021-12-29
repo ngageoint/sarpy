@@ -12,6 +12,7 @@ from typing import Iterator, Tuple, List
 import numpy
 from numpy.polynomial import polynomial
 from scipy.stats import scoreatpercentile
+from scipy.linalg import lstsq
 
 from sarpy.io.complex.base import SICDTypeReader
 from sarpy.io.complex.sicd_elements.blocks import Poly2DType
@@ -40,7 +41,8 @@ def two_dim_poly_fit(x, y, z, x_order=2, y_order=2, x_scale=1, y_scale=1, rcond=
         variables can be scaled, the fit performed, and then the solution rescaled.
     y_scale : float
     rcond : None|float
-        passed through to :func:`numpy.linalg.lstsq`.
+        passed through to :func:`scipy.linalg.lstsq` (as `cond`).
+
     Returns
     -------
     numpy.ndarray
@@ -63,8 +65,8 @@ def two_dim_poly_fit(x, y, z, x_order=2, y_order=2, x_scale=1, y_scale=1, rcond=
     for i, index in enumerate(numpy.ndindex((x_order+1, y_order+1))):
         A[:, i] = numpy.power(x, index[0])*numpy.power(y, index[1])
     # perform least squares fit
-    sol, residuals, rank, sing_values = numpy.linalg.lstsq(A, z, rcond=rcond)
-    if len(residuals) != 0:
+    sol, residuals, rank, sing_values = lstsq(A, z, cond=rcond)
+    if isinstance(residuals, (numpy.ndarray, numpy.number)):
         residuals /= float(x.size)
     sol = numpy.power(x_scale, numpy.arange(x_order+1))[:, numpy.newaxis] * \
           numpy.reshape(sol, (x_order+1, y_order+1)) * \
@@ -470,8 +472,7 @@ def get_data_extrema(bounds, reader, index, block_size_in_bytes, percentile=None
 
             min_value = temp_values[0] if min_value is None else min(min_value, temp_values[0])
             max_value = temp_values[1] if max_value is None else max(max_value, temp_values[1])
-            if percentile is not None:
-                percent = temp_values[2] if percent is None else temp_values[2]
+            percent = temp_values[2] if percentile is not None else None
 
     if percentile is None:
         return min_value, max_value

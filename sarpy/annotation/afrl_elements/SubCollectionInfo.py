@@ -1,9 +1,9 @@
 """
-Definition for the DetailSubCollectionInfo AFRL labeling object
+Definition for the SubCollectionInfo AFRL labeling object
 """
 
 __classification__ = "UNCLASSIFIED"
-__authors__ = ("Thomas McCullough", "Thomas Rackers")
+__authors__ = "Thomas McCullough"
 
 
 from typing import Optional
@@ -12,10 +12,10 @@ from sarpy.io.xml.base import Serializable
 from sarpy.io.xml.descriptors import SerializableDescriptor, StringDescriptor
 
 from .base import DEFAULT_STRICT
-from .blocks import DateTimeRangeType, LatLonEleType
+from .blocks import DateRangeType, LatLonEleType
 
 
-class DetailSubCollectionInfoType(Serializable):
+class SubCollectionInfoType(Serializable):
     _fields = ('Name', 'SiteName', 'SiteNumber', 'SceneNumber', 'Description',
                'Duration', 'SiteCenterLocation', 'SceneContentDescription',
                'SiteBackgroundType')
@@ -37,8 +37,8 @@ class DetailSubCollectionInfoType(Serializable):
         'Description', _required,
         docstring="Description of the subcollection (e.g., Main array).")  # type: Optional[str]
     Duration = SerializableDescriptor(
-        'Duration', DateTimeRangeType, _required, strict=DEFAULT_STRICT,
-        docstring="Begin and end dates of the subcollection.")  # type: Optional[DateTimeRangeType]
+        'Duration', DateRangeType, _required, strict=DEFAULT_STRICT,
+        docstring="Begin and end dates of the subcollection.")  # type: Optional[DateRangeType]
     SiteCenterLocation = SerializableDescriptor(
         'SiteCenterLocation', LatLonEleType, _required, strict=DEFAULT_STRICT,
         docstring="Location of the center of the collection site.")  # type: LatLonEleType
@@ -61,7 +61,7 @@ class DetailSubCollectionInfoType(Serializable):
         SiteNumber : None|str
         SceneNumber : None|str
         Description : NOne|str
-        Duration : None|DateTimeRangeType|list|tuple
+        Duration : None|DateRangeType|list|tuple
         SiteCenterLocation : LatLonEleType|numpy.ndarray|list|tuple
         SceneContentDescription : None|str
         SiteBackgroundType : None|str
@@ -82,4 +82,4 @@ class DetailSubCollectionInfoType(Serializable):
         self.SiteCenterLocation = SiteCenterLocation
         self.SceneContentDescription = SceneContentDescription
         self.SiteBackgroundType = SiteBackgroundType
-        super(DetailSubCollectionInfoType, self).__init__(**kwargs)
+        super(SubCollectionInfoType, self).__init__(**kwargs)

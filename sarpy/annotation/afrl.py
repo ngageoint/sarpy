@@ -12,17 +12,17 @@ from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd import SICDReader
 
 from sarpy.annotation.afrl_elements.Research import ResearchType
-from sarpy.annotation.afrl_elements.DetailCollectionInfo import DetailCollectionInfoType
-from sarpy.annotation.afrl_elements.DetailSubCollectionInfo import DetailSubCollectionInfoType
-from sarpy.annotation.afrl_elements.DetailObjectInfo import DetailObjectInfoType, \
+from sarpy.annotation.afrl_elements.CollectionInfo import CollectionInfoType
+from sarpy.annotation.afrl_elements.SubCollectionInfo import SubCollectionInfoType
+from sarpy.annotation.afrl_elements.ObjectInfo import ObjectInfoType, \
     PlaneNominalType, NominalType, TheObjectType, \
     GeoLocationType as ObjectGeoLocation, \
     ImageLocationType as ObjectImageLocation
-from sarpy.annotation.afrl_elements.DetailFiducialInfo import DetailFiducialInfoType, \
+from sarpy.annotation.afrl_elements.FiducialInfo import FiducialInfoType, \
     TheFiducialType, GeoLocationType as FiducialGeoLocation, \
     ImageLocationType as FiducialImageLocation
-from sarpy.annotation.afrl_elements.DetailImageInfo import DetailImageInfoType
-from sarpy.annotation.afrl_elements.DetailSensorInfo import DetailSensorInfoType
+from sarpy.annotation.afrl_elements.ImageInfo import ImageInfoType
+from sarpy.annotation.afrl_elements.SensorInfo import SensorInfoType
 
 from sarpy.annotation.label import LabelSchema, FileLabelCollection, LabelCollection, \
     LabelFeature, LabelProperties, LabelMetadata
@@ -41,8 +41,8 @@ class GroundTruthConstructor(object):
 
         Parameters
         ----------
-        collection_info : DetailCollectionInfoType
-        subcollection_info : DetailSubCollectionInfoType
+        collection_info : CollectionInfoType
+        subcollection_info : SubCollectionInfoType
         """
 
         self._collection_info = collection_info
@@ -188,12 +188,12 @@ class GroundTruthConstructor(object):
         of different sicd files.
 
         Gets **a static copy** of the constructed AFRL Research structure. This has the
-        provided DetailCollectionInfo and DetailSubCollectionInfo populated. It also
-        has the DetailObjectInfo and DetailFiducialInfo with the GeoLocation
+        provided CollectionInfo and SubCollectionInfo populated. It also
+        has the ObjectInfo and FiducialInfo with the GeoLocation
         ground truth details that have been provided.
 
         No image location information has been populated, and there are no
-        DetailImageInfo or DetailSensorInfo populated, because these are independent
+        ImageInfo or SensorInfo populated, because these are independent
         of ground truth.
 
         Returns
@@ -204,16 +204,16 @@ class GroundTruthConstructor(object):
         return ResearchType(
             DetailCollectionInfo=self._collection_info,
             DetailSubCollectionInfo=self._subcollection_info,
-            DetailFiducialInfo=DetailFiducialInfoType(
+            DetailFiducialInfo=FiducialInfoType(
                 NumberOfFiducialsInScene=len(self._fiducials),
                 Fiducials=self._fiducials),
-            DetailObjectInfo=DetailObjectInfoType(
+            DetailObjectInfo=ObjectInfoType(
                 NumberOfObjectsInScene=len(self._objects),
                 Objects=self._objects)).copy()
 
     def localize_for_sicd(
             self, sicd, base_sicd_file, populate_in_periphery=False, include_out_of_range=False,
-            minimum_pad=20):
+            padding_fraction=0.05, minimum_pad=0):
         """
         Localize the AFRL structure for the given sicd structure.
 
@@ -227,6 +227,7 @@ class GroundTruthConstructor(object):
         base_sicd_file : str
         populate_in_periphery : bool
         include_out_of_range : bool
+        padding_fraction : None|float
         minimum_pad : int|float
 
         Returns
@@ -235,18 +236,18 @@ class GroundTruthConstructor(object):
         """
 
         out_research = self.get_final_structure()
-        # TODO: nominal chip size?
         out_research.apply_sicd(
             sicd,
             base_sicd_file,
             populate_in_periphery=populate_in_periphery,
             include_out_of_range=include_out_of_range,
+            padding_fraction=padding_fraction,
             minimum_pad=minimum_pad)
         return out_research
 
     def localize_for_sicd_reader(
             self, sicd_reader, populate_in_periphery=False, include_out_of_range=False,
-            minimum_pad=20):
+            padding_fraction=0.05, minimum_pad=0):
         """
         Localize the AFRL structure for the given sicd file.
 
@@ -259,6 +260,7 @@ class GroundTruthConstructor(object):
         sicd_reader : SICDReader
         populate_in_periphery : bool
         include_out_of_range : bool
+        padding_fraction : None|float
         minimum_pad : int|float
 
         Returns
@@ -271,6 +273,7 @@ class GroundTruthConstructor(object):
             sicd_reader,
             populate_in_periphery=populate_in_periphery,
             include_out_of_range=include_out_of_range,
+            padding_fraction=padding_fraction,
             minimum_pad=minimum_pad)
         return out_research
 
@@ -294,8 +297,8 @@ class AnalystTruthConstructor(object):
         ----------
         sicd : SICDType
         base_file : str
-        collection_info : DetailCollectionInfoType
-        subcollection_info : DetailSubCollectionInfoType
+        collection_info : CollectionInfoType
+        subcollection_info : SubCollectionInfoType
         nominal_chip_size : int|float
             The nominal chip size in meters.
         projection_type : str
@@ -315,8 +318,8 @@ class AnalystTruthConstructor(object):
         #  collection and subcollection info?
         self._collection_info = collection_info
         self._subcollection_info = subcollection_info
-        self._image_info = DetailImageInfoType.from_sicd(self._sicd, self._base_file)
-        self._sensor_info = DetailSensorInfoType.from_sicd(self._sicd)
+        self._image_info = ImageInfoType.from_sicd(self._sicd, self._base_file)
+        self._sensor_info = SensorInfoType.from_sicd(self._sicd)
         self._objects = []
         self._fiducials = []
 
@@ -326,7 +329,7 @@ class AnalystTruthConstructor(object):
     @property
     def image_info(self):
         """
-        DetailImageInfoType: The basic image info object derived from the sicd
+        ImageInfoType: The basic image info object derived from the sicd
         """
 
         return self._image_info
@@ -334,7 +337,7 @@ class AnalystTruthConstructor(object):
     @property
     def sensor_info(self):
         """
-        DetailSensorInfoType: The basic sensor info object derived from the sicd.
+        SensorInfoType: The basic sensor info object derived from the sicd.
         """
 
         return self._sensor_info
@@ -374,13 +377,14 @@ class AnalystTruthConstructor(object):
                 FiducialType=FiducialType,
                 ImageLocation=ImageLocation))
 
-    def add_object(self, the_object, minimum_pad=20):
+    def add_object(self, the_object, padding_fraction=0.05, minimum_pad=0):
         """
         Adds the object to the collection. Note that this object will be modified in place.
 
         Parameters
         ----------
         the_object : TheObjectType
+        padding_fraction : None|float
         minimum_pad : float|int
             The minimum number of pixels by which to pad for the chip
         """
@@ -391,11 +395,11 @@ class AnalystTruthConstructor(object):
             raise ValueError('The object has GeoLocation already set.')
         the_object.set_geo_location_from_sicd(
             self._sicd, projection_type=self._projection_type, **self._proj_kwargs)
-        the_object.set_chip_details_from_sicd(self._sicd, populate_in_periphery=True, minimum_pad=minimum_pad)
+        the_object.set_chip_details_from_sicd(self._sicd, populate_in_periphery=True, padding_fraction=padding_fraction, minimum_pad=minimum_pad)
         self._objects.append(the_object)
 
     def add_object_from_arguments(
-            self, minimum_pad=20, SystemName=None, SystemComponent=None, NATOName=None,
+            self, padding_fraction=0.05, minimum_pad=0, SystemName=None, SystemComponent=None, NATOName=None,
             Function=None, Version=None, DecoyType=None, SerialNumber=None,
             ObjectClass='Unknown', ObjectSubClass='Unknown', ObjectTypeClass='Unknown',
             ObjectType='Unknown', ObjectLabel=None, Size=None,
@@ -412,6 +416,7 @@ class AnalystTruthConstructor(object):
 
         Parameters
         ----------
+        padding_fraction : None|float
         minimum_pad : float|int
         SystemName : str
         SystemComponent : None|str
@@ -473,7 +478,9 @@ class AnalystTruthConstructor(object):
                           UnderlyingTerrain=UnderlyingTerrain,
                           OverlyingTerrain=OverlyingTerrain,
                           TerrainTexture=TerrainTexture,
-                          SeasonalCover=SeasonalCover), minimum_pad=minimum_pad)
+                          SeasonalCover=SeasonalCover),
+            padding_fraction=padding_fraction,
+            minimum_pad=minimum_pad)
 
     def get_final_structure(self):
         """
@@ -494,10 +501,10 @@ class AnalystTruthConstructor(object):
             DetailSubCollectionInfo=self._subcollection_info,
             DetailImageInfo=self._image_info,
             DetailSensorInfo=self._sensor_info,
-            DetailFiducialInfo=DetailFiducialInfoType(
+            DetailFiducialInfo=FiducialInfoType(
                 NumberOfFiducialsInScene=len(self._fiducials),
                 Fiducials=self._fiducials),
-            DetailObjectInfo=DetailObjectInfoType(
+            DetailObjectInfo=ObjectInfoType(
                 NumberOfObjectsInScene=len(self._objects),
                 SlantPlane=slant,
                 Objects=self._objects))

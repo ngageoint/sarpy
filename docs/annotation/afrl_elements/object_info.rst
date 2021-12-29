@@ -1,7 +1,7 @@
-AFRL labeling Object Info (sarpy.annotation.afrl_elements.DetailObjectInfo)
-===========================================================================
+AFRL labeling Object Info (sarpy.annotation.afrl_elements.ObjectInfo)
+=====================================================================
 
-.. automodule:: sarpy.annotation.afrl_elements.DetailObjectInfo
+.. automodule:: sarpy.annotation.afrl_elements.ObjectInfo
     :members:
     :show-inheritance:
     :inherited-members:
