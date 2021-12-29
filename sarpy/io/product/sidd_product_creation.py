@@ -10,7 +10,7 @@ Create a variety of sidd products.
     import os
 
     from sarpy.io.complex.converter import open_complex
-    from sarpy.processing.ortho_rectify import BivariateSplineMethod, NearestNeighborMethod, PGProjection
+    from sarpy.processing.ortho_rectify import BivariateSplineMethod, NearestNeighborMethod
     from sarpy.io.product.sidd_product_creation import create_detected_image_sidd, create_csi_sidd, create_dynamic_image_sidd
 
     # open a sicd type file
@@ -30,8 +30,8 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 import os
-from sarpy.processing.ortho_rectify import OrthorectificationHelper, \
-    FullResolutionFetcher, OrthorectificationIterator
+from sarpy.processing.ortho_rectify.base import FullResolutionFetcher, OrthorectificationIterator
+from sarpy.processing.ortho_rectify.ortho_methods import OrthorectificationHelper
 from sarpy.io.product.sidd_structure_creation import create_sidd_structure
 from sarpy.processing.csi import CSICalculator
 from sarpy.processing.subaperture import SubapertureCalculator, SubapertureOrthoIterator
@@ -42,6 +42,11 @@ from sarpy.visualization.remap import MonochromaticRemap, NRL
 DEFAULT_IMG_REMAP = NRL
 DEFAULT_CSI_REMAP = NRL
 DEFAULT_DI_REMAP = NRL
+
+_output_text = 'output_directory `{}`\n\t' \
+               'does not exist or is not a directory'
+_orthohelper_text = 'ortho_helper is required to be an instance of OrthorectificationHelper,\n\t' \
+                    'got type `{}`'
 
 
 def _validate_filename(output_directory, output_file, sidd_structure):
@@ -129,7 +134,7 @@ def create_detected_image_sidd(
         import os
 
         from sarpy.io.complex.converter import open_complex
-        from sarpy.processing.ortho_rectify import BivariateSplineMethod, NearestNeighborMethod, PGProjection
+        from sarpy.processing.ortho_rectify import BivariateSplineMethod, NearestNeighborMethod
         from sarpy.io.product.sidd_product_creation import create_detected_image_sidd
 
         reader = open_complex('<sicd type object file name>')
@@ -140,12 +145,10 @@ def create_detected_image_sidd(
     """
 
     if not os.path.isdir(output_directory):
-        raise SarpyIOError('output_directory {} does not exist or is not a directory'.format(output_directory))
+        raise SarpyIOError(_output_text.format(output_directory))
 
     if not isinstance(ortho_helper, OrthorectificationHelper):
-        raise TypeError(
-            'ortho_helper is required to be an instance of OrthorectificationHelper, '
-            'got type {}'.format(type(ortho_helper)))
+        raise TypeError(_orthohelper_text.format(type(ortho_helper)))
 
     if remap_function is None:
         remap_function = DEFAULT_IMG_REMAP(override_name='IMG_DEFAULT')
@@ -228,12 +231,10 @@ def create_csi_sidd(
     """
 
     if not os.path.isdir(output_directory):
-        raise SarpyIOError('output_directory {} does not exist or is not a directory'.format(output_directory))
+        raise SarpyIOError(_output_text.format(output_directory))
 
     if not isinstance(ortho_helper, OrthorectificationHelper):
-        raise TypeError(
-            'ortho_helper is required to be an instance of OrthorectificationHelper, '
-            'got type {}'.format(type(ortho_helper)))
+        raise TypeError(_orthohelper_text.format(type(ortho_helper)))
 
     # construct the CSI calculator class
     csi_calculator = CSICalculator(
@@ -328,12 +329,10 @@ def create_dynamic_image_sidd(
     """
 
     if not os.path.isdir(output_directory):
-        raise SarpyIOError('output_directory {} does not exist or is not a directory'.format(output_directory))
+        raise SarpyIOError(_output_text.format(output_directory))
 
     if not isinstance(ortho_helper, OrthorectificationHelper):
-        raise TypeError(
-            'ortho_helper is required to be an instance of OrthorectificationHelper, '
-            'got type {}'.format(type(ortho_helper)))
+        raise TypeError(_orthohelper_text.format(type(ortho_helper)))
 
     # construct the subaperture calculator class
     subap_calculator = SubapertureCalculator(

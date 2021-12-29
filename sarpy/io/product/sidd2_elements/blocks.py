@@ -26,6 +26,11 @@ from sarpy.io.complex.sicd_elements.MatchInfo import MatchInfoType as MatchInfoT
 from sarpy.io.complex.sicd_elements.GeoData import GeoInfoType as GeoInfoTypeBase
 from sarpy.io.complex.sicd_elements.CollectionInfo import RadarModeType as RadarModeTypeBase
 
+_len2_array_text = 'Expected array to be of length 2,\n\t' \
+                   'and received `{}`'
+_array_type_text = 'Expected array to be numpy.ndarray, list, or tuple,\n\t' \
+                   'got `{}`'
+
 
 ############
 # the SICommon namespace elements
@@ -119,9 +124,9 @@ class RangeAzimuthType(Serializable, Arrayable):
             return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 2:
-                raise ValueError('Expected array to be of length 2, and received {}'.format(array))
+                raise ValueError(_len2_array_text.format(array))
             return cls(Range=array[0], Azimuth=array[1])
-        raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
+        raise ValueError(_array_type_text.format(type(array)))
 
 
 class AngleMagnitudeType(Serializable, Arrayable):
@@ -195,9 +200,9 @@ class AngleMagnitudeType(Serializable, Arrayable):
             return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 2:
-                raise ValueError('Expected array to be of length 2, and received {}'.format(array))
+                raise ValueError(_len2_array_text.format(array))
             return cls(Angle=array[0], Magnitude=array[1])
-        raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
+        raise ValueError(_array_type_text.format(type(array)))
 
 
 class RowColIntType(RowColIntTypeBase):
@@ -270,9 +275,9 @@ class RowColDoubleType(Serializable, Arrayable):
             return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 2:
-                raise ValueError('Expected array to be of length 2, and received {}'.format(array))
+                raise ValueError(_len2_array_text.format(array))
             return cls(Row=array[0], Col=array[1])
-        raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
+        raise ValueError(_array_type_text.format(type(array)))
 
 
 class Poly1DType(Poly1DTypeBase):

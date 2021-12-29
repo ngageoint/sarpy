@@ -178,9 +178,8 @@ def num(latlon_input):
     """
 
     # Vector format degrees/minutes/seconds
-    if isinstance(latlon_input, (numpy.ndarray, list, tuple)):
-        if len(latlon_input) == 3:
-            return latlon_input[0] + latlon_input[1]/60. + latlon_input[2]/3600.
+    if isinstance(latlon_input, (numpy.ndarray, list, tuple)) and len(latlon_input) == 3:
+        return float(latlon_input[0]) + float(latlon_input[1])/60. + float(latlon_input[2])/3600.
 
     if not isinstance(latlon_input, str):
         raise ValueError('Expected a (degree, minutes, seconds) tuple of string. '
@@ -188,7 +187,7 @@ def num(latlon_input):
     # String input
     # Handles decimal degrees and degree/minutes/second with delimiters
     # Any non-numeric characters in string are considered delimiters
-    tokens_str = list(filter(lambda x: len(x.strip()) > 0, re.split('[^.\d]', latlon_input)))
+    tokens_str = list(filter(lambda x: len(x.strip()) > 0, re.split(r'[^.\d]', latlon_input)))
     tokens = [float(x) for x in tokens_str]
     decimal_degrees = numpy.polynomial.polynomial.polyval(1/60., numpy.abs(tokens))
     if ('W' in latlon_input or 'S' in latlon_input) != ('-' in latlon_input):

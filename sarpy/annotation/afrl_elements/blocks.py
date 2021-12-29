@@ -3,7 +3,7 @@ Common use elements for the AFRL labeling definition
 """
 
 __classification__ = "UNCLASSIFIED"
-__authors__ = ("Thomas McCullough", "Thomas Rackers")
+__authors__ = "Thomas McCullough"
 
 
 import numpy

@@ -17,6 +17,10 @@ from sarpy.io.xml.descriptors import SerializableDescriptor, SerializableArrayDe
 from .base import DEFAULT_STRICT, FLOAT_FORMAT
 
 
+_len2_array_text = 'Expected array to be of length 2,\n\t' \
+                   'and received `{}`'
+_array_type_text = 'Expected array to be numpy.ndarray, list, or tuple,\n\tgot `{}`'
+
 ###################
 # module variables
 POLARIZATION_TYPE = ('X', 'Y', 'V', 'H', 'RHC', 'LHC', 'UNSPECIFIED')
@@ -91,9 +95,9 @@ class LSType(Serializable, Arrayable):
             return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 2:
-                raise ValueError('Expected array to be of length 2, and received {}'.format(array))
+                raise ValueError(_len2_array_text.format(array))
             return cls(Line=array[0], Sample=array[1])
-        raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
+        raise ValueError(_array_type_text.format(type(array)))
 
 
 class LSVertexType(LSType):
@@ -146,9 +150,9 @@ class LSVertexType(LSType):
             return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 2:
-                raise ValueError('Expected array to be of length 2, and received {}'.format(array))
+                raise ValueError(_len2_array_text.format(array))
             return cls(Line=array[0], Sample=array[1], index=index)
-        raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
+        raise ValueError(_array_type_text.format(type(array)))
 
 
 class XYType(Serializable, Arrayable):
@@ -204,9 +208,9 @@ class XYType(Serializable, Arrayable):
             return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 2:
-                raise ValueError('Expected array to be of length 2, and received {}'.format(array))
+                raise ValueError(_len2_array_text.format(array))
             return cls(X=array[0], Y=array[1])
-        raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
+        raise ValueError(_array_type_text.format(type(array)))
 
     def get_array(self, dtype=numpy.float64):
         """
@@ -277,9 +281,9 @@ class XYVertexType(XYType):
             return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 2:
-                raise ValueError('Expected array to be of length 2, and received {}'.format(array))
+                raise ValueError(_len2_array_text.format(array))
             return cls(X=array[0], Y=array[1], index=index)
-        raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
+        raise ValueError(_array_type_text.format(type(array)))
 
 
 class AreaType(Serializable):

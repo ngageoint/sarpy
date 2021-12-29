@@ -1,14 +1,9 @@
 """
-Definition for the DetailSensorInfo AFRL labeling object
+Definition for the SensorInfo AFRL labeling object
 """
 
 __classification__ = "UNCLASSIFIED"
-__authors__ = ("Thomas McCullough", "Thomas Rackers")
-
-# TODO: commentary of field troubles
-#   - Polarization is too restrictive in formatting and has a conceptual flaw,
-#       it should be a list of transmit and receive polarizations.
-#   - Type should be enumerated/specified for it to have much utility, like {SAR, EO, Thermal, Other} or something
+__authors__ = "Thomas McCullough"
 
 
 from typing import Optional
@@ -203,7 +198,7 @@ class AircraftLocationType(Serializable, Arrayable):
         raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
 
 
-class DetailSensorInfoType(Serializable):
+class SensorInfoType(Serializable):
     _fields = (
         'Name', 'SensorMfg', 'OperatingAgency', 'Type', 'Mode', 'Band',
         'Bandwidth', 'CenterFrequency', 'NearRange', 'SlantRangeSwathWidth',
@@ -373,7 +368,7 @@ class DetailSensorInfoType(Serializable):
         self.AircraftVelocity = AircraftVelocity
         self.FlightNumber = FlightNumber
         self.PassNumber = PassNumber
-        super(DetailSensorInfoType, self).__init__(**kwargs)
+        super(SensorInfoType, self).__init__(**kwargs)
 
     @classmethod
     def from_sicd(cls, sicd):
@@ -386,7 +381,7 @@ class DetailSensorInfoType(Serializable):
 
         Returns
         -------
-        DetailSensorInfoType
+        SensorInfoType
         """
 
         transmit_freq_proc = sicd.ImageFormation.TxFrequencyProc
@@ -401,7 +396,7 @@ class DetailSensorInfoType(Serializable):
             )
         )
         arp_pos_llh = ecf_to_geodetic(sicd.SCPCOA.ARPPos.get_array())
-        return DetailSensorInfoType(
+        return SensorInfoType(
             Name=sicd.CollectionInfo.CollectorName,
             Type='SAR',
             Mode=sicd.CollectionInfo.RadarMode.ModeType,

@@ -863,12 +863,8 @@ class RadarCollectionType(Serializable):
 
         if len(self.RcvChannels) > 1:
             # TxSequence may need to be derived from RCvChannels, for SICD before 1.0 or poorly formed
-            if self.TxSequence is not None:
+            if self.TxSequence is not None or self.RcvChannels is None or len(self.RcvChannels) < 2:
                 return
-            elif self.RcvChannels is None:
-                return  # nothing to derive from
-            elif len(self.RcvChannels) < 2:
-                return  # no need for step definition
 
             tx_pols = list(chan_param.get_transmit_polarization() for chan_param in self.RcvChannels)
 

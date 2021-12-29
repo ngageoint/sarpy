@@ -1,9 +1,9 @@
 """
-Definition for the DetailImageInfo AFRL labeling object
+Definition for the ImageInfo AFRL labeling object
 """
 
 __classification__ = "UNCLASSIFIED"
-__authors__ = ("Thomas McCullough", "Thomas Rackers")
+__authors__ = "Thomas McCullough"
 
 from typing import Optional
 import numpy
@@ -16,14 +16,6 @@ from sarpy.io.complex.sicd_elements.blocks import LatLonType
 
 from .base import DEFAULT_STRICT
 from .blocks import RangeCrossRangeType
-
-# TODO: Review what's marked required/optional - I'm sure it makes little sense
-#  Questionable field definitions:
-#   - there is a PixelSpacing and then slant/ground plane elements for pixel spacing?
-#   - ZuluOffset seemingly assumes that the only possible offsets are integer valued - this is wrong.
-#   - DataCalibrated should obviously be xs:boolean - this is kludged badly for no reason
-#   - DataCheckSum - it is unclear what this is the checksum of, and which checksum it would be (CRC-32?)
-#   - DataByteOrder - why in the world is this even here?
 
 
 class NumPixelsType(Serializable, Arrayable):
@@ -229,7 +221,7 @@ class PixelSpacingType(Serializable):
         super(PixelSpacingType, self).__init__(**kwargs)
 
 
-class DetailImageInfoType(Serializable):
+class ImageInfoType(Serializable):
     _fields = (
         'DataFilename', 'ClassificationMarkings', 'Filetype', 'DataCheckSum',
         'DataSize', 'DataPlane', 'DataDomain', 'DataType', 'BitsPerSample',
@@ -245,6 +237,8 @@ class DetailImageInfoType(Serializable):
     _numeric_format = {
         'ImageHeading': '0.17G', 'SensorCalibrationFactor': '0.17G',
         'SceneCenterReferenceLine': '0.17G', }
+    _tag_overide = {
+        'IPRWidth3dB': '_3dBWidth', }
     # descriptors
     DataFilename = StringDescriptor(
         'DataFilename', _required,
@@ -289,7 +283,7 @@ class DetailImageInfoType(Serializable):
         'ZuluOffset', _required,
         docstring='The local time offset from UTC')  # type: Optional[int]  # TODO: this isn't always integer
     SensorReferencePoint = StringEnumDescriptor(
-        'DataPlane', {'Left', 'Right', 'Top', 'Bottom'}, _required,
+        'SensorReferencePoint', {'Left', 'Right', 'Top', 'Bottom'}, _required,
         docstring='Description of the sensor location relative to the scene.')  # type: Optional[str]
     SensorCalibrationFactor = FloatDescriptor(
         'SensorCalibrationFactor', _required,
@@ -422,7 +416,7 @@ class DetailImageInfoType(Serializable):
         self.SlantPlane = SlantPlane
         self.GroundPlane = GroundPlane
         self.SceneCenterReferenceLine = SceneCenterReferenceLine
-        super(DetailImageInfoType, self).__init__(**kwargs)
+        super(ImageInfoType, self).__init__(**kwargs)
 
     @classmethod
     def from_sicd(cls, sicd, base_file_name, file_type='NITF02.10'):
@@ -438,7 +432,7 @@ class DetailImageInfoType(Serializable):
 
         Returns
         -------
-        DetailImageInfoType
+        ImageInfoType
         """
 
         pixel_type = sicd.ImageData.PixelType
@@ -470,7 +464,7 @@ class DetailImageInfoType(Serializable):
         else:
             data_plane = None
 
-        return DetailImageInfoType(
+        return ImageInfoType(
             DataFilename=base_file_name,
             ClassificationMarkings=ClassificationMarkingsType(
                 Classification=sicd.CollectionInfo.Classification),

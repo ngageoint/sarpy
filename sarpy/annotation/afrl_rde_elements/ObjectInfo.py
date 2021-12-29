@@ -1,16 +1,17 @@
 """
-Definition for the DetailObjectInfo AFRL labeling object
+Definition for the ObjectInfo NGA modified RDE/AFRL labeling object
 """
 
 __classification__ = "UNCLASSIFIED"
-__authors__ = ("Thomas McCullough", "Thomas Rackers")
+__authors__ = "Thomas McCullough"
 
 import logging
 from typing import Optional, List
 
 import numpy
 
-from sarpy.io.xml.base import Serializable, Arrayable, create_text_node, create_new_node
+from sarpy.io.xml.base import Serializable, Arrayable, create_text_node, \
+    get_node_value
 from sarpy.io.xml.descriptors import StringDescriptor, FloatDescriptor, \
     IntegerDescriptor, SerializableDescriptor, SerializableListDescriptor
 from sarpy.io.complex.sicd_elements.blocks import RowColType
@@ -21,13 +22,14 @@ from sarpy.geometry.geometry_elements import Point, Polygon, GeometryCollection,
 from sarpy.annotation.base import GeometryProperties
 
 from .base import DEFAULT_STRICT
-from .blocks import RangeCrossRangeType, RowColDoubleType, LatLonEleType
+from .blocks import RangeCrossRangeType, RowColDoubleType, LatLonEleType, \
+    ProjectionPerturbationType
 
-# TODO: Issue - do we need to set the nominal chip size?
-#  Comment - the articulation and configuration information is really not usable in
-#       its current form, and should be replaced with a (`name`, `value`) pair.
 
 logger = logging.getLogger(__name__)
+
+_no_projection_text = 'This sicd does not permit projection,\n\t' \
+                      'so the image location can not be inferred'
 
 
 # the Object and sub-component definitions
@@ -302,9 +304,7 @@ class ImageLocationType(Serializable):
             return None
 
         if not the_structure.can_project_coordinates():
-            logger.warning(
-                'This sicd does not permit projection,\n\t'
-                'so the image location can not be inferred')
+            logger.warning(_no_projection_text)
             return None
 
         # make sure this is defined, for the sake of efficiency
@@ -500,9 +500,7 @@ class GeoLocationType(Serializable):
             return None
 
         if not the_structure.can_project_coordinates():
-            logger.warning(
-                'This sicd does not permit projection,\n\t'
-                'so the image location can not be inferred')
+            logger.warning(_no_projection_text)
             return None
 
         # make sure this is defined, for the sake of efficiency
@@ -551,20 +549,21 @@ class GeoLocationType(Serializable):
         self.CenterPixel = LatLonEleType.from_array(ecf_to_geodetic(current))
 
 
-class FreeFormType(Serializable):
-    _fields = ('Name', 'Value')
-    _required = _fields
-    Name = StringDescriptor(
-        'Name', _required)  # type: str
+class StringWithComponentType(Serializable):
+    _fields = ('Component', 'Value')
+    _required = ('Value', )
+    Component = StringDescriptor(
+        'Component', _required)  # type: str
     Value = StringDescriptor(
         'Value', _required)  # type: str
+    _set_as_attribute = ('Component', )
 
-    def __init__(self, Name=None, Value=None, **kwargs):
+    def __init__(self, Component=None, Value=None, **kwargs):
         """
 
         Parameters
         ----------
-        Name : str
+        Component : str
         Value : str
         kwargs
         """
@@ -573,73 +572,28 @@ class FreeFormType(Serializable):
             self._xml_ns = kwargs['_xml_ns']
         if '_xml_ns_key' in kwargs:
             self._xml_ns_key = kwargs['_xml_ns_key']
-        self.Name = Name
+        self.Component = Component
         self.Value = Value
-        super(FreeFormType, self).__init__(**kwargs)
-
-
-class CompoundCommentType(Serializable):
-    _fields = ('Value', 'Comments')
-    _required = ()
-    _collections_tags = {'Comments': {'array': False, 'child_tag': 'NULL'}}
-    # descriptors
-    Value = StringDescriptor(
-        'Value', _required,
-        docstring='A single comment, this will take precedence '
-                  'over the list')  # type: Optional[str]
-    Comments = SerializableListDescriptor(
-        'Comments', FreeFormType, _collections_tags, _required,
-        docstring='A collection of comments')  # type: Optional[List[FreeFormType]]
-
-    def __init__(self, Value=None, Comments=None, **kwargs):
-        """
-        Parameters
-        ----------
-        Value : None|str
-        Comments : None|List[FreeFormType]
-        """
-
-        if '_xml_ns' in kwargs:
-            self._xml_ns = kwargs['_xml_ns']
-        if '_xml_ns_key' in kwargs:
-            self._xml_ns_key = kwargs['_xml_ns_key']
-        self.Value = Value
-        self.Comments = Comments
-        super(CompoundCommentType, self).__init__(**kwargs)
+        super(StringWithComponentType, self).__init__(**kwargs)
 
     @classmethod
     def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
-        if kwargs is None:
-            kwargs = {}
-        if xml_ns is None:
-            tag_start = ''
-        elif ns_key is None:
-            tag_start = xml_ns['default'] + ':'
+        value = get_node_value(node)
+        component = node.attrib.get('Component', None)
+        return cls(Value=value, Component=component)
+    
+    def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):        
+        if (ns_key is not None and ns_key != 'default') and not tag.startswith(ns_key + ':'):
+            use_tag = '{}:{}'.format(ns_key, tag)
         else:
-            tag_start = xml_ns[ns_key] + ':'
-
-        if node.text:
-            kwargs['Value'] = node.text
-            kwargs['Comments'] = None
+            use_tag = tag
+        if self.Value is None:
+            value = ''
         else:
-            value = []
-            for element in node:
-                tag_name = element.tag[len(tag_start):]
-                value.append(FreeFormType(Name=tag_name, Value=element.text))
-            kwargs['Value'] = None
-            kwargs['Comments'] = value
-        return super(CompoundCommentType, cls).from_node(node, xml_ns, ns_key=ns_key, kwargs=kwargs)
-
-    def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
-        the_tag = '{}:{}'.format(ns_key, tag) if ns_key is not None else tag
-        if self.Value is not None:
-            node = create_text_node(doc, the_tag, self.Value, parent=parent)
-        else:
-            node = create_new_node(doc, the_tag, parent=parent)
-            if self.Comments is not None:
-                for entry in self.Comments:
-                    child_tag = '{}:{}'.format(ns_key, entry.Name) if ns_key is not None else entry.Name
-                    create_text_node(doc, child_tag, entry.Value, parent=node)
+            value = self.Value
+        node = create_text_node(doc, use_tag, value, parent=parent)
+        if self.Component is not None:
+            node.attrib['Component'] = self.Component
         return node
 
 
@@ -652,9 +606,13 @@ class TheObjectType(Serializable):
         'Accessories', 'PaintScheme', 'Camouflage', 'Obscuration', 'ObscurationPercent', 'ImageLevelObscuration',
         'ImageLocation', 'GeoLocation',
         'TargetToClutterRatio', 'VisualQualityMetric',
-        'UnderlyingTerrain', 'OverlyingTerrain', 'TerrainTexture', 'SeasonalCover')
+        'UnderlyingTerrain', 'OverlyingTerrain', 'TerrainTexture', 'SeasonalCover', 
+        'ProjectionPerturbation')
     _required = ('SystemName', 'ImageLocation', 'GeoLocation')
     _numeric_format = {'ObscurationPercent': '0.17G', }
+    _collections_tags = {
+        'Articulation': {'array': False, 'child_tag': 'Articulation'}, 
+        'Configuration': {'array': False, 'child_tag': 'Configuration'}}
     # descriptors
     SystemName = StringDescriptor(
         'SystemName', _required, strict=DEFAULT_STRICT,
@@ -710,12 +668,12 @@ class TheObjectType(Serializable):
     Orientation = SerializableDescriptor(
         'Orientation', OrientationType, _required, strict=DEFAULT_STRICT,
         docstring='The actual orientation size of the object')  # type: Optional[OrientationType]
-    Articulation = SerializableDescriptor(
-        'Articulation', CompoundCommentType, _required,
-        docstring='Articulation description(s)')  # type: Optional[CompoundCommentType]
-    Configuration = SerializableDescriptor(
-        'Configuration', CompoundCommentType, _required,
-        docstring='Configuration description(s)')  # type: Optional[CompoundCommentType]
+    Articulation = SerializableListDescriptor(
+        'Articulation', StringWithComponentType, _collections_tags, _required, 
+        docstring='')  # type: List[StringWithComponentType]
+    Configuration = SerializableListDescriptor(
+        'Configuration', StringWithComponentType, _collections_tags, _required, 
+        docstring='')  # type: List[StringWithComponentType]        
     Accessories = StringDescriptor(
         'Accessories', _required, strict=DEFAULT_STRICT,
         docstring='Defines items that are out of the norm, or have been added or removed.')  # type: Optional[str]
@@ -760,6 +718,9 @@ class TheObjectType(Serializable):
     SeasonalCover = StringDescriptor(
         'SeasonalCover', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: Optional[str]
+    ProjectionPerturbation = SerializableDescriptor(
+        'ProjectionPerturbation', ProjectionPerturbationType, _required, 
+        docstring='')  # type: Optional[ProjectionPerturbationType]
 
     def __init__(self, SystemName=None, SystemComponent=None, NATOName=None,
                  Function=None, Version=None, DecoyType=None, SerialNumber=None,
@@ -773,7 +734,8 @@ class TheObjectType(Serializable):
                  ImageLocation=None, GeoLocation=None,
                  TargetToClutterRatio=None, VisualQualityMetric=None,
                  UnderlyingTerrain=None, OverlyingTerrain=None,
-                 TerrainTexture=None, SeasonalCover=None,
+                 TerrainTexture=None, SeasonalCover=None, 
+                 ProjectionPerturbation=None,
                  **kwargs):
         """
         Parameters
@@ -794,8 +756,8 @@ class TheObjectType(Serializable):
         GroundPlane : None|PlanePhysicalType
         Size : None|SizeType|numpy.ndarray|list|tuple
         Orientation : OrientationType
-        Articulation : None|CompoundCommentType|str|List[FreeFormType]
-        Configuration : None|CompoundCommentType|str|List[FreeFormType]
+        Articulation : None|str|List[StringWithComponentType]
+        Configuration : None|str|List[StringWithComponentType]
         Accessories : None|str
         PaintScheme : None|str
         Camouflage : None|str
@@ -810,6 +772,7 @@ class TheObjectType(Serializable):
         OverlyingTerrain : None|str
         TerrainTexture : None|str
         SeasonalCover : None|str
+        ProjectionPerturbation : None|ProjectionPerturbationType
         kwargs
             Other keyword arguments
         """
@@ -838,20 +801,18 @@ class TheObjectType(Serializable):
         self.Orientation = Orientation
 
         if isinstance(Articulation, str):
-            self.Articulation = CompoundCommentType(Value=Articulation)
+            self.add_articulation(Articulation)
         elif isinstance(Articulation, list):
-            self.Articulation = CompoundCommentType(Comments=Articulation)
-        elif isinstance(Articulation, dict):
-            self.Articulation = CompoundCommentType(**Articulation)
+            for entry in Articulation:
+                self.add_articulation(entry)
         else:
             self.Articulation = Articulation
 
         if isinstance(Configuration, str):
-            self.Configuration = CompoundCommentType(Value=Configuration)
+            self.add_configuration(Configuration)
         elif isinstance(Configuration, list):
-            self.Configuration = CompoundCommentType(Comments=Configuration)
-        elif isinstance(Configuration, dict):
-            self.Configuration = CompoundCommentType(**Configuration)
+            for entry in Configuration:
+                self.add_configuration(entry)
         else:
             self.Configuration = Configuration
 
@@ -871,6 +832,7 @@ class TheObjectType(Serializable):
         self.OverlyingTerrain = OverlyingTerrain
         self.TerrainTexture = TerrainTexture
         self.SeasonalCover = SeasonalCover
+        self.ProjectionPerturbation = ProjectionPerturbation
         super(TheObjectType, self).__init__(**kwargs)
 
     def _check_placement(self, rows, cols, row_bounds, col_bounds, overlap_cutoff=0.5):
@@ -949,9 +911,7 @@ class TheObjectType(Serializable):
             return -1
 
         if not sicd.can_project_coordinates():
-            logger.warning(
-                'This sicd does not permit projection,\n\t'
-                'so the image location can not be inferred')
+            logger.warning(_no_projection_text)
             return -1
 
         # gets the prospective image location
@@ -1019,15 +979,13 @@ class TheObjectType(Serializable):
             return
 
         if not sicd.can_project_coordinates():
-            logger.warning(
-                'This sicd does not permit projection,\n\t'
-                'so the geographical location can not be inferred')
+            logger.warning(_no_projection_text)
             return
 
         self.GeoLocation = GeoLocationType.from_image_location(
             self.ImageLocation, sicd, projection_type=projection_type, **kwargs)
 
-    def set_chip_details_from_sicd(self, sicd, layover_shift=False, populate_in_periphery=False, minimum_pad=5):
+    def set_chip_details_from_sicd(self, sicd, layover_shift=False, populate_in_periphery=False, padding_fraction=0.05, minimum_pad=0):
         """
         Set the chip information with respect to the given SICD, assuming that the
         image location and size are defined.
@@ -1044,6 +1002,8 @@ class TheObjectType(Serializable):
             space.
         populate_in_periphery : bool
             Should we populate for peripheral?
+        padding_fraction : None|float
+            Default fraction of box dimension by which to pad.
         minimum_pad : int|float
             The minimum number of pixels by which to pad for the chip definition
 
@@ -1112,8 +1072,11 @@ class TheObjectType(Serializable):
         max_cols = max(numpy.max(pixel_box[:, 1]), numpy.max(layover_box[:, 1]))
 
         # determine the padding amount
-        row_pad = max(minimum_pad, 0.3*(max_rows-min_rows))
-        col_pad = max(minimum_pad, 0.3*(max_cols-min_cols))
+        padding_fraction = 0.0 if padding_fraction is None else float(padding_fraction)
+        if padding_fraction < 0.0:
+            padding_fraction = 0.0
+        row_pad = max(minimum_pad, padding_fraction*(max_rows-min_rows))
+        col_pad = max(minimum_pad, padding_fraction*(max_cols-min_cols))
 
         # check our bounding information
         rows = sicd.ImageData.NumRows
@@ -1199,8 +1162,42 @@ class TheObjectType(Serializable):
         image_geometry_object.geometries.append(chip_area)
         return image_geometry_object, geometry_properties
 
+    def add_articulation(self, value):
+        if value is None:
+            return
 
-# other types for the DetailObjectInfo
+        if isinstance(value, str):
+            value = StringWithComponentType(Value=value)
+        elif isinstance(value, dict):
+            value = StringWithComponentType(**value)
+
+        if not isinstance(value, StringWithComponentType):
+            raise TypeError('values for Articulation must be of type str or StringWithComponentType')
+        
+        if self.Articulation is None:
+            self.Articulation = [value, ]
+        else:
+            self.Articulation.append(value)
+
+    def add_configuration(self, value):
+        if value is None:
+            return
+
+        if isinstance(value, str):
+            value = StringWithComponentType(Value=value)
+        elif isinstance(value, dict):
+            value = StringWithComponentType(**value)
+
+        if not isinstance(value, StringWithComponentType):
+            raise TypeError('values for Configuration must be of type str or StringWithComponentType')
+        
+        if self.Configuration is None:
+            self.Configuration = [value, ]
+        else:
+            self.Configuration.append(value)
+
+
+# other types for the ObjectInfo
 
 class NominalType(Serializable):
     _fields = ('ChipSize', )
@@ -1254,7 +1251,7 @@ class PlaneNominalType(Serializable):
 
 # the main type
 
-class DetailObjectInfoType(Serializable):
+class ObjectInfoType(Serializable):
     _fields = (
         'NumberOfObjectsInImage', 'NumberOfObjectsInScene',
         'SlantPlane', 'GroundPlane', 'Objects')
@@ -1301,11 +1298,11 @@ class DetailObjectInfoType(Serializable):
         self.SlantPlane = SlantPlane
         self.GroundPlane = GroundPlane
         self.Objects = Objects
-        super(DetailObjectInfoType, self).__init__(**kwargs)
+        super(ObjectInfoType, self).__init__(**kwargs)
 
     def set_image_location_from_sicd(
             self, sicd, layover_shift=True, populate_in_periphery=False,
-            include_out_of_range=False, minimum_pad=20):
+            include_out_of_range=False, padding_fraction=None, minimum_pad=None):
         """
         Set the image location information with respect to the given SICD,
         assuming that the physical coordinates are populated. The `NumberOfObjectsInImage`
@@ -1320,7 +1317,8 @@ class DetailObjectInfoType(Serializable):
             Populate image information for objects on the periphery?
         include_out_of_range : bool
             Include the objects which are out of range (with no image location information)?
-        minimum_pad : int|float
+        padding_fraction : None|float
+        minimum_pad : None|int|float
         """
 
         def update_object(temp_object, in_image_count):
@@ -1333,7 +1331,7 @@ class DetailObjectInfoType(Serializable):
                 use_object = True
                 temp_object.set_chip_details_from_sicd(
                     sicd, layover_shift=layover_shift, populate_in_periphery=True,
-                    minimum_pad=minimum_pad)
+                    padding_fraction=padding_fraction, minimum_pad=minimum_pad)
                 in_image_count += 1
             return use_object, in_image_count
 

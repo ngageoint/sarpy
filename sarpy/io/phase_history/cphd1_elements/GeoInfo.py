@@ -142,7 +142,7 @@ class GeoInfoType(Serializable):
             for el in GeoInfo:
                 self.addGeoInfo(el)
         else:
-            raise ('GeoInfo got unexpected type {}'.format(type(GeoInfo)))
+            raise ValueError('GeoInfo got unexpected type {}'.format(type(GeoInfo)))
         super(GeoInfoType, self).__init__(**kwargs)
 
     @property

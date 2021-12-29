@@ -25,6 +25,8 @@ from sarpy.io.xml.base import parse_xml_from_string
 
 logger = logging.getLogger(__name__)
 
+_unsupported_pix_size = 'Got unsupported sio data type/pixel size = `{}`'
+
 
 ########
 # base expected functionality for a module with an implemented Reader
@@ -91,7 +93,7 @@ class SIODetails(object):
             if not (numpy.all(init_head[2:] == numpy.array([13, 8]))
                     or numpy.all(init_head[2:] == numpy.array([12, 4]))
                     or numpy.all(init_head[2:] == numpy.array([11, 2]))):
-                raise SarpyIOError('Got unsupported sio data type/pixel size = {}'.format(init_head[2:]))
+                raise SarpyIOError(_unsupported_pix_size.format(init_head[2:]))
             self._head = init_head
 
     @property
@@ -130,7 +132,7 @@ class SIODetails(object):
         elif pixel_size == 2:
             return 'uint8'
         else:
-            raise ValueError('Got unsupported sio data type/pixel size = {}'.format(self._head[2:]))
+            raise ValueError(_unsupported_pix_size.format(self._head[2:]))
 
     @property
     def pixel_type(self):  # type: () -> Union[None, str]
@@ -141,7 +143,7 @@ class SIODetails(object):
         elif self._head[2] == 11 and self._head[3] == 2:
             return 'AMP8I_PHS8I'
         else:
-            raise ValueError('Got unsupported sio data type/pixel size = {}'.format(self._head[2:]))
+            raise ValueError(_unsupported_pix_size.format(self._head[2:]))
 
     def _read_user_data(self):
         if self._user_data is not None:
@@ -223,8 +225,6 @@ class SIODetails(object):
             else:
                 quoted_token = re.match('"(?P<quoted>[^"]+)"', line)
                 if quoted_token:  # Some values with spaces are surrounded by quotes
-                    # import pdb
-                    # pdb.set_trace()
                     tokens = [quoted_token.group('quoted'),
                               line[quoted_token.end('quoted') + 1:].strip()]
                 else:  # No quoted values were found
@@ -403,10 +403,10 @@ class SIOWriter(BIPWriter):
             for name in user_data:
                 name_bytes = name.encode('utf-8')
                 fi.write(struct.pack('{}I'.format(endian), len(name_bytes)))
-                fi.write(struct.pack('{}{}s'.format(endian, len(name_bytes), name_bytes)))
+                fi.write(struct.pack('{}{}s'.format(endian, len(name_bytes)), name_bytes))
                 val_bytes = user_data[name].encode('utf-8')
                 fi.write(struct.pack('{}I'.format(endian), len(val_bytes)))
-                fi.write(struct.pack('{}{}s'.format(endian, len(val_bytes), val_bytes)))
+                fi.write(struct.pack('{}{}s'.format(endian, len(val_bytes)), val_bytes))
                 data_offset += 4 + len(name_bytes) + 4 + len(val_bytes)
         # initialize the bip writer - we're ready to go
         output_bands = 2

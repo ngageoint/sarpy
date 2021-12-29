@@ -24,6 +24,10 @@ from sarpy.io.received.base import CRSDTypeReader
 
 logger = logging.getLogger(__name__)
 
+_unhandled_version_text = 'Got unhandled CRSD version number `{}`'
+_missing_channel_identifier_text = 'Cannot find CRSD channel for identifier `{}`'
+_index_range_text = 'index must be in the range `[0, {})`'
+
 
 def is_a(file_name):
     """
@@ -171,7 +175,7 @@ class CRSDDetails(object):
         if self.crsd_version.startswith('1.0'):
             self._crsd_header = CRSDHeader.from_file_object(self._file_object)
         else:
-            raise ValueError('Got unhandled version number {}'.format(self.crsd_version))
+            raise ValueError(_unhandled_version_text.format(self.crsd_version))
 
     def _extract_crsd(self):
         """
@@ -182,7 +186,7 @@ class CRSDDetails(object):
         if self.crsd_version.startswith('1.0'):
             the_type = CRSDType
         else:
-            raise ValueError('Got unhandled version number {}'.format(self.crsd_version))
+            raise ValueError(_unhandled_version_text.format(self.crsd_version))
 
         root_node, xml_ns = parse_xml_from_string(xml)
         if 'default' in xml_ns:
@@ -209,7 +213,7 @@ class CRSDDetails(object):
             self._file_object.seek(header.XML_BLOCK_BYTE_OFFSET, os.SEEK_SET)
             xml = self._file_object.read(header.XML_BLOCK_SIZE)
         else:
-            raise ValueError('Got unhandled version number {}'.format(self.crsd_version))
+            raise ValueError(_unhandled_version_text.format(self.crsd_version))
         return xml
 
     def __del__(self):
@@ -218,7 +222,7 @@ class CRSDDetails(object):
             # noinspection PyBroadException
             try:
                 self._file_object.close()
-            except:
+            except Exception:
                 pass
 
 
@@ -617,11 +621,11 @@ class CRSDReader1_0(CRSDReader):
             if index in self._channel_map:
                 return self._channel_map[index]
             else:
-                raise KeyError('Cannot find CRSD channel for identifier {}'.format(index))
+                raise KeyError(_missing_channel_identifier_text.format(index))
         else:
             int_index = int(index)
             if not (0 <= int_index < crsd_meta.Data.NumCRSDChannels):
-                raise ValueError('index must be in the range [0, {})'.format(crsd_meta.Data.NumCRSDChannels))
+                raise ValueError(_index_range_text.format(crsd_meta.Data.NumCRSDChannels))
             return int_index
 
     def _validate_index_key(self, index):
@@ -643,11 +647,11 @@ class CRSDReader1_0(CRSDReader):
             if index in self._channel_map:
                 return index
             else:
-                raise KeyError('Cannot find CRSD channel for identifier {}'.format(index))
+                raise KeyError(_missing_channel_identifier_text.format(index))
         else:
             int_index = int(index)
             if not (0 <= int_index < crsd_meta.Data.NumCRSDChannels):
-                raise ValueError('index must be in the range [0, {})'.format(crsd_meta.Data.NumCRSDChannels))
+                raise ValueError(_index_range_text.format(crsd_meta.Data.NumCRSDChannels))
             return crsd_meta.Data.Channels[int_index].Identifier
 
     def read_pvp_variable(self, variable, index, the_range=None):
@@ -827,11 +831,11 @@ class CRSDWriter1_0(AbstractWriter):
             if index in self._channel_map:
                 return self._channel_map[index]
             else:
-                raise KeyError('Cannot find CRSD channel for identifier {}'.format(index))
+                raise KeyError(_missing_channel_identifier_text.format(index))
         else:
             int_index = int(index)
             if not (0 <= int_index < self.crsd_meta.Data.NumCRSDChannels):
-                raise ValueError('index must be in the range [0, {})'.format(self.crsd_meta.Data.NumCRSDChannels))
+                raise ValueError(_index_range_text.format(self.crsd_meta.Data.NumCRSDChannels))
             return int_index
 
     def _validate_channel_key(self, index):
@@ -851,11 +855,11 @@ class CRSDWriter1_0(AbstractWriter):
             if index in self._channel_map:
                 return index
             else:
-                raise KeyError('Cannot find CRSD channel for identifier {}'.format(index))
+                raise KeyError(_missing_channel_identifier_text.format(index))
         else:
             int_index = int(index)
             if not (0 <= int_index < self.crsd_meta.Data.NumCRSDChannels):
-                raise ValueError('index must be in the range [0, {})'.format(self.crsd_meta.Data.NumCRSDChannels))
+                raise ValueError(_index_range_text.format(self.crsd_meta.Data.NumCRSDChannels))
             return self.crsd_meta.Data.Channels[int_index].Identifier
 
     def _validate_support_index(self, index):
@@ -879,7 +883,7 @@ class CRSDWriter1_0(AbstractWriter):
         else:
             int_index = int(index)
             if not (0 <= int_index < len(self.crsd_meta.Data.SupportArrays)):
-                raise ValueError('index must be in the range [0, {})'.format(len(self.crsd_meta.Data.SupportArrays)))
+                raise ValueError(_index_range_text.format(len(self.crsd_meta.Data.SupportArrays)))
             return int_index
 
     def _validate_support_key(self, index):
@@ -903,7 +907,7 @@ class CRSDWriter1_0(AbstractWriter):
         else:
             int_index = int(index)
             if not (0 <= int_index < len(self.crsd_meta.Data.SupportArrays)):
-                raise ValueError('index must be in the range [0, {})'.format(len(self.crsd_meta.Data.SupportArrays)))
+                raise ValueError(_index_range_text.format(len(self.crsd_meta.Data.SupportArrays)))
             return self.crsd_meta.Data.SupportArrays[int_index].Identifier
 
     def _initialize_writing(self):

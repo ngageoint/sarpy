@@ -38,6 +38,8 @@ from sarpy.io.product.sidd1_elements.ProductCreation import ProductCreationType 
 
 logger = logging.getLogger(__name__)
 
+_proj_helper_text = 'Unhandled projection helper type `{}`'
+
 
 def _fit_timecoa_poly(proj_helper, bounds):
     """
@@ -203,7 +205,7 @@ def create_sidd_structure_v2(ortho_helper, bounds, product_class, pixel_type):
             return ExploitationFeaturesType2.from_sicd(
                 proj_helper.sicd, proj_helper.row_vector, proj_helper.col_vector)
         else:
-            raise ValueError('Unhandled projection helper type {}'.format(type(proj_helper)))
+            raise ValueError(_proj_helper_text.format(type(proj_helper)))
 
     pixel_type = pixel_type.upper()
     # validate bounds and get pixel coordinates rectangle
@@ -272,7 +274,7 @@ def create_sidd_structure_v1(ortho_helper, bounds, product_class, pixel_type):
                                         Y=proj_helper.sicd.Position.ARPPoly.Y.get_array(),
                                         Z=proj_helper.sicd.Position.ARPPoly.Z.get_array()))
         else:
-            raise ValueError('Unhandled projection helper type {}'.format(type(proj_helper)))
+            raise ValueError(_proj_helper_text.format(type(proj_helper)))
 
     def _create_exploitation_v1():
         proj_helper = ortho_helper.proj_helper
@@ -280,7 +282,7 @@ def create_sidd_structure_v1(ortho_helper, bounds, product_class, pixel_type):
             return ExploitationFeaturesType1.from_sicd(
                 proj_helper.sicd, proj_helper.row_vector, proj_helper.col_vector)
         else:
-            raise ValueError('Unhandled projection helper type {}'.format(type(proj_helper)))
+            raise ValueError(_proj_helper_text.format(type(proj_helper)))
 
     pixel_type = pixel_type.upper()
     # validate bounds and get pixel coordinates rectangle

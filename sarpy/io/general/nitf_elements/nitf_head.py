@@ -171,6 +171,7 @@ class NITFHeader(NITFElement):
 
     @FHDR.setter
     def FHDR(self, value):
+        # static value "NITF", but the NITFElement extension usage requires phantom setting
         pass
 
     @property
@@ -184,6 +185,7 @@ class NITFHeader(NITFElement):
 
     @FVER.setter
     def FVER(self, value):
+        # static value "02.10", but the NITFElement extension usage requires phantom setting
         pass
 
     @property
@@ -196,6 +198,7 @@ class NITFHeader(NITFElement):
 
     @NUMX.setter
     def NUMX(self, value):
+        # static value 0, but the NITFElement extension usage requires phantom setting
         pass
 
     @property
@@ -208,6 +211,7 @@ class NITFHeader(NITFElement):
 
     @HL.setter
     def HL(self, value):
+        # derived value 0, but the NITFElement extension usage requires phantom setting
         pass
 
 
@@ -334,6 +338,7 @@ class NITFHeader0(NITFElement):
 
     @FHDR.setter
     def FHDR(self, value):
+        # static value "NITF", but the NITFElement extension usage requires phantom setting
         pass
 
     @property
@@ -367,4 +372,5 @@ class NITFHeader0(NITFElement):
 
     @HL.setter
     def HL(self, value):
+        # derived value, but the NITFElement extension usage requires phantom setting
         pass

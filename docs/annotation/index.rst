@@ -10,3 +10,5 @@ Annotation elements (sarpy.annotation)
     rcs
     afrl
     afrl_elements/index
+    afrl_rde
+    afrl_rde_elements/index

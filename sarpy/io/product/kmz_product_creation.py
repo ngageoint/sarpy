@@ -34,9 +34,10 @@ import os
 
 import numpy
 
-from sarpy.processing.ortho_rectify import OrthorectificationHelper, \
-    NearestNeighborMethod, PGProjection, FullResolutionFetcher, \
-    OrthorectificationIterator
+from sarpy.processing.rational_polynomial import SarpyRatPolyError
+from sarpy.processing.ortho_rectify.base import FullResolutionFetcher, OrthorectificationIterator
+from sarpy.processing.ortho_rectify.ortho_methods import OrthorectificationHelper, NearestNeighborMethod
+from sarpy.processing.ortho_rectify.projection_helper import PGProjection, PGRatPolyProjection
 from sarpy.io.kml import Document
 from sarpy.io.complex.base import SICDTypeReader
 from sarpy.io.complex.sicd_elements.SICD import SICDType
@@ -604,7 +605,10 @@ def add_sicd_to_kmz(kmz_document, reader, index=0, pixel_limit=2048,
     # create our projection helper
     index = int(index)
     sicd = reader.get_sicds_as_tuple()[index]
-    proj_helper = PGProjection(sicd)
+    try:
+        proj_helper = PGRatPolyProjection(sicd)
+    except SarpyRatPolyError:
+        proj_helper = PGProjection(sicd)
     # create our orthorectification helper
     ortho_helper = NearestNeighborMethod(reader, index=index, proj_helper=proj_helper)
     if pixel_limit is not None:

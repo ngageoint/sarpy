@@ -18,6 +18,13 @@ from sarpy.io.xml.descriptors import IntegerDescriptor, StringEnumDescriptor, \
 from .base import DEFAULT_STRICT, FLOAT_FORMAT
 
 
+_len2_array_text = 'Expected array to be of length 2,\n\t' \
+                   'and received `{}`'
+_len3_array_text = 'Expected array to be of length 3,\n\t' \
+                   'and received `{}`'
+_array_type_text = 'Expected array to be numpy.ndarray, list, or tuple,\n\tgot `{}`'
+
+
 #########
 # Polarization constants
 POLARIZATION1_VALUES = ('V', 'H', 'RHC', 'LHC', 'OTHER', 'UNKNOWN', 'SEQUENCE')
@@ -86,9 +93,9 @@ class XYZType(Serializable, Arrayable):
             return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 3:
-                raise ValueError('Expected array to be of length 3, and received {}'.format(array))
+                raise ValueError(_len3_array_text.format(array))
             return cls(X=array[0], Y=array[1], Z=array[2])
-        raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
+        raise ValueError(_array_type_text.format(type(array)))
 
     def get_array(self, dtype=numpy.float64):
         """
@@ -178,9 +185,9 @@ class LatLonType(Serializable, Arrayable):
             return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 2:
-                raise ValueError('Expected array to be of length 2, and received {}'.format(array))
+                raise ValueError(_len2_array_text.format(array))
             return cls(Lat=array[0], Lon=array[1])
-        raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
+        raise ValueError(_array_type_text.format(type(array)))
 
     def dms_format(self, frac_secs=False):
         """
@@ -256,9 +263,9 @@ class LatLonArrayElementType(LatLonType):
             return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 2:
-                raise ValueError('Expected array to be of length 2, and received {}'.format(array))
+                raise ValueError(_len2_array_text.format(array))
             return cls(Lat=array[0], Lon=array[1], index=index)
-        raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
+        raise ValueError(_array_type_text.format(type(array)))
 
 
 class LatLonRestrictionType(LatLonType):
@@ -306,9 +313,9 @@ class LatLonRestrictionType(LatLonType):
             return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 2:
-                raise ValueError('Expected array to be of length 2, and received {}'.format(array))
+                raise ValueError(_len2_array_text.format(array))
             return cls(Lat=array[0], Lon=array[1])
-        raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
+        raise ValueError(_array_type_text.format(type(array)))
 
 
 class LatLonHAEType(LatLonType):
@@ -379,9 +386,9 @@ class LatLonHAEType(LatLonType):
             return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 3:
-                raise ValueError('Expected array to be of length 3, and received {}'.format(array))
+                raise ValueError(_len3_array_text.format(array))
             return cls(Lat=array[0], Lon=array[1], HAE=array[2])
-        raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
+        raise ValueError(_array_type_text.format(type(array)))
 
 
 class LatLonHAERestrictionType(LatLonHAEType):
@@ -429,9 +436,9 @@ class LatLonHAERestrictionType(LatLonHAEType):
             return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 3:
-                raise ValueError('Expected array to be of length 3, and received {}'.format(array))
+                raise ValueError(_len3_array_text.format(array))
             return cls(Lat=array[0], Lon=array[1], HAE=array[2])
-        raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
+        raise ValueError(_array_type_text.format(type(array)))
 
 
 class LatLonCornerType(LatLonType):
@@ -484,7 +491,7 @@ class LatLonCornerType(LatLonType):
             if len(array) < 2:
                 raise ValueError('Expected coords to be of length 2, and received {}'.format(array))
             return cls(Lat=array[0], Lon=array[1], index=index)
-        raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
+        raise ValueError(_array_type_text.format(type(array)))
 
 
 class LatLonCornerStringType(LatLonType):
@@ -535,9 +542,9 @@ class LatLonCornerStringType(LatLonType):
             return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 2:
-                raise ValueError('Expected array to be of length 2, and received {}'.format(array))
+                raise ValueError(_len2_array_text.format(array))
             return cls(Lat=array[0], Lon=array[1], index=index)
-        raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
+        raise ValueError(_array_type_text.format(type(array)))
 
 
 class LatLonHAECornerRestrictionType(LatLonHAERestrictionType):
@@ -590,9 +597,9 @@ class LatLonHAECornerRestrictionType(LatLonHAERestrictionType):
             return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 3:
-                raise ValueError('Expected array to be of length 3, and received {}'.format(array))
+                raise ValueError(_len3_array_text.format(array))
             return cls(Lat=array[0], Lon=array[1], HAE=array[2], index=index)
-        raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
+        raise ValueError(_array_type_text.format(type(array)))
 
 
 class LatLonHAECornerStringType(LatLonHAEType):
@@ -642,9 +649,9 @@ class LatLonHAECornerStringType(LatLonHAEType):
             return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 3:
-                raise ValueError('Expected array to be of length 3, and received {}'.format(array))
+                raise ValueError(_len3_array_text.format(array))
             return cls(Lat=array[0], Lon=array[1], HAE=array[2], index=index)
-        raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
+        raise ValueError(_array_type_text.format(type(array)))
 
 
 #######
@@ -711,9 +718,9 @@ class RowColType(Serializable, Arrayable):
             return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 2:
-                raise ValueError('Expected array to be of length 2, and received {}'.format(array))
+                raise ValueError(_len2_array_text.format(array))
             return cls(Row=array[0], Col=array[1])
-        raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
+        raise ValueError(_array_type_text.format(type(array)))
 
 
 class RowColArrayElement(RowColType):
@@ -764,9 +771,9 @@ class RowColArrayElement(RowColType):
             return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 2:
-                raise ValueError('Expected array to be of length 2, and received {}'.format(array))
+                raise ValueError(_len2_array_text.format(array))
             return cls(Row=array[0], Col=array[1], index=index)
-        raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
+        raise ValueError(_array_type_text.format(type(array)))
 
 
 ###############
@@ -1430,9 +1437,9 @@ class XYZPolyType(Serializable, Arrayable):
             return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 3:
-                raise ValueError('Expected array to be of length 3, and received {}'.format(array))
+                raise ValueError(_len3_array_text.format(array))
             return cls(X=array[0], Y=array[1], Z=array[2])
-        raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
+        raise ValueError(_array_type_text.format(type(array)))
 
     def derivative(self, der_order=1, return_poly=False):
         """
@@ -1575,9 +1582,9 @@ class XYZPolyAttributeType(XYZPolyType):
             return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 3:
-                raise ValueError('Expected array to be of length 3, and received {}'.format(array))
+                raise ValueError(_len3_array_text.format(array))
             return cls(X=array[0], Y=array[1], Z=array[2], index=index)
-        raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
+        raise ValueError(_array_type_text.format(type(array)))
 
 
 class GainPhasePolyType(Serializable):

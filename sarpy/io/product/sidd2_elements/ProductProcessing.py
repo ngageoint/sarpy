@@ -67,7 +67,7 @@ class ProcessingModuleType(Serializable):
             for el in ProcessingModules:
                 self.addProcessingModule(el)
         else:
-            raise ('ProcessingModules got unexpected type {}'.format(type(ProcessingModules)))
+            raise ValueError('ProcessingModules got unexpected type {}'.format(type(ProcessingModules)))
         super(ProcessingModuleType, self).__init__(**kwargs)
 
     @property
@@ -185,7 +185,7 @@ class ProductProcessingType(Serializable):
             for el in ProcessingModules:
                 self.addProcessingModule(el)
         else:
-            raise ('ProcessingModules got unexpected type {}'.format(type(ProcessingModules)))
+            raise ValueError('ProcessingModules got unexpected type {}'.format(type(ProcessingModules)))
         super(ProductProcessingType, self).__init__(**kwargs)
 
     @property
