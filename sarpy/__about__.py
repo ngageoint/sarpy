@@ -26,7 +26,7 @@ __all__ = ['__version__',
            '__title__', '__summary__',
            '__license__', '__copyright__']
 
-from .__details__ import __classification__, _post_identifier
+from sarpy.__details__ import __classification__, _post_identifier
 
 __version__ = "1.2.46" + _post_identifier
 
