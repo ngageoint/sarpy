@@ -66,7 +66,7 @@ def two_dim_poly_fit(x, y, z, x_order=2, y_order=2, x_scale=1, y_scale=1, rcond=
         A[:, i] = numpy.power(x, index[0])*numpy.power(y, index[1])
     # perform least squares fit
     sol, residuals, rank, sing_values = lstsq(A, z, cond=rcond)
-    if len(residuals) != 0:
+    if isinstance(residuals, (numpy.ndarray, numpy.number)):
         residuals /= float(x.size)
     sol = numpy.power(x_scale, numpy.arange(x_order+1))[:, numpy.newaxis] * \
           numpy.reshape(sol, (x_order+1, y_order+1)) * \

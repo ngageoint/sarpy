@@ -1,7 +1,6 @@
 # This details the important differences introduced in sarpy 1.2
 
 * .46 - Introduction of Rational Polynomial based projection helper (for speed)
-        Correction of bug in SIDD production for missed columns
         Splitting of the NGA RDE AFRL strcture and original AFRL structure
         Correction of various minor bugs and code smells
 * .45 - Correction of ICEYE ModeType for specific collection mode

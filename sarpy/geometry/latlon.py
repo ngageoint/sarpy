@@ -187,7 +187,7 @@ def num(latlon_input):
     # String input
     # Handles decimal degrees and degree/minutes/second with delimiters
     # Any non-numeric characters in string are considered delimiters
-    tokens_str = list(filter(lambda x: len(x.strip()) > 0, re.split('[^.\d]', latlon_input)))
+    tokens_str = list(filter(lambda x: len(x.strip()) > 0, re.split(r'[^.\d]', latlon_input)))
     tokens = [float(x) for x in tokens_str]
     decimal_degrees = numpy.polynomial.polynomial.polyval(1/60., numpy.abs(tokens))
     if ('W' in latlon_input or 'S' in latlon_input) != ('-' in latlon_input):
