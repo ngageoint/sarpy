@@ -887,15 +887,13 @@ class _ItemArrayHeaders(BaseNITFElement):
         return 3
 
     @classmethod
-    def from_bytes(cls, value, start, subhead_len=0, item_len=0):
+    def from_bytes(cls, value, start):
         """
 
         Parameters
         ----------
         value : bytes|str
         start : int
-        subhead_len : int
-        item_len : int
 
         Returns
         -------
