@@ -507,8 +507,6 @@ class GeoLocationType(Serializable):
         # make sure this is defined, for the sake of efficiency
         the_structure.define_coa_projection(overide=False)
 
-        kwargs = {}
-
         if isinstance(the_structure, SICDType):
             image_shift = numpy.array(
                 [the_structure.ImageData.FirstRow, the_structure.ImageData.FirstCol], dtype='float64')
