@@ -1,5 +1,6 @@
 # This details the important differences introduced in sarpy 1.2
 
+* .48 - Resolution of bug resulting in empty columns in orthorectified image
 * .47 - Resolution of bugs revealed by sonarqube
 * .46 - Introduction of Rational Polynomial based projection helper (for speed)
         Splitting of the NGA RDE AFRL strcture and original AFRL structure
