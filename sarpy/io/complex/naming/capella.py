@@ -1,11 +1,9 @@
-# -*- coding: utf-8 -*-
-
 from sarpy.io.complex.naming.utils import get_pass_number
 
 __classification__ = "NOT FOR PUBLIC RELEASE"
 __author__ = "Thomas McCullough"
 
-_orbits_per_day = 15.0357
+_orbits_per_day = 16.
 
 
 def get_commercial_id(collector, cdate_str, cdate_mins, product_number):
@@ -25,11 +23,11 @@ def get_commercial_id(collector, cdate_str, cdate_mins, product_number):
     None|str
     """
 
-    if not collector.startswith('KMPS'):
+    if not collector.lower().startswith('capella'):
         return None
 
-    crad = 'KS'
-    cvehicle = '0'+collector[4:5]
+    crad = 'CP'
+    cvehicle = collector.split('-')[-1].upper() if collector.lower().startswith('capella-') else 'UN'
     pass_number = get_pass_number(cdate_mins, _orbits_per_day)
 
     return '{0:s}{1:s}{2:s}{3:s}{4:03d}'.format(cdate_str, crad, cvehicle, pass_number, product_number)

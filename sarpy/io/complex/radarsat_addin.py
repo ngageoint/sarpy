@@ -6,8 +6,7 @@ Specific functionality add-in. **Note that this is NOT part of the standard repo
 import logging
 
 __author__ = "Thomas McCullough"
-__note__ = "Not intended for public dissemination"
-__classification__ = "FOUO"
+__classification__ = "NOT FOR PUBLIC RELEASE"
 
 
 def extract_radarsat_sec(nitf, class_str):

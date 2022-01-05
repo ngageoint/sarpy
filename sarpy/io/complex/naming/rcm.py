@@ -3,7 +3,7 @@
 import re
 from sarpy.io.complex.naming.utils import get_pass_number
 
-__classification__ = "FOUO"
+__classification__ = "NOT FOR PUBLIC RELEASE"
 __author__ = "Thomas McCullough"
 
 
