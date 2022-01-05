@@ -616,9 +616,14 @@ class OrthorectificationIterator(object):
         else:
             return self.remap_function(ortho_data)
 
-    def _get_state_parameters(self):
+    def _get_state_parameters(self, pad=10):
         """
         Gets the pixel information associated with the current state.
+
+        Parameters
+        ----------
+        pad : int
+            Pad the pixel bounds, to accommodate for any edge cases.
 
         Returns
         -------
@@ -634,6 +639,9 @@ class OrthorectificationIterator(object):
             this_row_range = self._iteration_blocks[self._this_index]
             this_ortho_bounds, this_pixel_bounds = self._ortho_helper.extract_pixel_bounds(
                 (this_row_range[0], this_row_range[1], self.ortho_bounds[2], self.ortho_bounds[3]))
+        
+        this_pixel_bounds[0::2] -= pad
+        this_pixel_bounds[1::2] += pad
         return this_ortho_bounds, this_pixel_bounds
 
     def __iter__(self):
