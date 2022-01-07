@@ -116,5 +116,5 @@ logs/
 # mac nonsense
 *.DS_Store
 
-# sonarqube scanning
-.scannerwork
+# SonarQube scanning
+.scannerwork/

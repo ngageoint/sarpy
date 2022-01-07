@@ -192,7 +192,13 @@ class NITFDetails(object):
             raise SarpyIOError('Not a NITF 2.1 file.')
         if not isinstance(version_info, bytes):
             raise ValueError('Input file like object not open in bytes mode.')
-        version_info = version_info.decode('utf-8')
+        try:
+            version_info = version_info.decode('utf-8')
+        except Exception as e:
+            msg = 'Failed checking potential version with error\n\t{}'.format(e)
+            logger.info(msg)
+            raise SarpyIOError(msg)
+
         if version_info[:4] != 'NITF':
             raise SarpyIOError('File {} is not a NITF file.'.format(self._file_name))
         self._nitf_version = version_info[4:]
