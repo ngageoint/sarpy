@@ -115,8 +115,10 @@ class CapellaDetails(object):
         try:
             self._img_desc_tags = json.loads(img_format)  # type: Dict[str, Any]
         except Exception as e:
-            logger.error('Failed deserializing the ImageDescription tag as json with error {}'.format(e))
-            raise e
+            msg = 'Failed deserializing the ImageDescription tag as json with error {}'.format(e)
+            logger.info(msg)
+            raise SarpyIOError(msg)
+
         # verify the file is not compressed
         self._tiff_details.check_compression()
         # verify the file is not tiled
