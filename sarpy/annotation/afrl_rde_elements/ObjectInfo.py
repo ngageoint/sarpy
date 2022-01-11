@@ -469,7 +469,7 @@ class GeoLocationType(Serializable):
 
     # noinspection PyUnusedLocal
     @classmethod
-    def from_image_location(cls, image_location, the_structure, projection_type='HAE', **kwargs):
+    def from_image_location(cls, image_location, the_structure, projection_type='HAE', **proj_kwargs):
         """
         Construct the geographical location from the image location via
         projection using the SICD model.
@@ -487,7 +487,7 @@ class GeoLocationType(Serializable):
             The projection type selector, one of `['PLANE', 'HAE', 'DEM']`. Using `'DEM'`
             requires configuration for the DEM pathway described in
             :func:`sarpy.geometry.point_projection.image_to_ground_dem`.
-        kwargs
+        proj_kwargs
             The keyword arguments for the :func:`SICDType.project_image_to_ground_geo` method.
 
         Returns
@@ -512,12 +512,13 @@ class GeoLocationType(Serializable):
         else:
             image_shift = numpy.zeros((2, ), dtype='float64')
 
+        kwargs = {}
         for attribute in cls._fields:
             value = getattr(image_location, attribute)
             if value is not None:
                 coords = value.get_array(dtype='float64') + image_shift
                 geo_coords = the_structure.project_image_to_ground_geo(
-                    coords, ordering='latlong', projection_type=projection_type, **kwargs)
+                    coords, ordering='latlong', projection_type=projection_type, **proj_kwargs)
 
                 kwargs[attribute] = geo_coords
         out = GeoLocationType(**kwargs)
@@ -945,7 +946,7 @@ class TheObjectType(Serializable):
         self.ImageLocation = image_location
         return placement
 
-    def set_geo_location_from_sicd(self, sicd, projection_type='HAE', **kwargs):
+    def set_geo_location_from_sicd(self, sicd, projection_type='HAE', **proj_kwargs):
         """
         Set the geographical location information with respect to the given SICD,
         assuming that the image coordinates are populated.
@@ -962,7 +963,7 @@ class TheObjectType(Serializable):
             The projection type selector, one of `['PLANE', 'HAE', 'DEM']`. Using `'DEM'`
             requires configuration for the DEM pathway described in
             :func:`sarpy.geometry.point_projection.image_to_ground_dem`.
-        kwargs
+        proj_kwargs
             The keyword arguments for the :func:`SICDType.project_image_to_ground_geo` method.
         """
 
@@ -981,7 +982,7 @@ class TheObjectType(Serializable):
             return
 
         self.GeoLocation = GeoLocationType.from_image_location(
-            self.ImageLocation, sicd, projection_type=projection_type, **kwargs)
+            self.ImageLocation, sicd, projection_type=projection_type, **proj_kwargs)
 
     def set_chip_details_from_sicd(self, sicd, layover_shift=False, populate_in_periphery=False, padding_fraction=0.05, minimum_pad=0):
         """

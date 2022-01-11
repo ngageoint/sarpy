@@ -113,7 +113,7 @@ class GeoLocationType(Serializable):
 
     # noinspection PyUnusedLocal
     @classmethod
-    def from_image_location(cls, image_location, the_structure, projection_type='HAE', **kwargs):
+    def from_image_location(cls, image_location, the_structure, projection_type='HAE', **proj_kwargs):
         """
         Construct the geographical location from the image location via
         projection using the SICD model.
@@ -131,7 +131,7 @@ class GeoLocationType(Serializable):
             The projection type selector, one of `['PLANE', 'HAE', 'DEM']`. Using `'DEM'`
             requires configuration for the DEM pathway described in
             :func:`sarpy.geometry.point_projection.image_to_ground_dem`.
-        kwargs
+        proj_kwargs
             The keyword arguments for the :func:`SICDType.project_image_to_ground_geo` method.
 
         Returns
@@ -158,7 +158,7 @@ class GeoLocationType(Serializable):
 
         coords = image_location.CenterPixel.get_array(dtype='float64') + image_shift
         geo_coords = the_structure.project_image_to_ground_geo(
-            coords, ordering='latlong', projection_type=projection_type, **kwargs)
+            coords, ordering='latlong', projection_type=projection_type, **proj_kwargs)
 
         out = GeoLocationType(CenterPixel=geo_coords)
         return out
@@ -368,7 +368,7 @@ class TheFiducialType(Serializable):
         self.SlantPlane = PhysicalLocationType(Physical=image_location)
         return placement
 
-    def set_geo_location_from_sicd(self, sicd, projection_type='HAE', **kwargs):
+    def set_geo_location_from_sicd(self, sicd, projection_type='HAE', **proj_kwargs):
         """
         Set the geographical location information with respect to the given SICD,
         assuming that the image coordinates are populated.
@@ -385,7 +385,7 @@ class TheFiducialType(Serializable):
             The projection type selector, one of `['PLANE', 'HAE', 'DEM']`. Using `'DEM'`
             requires configuration for the DEM pathway described in
             :func:`sarpy.geometry.point_projection.image_to_ground_dem`.
-        kwargs
+        proj_kwargs
             The keyword arguments for the :func:`SICDType.project_image_to_ground_geo` method.
         """
 
@@ -404,7 +404,7 @@ class TheFiducialType(Serializable):
             return
 
         self.GeoLocation = GeoLocationType.from_image_location(
-            self.ImageLocation, sicd, projection_type=projection_type, **kwargs)
+            self.ImageLocation, sicd, projection_type=projection_type, **proj_kwargs)
 
 
 class FiducialInfoType(Serializable):

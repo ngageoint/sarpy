@@ -967,11 +967,10 @@ class LabelMetadataList(Jsonable):
         elif len(self._elements) == 0:
             self._elements.append(element)
         else:
-            if element.timestamp < self._elements[0].timestamp:
-                raise ValueError(
-                    'Element with timestamp {} cannot be inserted in front of element '
-                    'with timestamp {}.'.format(element.timestamp, self._elements[0].timestamp))
-            self._elements.insert(0, element)
+            for i, entry in enumerate(self._elements):
+                if element.timestamp > entry.timestamp:
+                    self._elements.insert(i, element)
+                    break
 
     @classmethod
     def from_dict(cls, the_json):  # type: (dict) -> LabelMetadataList
