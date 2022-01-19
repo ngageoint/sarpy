@@ -1745,7 +1745,7 @@ def image_to_ground_dem(
         append_grid_elements(lon_min, lon_max, lat_lon_grids)
 
     if len(lat_lon_grids) == 1:
-        return _image_to_ground_dem_block(
+        coords = _image_to_ground_dem_block(
             im_points, coa_proj, dem_interpolator, vertical_step_size,
             lat_lon_grids[0], block_size, lat_grid_size, lon_grid_size)
     else:
