@@ -35,11 +35,13 @@ Compensated Phase History Data (CPHD) latest version (1.0.1, 2018-05-21)
 For other NGA standards inquiries, the standards registry can be searched
  [here](https://nsgreg.nga.mil/registries/search/index.jsp?registryType=doc).
  
-File Reading Basic Capability
------------------------------
-The file reading capability provided in SarPy is generally fairly SAR specific, 
-and generally geared towards NGA SAR formats. Full support for reading and writing 
-SICD, SIDD, CPHD, and CRSD (standard pending) is currently provided.
+Basic Capability
+----------------
+The basic capabilities provided in SarPy is generally SAR specific, and largely 
+geared towards reading and manipulating data provided in NGA SAR file formats. 
+Full support for reading and writing SICD, SIDD, CPHD, and CRSD (standard pending) 
+and associated metadata structures is currently provided, and this is the main 
+focus of this project.
 
 There is additionally support for reading data from complex data formats analogous 
 to SICD format, *usually called Single Look Complex (SLC) or Level 1*, from a 
@@ -80,8 +82,7 @@ MIT license.
 
 Dependencies
 ------------
-The core library functionality depends only on `numpy >= 1.11.0` with some minor 
-dependency on `scipy`. 
+The core library functionality depends only on `numpy >= 1.11.0` and `scipy`. 
 
 Optional Dependencies and Behavior
 ----------------------------------
