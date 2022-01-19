@@ -1,5 +1,7 @@
 # This details the important differences introduced in sarpy 1.2
 
+* .51 - Insertion of standards links in readme
+        Resolution of projection to DEM results shape inconsistency bug
 * .50 - Bug fixes for label structure
 * .49 - Resolving some error catching when trying to open vanilla tiff
 * .48 - Resolution of bug resulting in empty columns in orthorectified image
