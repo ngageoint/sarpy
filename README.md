@@ -129,3 +129,20 @@ functionality were first introduced in March 2020. In June 2020, these
 capabilities were split out of the sarpy repository into their own repositories 
 in the NGA project. See the [sarpy_apps](https://github.com/ngageoint/sarpy_apps), 
 which depends on [tk_builder](https://github.com/ngageoint/tk_builder). 
+
+Relevant Standards Documents
+----------------------------
+
+Sensor Independent Complex Data (SICD) latest version (1.2.1, 2018-12-13) 
+1. [Volume 1, Design & Implementation Description Document](https://nsgreg.nga.mil/doc/view?i=4900)
+2. [Volume 2, File Format Description Document](https://nsgreg.nga.mil/doc/view?i=4901)
+3. [Volume 3, Image Projections Description Document](https://nsgreg.nga.mil/doc/view?i=4902)
+
+Sensor Independent Derived Data (SIDD) latest version (2.0, 2019-05-31)
+1. [Volume 1, Design and Implementation Description Document](https://nsgreg.nga.mil/doc/view?i=5009)
+2. [Volume 2, NITF File Format Description Document](https://nsgreg.nga.mil/doc/view?i=5016)
+3. [Volume 3, GeoTIFF File Format Description Document](https://nsgreg.nga.mil/doc/view?i=5017)
+
+Compensated Phase History Data (CPHD) latest version (1.0.1, 2018-05-21)
+1. [Design & Implementation Description](https://nsgreg.nga.mil/doc/view?i=4638)
+2. [Design & Implementation Schema](https://nsgreg.nga.mil/doc/view?i=4639)
