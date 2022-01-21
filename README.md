@@ -1,7 +1,7 @@
 SarPy
 =====
 SarPy is a basic Python library to read, write, and do simple processing
-of complex SAR data using the NGA SICD format *(standards linked at bottom)*. 
+of complex SAR data using the NGA SICD format *(standards linked below)*. 
 It has been released by NGA to encourage the use of SAR data standards
 throughout the international SAR community. SarPy complements the
 [SIX](https://github.com/ngageoint/six-library) library (C++) and the

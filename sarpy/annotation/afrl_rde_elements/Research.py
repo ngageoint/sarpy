@@ -31,7 +31,8 @@ class ResearchType(Serializable):
         'MetadataVersion', 'DetailCollectionInfo', 'DetailSubCollectionInfo',
         'DetailImageInfo', 'DetailSensorInfo', 'DetailFiducialInfo', 'DetailObjectInfo')
     _required = (
-        'MetadataVersion', )
+        'MetadataVersion', 'DetailCollectionInfo', 'DetailSubCollectionInfo',
+        'DetailImageInfo', 'DetailSensorInfo', 'DetailFiducialInfo', 'DetailObjectInfo')
     # descriptors
     MetadataVersion = StringDescriptor(
         'MetadataVersion', _required,
