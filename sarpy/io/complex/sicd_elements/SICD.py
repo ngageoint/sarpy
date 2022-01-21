@@ -894,3 +894,53 @@ class SICDType(Serializable):
 
     def to_xml_string(self, urn=None, tag='SICD', check_validity=False, strict=DEFAULT_STRICT):
         return self.to_xml_bytes(urn=urn, tag=tag, check_validity=check_validity, strict=strict).decode('utf-8')
+
+    def create_subset_structure(self, row_bounds=None, column_bounds=None):
+        """
+        Create a version of the SICD structure for a given subset.
+
+        Parameters
+        ----------
+        row_bounds : None|tuple
+        column_bounds : None|tuple
+
+        Returns
+        -------
+        sicd : SICDType
+            The sicd
+        row_bounds : tuple
+            Vetted tuple of the form `(min row, max row)`.
+        column_bounds : tuple
+            Vetted tuple of the form `(min column, max column)`.
+        """
+
+        sicd = self.copy()
+        num_rows = self.ImageData.NumRows
+        num_cols = self.ImageData.NumCols
+        if row_bounds is not None:
+            start_row = int(row_bounds[0])
+            end_row = int(row_bounds[1])
+            if not (0 <= start_row < end_row <= num_rows):
+                raise ValueError(
+                    'row bounds ({}, {}) are not sensible for NumRows {}'.format(
+                        start_row, end_row, num_rows))
+            sicd.ImageData.FirstRow = sicd.ImageData.FirstRow + start_row
+            sicd.ImageData.NumRows = (end_row - start_row)
+            out_row_bounds = (start_row, end_row)
+        else:
+            out_row_bounds = (0, num_rows)
+
+        if column_bounds is not None:
+            start_col = int(column_bounds[0])
+            end_col = int(column_bounds[1])
+            if not (0 <= start_col < end_col <= num_cols):
+                raise ValueError(
+                    'column bounds ({}, {}) are not sensible for NumCols {}'.format(
+                        start_col, end_col, num_cols))
+            sicd.ImageData.FirstCol = sicd.ImageData.FirstCol + start_col
+            sicd.ImageData.NumCols = (end_col - start_col)
+            out_col_bounds = (start_col, end_col)
+        else:
+            out_col_bounds = (0, num_cols)
+        sicd.define_geo_image_corners(override=True)
+        return sicd, out_row_bounds, out_col_bounds

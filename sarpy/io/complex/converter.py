@@ -184,43 +184,14 @@ class Converter(object):
             raise ValueError(
                 'Got a frame {}, but it must be between 0 and {}'.format(frame, len(sicds)))
         this_sicd = sicds[self._frame]
-        this_shape = shapes[self._frame]
 
-        # validate row_limits and col_limits
-        if row_limits is None:
-            row_limits = (0, this_shape[0])
-        else:
-            row_limits = (int(row_limits[0]), int(row_limits[1]))
-            if not ((0 <= row_limits[0] < this_shape[0]) and (row_limits[0] < row_limits[1] <= this_shape[0])):
-                raise ValueError(
-                    'Entries of row_limits must be monotonically increasing '
-                    'and in the range [0, {}]'.format(this_shape[0]))
-        if col_limits is None:
-            col_limits = (0, this_shape[1])
-        else:
-            col_limits = (int(col_limits[0]), int(col_limits[1]))
-            if not ((0 <= col_limits[0] < this_shape[1]) and (col_limits[0] < col_limits[1] <= this_shape[1])):
-                raise ValueError(
-                    'Entries of col_limits must be monotonically increasing '
-                    'and in the range [0, {}]'.format(this_shape[1]))
-        self._row_limits = row_limits  # type: Tuple[int, int]
-        self._col_limits = col_limits  # type: Tuple[int, int]
-        # redefine our sicd, as necessary
-        this_sicd = self._update_sicd(this_sicd, this_shape)
+        # validate row and column limits and update sicd structure, as necessary
+        this_sicd, self._row_limits, self._col_limits = this_sicd.create_subset_structure(row_limits, col_limits)
+
         # set up our writer
         self._file_name = output_path
-        self._writer = writer_type(output_path, this_sicd, check_older_version=check_older_version, check_existence=check_existence)
-
-    def _update_sicd(self, sicd, t_size):
-        # type: (SICDType, Tuple[int, int]) -> SICDType
-        o_sicd = sicd.copy()
-        if self._row_limits != (0, t_size[0]) or self._col_limits != (0, t_size[1]):
-            o_sicd.ImageData.NumRows = self._row_limits[1] - self._row_limits[0]
-            o_sicd.ImageData.NumCols = self._col_limits[1] - self._col_limits[0]
-            o_sicd.ImageData.FirstRow = sicd.ImageData.FirstRow + self._row_limits[0]
-            o_sicd.ImageData.FirstCol = sicd.ImageData.FirstCol + self._col_limits[0]
-            o_sicd.define_geo_image_corners(override=True)
-        return o_sicd
+        self._writer = writer_type(
+            output_path, this_sicd, check_older_version=check_older_version, check_existence=check_existence)
 
     def _get_rows_per_block(self, max_block_size):
         pixel_type = self._writer.sicd_meta.ImageData.PixelType
@@ -272,6 +243,7 @@ class Converter(object):
             self._writer.write_chip(data, start_indices=(block_start - self._row_limits[0], 0))
             logger.info('Done writing block {}-{} to file {}'.format(block_start, block_end, self._file_name))
             block_start = block_end
+        self._writer.close()
 
     def __del__(self):
         if hasattr(self, '_writer'):
