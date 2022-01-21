@@ -297,22 +297,6 @@ class TheFiducialType(Serializable):
         self.GroundPlane = GroundPlane
         super(TheFiducialType, self).__init__(**kwargs)
 
-    def set_default_width_from_sicd(self, sicd, override=False):
-        """
-        Sets a default value for the 3dB Width from the given SICD.
-
-        Parameters
-        ----------
-        sicd : SICDType
-        override : bool
-            Override any present value?
-        """
-
-        if self.IPRWidth3dB is None or override:
-            self.IPRWidth3dB = RangeCrossRangeType.from_array(
-                (sicd.Grid.Row.ImpRespWid, sicd.Grid.Col.ImpRespWid))
-            # TODO: this seems questionable to me?
-
     def set_image_location_from_sicd(self, sicd, populate_in_periphery=False):
         """
         Set the image location information with respect to the given SICD.
@@ -460,7 +444,6 @@ class FiducialInfoType(Serializable):
         """
 
         def update_fiducial(temp_fid, in_image_count):
-            temp_fid.set_default_width_from_sicd(sicd)  # todo: I'm not sure that this is correct?
             status = temp_fid.set_image_location_from_sicd(sicd, populate_in_periphery=populate_in_periphery)
             use_fid = False
             if status == 0:

@@ -13,7 +13,8 @@ import warnings
 
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd_elements.utils import is_general_match
-from sarpy.io.general.base import AbstractReader, FlatReader, BaseChipper, is_file_like
+from sarpy.io.general.base import AbstractReader, FlatReader, BaseReader, \
+    BaseChipper, SubsetChipper, is_file_like
 
 try:
     import h5py
@@ -205,6 +206,39 @@ class FlatSICDReader(FlatReader, SICDTypeReader):
                 output_file, self.sicd_meta,
                 check_older_version=check_older_version, check_existence=check_existence) as writer:
             writer.write_chip(self[:, :], start_indices=(0, 0))
+
+
+class SubsetSICDReader(BaseReader, SICDTypeReader):
+    """
+    Create a reader for a given index and specific subset of a given
+    SICDTypeReader
+    """
+
+    def __init__(self, reader, row_bounds=None, column_bounds=None, index=0):
+        """
+
+        Parameters
+        ----------
+        reader : SICDTypeReader
+            The base reader.
+        row_bounds : None|Tuple[int, int]
+            Of the form `(min row, max row)`.
+        column_bounds : None|Tuple[int, int]
+            Of the form `(min column, max column)`.
+        index : int
+            The image index.
+        """
+
+        sicd, row_bounds, column_bounds = reader.get_sicds_as_tuple()[index].create_subset_structure(
+            row_bounds, column_bounds)
+
+        chipper = SubsetChipper(reader._get_chippers_as_tuple()[index], row_bounds, column_bounds)
+        BaseReader.__init__(self, chipper, reader_type='SICD')
+        SICDTypeReader.__init__(self, sicd)
+
+    @property
+    def file_name(self):
+        return None
 
 
 class H5Chipper(BaseChipper):

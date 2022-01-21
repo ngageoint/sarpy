@@ -206,8 +206,9 @@ class SensorInfoType(Serializable):
         'BeamWidth', 'Aimpoint', 'AircraftHeading', 'AircraftTrackAngle', 'Look', 'SquintAngle',
         'AircraftLocation', 'AircraftVelocity', 'FlightNumber', 'PassNumber')
     _required = (
-        'Type', 'Range', 'DepressionAngle', 'Aimpoint', 'Look', 'SquintAngle',
-        'AircraftLocation', 'AircraftVelocity')
+        'Name', 'Type', 'Band', 'Bandwidth', 'CenterFrequency', 'Polarization', 'Range',
+        'DepressionAngle', 'Aimpoint', 'AircraftHeading', 'AircraftTrackAngle',
+        'Look', 'SquintAngle', 'AircraftLocation', 'AircraftVelocity')
     _numeric_format = {
         'Bandwidth': '0.17G', 'CenterFrequency': '0.17G', 'NearRange': '0.17G',
         'SlantRangeSwathWidth': '0.17G', 'Range': '0.17G', 'DepressionAngle': '0.17G',
@@ -215,7 +216,7 @@ class SensorInfoType(Serializable):
     # descriptors
     Name = StringDescriptor(
         'Name', _required,
-        docstring='The name of the sensor')  # type: Optional[str]
+        docstring='The name of the sensor')  # type: str
     SensorMfg = StringDescriptor(
         'SensorMfg', _required,
         docstring='The manufacturer of the sensor')  # type: Optional[str]
@@ -230,13 +231,13 @@ class SensorInfoType(Serializable):
         docstring='Sensor operating mode')  # type: Optional[str]
     Band = StringDescriptor(
         'Band', _required,
-        docstring='designation of the sensor frequency band')  # type: Optional[str]
+        docstring='designation of the sensor frequency band')  # type: str
     Bandwidth = FloatDescriptor(
         'Bandwidth', _required,
-        docstring='Radio Frequency bandwidth of the sensor system in GHz')  # type: Optional[float]
+        docstring='Radio Frequency bandwidth of the sensor system in GHz')  # type: float
     CenterFrequency = FloatDescriptor(
         'CenterFrequency', _required,
-        docstring='Center operating frequency of the sensor system in GHz')  # type: Optional[float]
+        docstring='Center operating frequency of the sensor system in GHz')  # type: float
     NearRange = FloatDescriptor(
         'NearRange', _required,
         docstring='The slant range distance measured from the sensor to the '
@@ -247,7 +248,7 @@ class SensorInfoType(Serializable):
     )  # type: Optional[float]
     Polarization = StringDescriptor(
         'Polarization', _required,
-        docstring='The polarization of the transmitted/received signals')  # type: Optional[str]
+        docstring='The polarization of the transmitted/received signals')  # type: str
     Range = FloatDescriptor(
         'Range', _required,
         docstring='Measured slant range between the sensor aperture '
@@ -273,11 +274,11 @@ class SensorInfoType(Serializable):
     AircraftHeading = FloatDescriptor(
         'AircraftHeading', _required,
         docstring='Aircraft heading relative to True North, in degrees'
-    )  # type: Optional[float]
+    )  # type: float
     AircraftTrackAngle = FloatDescriptor(
         'AircraftTrackAngle', _required,
         docstring='The bearing from the aircraft position at the first pulse '
-                  'to the aircraft position at the last')  # type: Optional[float]
+                  'to the aircraft position at the last')  # type: float
     Look = StringEnumDescriptor(
         'Look', {'Left', 'Right', 'Nadir'}, _required,
         docstring='Direction of the sensor look angle relative to aircraft '
@@ -292,12 +293,12 @@ class SensorInfoType(Serializable):
     AircraftVelocity = SerializableDescriptor(
         'AircraftVelocity', XYZType, _required,
         docstring='Aircraft velocity in ECEF coordinates (at scene center COA time?)')  # type: XYZType
-    FlightNumber = IntegerDescriptor(
+    FlightNumber = StringDescriptor(
         'FlightNumber', _required,
-        docstring='The aircraft flight number')  # type: Optional[int]
-    PassNumber = IntegerDescriptor(
+        docstring='The aircraft flight number')  # type: Optional[str]
+    PassNumber = StringDescriptor(
         'PassNumber', _required,
-        docstring='The aircraft pass number')  # type: Optional[int]
+        docstring='The aircraft pass number')  # type: Optional[str]
 
     def __init__(self, Name=None, SensorMfg=None, OperatingAgency=None,
                  Type=None, Mode=None, Band=None, Bandwidth=None,

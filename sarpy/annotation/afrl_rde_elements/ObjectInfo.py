@@ -241,23 +241,23 @@ class ImageLocationType(Serializable):
     _fields = (
         'CenterPixel', 'LeftFrontPixel', 'RightFrontPixel', 'RightRearPixel',
         'LeftRearPixel')
-    _required = _fields
+    _required = ('CenterPixel', )
     # descriptors
     CenterPixel = SerializableDescriptor(
         'CenterPixel', RowColType, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: RowColType
     LeftFrontPixel = SerializableDescriptor(
         'LeftFrontPixel', RowColType, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: RowColType
+        docstring='')  # type: Optional[RowColType]
     RightFrontPixel = SerializableDescriptor(
         'RightFrontPixel', RowColType, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: RowColType
+        docstring='')  # type: Optional[RowColType]
     RightRearPixel = SerializableDescriptor(
         'RightRearPixel', RowColType, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: RowColType
+        docstring='')  # type: Optional[RowColType]
     LeftRearPixel = SerializableDescriptor(
         'LeftRearPixel', RowColType, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: RowColType
+        docstring='')  # type: Optional[RowColType]
 
     def __init__(self, CenterPixel=None, LeftFrontPixel=None, RightFrontPixel=None,
                  RightRearPixel=None, LeftRearPixel=None, **kwargs):
@@ -269,7 +269,7 @@ class ImageLocationType(Serializable):
         RightFrontPixel : RowColType|numpy.ndarray|list|tuple
         RightRearPixel : RowColType|numpy.ndarray|list|tuple
         LeftRearPixel : RowColType|numpy.ndarray|list|tuple
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -425,23 +425,23 @@ class GeoLocationType(Serializable):
     _fields = (
         'CenterPixel', 'LeftFrontPixel', 'RightFrontPixel', 'RightRearPixel',
         'LeftRearPixel')
-    _required = _fields
+    _required = ('CenterPixel', )
     # descriptors
     CenterPixel = SerializableDescriptor(
         'CenterPixel', LatLonEleType, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: LatLonEleType
     LeftFrontPixel = SerializableDescriptor(
         'LeftFrontPixel', LatLonEleType, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: LatLonEleType
+        docstring='')  # type: Optional[LatLonEleType]
     RightFrontPixel = SerializableDescriptor(
         'RightFrontPixel', LatLonEleType, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: LatLonEleType
+        docstring='')  # type: Optional[LatLonEleType]
     RightRearPixel = SerializableDescriptor(
         'RightRearPixel', LatLonEleType, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: LatLonEleType
+        docstring='')  # type: Optional[LatLonEleType]
     LeftRearPixel = SerializableDescriptor(
         'LeftRearPixel', LatLonEleType, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: LatLonEleType
+        docstring='')  # type: Optional[LatLonEleType]
 
     def __init__(self, CenterPixel=None, LeftFrontPixel=None, RightFrontPixel=None,
                  RightRearPixel=None, LeftRearPixel=None, **kwargs):
@@ -449,11 +449,11 @@ class GeoLocationType(Serializable):
         Parameters
         ----------
         CenterPixel : LatLonEleType|numpy.ndarray|list|tuple
-        LeftFrontPixel : LatLonEleType|numpy.ndarray|list|tuple
-        RightFrontPixel : LatLonEleType|numpy.ndarray|list|tuple
-        RightRearPixel : LatLonEleType|numpy.ndarray|list|tuple
-        LeftRearPixel : LatLonEleType|numpy.ndarray|list|tuple
-        kwargs : dict
+        LeftFrontPixel : None|LatLonEleType|numpy.ndarray|list|tuple
+        RightFrontPixel : None|LatLonEleType|numpy.ndarray|list|tuple
+        RightRearPixel : None|LatLonEleType|numpy.ndarray|list|tuple
+        LeftRearPixel : None|LatLonEleType|numpy.ndarray|list|tuple
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -1254,8 +1254,7 @@ class ObjectInfoType(Serializable):
     _fields = (
         'NumberOfObjectsInImage', 'NumberOfObjectsInScene',
         'SlantPlane', 'GroundPlane', 'Objects')
-    _required = (
-        'NumberOfObjectsInImage', 'NumberOfObjectsInScene', 'Objects')
+    _required = ('NumberOfObjectsInImage', 'NumberOfObjectsInScene', 'Objects')
     _collections_tags = {'Objects': {'array': False, 'child_tag': 'Object'}}
     # descriptors
     NumberOfObjectsInImage = IntegerDescriptor(

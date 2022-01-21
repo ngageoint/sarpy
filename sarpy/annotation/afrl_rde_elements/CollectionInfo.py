@@ -52,9 +52,9 @@ class LocationType(Serializable):
 
 
 class CollectionInfoType(Serializable):
-    _fields = ('Name', 'ProgramName', 'Sponsor', 'Date', 'Location',
-               'NumberOfSites')
-    _required = ()
+    _fields = (
+        'Name', 'ProgramName', 'Sponsor', 'Date', 'Location', 'NumberOfSites')
+    _required = ('Date', )
     # descriptors
     Name = StringDescriptor(
         'Name', _required,
