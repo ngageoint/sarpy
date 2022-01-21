@@ -482,6 +482,5 @@ class ImageInfoType(Serializable):
             WeightingType=StringRangeCrossRangeType(
                 Range=sicd.Grid.Row.WgtType.WindowName,
                 CrossRange=sicd.Grid.Col.WgtType.WindowName),
-            IPRWidth3dB=(sicd.Grid.Row.ImpRespWid, sicd.Grid.Col.ImpRespWid),  # TODO: I don't think that this is correct?
             ImageHeading=sicd.SCPCOA.AzimAng,
             ImageCorners=icps)

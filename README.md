@@ -1,8 +1,8 @@
 SarPy
 =====
-SarPy is a basic Python library to read, write, display, and do simple processing
-of complex SAR data using the NGA [SICD](http://www.gwg.nga.mil/ntb/baseline/docs/SICD/)
-format. It has been released by NGA to encourage the use of SAR data standards
+SarPy is a basic Python library to read, write, and do simple processing
+of complex SAR data using the NGA SICD format *(standards linked below)*. 
+It has been released by NGA to encourage the use of SAR data standards
 throughout the international SAR community. SarPy complements the
 [SIX](https://github.com/ngageoint/six-library) library (C++) and the
 [MATLAB SAR Toolbox](https://github.com/ngageoint/MATLAB_SAR), which are
@@ -11,11 +11,68 @@ implemented in other languages but have similar goals.
 Some sample SICD files can be found 
 [here](https://github.com/ngageoint/six-library/wiki/Sample-SICDs).
 
-In addition to SICD, SarPy can also read COSMO-SkyMed, RADARSAT-2, Radar Constellation 
-Mission (RCM), and Sentinel-1 SLC formats and convert them to SICD.
+Relevant Standards Documents
+----------------------------
+A variety of SAR format standard are mentioned throughout this ReadMe, here are 
+associated references. 
 
-Some examples of how to read complex SAR data using SarPy are provided in 
-`docs/sarpy_example.py`.
+Sensor Independent Complex Data (SICD) latest version (1.2.1, 2018-12-13) 
+1. [Volume 1, Design & Implementation Description Document](https://nsgreg.nga.mil/doc/view?i=4900)
+2. [Volume 2, File Format Description Document](https://nsgreg.nga.mil/doc/view?i=4901)
+3. [Volume 3, Image Projections Description Document](https://nsgreg.nga.mil/doc/view?i=4902)
+4. [Schema](https://nsgreg.nga.mil/doc/view?i=5230)
+
+Sensor Independent Derived Data (SIDD) latest version (2.0, 2019-05-31)
+1. [Volume 1, Design and Implementation Description Document](https://nsgreg.nga.mil/doc/view?i=5009)
+2. [Volume 2, NITF File Format Description Document](https://nsgreg.nga.mil/doc/view?i=5016)
+3. [Volume 3, GeoTIFF File Format Description Document](https://nsgreg.nga.mil/doc/view?i=5017)
+4. [Schema](https://nsgreg.nga.mil/doc/view?i=5231)
+
+Compensated Phase History Data (CPHD) latest version (1.0.1, 2018-05-21)
+1. [Design & Implementation Description](https://nsgreg.nga.mil/doc/view?i=4638)
+2. [Design & Implementation Schema](https://nsgreg.nga.mil/doc/view?i=4639)
+
+For other NGA standards inquiries, the standards registry can be searched
+ [here](https://nsgreg.nga.mil/registries/search/index.jsp?registryType=doc).
+ 
+Basic Capability
+----------------
+The basic capabilities provided in SarPy is generally SAR specific, and largely 
+geared towards reading and manipulating data provided in NGA SAR file formats. 
+Full support for reading and writing SICD, SIDD, CPHD, and CRSD (standard pending) 
+and associated metadata structures is currently provided, and this is the main 
+focus of this project.
+
+There is additionally support for reading data from complex data formats analogous 
+to SICD format, *usually called Single Look Complex (SLC) or Level 1*, from a 
+variety of commercial or other sources including 
+- Capella (**partial support**)
+- COSMO-SkyMed (1st and 2nd generation)
+- GFF (Sandia format)
+- ICEYE
+- NISAR
+- PALSAR2
+- RadarSat-2
+- Radar Constellation Mission (RCM)
+- Sentinel-1
+- TerraSAR-X.
+
+For this SLC format data, it is read directly as though it were coming from a SICD 
+file. *This ability to read does not generally apply to data products other 
+than the SLC or Level 1 product, and there is typically no direct NGA standard 
+analog for these products.*
+
+Some general TIFF and NITF reading support is provided, but this is not the main 
+goal of the SarPy library.
+
+Documentation
+-------------
+Documentation for the project is available at 
+[readthedocs](https://sarpy.readthedocs.io/en/latest/).
+
+If this documentation is inaccessible, it can be built locally after checking out 
+this repository using sphinx via the command `python setup.py build_sphinx`. 
+This depends on python packages `sphinx` and `sphinxcontrib-napoleon`.
 
 Origins
 -------
@@ -25,8 +82,7 @@ MIT license.
 
 Dependencies
 ------------
-The core library functionality depends only on `numpy >= 1.11.0` with some minor 
-dependency on `scipy`. 
+The core library functionality depends only on `numpy >= 1.11.0` and `scipy`. 
 
 Optional Dependencies and Behavior
 ----------------------------------
@@ -77,34 +133,18 @@ pip install sarpy
 ```
 Note that here `pip` represents the pip utility for the desired Python environment.
 
-From the top level of a cloned version of this repository, install for all users of 
-your environment (may require escalated privileges, e.g. sudo):
-```bash
-python setup.py install
-```
-Again, `python` here represents the executible associated with the desired Python 
-environment.
-
-For more verbose instructions for installing from source, such as how to perform an 
-install applicable for your user only and requiring no escalated privileges, 
-see [here](https://docs.python.org/3/install/index.html).
-
-Documentation
--------------
-Documentation for the project is available at [readthedocs](https://sarpy.readthedocs.io/en/latest/).
-
-If this documentation is inaccessible, it can be built locally after checking out 
-this repository using sphinx via the command `python setup.py build_sphinx`. 
-This depends on python packages `sphinx` and `sphinxcontrib-napoleon`.
+For verbose instructions for installing from source, see 
+[here](https://docs.python.org/3/install/index.html). It is recommended that 
+still the package is built locally and installed using pip, which allows a proper 
+package update mechanism, while `python setup.py install` **does not**.
 
 Issues and Bugs
 ---------------
-Support for Python 2 has been dropped.
+Support for Python 2 has been dropped. The core sarpy functionality has been 
+tested for Python 3.6, 3.7, 3.8, 3.9, and 3.10. 
 
-The core sarpy functionality has been tested for Python 3.6, 3.7, 3.8, and 3.9. 
-Other versions should be considered unsupported. Changes to sarpy for the sole 
-purpose of supporting a Python version beyond end-of-life are unlikely to be 
-considered.
+Changes to sarpy for the sole purpose of supporting a Python version beyond 
+end-of-life are unlikely to be considered.
 
 Information regarding any discovered bugs would be greatly appreciated, so please
 feel free to create a github issue. If more appropriate, **do not hesitate to 
@@ -122,33 +162,7 @@ copyrighted, partially public domain, and as a whole is protected by the copyrig
 of the non-government authors and must be released according to the terms of the 
 original open source license.
 
-Associated GUI Capabilities moved to individual repositories - June 2020
-------------------------------------------------------------------------
-In addition to a complete refactor of the core capabilities, graphical user interface
-functionality were first introduced in March 2020. In June 2020, these 
-capabilities were split out of the sarpy repository into their own repositories 
-in the NGA project. See the [sarpy_apps](https://github.com/ngageoint/sarpy_apps), 
-which depends on [tk_builder](https://github.com/ngageoint/tk_builder). 
-
-Relevant Standards Documents
-----------------------------
-
-Sensor Independent Complex Data (SICD) latest version (1.2.1, 2018-12-13) 
-1. [Volume 1, Design & Implementation Description Document](https://nsgreg.nga.mil/doc/view?i=4900)
-2. [Volume 2, File Format Description Document](https://nsgreg.nga.mil/doc/view?i=4901)
-3. [Volume 3, Image Projections Description Document](https://nsgreg.nga.mil/doc/view?i=4902)
-4. [Schema](https://nsgreg.nga.mil/doc/view?i=5230)
-
-Sensor Independent Derived Data (SIDD) latest version (2.0, 2019-05-31)
-1. [Volume 1, Design and Implementation Description Document](https://nsgreg.nga.mil/doc/view?i=5009)
-2. [Volume 2, NITF File Format Description Document](https://nsgreg.nga.mil/doc/view?i=5016)
-3. [Volume 3, GeoTIFF File Format Description Document](https://nsgreg.nga.mil/doc/view?i=5017)
-4. [Schema](https://nsgreg.nga.mil/doc/view?i=5231)
-
-Compensated Phase History Data (CPHD) latest version (1.0.1, 2018-05-21)
-1. [Design & Implementation Description](https://nsgreg.nga.mil/doc/view?i=4638)
-2. [Design & Implementation Schema](https://nsgreg.nga.mil/doc/view?i=4639)
-
-For other NGA standards inquiries, the standards registry can be searched
- [here](https://nsgreg.nga.mil/registries/search/index.jsp?registryType=doc).
- 
+Associated GUI Capabilities
+---------------------------
+Some associated SAR specific graphical user interface tools are maintained in the 
+[sarpy_apps project](https://github.com/ngageoint/sarpy_apps). 

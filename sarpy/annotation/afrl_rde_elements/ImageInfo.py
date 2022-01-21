@@ -232,9 +232,9 @@ class ImageInfoType(Serializable):
         'ImageCorners', 'SlantPlane', 'GroundPlane', 'SceneCenterReferenceLine', 
         'ProjectionPerturbation')
     _required = (
-        'DataFilename', 'ClassificationMarkings', 'DataPlane', 'DataType',
+        'DataFilename', 'ClassificationMarkings', 'DataPlane', 'DataDomain', 'DataType',
         'DataFormat', 'NumPixels', 'ImageCollectionDate', 'SensorReferencePoint',
-        'Resolution', 'PixelSpacing', 'WeightingType', 'ImageCorners')
+        'DataCalibrated', 'Resolution', 'PixelSpacing', 'WeightingType', 'ImageCorners')
     _numeric_format = {
         'ImageHeading': '0.17G', 'SensorCalibrationFactor': '0.17G',
         'SceneCenterReferenceLine': '0.17G', }
@@ -259,10 +259,10 @@ class ImageInfoType(Serializable):
         docstring='The image plane.')  # type: str
     DataDomain = StringDescriptor(
         'DataDomain', _required,
-        docstring='The image data domain')  # type: Optional[str]
+        docstring='The image data domain')  # type: str
     DataType = StringDescriptor(
         'DataType', _required,
-        docstring='The image data type')  # type: Optional[str]
+        docstring='The image data type')  # type: str
     BitsPerSample = IntegerDescriptor(
         'BitsPerSample', _required,
         docstring='The number of bits per sample')  # type: Optional[int]
@@ -290,7 +290,7 @@ class ImageInfoType(Serializable):
                   'of a calibrated reference reflector or active source')  # type: Optional[float]
     DataCalibrated = StringDescriptor(
         'DataCalibrated', _required,
-        docstring='Has the data been calibrated?')  # type: Optional[str]  # TODO: this obviously should be a xs:boolean
+        docstring='Has the data been calibrated?')  # type: str  # TODO: this obviously should be a xs:boolean
     Resolution = SerializableDescriptor(
         'Resolution', RangeCrossRangeType, _required,
         docstring='Resolution (intrinsic) of the sensor system/mode in meters.')  # type: RangeCrossRangeType
@@ -517,7 +517,6 @@ class ImageInfoType(Serializable):
             WeightingType=StringRangeCrossRangeType(
                 Range=sicd.Grid.Row.WgtType.WindowName,
                 CrossRange=sicd.Grid.Col.WgtType.WindowName),
-            IPRWidth3dB=(sicd.Grid.Row.ImpRespWid, sicd.Grid.Col.ImpRespWid),  # TODO: I don't think that this is correct?
             ImageHeading=sicd.SCPCOA.AzimAng,
             ImageCorners=icps, 
             ProjectionPerturbation=proj_perturb)
