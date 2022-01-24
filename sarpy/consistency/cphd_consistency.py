@@ -939,6 +939,14 @@ class CphdConsistency(con.ConsistencyChecker):
                                                         shape=(num_vectors, num_samples),
                                                         order='C')))
 
+    def check_image_grid_exists(self):
+        """
+        Verify that the ImageGrid is defined
+        """
+        with self.precondition():
+            with self.want("It is recommended to populate SceneCoordinates.ImageGrid for processing purposes"):
+                assert self.xml.find('./SceneCoordinates/ImageGrid') is not None
+
     def check_pad_header_xml(self):
         """
         The pad between the header and XML is 0.

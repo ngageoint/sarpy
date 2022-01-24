@@ -1,5 +1,6 @@
 # This details the important differences introduced in sarpy 1.2
 
+* .53 - Add a check in the CPHD validation for existence of ImageGrid
 * .52 - Creating a subset SICD reader class implementation
         Including changes in structure for AFRL/RDE structures
 * .51 - Insertion of standards links in readme
