@@ -1694,7 +1694,8 @@ class NITFReader(BaseReader):
             return
 
         del self._chipper
-        gc.collect()
+        if callable(gc.collect):
+            gc.collect()
 
         for fil in self._cached_files:
             if os.path.exists(fil):

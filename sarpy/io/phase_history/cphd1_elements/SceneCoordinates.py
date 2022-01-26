@@ -302,7 +302,7 @@ class ImageGridType(Serializable):
 
     _fields = ('Identifier', 'IARPLocation', 'IAXExtent', 'IAYExtent', 'SegmentList')
     _required = ('IARPLocation', 'IAXExtent', 'IAYExtent')
-    _collections_tags = {'SegmentList': {'array': True, 'child_tag': 'Segemnt'}}
+    _collections_tags = {'SegmentList': {'array': True, 'child_tag': 'Segment'}}
     # descriptors
     Identifier = StringDescriptor(
         'Identifier', _required, strict=DEFAULT_STRICT,
