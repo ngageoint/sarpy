@@ -2128,7 +2128,8 @@ class GFFReader(BaseReader, SICDTypeReader):
         # noinspection PyBroadException
         try:
             del self._chipper  # you have to explicitly delete and garbage collect the chipper to delete any temp file
-            gc.collect()
+            if callable(gc):
+                gc.collect()
             del self._gff_details
         except Exception:
             pass
