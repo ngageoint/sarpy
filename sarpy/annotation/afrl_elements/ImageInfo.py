@@ -289,8 +289,8 @@ class ImageInfoType(Serializable):
         'SensorCalibrationFactor', _required,
         docstring='Multiplicative factor used to scale raw image data to the return '
                   'of a calibrated reference reflector or active source')  # type: Optional[float]
-    DataCalibrated = StringDescriptor(
-        'DataCalibrated', _required,
+    DataCalibrated = StringEnumDescriptor(
+        'DataCalibrated', {'True', 'False'}, _required,
         docstring='Has the data been calibrated?')  # type: Optional[str]  # TODO: this obviously should be a xs:boolean
     Resolution = SerializableDescriptor(
         'Resolution', RangeCrossRangeType, _required,

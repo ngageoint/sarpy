@@ -12,7 +12,7 @@ import numpy
 
 from sarpy.io.xml.base import Serializable
 from sarpy.io.xml.descriptors import IntegerDescriptor, SerializableDescriptor, \
-    SerializableListDescriptor, StringDescriptor
+    SerializableListDescriptor, StringDescriptor, StringEnumDescriptor
 from sarpy.io.complex.sicd_elements.blocks import RowColType
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 
@@ -205,8 +205,8 @@ class TheFiducialType(Serializable):
     SerialNumber = StringDescriptor(
         'SerialNumber', _required, strict=DEFAULT_STRICT,
         docstring='The serial number of the fiducial')  # type: Optional[str]
-    FiducialType = StringDescriptor(
-        'FiducialType', _required, strict=DEFAULT_STRICT,
+    FiducialType = StringEnumDescriptor(
+        'FiducialType', {'value', }, _required, strict=DEFAULT_STRICT,  # todo: values?
         docstring='Description for the type of fiducial')  # type: str
     DatasetFiducialNumber = IntegerDescriptor(
         'DatasetFiducialNumber', _required,
