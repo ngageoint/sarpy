@@ -9,9 +9,8 @@ not being annotated in github.
 Words
 
 ## [1.2.54] - 2022-01-
-### Added
-Preliminary registration methods based on the Sandia `regi` methodology
-
+### Changed
+Finalizing agreed upon changes to the AFRL/RDE structure
 
 ## [1.2.53] - 2022-01-25
 ### Changed

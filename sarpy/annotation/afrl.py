@@ -503,9 +503,11 @@ class AnalystTruthConstructor(object):
             DetailSensorInfo=self._sensor_info,
             DetailFiducialInfo=FiducialInfoType(
                 NumberOfFiducialsInScene=len(self._fiducials),
+                NumberOfFiducialsInImage=len(self._fiducials),
                 Fiducials=self._fiducials),
             DetailObjectInfo=ObjectInfoType(
                 NumberOfObjectsInScene=len(self._objects),
+                NumberOfObjectsInImage=len(self._objects),
                 SlantPlane=slant,
                 Objects=self._objects))
 
