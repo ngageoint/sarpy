@@ -261,10 +261,10 @@ class ImageInfoType(Serializable):
         'DataPlane', {'Slant', 'Ground'}, _required, default_value='Slant',
         docstring='The image plane.')  # type: str
     DataDomain = StringEnumDescriptor(
-        'DataDomain', {'value', }, _required,    # todo: values
+        'DataDomain', {'Image', }, _required,    # todo: values
         docstring='The image data domain')  # type: str
     DataType = StringEnumDescriptor(
-        'DataType', {'value', }, _required,    # todo: values
+        'DataType', {'Magnitude/Phase', 'In-phase/Quadrature'}, _required,
         docstring='The image data type')  # type: str
     BitsPerSample = IntegerDescriptor(
         'BitsPerSample', _required,
@@ -447,15 +447,15 @@ class ImageInfoType(Serializable):
 
         pixel_type = sicd.ImageData.PixelType
         if pixel_type == 'RE32F_IM32F':
-            data_type = 'in-phase/quadrature'
+            data_type = 'In-phase/Quadrature'
             bits_per_sample = 32
             data_format = 'float'
         elif pixel_type == 'RE16I_IM16I':
-            data_type = 'in-phase/quadrature'
+            data_type = 'In-phase/Quadrature'
             bits_per_sample = 16
             data_format = 'integer'
         elif pixel_type == 'AMP8I_PHS8I':
-            data_type = 'magnitude-phase'
+            data_type = 'Magnitude/Phase'
             bits_per_sample = 8
             data_format = 'unsigned integer'
         else:
@@ -480,19 +480,19 @@ class ImageInfoType(Serializable):
         proj_perturb = None
         coa = sicd.coa_projection
         if coa is not None:
-            delta_arp = coa._delta_arp
+            delta_arp = coa.delta_arp
             if numpy.any(delta_arp != 0):
                 has_perturb = True
             else:
                 delta_arp = None
 
-            delta_varp = coa._delta_varp
+            delta_varp = coa.delta_varp
             if numpy.any(delta_varp != 0):
                 has_perturb = True
             else:
                 delta_varp = None
 
-            delta_range = coa._delta_range
+            delta_range = coa.delta_range
             if delta_range != 0:
                 has_perturb = True
             else:
@@ -515,6 +515,7 @@ class ImageInfoType(Serializable):
             DataType=data_type,
             DataCalibrated=data_cal,
             BitsPerSample=bits_per_sample,
+            DataDomain='Image',
             DataFormat=data_format,
             DataByteOrder='Big-Endian',
             NumPixels=(sicd.ImageData.NumRows, sicd.ImageData.NumCols),
