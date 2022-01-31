@@ -43,6 +43,7 @@ def my_package_data():
     find_dirs('sarpy', 'io/phase_history/cphd_schema/', package_list)
     find_dirs('sarpy', 'io/phase_history/crsd_schema/', package_list)
     find_dirs('sarpy', 'io/product/sidd_schema/', package_list)
+    find_dirs('sarpy', 'annotation/afrl_rde_schema/', package_list)
     return package_list
 
 
