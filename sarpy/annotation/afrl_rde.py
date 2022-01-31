@@ -362,7 +362,7 @@ class AnalystTruthConstructor(object):
 
         Parameters
         ----------
-        Name : str
+        Name : None|str
         SerialNumber : None|str
         FiducialType : None|str
         ImageLocation : FiducialImageLocation

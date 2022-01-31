@@ -206,8 +206,10 @@ class TheFiducialType(Serializable):
         'SerialNumber', _required, strict=DEFAULT_STRICT,
         docstring='The serial number of the fiducial')  # type: Optional[str]
     FiducialType = StringEnumDescriptor(
-        'FiducialType', {'value', }, _required, strict=DEFAULT_STRICT,  # todo: values?
-        docstring='Description for the type of fiducial')  # type: str
+        'FiducialType',
+        {'Triangular-Trihedral', 'Corner Reflector', 'Quad', 'Pacman', 'StegoSARus'},
+        _required, strict=DEFAULT_STRICT,
+        docstring='The type of fiducial')  # type: str
     DatasetFiducialNumber = IntegerDescriptor(
         'DatasetFiducialNumber', _required,
         docstring='Unique number of the fiducial within the selected dataset, '
