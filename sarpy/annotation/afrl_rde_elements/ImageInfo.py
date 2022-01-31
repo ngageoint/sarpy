@@ -252,7 +252,8 @@ class ImageInfoType(Serializable):
         docstring='The image file type')  # type: Optional[str]
     DataCheckSum = StringDescriptor(
         'DataCheckSum', _required,
-        docstring='The (32 character hexidecimal) MD5 checksum of the full image file')  # type: str
+        docstring='The 32 character (hexidecimal digest) MD5 checksum of the '
+                  'full image file')  # type: str
     DataSize = IntegerDescriptor(
         'DataSize', _required,
         docstring='The image size in bytes')  # type: Optional[int]
@@ -426,7 +427,7 @@ class ImageInfoType(Serializable):
         super(ImageInfoType, self).__init__(**kwargs)
 
     @classmethod
-    def from_sicd(cls, sicd, base_file_name, file_type='NITF02.10'):
+    def from_sicd(cls, sicd, base_file_name, file_type='NITF02.10', md5_checksum=None):
         """
         Construct the ImageInfo from the sicd object and given image file name.
 
@@ -436,6 +437,8 @@ class ImageInfoType(Serializable):
         base_file_name : str
         file_type : str
             The file type. This should probably always be NITF02.10 for now.
+        md5_checksum : None|str
+            The md5 checksum of the full image file.
 
         Returns
         -------
@@ -507,6 +510,7 @@ class ImageInfoType(Serializable):
             ClassificationMarkings=ClassificationMarkingsType(
                 Classification=sicd.CollectionInfo.Classification),
             FileType=file_type,
+            DataCheckSum=md5_checksum,
             DataPlane=data_plane,
             DataType=data_type,
             DataCalibrated=data_cal,

@@ -11,7 +11,7 @@ import numpy
 
 from sarpy.io.xml.base import Serializable, Arrayable
 from sarpy.io.xml.descriptors import SerializableDescriptor, StringDescriptor, \
-    StringEnumDescriptor, FloatDescriptor, IntegerDescriptor
+    StringEnumDescriptor, FloatDescriptor
 from sarpy.io.complex.sicd_elements.blocks import XYZType
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.geometry.geocoords import ecf_to_geodetic
@@ -389,13 +389,6 @@ class SensorInfoType(Serializable):
         center_freq = 0.5*(transmit_freq_proc.MinProc + transmit_freq_proc.MaxProc)*1e-9
         polarization = sicd.ImageFormation.get_polarization().replace(':', '')
         look = 'Left' if sicd.SCPCOA.SideOfTrack == 'L' else 'Right'
-        slant_squint = 90 - sicd.SCPCOA.DopplerConeAng
-        ground_squint = 90 - numpy.rad2deg(
-            numpy.arccos(
-                numpy.cos(numpy.deg2rad(sicd.SCPCOA.DopplerConeAng)) /
-                numpy.cos(numpy.deg2rad(sicd.SCPCOA.GrazeAng))
-            )
-        )
         arp_pos_llh = ecf_to_geodetic(sicd.SCPCOA.ARPPos.get_array())
         return SensorInfoType(
             Name=sicd.CollectionInfo.CollectorName,
@@ -408,6 +401,8 @@ class SensorInfoType(Serializable):
             DepressionAngle=sicd.SCPCOA.GrazeAng,
             Aimpoint=sicd.GeoData.SCP.LLH.get_array(),
             Look=look,
-            SquintAngle=SquintAngleType(SlantPlane=slant_squint, GroundPlane=ground_squint),
+            SquintAngle=SquintAngleType(
+                SlantPlane=sicd.SCPCOA.DopplerConeAng,
+                GroundPlane=sicd.SCPCOA.Squint),
             AircraftLocation=arp_pos_llh,
             AircraftVelocity=sicd.SCPCOA.ARPVel.get_array())

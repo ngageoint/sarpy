@@ -16,9 +16,7 @@ from sarpy.annotation.afrl_rde_elements.Research import ResearchType
 from sarpy.annotation.afrl_rde_elements.CollectionInfo import CollectionInfoType
 from sarpy.annotation.afrl_rde_elements.SubCollectionInfo import SubCollectionInfoType
 from sarpy.annotation.afrl_rde_elements.ObjectInfo import ObjectInfoType, \
-    PlaneNominalType, NominalType, TheObjectType, \
-    GeoLocationType as ObjectGeoLocation, \
-    ImageLocationType as ObjectImageLocation
+    TheObjectType, GeoLocationType as ObjectGeoLocation, ImageLocationType as ObjectImageLocation
 from sarpy.annotation.afrl_rde_elements.FiducialInfo import FiducialInfoType, \
     TheFiducialType, GeoLocationType as FiducialGeoLocation, \
     ImageLocationType as FiducialImageLocation
@@ -214,7 +212,7 @@ class GroundTruthConstructor(object):
 
     def localize_for_sicd(
             self, sicd, base_sicd_file, populate_in_periphery=False, include_out_of_range=False,
-            padding_fraction=0.05, minimum_pad=0):
+            padding_fraction=0.05, minimum_pad=0, md5_checksum=None):
         """
         Localize the AFRL structure for the given sicd structure.
 
@@ -230,6 +228,7 @@ class GroundTruthConstructor(object):
         include_out_of_range : bool
         padding_fraction : None|float
         minimum_pad : int|float
+        md5_checksum : None|str
 
         Returns
         -------
@@ -237,14 +236,14 @@ class GroundTruthConstructor(object):
         """
 
         out_research = self.get_final_structure()
-        # TODO: nominal chip size?
         out_research.apply_sicd(
             sicd,
             base_sicd_file,
             populate_in_periphery=populate_in_periphery,
             include_out_of_range=include_out_of_range,
             padding_fraction=padding_fraction,
-            minimum_pad=minimum_pad)
+            minimum_pad=minimum_pad,
+            md5_checksum=md5_checksum)
         return out_research
 
     def localize_for_sicd_reader(
@@ -286,13 +285,13 @@ class AnalystTruthConstructor(object):
     """
 
     __slots__ = (
-        '_sicd', '_base_file', '_nominal_chip_size',
+        '_sicd', '_base_file',
         '_collection_info', '_subcollection_info', '_image_info', '_sensor_info',
         '_objects', '_fiducials',
         '_projection_type', '_proj_kwargs')
 
     def __init__(self, sicd, base_file, collection_info, subcollection_info,
-                 nominal_chip_size=40, projection_type='HAE', proj_kwargs=None):
+                 projection_type='HAE', proj_kwargs=None, md5_checksum=None):
         """
 
         Parameters
@@ -301,26 +300,23 @@ class AnalystTruthConstructor(object):
         base_file : str
         collection_info : CollectionInfoType
         subcollection_info : SubCollectionInfoType
-        nominal_chip_size : int|float
-            The nominal chip size in meters.
         projection_type : str
             One of 'PLANE', 'HAE', or 'DEM'. The value of `proj_kwargs`
             will need to be appropriate.
         proj_kwargs : None|Dict
             The keyword arguments for the :func:`SICDType.project_image_to_ground_geo` method.
+        md5_checksum : None|str
+            The MD5 checksum of the full image file.
         """
 
         self._sicd = sicd
         self._base_file = base_file
-        self._nominal_chip_size = float(nominal_chip_size)
-        if self._nominal_chip_size <= 1:
-            raise ValueError('noiminal chip size must be at least 1, got {}'.format(self._nominal_chip_size))
 
         # TODO: should we create a decent shell for general Analyst Truth
         #  collection and subcollection info?
         self._collection_info = collection_info
         self._subcollection_info = subcollection_info
-        self._image_info = ImageInfoType.from_sicd(self._sicd, self._base_file)
+        self._image_info = ImageInfoType.from_sicd(self._sicd, self._base_file, md5_checksum=md5_checksum)
         self._sensor_info = SensorInfoType.from_sicd(self._sicd)
         self._objects = []
         self._fiducials = []
@@ -497,10 +493,6 @@ class AnalystTruthConstructor(object):
         ResearchType
         """
 
-        nominal_rows = self._nominal_chip_size/self._sicd.Grid.Row.SS
-        nominal_cols = self._nominal_chip_size/self._sicd.Grid.Col.SS
-        slant = PlaneNominalType(Nominal=NominalType(ChipSize=(nominal_rows, nominal_cols)))
-
         return ResearchType(
             DetailCollectionInfo=self._collection_info,
             DetailSubCollectionInfo=self._subcollection_info,
@@ -513,7 +505,6 @@ class AnalystTruthConstructor(object):
             DetailObjectInfo=ObjectInfoType(
                 NumberOfObjectsInScene=len(self._objects),
                 NumberOfObjectsInImage=len(self._objects),
-                SlantPlane=slant,
                 Objects=self._objects))
 
 

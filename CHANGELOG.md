@@ -4,13 +4,9 @@ SarPy follows a continuous release process, so there are lots of releases. Since
 essentially every commit corresponds to a release, specific release points are 
 not being annotated in github.
 
-## [Unreleased]
-
-Words
-
-## [1.2.54] - 2022-01-
+## [1.2.54] - 2022-01-31
 ### Changed
-Finalizing agreed upon changes to the AFRL/RDE structure
+Finalizing changes to the AFRL/RDE structure agreed upon on 01/26/2022
 
 ## [1.2.53] - 2022-01-25
 ### Changed
