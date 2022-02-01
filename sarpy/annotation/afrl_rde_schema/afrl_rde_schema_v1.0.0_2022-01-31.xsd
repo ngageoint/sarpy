@@ -1,0 +1,402 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns="urn:AFRL_RDE:1.0.0" elementFormDefault="qualified" attributeFormDefault="unqualified" targetNamespace="urn:AFRL_RDE:1.0.0">
+    <xs:complexType name="StringWithComponentType">
+        <xs:simpleContent>
+            <xs:extension base="xs:string">
+                <xs:attribute name="Component" type="xs:string"/>
+            </xs:extension>
+        </xs:simpleContent>
+    </xs:complexType>
+    <xs:complexType name="DateTimeRangeType">
+        <xs:sequence>
+            <xs:element name="Begin" type="xs:dateTime"/>
+            <xs:element name="End" type="xs:dateTime"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="RangeCrossRangeType">
+        <xs:sequence>
+            <xs:element name="Range" type="xs:double"/>
+            <xs:element name="CrossRange" type="xs:double"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="StringRangeCrossRangeType">
+        <xs:sequence>
+            <xs:element name="Range" type="xs:string"/>
+            <xs:element name="CrossRange" type="xs:string"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="RowColumnType">
+        <xs:sequence>
+            <xs:element name="Row" type="xs:int"/>
+            <xs:element name="Col" type="xs:int"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="RowColumnDoubleType">
+        <xs:sequence>
+            <xs:element name="Row" type="xs:double"/>
+            <xs:element name="Col" type="xs:double"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="LatLonType">
+        <xs:sequence>
+            <xs:element name="Lat" type="xs:double"/>
+            <xs:element name="Lon" type="xs:double"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="LatLonEleType">
+        <xs:sequence>
+            <xs:element name="Lat" type="xs:double"/>
+            <xs:element name="Lon" type="xs:double"/>
+            <xs:element name="Ele" type="xs:double"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="LatLonAltType">
+        <xs:sequence>
+            <xs:element name="Lat" type="xs:double"/>
+            <xs:element name="Lon" type="xs:double"/>
+            <xs:element name="Altitude" type="xs:double"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="XYZType">
+        <xs:sequence>
+            <xs:element name="X" type="xs:double"/>
+            <xs:element name="Y" type="xs:double"/>
+            <xs:element name="Z" type="xs:double"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="SizeType">
+        <xs:sequence>
+            <xs:element name="Length" type="xs:double"/>
+            <xs:element name="Width" type="xs:double"/>
+            <xs:element name="Height" type="xs:double"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="OrientationType">
+        <xs:sequence>
+            <xs:element name="Roll" type="xs:double" minOccurs="0"/>
+            <xs:element name="Pitch" type="xs:double" minOccurs="0"/>
+            <xs:element name="Yaw" type="xs:double" minOccurs="0"/>
+            <xs:element name="AzimuthAngle" type="xs:double" minOccurs="0"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="LocationType">
+        <xs:sequence>
+            <xs:element name="Lat" type="xs:double"/>
+            <xs:element name="Lon" type="xs:double"/>
+            <xs:element name="Name" type="xs:string" minOccurs="0"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="NumPixelsType">
+        <xs:sequence>
+            <xs:element name="NumRows" type="xs:int"/>
+            <xs:element name="NumCols" type="xs:int"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="ClassificationMarkingsType">
+        <xs:sequence>
+            <xs:element name="Classification" type="xs:string"/>
+            <xs:element name="Restrictions" type="xs:string"/>
+            <xs:element name="ClassifiedBy" type="xs:string" minOccurs="0"/>
+            <xs:element name="DeclassifyOn" type="xs:string" minOccurs="0"/>
+            <xs:element name="DerivedFrom" type="xs:string" minOccurs="0"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="ImageCornersType">
+        <xs:sequence>
+            <xs:element name="UpperLeft" type="LatLonType"/>
+            <xs:element name="UpperRight" type="LatLonType"/>
+            <xs:element name="LowerRight" type="LatLonType"/>
+            <xs:element name="LowerLeft" type="LatLonType"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="PixelSpacingType">
+        <xs:sequence>
+            <xs:element name="PixelSpacing" type="RangeCrossRangeType"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:simpleType name="DataPlaneValue">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="Slant"/>
+            <xs:enumeration value="Ground"/>
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:simpleType name="DataByteOrderValue">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="Big-Endian"/>
+            <xs:enumeration value="Little-Endian"/>
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:simpleType name="SensorReferencePointValue">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="Left"/>
+            <xs:enumeration value="Right"/>
+            <xs:enumeration value="Top"/>
+            <xs:enumeration value="Bottom"/>
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:simpleType name="CoordinateFrameValue">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="ECF"/>
+            <xs:enumeration value="RIC_ECI"/>
+            <xs:enumeration value="RIC_ECF"/>
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:simpleType name="FiducialTypeValue">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="Triangular-Trihedral"/>
+            <xs:enumeration value="Corner Reflector"/>
+            <xs:enumeration value="Quad"/>
+            <xs:enumeration value="Pacman"/>
+            <xs:enumeration value="StegoSARus"/>
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:simpleType name="DataDomainValue">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="Image"/>
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:simpleType name="DataTypeValue">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="Magnitude/Phase"/>
+            <xs:enumeration value="In-phase/Quadrature"/>
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:complexType name="ProjectionPerturbationType">
+        <xs:sequence>
+            <xs:element name="CoordinateFrame" type="CoordinateFrameValue"/>
+            <xs:element name="DeltaArp" type="XYZType" minOccurs="0"/>
+            <xs:element name="DeltaVarp" type="XYZType" minOccurs="0"/>
+            <xs:element name="DeltaRange" type="xs:double" minOccurs="0"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="BeamWidthType">
+        <xs:sequence>
+            <xs:element name="Azimuth" type="xs:double"/>
+            <xs:element name="Elevation" type="xs:double"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="SquintAngleType">
+        <xs:sequence>
+            <xs:element name="GroundPlane" type="xs:double"/>
+            <xs:element name="SlantPlane" type="xs:double"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:simpleType name="LookType">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="Left"/>
+            <xs:enumeration value="Right"/>
+            <xs:enumeration value="Nadir"/>
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:complexType name="FiducialImageLocationType">
+        <xs:sequence>
+            <xs:element name="CenterPixel" type="RowColumnType"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="FiducialGeoLocationType">
+        <xs:sequence>
+            <xs:element name="CenterPixel" type="LatLonEleType"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="FiducialPhysicalLocationType">
+        <xs:sequence>
+            <xs:element name="Physical" type="FiducialImageLocationType"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="FiducialType">
+        <xs:sequence>
+            <xs:element name="Name" type="xs:string" minOccurs="0"/>
+            <xs:element name="SerialNumber" type="xs:string" minOccurs="0"/>
+            <xs:element name="FiducialType" type="FiducialTypeValue"/>
+            <xs:element name="DatasetFiducialNumber" type="xs:int" minOccurs="0"/>
+            <xs:element name="ImageLocation" type="FiducialImageLocationType"/>
+            <xs:element name="GeoLocation" type="FiducialGeoLocationType"/>
+            <xs:element name="IPRWidth3dB" type="RangeCrossRangeType" minOccurs="0"/>
+            <xs:element name="IPRWidth18dB" type="RangeCrossRangeType" minOccurs="0"/>
+            <xs:element name="IPRWidth3dB18dBRatio" type="RangeCrossRangeType" minOccurs="0"/>
+            <xs:element name="PeakSideLobeRatio" type="RangeCrossRangeType" minOccurs="0"/>
+            <xs:element name="IntegratedSideLobeRatio" type="RangeCrossRangeType" minOccurs="0"/>
+            <xs:element name="SlantPlane" type="FiducialPhysicalLocationType" minOccurs="0"/>
+            <xs:element name="GroundPlane" type="FiducialPhysicalLocationType" minOccurs="0"/>
+            <xs:element name="ProjectionPerturbation" type="ProjectionPerturbationType" minOccurs="0"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="PhysicalType">
+        <xs:sequence>
+            <xs:element name="ChipSize" type="RangeCrossRangeType"/>
+            <xs:element name="CenterPixel" type="RowColumnDoubleType"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="PlanePhysicalType">
+        <xs:sequence>
+            <xs:element name="Physical" type="PhysicalType"/>
+            <xs:element name="PhysicalWithShadows" type="PhysicalType"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="ObjectImageLocationType">
+        <xs:sequence>
+            <xs:element name="CenterPixel" type="RowColumnType"/>
+            <xs:element name="LeftFrontPixel" type="RowColumnType" minOccurs="0"/>
+            <xs:element name="RightFrontPixel" type="RowColumnType" minOccurs="0"/>
+            <xs:element name="RightRearPixel" type="RowColumnType" minOccurs="0"/>
+            <xs:element name="LeftRearPixel" type="RowColumnType" minOccurs="0"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="ObjectGeoLocationType">
+        <xs:sequence>
+            <xs:element name="CenterPixel" type="LatLonEleType"/>
+            <xs:element name="LeftFrontPixel" type="LatLonEleType" minOccurs="0"/>
+            <xs:element name="RightFrontPixel" type="LatLonEleType" minOccurs="0"/>
+            <xs:element name="RightRearPixel" type="LatLonEleType" minOccurs="0"/>
+            <xs:element name="LeftRearPixel" type="LatLonEleType" minOccurs="0"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="ObjectType">
+        <xs:sequence>
+            <xs:element name="SystemName" type="xs:string"/>
+            <xs:element name="SystemComponent" type="xs:string" minOccurs="0"/>
+            <xs:element name="NATOName" type="xs:string" minOccurs="0"/>
+            <xs:element name="Function" type="xs:string" minOccurs="0"/>
+            <xs:element name="Version" type="xs:string" minOccurs="0"/>
+            <xs:element name="DecoyType" type="xs:string" minOccurs="0"/>
+            <xs:element name="SerialNumber" type="xs:string" minOccurs="0"/>
+            <xs:element name="ObjectClass" type="xs:string" minOccurs="0"/>
+            <xs:element name="ObjectSubClass" type="xs:string" minOccurs="0"/>
+            <xs:element name="ObjectTypeClass" type="xs:string" minOccurs="0"/>
+            <xs:element name="ObjectType" type="xs:string" minOccurs="0"/>
+            <xs:element name="ObjectLabel" type="xs:string"/>
+            <xs:element name="SlantPlane" type="PlanePhysicalType" minOccurs="0"/>
+            <xs:element name="GroundPlane" type="PlanePhysicalType" minOccurs="0"/>
+            <xs:element name="Size" type="SizeType" minOccurs="0"/>
+            <xs:element name="Orientation" type="OrientationType" minOccurs="0"/>
+            <xs:element name="Articulation" type="StringWithComponentType" minOccurs="0" maxOccurs="unbounded"/>
+            <xs:element name="Configuration" type="StringWithComponentType" minOccurs="0" maxOccurs="unbounded"/>
+            <xs:element name="Accessories" type="xs:string" minOccurs="0"/>
+            <xs:element name="PaintScheme" type="xs:string" minOccurs="0"/>
+            <xs:element name="Camouflage" type="xs:string" minOccurs="0"/>
+            <xs:element name="Obscuration" type="xs:string" minOccurs="0"/>
+            <xs:element name="ObscurationPercent" type="xs:float" minOccurs="0"/>
+            <xs:element name="ImageLevelObscuration" type="xs:string" minOccurs="0"/>
+            <xs:element name="ImageLocation" type="ObjectImageLocationType"/>
+            <xs:element name="GeoLocation" type="ObjectGeoLocationType"/>
+            <xs:element name="TargetToClutterRatio" type="xs:string" minOccurs="0"/>
+            <xs:element name="VisualQualityMetric" type="xs:string" minOccurs="0"/>
+            <xs:element name="UnderlyingTerrain" type="xs:string" minOccurs="0"/>
+            <xs:element name="OverlyingTerrain" type="xs:string" minOccurs="0"/>
+            <xs:element name="TerrainTexture" type="xs:string" minOccurs="0"/>
+            <xs:element name="SeasonalCover" type="xs:string" minOccurs="0"/>
+            <xs:element name="ProjectionPerturbation" type="ProjectionPerturbationType" minOccurs="0"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="CollectionInfoType">
+        <xs:sequence>
+            <xs:element name="Name" type="xs:string" minOccurs="0"/>
+            <xs:element name="ProgramName" type="xs:string" minOccurs="0"/>
+            <xs:element name="Sponsor" type="xs:string" minOccurs="0"/>
+            <xs:element name="Date" type="DateTimeRangeType"/>
+            <xs:element name="Location" type="LocationType" minOccurs="0"/>
+            <xs:element name="NumberOfSites" type="xs:int" minOccurs="0"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="SubCollectionInfoType">
+        <xs:sequence>
+            <xs:element name="Name" type="xs:string"/>
+            <xs:element name="SiteName" type="xs:string" minOccurs="0"/>
+            <xs:element name="SiteNumber" type="xs:string" minOccurs="0"/>
+            <xs:element name="SceneNumber" type="xs:string" minOccurs="0"/>
+            <xs:element name="Description" type="xs:string" minOccurs="0"/>
+            <xs:element name="Duration" type="DateTimeRangeType" minOccurs="0"/>
+            <xs:element name="SiteCenterLocation" type="LatLonEleType"/>
+            <xs:element name="SceneContentDescription" type="xs:string"/>
+            <xs:element name="SiteBackgroundType" type="xs:string" minOccurs="0"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="ImageInfoType">
+        <xs:sequence>
+            <xs:element name="DataFilename" type="xs:string"/>
+            <xs:element name="ClassificationMarkings" type="ClassificationMarkingsType"/>
+            <xs:element name="Filetype" type="xs:string" minOccurs="0"/>
+            <xs:element name="DataCheckSum" type="xs:string" minOccurs="0"/>
+            <xs:element name="DataSize" type="xs:int" minOccurs="0"/>
+            <xs:element name="DataPlane" type="DataPlaneValue"/>
+            <xs:element name="DataDomain" type="DataDomainValue"/>
+            <xs:element name="DataType" type="DataTypeValue"/>
+            <xs:element name="BitsPerSample" type="xs:int" minOccurs="0"/>
+            <xs:element name="DataFormat" type="xs:string"/>
+            <xs:element name="DataByteOrder" type="DataByteOrderValue" minOccurs="0"/>
+            <xs:element name="NumPixels" type="NumPixelsType"/>
+            <xs:element name="ImageCollectionDate" type="xs:dateTime" minOccurs="0"/>
+            <xs:element name="ZuluOffset" type="xs:string" minOccurs="0"/>
+            <xs:element name="SensorReferencePoint" type="SensorReferencePointValue" minOccurs="0"/>
+            <xs:element name="SensorCalibrationFactor" type="xs:double" minOccurs="0"/>
+            <xs:element name="DataCalibrated" type="xs:boolean"/>
+            <xs:element name="Resolution" type="RangeCrossRangeType"/>
+            <xs:element name="PixelSpacing" type="RangeCrossRangeType"/>
+            <xs:element name="WeightingType" type="StringRangeCrossRangeType"/>
+            <xs:element name="OverSamplingFactor" type="RangeCrossRangeType" minOccurs="0"/>
+            <xs:element name="IPRWidth3dB" type="RangeCrossRangeType" minOccurs="0"/>
+            <xs:element name="ImageQualityDescription" type="xs:string" minOccurs="0"/>
+            <xs:element name="ImageHeading" type="xs:double" minOccurs="0"/>
+            <xs:element name="ImageCorners" type="ImageCornersType"/>
+            <xs:element name="SlantPlane" type="PixelSpacingType" minOccurs="0"/>
+            <xs:element name="GroundPlane" type="PixelSpacingType" minOccurs="0"/>
+            <xs:element name="SceneCenterReferenceLine" type="xs:double" minOccurs="0"/>
+            <xs:element name="ProjectionPerturbation" type="ProjectionPerturbationType" minOccurs="0"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="SensorInfoType">
+        <xs:sequence>
+            <xs:element name="Name" type="xs:string"/>
+            <xs:element name="SensorMfg" type="xs:string" minOccurs="0"/>
+            <xs:element name="OperatingAgency" type="xs:string" minOccurs="0"/>
+            <xs:element name="Type" type="xs:string" minOccurs="0"/>
+            <xs:element name="Mode" type="xs:string" minOccurs="0"/>
+            <xs:element name="Band" type="xs:string"/>
+            <xs:element name="Bandwidth" type="xs:double"/>
+            <xs:element name="CenterFrequency" type="xs:double"/>
+            <xs:element name="NearRange" type="xs:double" minOccurs="0"/>
+            <xs:element name="SlantRangeSwathWidth" type="xs:double" minOccurs="0"/>
+            <xs:element name="Polarization" type="xs:string"/>
+            <xs:element name="Range" type="xs:double"/>
+            <xs:element name="DepressionAngle" type="xs:double"/>
+            <xs:element name="LinearDynamicRange" type="xs:double" minOccurs="0"/>
+            <xs:element name="BeamWidth" type="BeamWidthType" minOccurs="0"/>
+            <xs:element name="Aimpoint" type="LatLonEleType"/>
+            <xs:element name="AircraftHeading" type="xs:double"/>
+            <xs:element name="AircraftTrackAngle" type="xs:double"/>
+            <xs:element name="Look" type="LookType"/>
+            <xs:element name="SquintAngle" type="SquintAngleType"/>
+            <xs:element name="AircraftLocation" type="LatLonAltType"/>
+            <xs:element name="AircraftVelocity" type="XYZType"/>
+            <xs:element name="FlightNumber" type="xs:string" minOccurs="0"/>
+            <xs:element name="PassNumber" type="xs:string" minOccurs="0"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="FiducialInfoType">
+        <xs:sequence>
+            <xs:element name="NumberOfFiducialsInImage" type="xs:int"/>
+            <xs:element name="NumberOfFiducialsInScene" type="xs:int"/>
+            <xs:element name="Fiducial" type="FiducialType" minOccurs="0" maxOccurs="unbounded"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="ObjectInfoType">
+        <xs:sequence>
+            <xs:element name="NumberOfObjectsInImage" type="xs:int"/>
+            <xs:element name="NumberOfObjectsInScene" type="xs:int"/>
+            <xs:element name="Object" type="ObjectType" minOccurs="0" maxOccurs="unbounded"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:element name="RESEARCH">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="MetadataVersion" type="xs:string"/>
+                <xs:element name="DetailCollectionInfo" type="CollectionInfoType"/>
+                <xs:element name="DetailSubCollectionInfo" type="SubCollectionInfoType"/>
+                <xs:element name="DetailImageInfo" type="ImageInfoType"/>
+                <xs:element name="DetailSensorInfo" type="SensorInfoType"/>
+                <xs:element name="DetailFiducialInfo" type="FiducialInfoType"/>
+                <xs:element name="DetailObjectInfo" type="ObjectInfoType"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+</xs:schema>

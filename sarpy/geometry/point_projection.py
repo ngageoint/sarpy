@@ -91,6 +91,7 @@ logger = logging.getLogger(__name__)
 _unhandled_text = 'Got unhandled type `{}`'
 _unsupported_text = 'Got unsupported projection type `{}`'
 
+
 #############
 # COA Projection definition
 
@@ -545,7 +546,39 @@ class COAProjection(object):
         # aperture location adjustment parameters
         self._delta_arp = _validate_adj_param(delta_arp, 'delta_arp')
         self._delta_varp = _validate_adj_param(delta_varp, 'delta_varp')
-        self._range_bias = 0.0 if range_bias is None else float(range_bias) # type: float
+        self._range_bias = 0.0 if range_bias is None else float(range_bias)  # type: float
+
+    @property
+    def delta_arp(self):
+        """
+        numpy.ndarray: The delta arp adjustable parameter
+        """
+
+        return self._delta_arp
+
+    @property
+    def delta_varp(self):
+        """
+        numpy.ndarray: The delta varp adjustable parameter
+        """
+
+        return self._delta_varp
+
+    @property
+    def range_bias(self):
+        """
+        float: The range bias adjustable parameter
+        """
+
+        return self._range_bias
+
+    @property
+    def delta_range(self):
+        """
+        float: Alias to the range bias adjustable parameter
+        """
+
+        return self._range_bias
 
     @classmethod
     def from_sicd(cls, sicd, delta_arp=None, delta_varp=None, range_bias=None, adj_params_frame='ECF'):

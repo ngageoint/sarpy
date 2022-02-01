@@ -10,7 +10,8 @@ import numpy
 
 from sarpy.io.xml.base import Serializable, Arrayable
 from sarpy.io.xml.descriptors import StringDescriptor, SerializableDescriptor, \
-    IntegerDescriptor, StringEnumDescriptor, DateTimeDescriptor, FloatDescriptor
+    IntegerDescriptor, StringEnumDescriptor, DateTimeDescriptor, FloatDescriptor, \
+    BooleanDescriptor
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd_elements.blocks import LatLonType
 
@@ -232,9 +233,10 @@ class ImageInfoType(Serializable):
         'ImageCorners', 'SlantPlane', 'GroundPlane', 'SceneCenterReferenceLine', 
         'ProjectionPerturbation')
     _required = (
-        'DataFilename', 'ClassificationMarkings', 'DataPlane', 'DataDomain', 'DataType',
-        'DataFormat', 'NumPixels', 'ImageCollectionDate', 'SensorReferencePoint',
-        'DataCalibrated', 'Resolution', 'PixelSpacing', 'WeightingType', 'ImageCorners')
+        'DataFilename', 'ClassificationMarkings', 'DataCheckSum', 'DataPlane',
+        'DataDomain', 'DataType', 'DataFormat', 'NumPixels', 'ImageCollectionDate',
+        'SensorReferencePoint', 'DataCalibrated', 'Resolution', 'PixelSpacing',
+        'WeightingType', 'ImageCorners')
     _numeric_format = {
         'ImageHeading': '0.17G', 'SensorCalibrationFactor': '0.17G',
         'SceneCenterReferenceLine': '0.17G', }
@@ -250,18 +252,19 @@ class ImageInfoType(Serializable):
         docstring='The image file type')  # type: Optional[str]
     DataCheckSum = StringDescriptor(
         'DataCheckSum', _required,
-        docstring='The unique 32-bit identifier for the sensor block data')  # type: Optional[str]
+        docstring='The 32 character (hexidecimal digest) MD5 checksum of the '
+                  'full image file')  # type: str
     DataSize = IntegerDescriptor(
         'DataSize', _required,
         docstring='The image size in bytes')  # type: Optional[int]
     DataPlane = StringEnumDescriptor(
         'DataPlane', {'Slant', 'Ground'}, _required, default_value='Slant',
         docstring='The image plane.')  # type: str
-    DataDomain = StringDescriptor(
-        'DataDomain', _required,
+    DataDomain = StringEnumDescriptor(
+        'DataDomain', {'Image', }, _required,    # todo: values
         docstring='The image data domain')  # type: str
-    DataType = StringDescriptor(
-        'DataType', _required,
+    DataType = StringEnumDescriptor(
+        'DataType', {'Magnitude/Phase', 'In-phase/Quadrature'}, _required,
         docstring='The image data type')  # type: str
     BitsPerSample = IntegerDescriptor(
         'BitsPerSample', _required,
@@ -278,9 +281,9 @@ class ImageInfoType(Serializable):
     ImageCollectionDate = DateTimeDescriptor(
         'ImageCollectionDate', _required,
         docstring='The date/time of the image collection in UTC')  # type: Optional[numpy.datetime64]
-    ZuluOffset = IntegerDescriptor(
+    ZuluOffset = StringDescriptor(
         'ZuluOffset', _required,
-        docstring='The local time offset from UTC')  # type: Optional[int]  # TODO: this isn't always integer
+        docstring='The local time offset from UTC')  # type: Optional[str]
     SensorReferencePoint = StringEnumDescriptor(
         'DataPlane', {'Left', 'Right', 'Top', 'Bottom'}, _required,
         docstring='Description of the sensor location relative to the scene.')  # type: Optional[str]
@@ -288,9 +291,9 @@ class ImageInfoType(Serializable):
         'SensorCalibrationFactor', _required,
         docstring='Multiplicative factor used to scale raw image data to the return '
                   'of a calibrated reference reflector or active source')  # type: Optional[float]
-    DataCalibrated = StringDescriptor(
+    DataCalibrated = BooleanDescriptor(
         'DataCalibrated', _required,
-        docstring='Has the data been calibrated?')  # type: str  # TODO: this obviously should be a xs:boolean
+        docstring='Has the data been calibrated?')  # type: bool
     Resolution = SerializableDescriptor(
         'Resolution', RangeCrossRangeType, _required,
         docstring='Resolution (intrinsic) of the sensor system/mode in meters.')  # type: RangeCrossRangeType
@@ -349,7 +352,7 @@ class ImageInfoType(Serializable):
         DataFilename : str
         ClassificationMarkings : ClassificationMarkingsType
         FileType : str
-        DataCheckSum : None|str
+        DataCheckSum : str
         DataSize : int
         DataPlane : str
         DataDomain : None|str
@@ -359,10 +362,10 @@ class ImageInfoType(Serializable):
         DataByteOrder : None|str
         NumPixels : NumPixelsType|numpy.ndarray|list|tuple
         ImageCollectionDate : numpy.datetime64|datetime|date|str
-        ZuluOffset : None|int
+        ZuluOffset : None|str
         SensorReferencePoint : None|str
         SensorCalibrationFactor : None|float
-        DataCalibrated : None|str
+        DataCalibrated : bool
         Resolution : RangeCrossRangeType|numpy.ndarray|list|tuple
         PixelSpacing : RangeCrossRangeType|numpy.ndarray|list|tuple
         WeightingType : StringRangeCrossRangeType
@@ -424,7 +427,7 @@ class ImageInfoType(Serializable):
         super(ImageInfoType, self).__init__(**kwargs)
 
     @classmethod
-    def from_sicd(cls, sicd, base_file_name, file_type='NITF02.10'):
+    def from_sicd(cls, sicd, base_file_name, file_type='NITF02.10', md5_checksum=None):
         """
         Construct the ImageInfo from the sicd object and given image file name.
 
@@ -434,6 +437,8 @@ class ImageInfoType(Serializable):
         base_file_name : str
         file_type : str
             The file type. This should probably always be NITF02.10 for now.
+        md5_checksum : None|str
+            The md5 checksum of the full image file.
 
         Returns
         -------
@@ -442,19 +447,21 @@ class ImageInfoType(Serializable):
 
         pixel_type = sicd.ImageData.PixelType
         if pixel_type == 'RE32F_IM32F':
-            data_type = 'in-phase/quadrature'
+            data_type = 'In-phase/Quadrature'
             bits_per_sample = 32
             data_format = 'float'
         elif pixel_type == 'RE16I_IM16I':
-            data_type = 'in-phase/quadrature'
+            data_type = 'In-phase/Quadrature'
             bits_per_sample = 16
             data_format = 'integer'
         elif pixel_type == 'AMP8I_PHS8I':
-            data_type = 'magnitude-phase'
+            data_type = 'Magnitude/Phase'
             bits_per_sample = 8
             data_format = 'unsigned integer'
         else:
             raise ValueError('Unhandled')
+
+        data_cal = sicd.Radiometric is not None
 
         icps = ImageCornerType(
             UpperLeft=sicd.GeoData.ImageCorners.FRFC,
@@ -469,24 +476,23 @@ class ImageInfoType(Serializable):
         else:
             data_plane = None
 
-        
         has_perturb = False
         proj_perturb = None
         coa = sicd.coa_projection
         if coa is not None:
-            delta_arp = coa._delta_arp
+            delta_arp = coa.delta_arp
             if numpy.any(delta_arp != 0):
                 has_perturb = True
             else:
                 delta_arp = None
 
-            delta_varp = coa._delta_varp
+            delta_varp = coa.delta_varp
             if numpy.any(delta_varp != 0):
                 has_perturb = True
             else:
                 delta_varp = None
 
-            delta_range = coa._delta_range
+            delta_range = coa.delta_range
             if delta_range != 0:
                 has_perturb = True
             else:
@@ -504,9 +510,12 @@ class ImageInfoType(Serializable):
             ClassificationMarkings=ClassificationMarkingsType(
                 Classification=sicd.CollectionInfo.Classification),
             FileType=file_type,
+            DataCheckSum=md5_checksum,
             DataPlane=data_plane,
             DataType=data_type,
+            DataCalibrated=data_cal,
             BitsPerSample=bits_per_sample,
+            DataDomain='Image',
             DataFormat=data_format,
             DataByteOrder='Big-Endian',
             NumPixels=(sicd.ImageData.NumRows, sicd.ImageData.NumCols),

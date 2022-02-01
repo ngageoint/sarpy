@@ -14,6 +14,9 @@ from sarpy.io.xml.base import Serializable, Arrayable
 from sarpy.io.xml.descriptors import DateTimeDescriptor, FloatDescriptor, \
     SerializableDescriptor, StringEnumDescriptor
 
+from sarpy.io.complex.sicd_elements.SICD import SICDType
+from sarpy.io.product.sidd1_elements.SIDD import SIDDType as SIDDType1
+from sarpy.io.product.sidd2_elements.SIDD import SIDDType as SIDDType2
 from sarpy.io.complex.sicd_elements.blocks import XYZType
 from .base import DEFAULT_STRICT
 
@@ -420,4 +423,21 @@ class ProjectionPerturbationType(Serializable):
 
         super(ProjectionPerturbationType, self).__init__(**kwargs)
 
-    
+    def set_coa_projection(self, structure):
+        """
+        Sets the sicd or sidd coa_projection property, as appropriate.
+
+        Parameters
+        ----------
+        structure : SICDType|SIDDType1|SIDDType2
+        """
+
+        if not isinstance(structure, (SICDType, SIDDType1, SIDDType2)):
+            raise TypeError('Requires input of type SICDType or SIDDType, got {}'.format(type(structure)))
+
+        structure.define_coa_projection(
+            delta_arp=None if self.DeltaArp is None else self.DeltaArp.get_array(dtype='float64'),
+            delta_varp=None if self.DeltaVarp is None else self.DeltaVarp.get_array(dtype='float64'),
+            range_bias=self.DeltaRange,
+            adj_params_frame=self.CoordinateFrame,
+            overide=True)
