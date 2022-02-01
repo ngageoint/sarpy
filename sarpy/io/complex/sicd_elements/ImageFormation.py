@@ -101,6 +101,16 @@ class TxFrequencyProcType(Serializable, Arrayable):
             return None
         return 0.5*(self.MinProc + self.MaxProc)
 
+    @property
+    def bandwidth(self):
+        """
+        None|float: The bandwidth in Hz.
+        """
+
+        if self.MinProc is None or self.MaxProc is None:
+            return None
+        return self.MaxProc - self.MinProc
+
     def _apply_reference_frequency(self, reference_frequency):
         if self.MinProc is not None:
             self.MinProc += reference_frequency

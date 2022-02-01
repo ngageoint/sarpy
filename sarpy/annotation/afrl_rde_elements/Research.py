@@ -13,6 +13,7 @@ from sarpy.io.xml.descriptors import SerializableDescriptor, StringDescriptor
 
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd import SICDReader
+from sarpy.io.general.utils import calculate_md5
 
 from .base import DEFAULT_STRICT
 from .CollectionInfo import CollectionInfoType
@@ -102,7 +103,7 @@ class ResearchType(Serializable):
         return self.to_xml_bytes(urn=urn, tag=tag, check_validity=check_validity, strict=strict).decode('utf-8')
 
     def apply_sicd(self, sicd, base_file_name, populate_in_periphery=False, include_out_of_range=False,
-                   padding_fraction=0.05, minimum_pad=0):
+                   padding_fraction=0.05, minimum_pad=0, md5_checksum=None):
         """
         Apply the given sicd to define all the relevant derived data, assuming
         that the starting point is physical ground truth populated, and image
@@ -117,6 +118,7 @@ class ResearchType(Serializable):
         include_out_of_range : bool
         padding_fraction : None|float
         minimum_pad : int|float
+        md5_checksum : None|str
         """
 
         # assume that collection info and subcollection info are previously defined
@@ -124,7 +126,8 @@ class ResearchType(Serializable):
         # define the image info
         if self.DetailImageInfo is not None:
             raise ValueError('Image Info is already defined')
-        self.DetailImageInfo = ImageInfoType.from_sicd(sicd, base_file_name)
+        self.DetailImageInfo = ImageInfoType.from_sicd(
+            sicd, base_file_name, md5_checksum=md5_checksum)
 
         # define sensor info
         if self.DetailSensorInfo is not None:
@@ -170,6 +173,7 @@ class ResearchType(Serializable):
         minimum_pad : int|float
         """
 
+        md5_checksum = None if sicd_reader.file_name is None else calculate_md5(sicd_reader.file_name)
         base_file = os.path.split(sicd_reader.file_name)[1]
         self.apply_sicd(
             sicd_reader.sicd_meta,
@@ -177,4 +181,5 @@ class ResearchType(Serializable):
             populate_in_periphery=populate_in_periphery,
             include_out_of_range=include_out_of_range,
             padding_fraction=padding_fraction,
-            minimum_pad=minimum_pad)
+            minimum_pad=minimum_pad,
+            md5_checksum=md5_checksum)

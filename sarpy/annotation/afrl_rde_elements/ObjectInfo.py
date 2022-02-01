@@ -1196,64 +1196,11 @@ class TheObjectType(Serializable):
             self.Configuration.append(value)
 
 
-# other types for the ObjectInfo
-
-class NominalType(Serializable):
-    _fields = ('ChipSize', )
-    _required = _fields
-    ChipSize = SerializableDescriptor(
-        'ChipSize', RangeCrossRangeType, _required, strict=DEFAULT_STRICT,
-        docstring='The nominal chip size used for every object in the dataset, '
-                  'in the appropriate plane')  # type: RangeCrossRangeType
-
-    def __init__(self, ChipSize=None, **kwargs):
-        """
-        Parameters
-        ----------
-        ChipSize : RangeCrossRangeType|numpy.ndarray|list|tuple
-        kwargs
-            Other keyword arguments
-        """
-
-        if '_xml_ns' in kwargs:
-            self._xml_ns = kwargs['_xml_ns']
-        if '_xml_ns_key' in kwargs:
-            self._xml_ns_key = kwargs['_xml_ns_key']
-        self.ChipSize = ChipSize
-        super(NominalType, self).__init__(**kwargs)
-
-
-class PlaneNominalType(Serializable):
-    _fields = ('Nominal', )
-    _required = _fields
-    Nominal = SerializableDescriptor(
-        'Nominal', NominalType, _required,
-        docstring='Nominal chip details in the appropriate plane')  # type: NominalType
-
-    def __init__(self, Nominal=None, **kwargs):
-        """
-
-        Parameters
-        ----------
-        Nominal : NominalType
-        kwargs
-            Other keyword arguments
-        """
-
-        if '_xml_ns' in kwargs:
-            self._xml_ns = kwargs['_xml_ns']
-        if '_xml_ns_key' in kwargs:
-            self._xml_ns_key = kwargs['_xml_ns_key']
-        self.Nominal = Nominal
-        super(PlaneNominalType, self).__init__(**kwargs)
-
-
 # the main type
 
 class ObjectInfoType(Serializable):
     _fields = (
-        'NumberOfObjectsInImage', 'NumberOfObjectsInScene',
-        'SlantPlane', 'GroundPlane', 'Objects')
+        'NumberOfObjectsInImage', 'NumberOfObjectsInScene', 'Objects')
     _required = ('NumberOfObjectsInImage', 'NumberOfObjectsInScene', 'Objects')
     _collections_tags = {'Objects': {'array': False, 'child_tag': 'Object'}}
     # descriptors
@@ -1263,12 +1210,6 @@ class ObjectInfoType(Serializable):
     NumberOfObjectsInScene = IntegerDescriptor(
         'NumberOfObjectsInScene', _required, strict=DEFAULT_STRICT,
         docstring='Number of ground truthed objects in the scene.')  # type: int
-    SlantPlane = SerializableDescriptor(
-        'SlantPlane', PlaneNominalType, _required,
-        docstring='Default chip sizes in the slant plane.')  # type: Optional[PlaneNominalType]
-    GroundPlane = SerializableDescriptor(
-        'GroundPlane', PlaneNominalType, _required,
-        docstring='Default chip sizes in the ground plane.')  # type: Optional[PlaneNominalType]
     Objects = SerializableListDescriptor(
         'Objects', TheObjectType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='The object collection')  # type: List[TheObjectType]
@@ -1280,8 +1221,6 @@ class ObjectInfoType(Serializable):
         ----------
         NumberOfObjectsInImage : int
         NumberOfObjectsInScene : int
-        SlantPlane : None|SlantPlaneNominalType
-        GroundPlane : None|GroundPlaneNominalType
         Objects : List[ObjectType]
         kwargs
             Other keyword arguments
@@ -1293,8 +1232,6 @@ class ObjectInfoType(Serializable):
             self._xml_ns_key = kwargs['_xml_ns_key']
         self.NumberOfObjectsInImage = NumberOfObjectsInImage
         self.NumberOfObjectsInScene = NumberOfObjectsInScene
-        self.SlantPlane = SlantPlane
-        self.GroundPlane = GroundPlane
         self.Objects = Objects
         super(ObjectInfoType, self).__init__(**kwargs)
 

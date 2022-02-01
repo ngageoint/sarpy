@@ -11,10 +11,10 @@ import numpy
 
 from sarpy.io.xml.base import Serializable, Arrayable
 from sarpy.io.xml.descriptors import SerializableDescriptor, StringDescriptor, \
-    StringEnumDescriptor, FloatDescriptor, IntegerDescriptor
+    StringEnumDescriptor, FloatDescriptor
 from sarpy.io.complex.sicd_elements.blocks import XYZType
 from sarpy.io.complex.sicd_elements.SICD import SICDType
-from sarpy.geometry.geocoords import ecf_to_geodetic
+from sarpy.geometry.geocoords import ecf_to_geodetic, ecf_to_ned
 
 from .blocks import LatLonEleType
 
@@ -386,28 +386,37 @@ class SensorInfoType(Serializable):
         """
 
         transmit_freq_proc = sicd.ImageFormation.TxFrequencyProc
-        center_freq = 0.5*(transmit_freq_proc.MinProc + transmit_freq_proc.MaxProc)*1e-9
+        center_freq = transmit_freq_proc.center_frequency*1e-9
+        bandwidth = transmit_freq_proc.bandwidth*1e-9
         polarization = sicd.ImageFormation.get_polarization().replace(':', '')
         look = 'Left' if sicd.SCPCOA.SideOfTrack == 'L' else 'Right'
-        slant_squint = 90 - sicd.SCPCOA.DopplerConeAng
-        ground_squint = 90 - numpy.rad2deg(
-            numpy.arccos(
-                numpy.cos(numpy.deg2rad(sicd.SCPCOA.DopplerConeAng)) /
-                numpy.cos(numpy.deg2rad(sicd.SCPCOA.GrazeAng))
-            )
-        )
         arp_pos_llh = ecf_to_geodetic(sicd.SCPCOA.ARPPos.get_array())
+
+        # calculate heading
+        heading_ned = ecf_to_ned(sicd.SCPCOA.ARPVel.get_array(), sicd.SCPCOA.ARPPos.get_array(), absolute_coords=False)
+        heading = numpy.rad2deg(numpy.arctan2(heading_ned[1], heading_ned[0]))
+        # calculate track angle
+        first_pos_ecf = sicd.Position.ARPPoly(0)
+        last_pos_ecf = sicd.Position.ARPPoly(sicd.Timeline.CollectDuration)
+        diff_ned = ecf_to_ned(last_pos_ecf - first_pos_ecf, sicd.SCPCOA.ARPPos.get_array(), absolute_coords=False)
+        track_angle = numpy.rad2deg(numpy.arctan2(diff_ned[1], diff_ned[0]))
+
         return SensorInfoType(
             Name=sicd.CollectionInfo.CollectorName,
             Type='SAR',
             Mode=sicd.CollectionInfo.RadarMode.ModeType,
             Band=sicd.ImageFormation.get_transmit_band_name(),
+            Bandwidth=bandwidth,
             CenterFrequency=center_freq,
             Polarization=polarization,
             Range=sicd.SCPCOA.SlantRange,
             DepressionAngle=sicd.SCPCOA.GrazeAng,
             Aimpoint=sicd.GeoData.SCP.LLH.get_array(),
+            AircraftHeading=heading,
+            AircraftTrackAngle=track_angle,
             Look=look,
-            SquintAngle=SquintAngleType(SlantPlane=slant_squint, GroundPlane=ground_squint),
+            SquintAngle=SquintAngleType(
+                SlantPlane=sicd.SCPCOA.DopplerConeAng,
+                GroundPlane=sicd.SCPCOA.Squint),
             AircraftLocation=arp_pos_llh,
             AircraftVelocity=sicd.SCPCOA.ARPVel.get_array())

@@ -115,9 +115,9 @@ class GeometryCalculator(object):
     @property
     def SquintAngle(self):
         arp_vel_proj = self._make_unit(self.uARP_vel - self.uARP_vel.dot(self.uARP)*self.uARP)
-        los_proj = self._make_unit(-self.uLOS + self.uLOS.dot(self.uARP)*self.uARP)
+        los_proj = self._make_unit(self.uLOS - self.uLOS.dot(self.uARP)*self.uARP)
         return float(numpy.rad2deg(
-            numpy.arctan2(numpy.cross(arp_vel_proj, los_proj).dot(self.uARP), arp_vel_proj.dot(los_proj))))
+            numpy.arctan2(numpy.cross(los_proj, arp_vel_proj).dot(self.uARP), arp_vel_proj.dot(los_proj))))
 
     @property
     def SlopeAng(self):
