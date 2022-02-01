@@ -18,9 +18,10 @@ from sarpy.io.complex.converter import open_complex
 
 logger = logging.getLogger(__name__)
 
-RNIIRS_FIT_PARAMETERS = numpy.array([3.7555, .3960], dtype='float64')
+RNIIRS_FIT_PARAMETERS = numpy.array([3.4761, 0.4357], dtype='float64')
 """
-The RNIIRS calculation parameters determined by empirical data fit 
+The RNIIRS calculation parameters determined by empirical data fit, 
+parameters updated on 2022-02-01
 """
 
 
