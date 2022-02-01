@@ -4,6 +4,11 @@ SarPy follows a continuous release process, so there are lots of releases. Since
 essentially every commit corresponds to a release, specific release points are 
 not being annotated in github.
 
+
+## [1.2.55] - 2022-02-01
+### Changed
+Modified the RGIQE parameters to a more agreed upon version
+
 ## [1.2.54] - 2022-01-31
 ### Changed
 Finalizing changes to the AFRL/RDE structure agreed upon on 01/26/2022
@@ -26,7 +31,6 @@ Update to AFRL/RDE based on agreed upon changes
 ### Fixed
 - Documentation fixes
 - Resolves projection to DEM bug in expected shape of results
-
 
 ## [1.2.50] - 2022-01-11
 ### Fixed
