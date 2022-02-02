@@ -159,9 +159,16 @@ def is_file_like(the_input):
     return out
 
 
-def calculate_md5(the_path):
+def calculate_md5(the_path, chunk_size=1024*1024):
     """
     Calculate the md5 checksum of a given file defined by a path.
+
+    Parameters
+    ----------
+    the_path : str
+        The path to the file
+    chunk_size : int
+        The chunk size for processing
 
     Returns
     -------
@@ -171,6 +178,6 @@ def calculate_md5(the_path):
 
     md5_hash = hashlib.md5()
     with open(the_path, 'rb') as fi:
-        for chunk in iter(lambda: fi.read(4096), b''):
+        for chunk in iter(lambda: fi.read(chunk_size), b''):
             md5_hash.update(chunk)
     return md5_hash.hexdigest()
