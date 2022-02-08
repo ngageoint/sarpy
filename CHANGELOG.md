@@ -6,7 +6,7 @@ not being annotated in github.
 
 ## [1.2.56] - 2022-02-07
 ### Fixed
-Bug in creation of SIDD and KMZ from SICD
+Fixed a bug in scaling failure for the creation of KMZ from SICD
 
 ### Added
 - A ReferencePoint property to SIDD.Measurement
