@@ -337,3 +337,14 @@ class MeasurementType(Serializable):
             if getattr(self, attribute) is not None:
                 return attribute
         return None
+
+    @property
+    def ReferencePoint(self):
+        """
+        None|ReferencePointType: *READ ONLY* Gets the reference point.
+        """
+
+        for attribute in self._choice[0]['collection']:
+            if getattr(self, attribute) is not None:
+                return attribute.ReferencePoint
+        return None

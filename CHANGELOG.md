@@ -4,6 +4,17 @@ SarPy follows a continuous release process, so there are lots of releases. Since
 essentially every commit corresponds to a release, specific release points are 
 not being annotated in github.
 
+## [1.2.56] - 2022-02-07
+### Fixed
+Fixed a bug in scaling failure for the creation of KMZ from SICD
+
+### Added
+- A ReferencePoint property to SIDD.Measurement
+- Basic image registration functions for 
+    - finding the best adjustable projection parameters to fit known geo-location and 
+    observed image location
+    - find the best geophysical location given a collection of images and observed 
+    image locations
 
 ## [1.2.55] - 2022-02-01
 ### Changed

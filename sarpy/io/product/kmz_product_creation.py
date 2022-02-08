@@ -621,6 +621,8 @@ def add_sicd_to_kmz(kmz_document, reader, index=0, pixel_limit=2048,
             proj_helper.row_spacing *= row_count/float(pixel_limit)
         if col_count > pixel_limit:
             proj_helper.col_spacing *= col_count/float(pixel_limit)
+        if isinstance(proj_helper, PGRatPolyProjection):
+            proj_helper.perform_rational_poly_fitting()
     # add the sicd details
     add_sicd_from_ortho_helper(
         kmz_document, ortho_helper,
