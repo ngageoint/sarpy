@@ -10,7 +10,7 @@ from typing import Union
 from sarpy.io.product.sidd2_elements.base import DEFAULT_STRICT
 from sarpy.io.xml.base import Serializable
 from sarpy.io.xml.descriptors import SerializableDescriptor
-from sarpy.io.product.sidd2_elements.blocks import RowColIntType, XYZPolyType
+from sarpy.io.product.sidd2_elements.blocks import RowColIntType, XYZPolyType, ReferencePointType
 from sarpy.io.product.sidd2_elements.Measurement import PolynomialProjectionType, \
     GeographicProjectionType, PlaneProjectionType, CylindricalProjectionType
 
@@ -82,4 +82,15 @@ class MeasurementType(Serializable):
         for attribute in self._choice[0]['collection']:
             if getattr(self, attribute) is not None:
                 return attribute
+        return None
+
+    @property
+    def ReferencePoint(self):
+        """
+        None|ReferencePointType: *READ ONLY* Gets the reference point.
+        """
+        
+        for attribute in self._choice[0]['collection']:
+            if getattr(self, attribute) is not None:
+                return attribute.ReferencePoint
         return None

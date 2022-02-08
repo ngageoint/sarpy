@@ -22,8 +22,8 @@ logger = logging.getLogger(__name__)
 #######
 # module variables
 _SUPPORTED_DTED_FILE_TYPES = {
-    'DTED1': {'fext': '.dtd'},
-    'DTED2': {'fext': '.dtd'},
+    'DTED1': {'fext': '.dt1'},
+    'DTED2': {'fext': '.dt2'},
     'SRTM1': {'fext': '.dt1'},
     'SRTM2': {'fext': '.dt2'},
     'SRTM2F': {'fext': '.dt2'}}
@@ -97,17 +97,20 @@ class DTEDList(DEMList):
     of the DEM tile.
     """
 
-    __slots__ = ('_root_dir', )
+    __slots__ = ('_root_dir', '_missing_error')
 
-    def __init__(self, root_directory):
+    def __init__(self, root_directory, missing_error=False):
         """
 
         Parameters
         ----------
         root_directory : str
+        missing_error : bool
+            Raise an exception when DTED files are missing?
         """
 
         self._root_dir = root_directory
+        self._missing_error = missing_error
 
     @property
     def root_dir(self):
@@ -242,10 +245,13 @@ class DTEDList(DEMList):
                 missing_boxes.append('({}, {})'.format(entry[0], entry[1]))
 
         if len(missing_boxes) > 0:
-            logger.warning(
-                'Missing expected DEM files for squares with lower left lat/lon corner {}.\n\t'
-                'This should result in the assumption that the altitude in that section is '
-                'given by Mean Sea Level.'.format(missing_boxes))
+            msg = 'Missing expected DEM files for squares with lower left lat/lon corner {}'.format(missing_boxes)
+            if self._missing_error:
+                raise ValueError(msg)
+            else:
+                logger.warning(
+                    msg + '\n\tThis should result in the assumption that the altitude in\n\t'
+                          'that section is given by Mean Sea Level.')
         return files
 
 
@@ -294,6 +300,7 @@ class DTEDReader(object):
                                      mode='r',
                                      offset=3428,
                                      shape=shp)
+
     @property
     def origin(self):
         """
