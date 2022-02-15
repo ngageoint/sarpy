@@ -12,7 +12,7 @@ from typing import Optional
 
 from sarpy.io.xml.base import Serializable, Arrayable
 from sarpy.io.xml.descriptors import DateTimeDescriptor, FloatDescriptor, \
-    SerializableDescriptor, StringEnumDescriptor
+    SerializableDescriptor, StringEnumDescriptor, StringDescriptor
 
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.product.sidd1_elements.SIDD import SIDDType as SIDDType1
@@ -408,7 +408,7 @@ class ProjectionPerturbationType(Serializable):
         DeltaVarp : None|XYZType|numpy.ndarray|list|tuple
         DeltaRange : None|float
         kwargs
-            Other keywrod arguments
+            Other keyword arguments
         """
 
         if '_xml_ns' in kwargs:
@@ -441,3 +441,41 @@ class ProjectionPerturbationType(Serializable):
             range_bias=self.DeltaRange,
             adj_params_frame=self.CoordinateFrame,
             overide=True)
+
+
+class LabelSourceType(Serializable):
+    _fields = ('SourceType', 'SourceID', 'Description')
+    _required = ('SourceType', )
+    SourceType = StringEnumDescriptor(
+        'SourceType', {
+            'Ground Truth', 'Analyst Truth', 'Algorithm Truth', 'Other', 'Unknown'},
+        _required,
+        docstring='The source type of the labeling effort')  # type: str
+    SourceID = StringDescriptor(
+        'SourceID', _required,
+        docstring='The "ID" of the labeling source. '
+                  'This should be populated following program guidance.')  # type: Optional[str]
+    Description = StringDescriptor(
+        'Description', _required,
+        docstring='A description of the labeling source')  # type: Optional[str]
+
+    def __init__(self, SourceType='Unknown', SourceID=None, Description=None, **kwargs):
+        """
+        Parameters
+        ----------
+        SourceType : str
+        SourceID : None|str
+        Description : None|str
+        kwargs
+            Other keyword arguments
+        """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
+
+        self.SourceType = SourceType
+        self.SourceID = SourceID
+        self.Description = Description
+        super(LabelSourceType, self).__init__(**kwargs)
