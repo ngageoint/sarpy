@@ -18,7 +18,7 @@ from sarpy.io.complex.sicd_elements.SICD import SICDType
 
 from .base import DEFAULT_STRICT
 from .blocks import LatLonEleType, RangeCrossRangeType, \
-    ProjectionPerturbationType
+    ProjectionPerturbationType, LabelSourceType
 
 logger = logging.getLogger(__name__)
 
@@ -205,9 +205,8 @@ class TheFiducialType(Serializable):
     SerialNumber = StringDescriptor(
         'SerialNumber', _required, strict=DEFAULT_STRICT,
         docstring='The serial number of the fiducial')  # type: Optional[str]
-    FiducialType = StringEnumDescriptor(
+    FiducialType = StringDescriptor(
         'FiducialType',
-        {'Triangular-Trihedral', 'Corner Reflector', 'Quad', 'Pacman', 'StegoSARus'},
         _required, strict=DEFAULT_STRICT,
         docstring='The type of fiducial')  # type: str
     DatasetFiducialNumber = IntegerDescriptor(
@@ -395,9 +394,9 @@ class TheFiducialType(Serializable):
 
 class FiducialInfoType(Serializable):
     _fields = (
-        'NumberOfFiducialsInImage', 'NumberOfFiducialsInScene', 'Fiducials')
+        'NumberOfFiducialsInImage', 'NumberOfFiducialsInScene', 'LabelSource', 'Fiducials')
     _required = (
-        'NumberOfFiducialsInImage', 'NumberOfFiducialsInScene', 'Fiducials')
+        'NumberOfFiducialsInImage', 'NumberOfFiducialsInScene', 'LabelSource', 'Fiducials')
     _collections_tags = {'Fiducials': {'array': False, 'child_tag': 'Fiducial'}}
     # descriptors
     NumberOfFiducialsInImage = IntegerDescriptor(
@@ -406,17 +405,21 @@ class FiducialInfoType(Serializable):
     NumberOfFiducialsInScene = IntegerDescriptor(
         'NumberOfFiducialsInScene', _required, strict=DEFAULT_STRICT,
         docstring='Number of ground truthed objects in the scene.')  # type: int
+    LabelSource = SerializableDescriptor(
+        'LabelSource', LabelSourceType, _required, strict=DEFAULT_STRICT,
+        docstring='The source of the labels')  # type: LabelSourceType
     Fiducials = SerializableListDescriptor(
         'Fiducials', TheFiducialType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='The object collection')  # type: List[TheFiducialType]
 
     def __init__(self, NumberOfFiducialsInImage=None, NumberOfFiducialsInScene=None,
-                 Fiducials=None, **kwargs):
+                 LabelSource=None, Fiducials=None, **kwargs):
         """
         Parameters
         ----------
         NumberOfFiducialsInImage : int
         NumberOfFiducialsInScene : int
+        LabelSource : LabelSourceType
         Fiducials : None|List[TheFiducialType]
         kwargs
             Other keyword arguments
@@ -428,6 +431,7 @@ class FiducialInfoType(Serializable):
             self._xml_ns_key = kwargs['_xml_ns_key']
         self.NumberOfFiducialsInImage = NumberOfFiducialsInImage
         self.NumberOfFiducialsInScene = NumberOfFiducialsInScene
+        self.LabelSource = LabelSource
         self.Fiducials = Fiducials
         super(FiducialInfoType, self).__init__(**kwargs)
 
