@@ -141,15 +141,6 @@
             <xs:enumeration value="RIC_ECF"/>
         </xs:restriction>
     </xs:simpleType>
-    <xs:simpleType name="FiducialTypeValue">
-        <xs:restriction base="xs:string">
-            <xs:enumeration value="Triangular-Trihedral"/>
-            <xs:enumeration value="Corner Reflector"/>
-            <xs:enumeration value="Quad"/>
-            <xs:enumeration value="Pacman"/>
-            <xs:enumeration value="StegoSARus"/>
-        </xs:restriction>
-    </xs:simpleType>
     <xs:simpleType name="DataDomainValue">
         <xs:restriction base="xs:string">
             <xs:enumeration value="Image"/>
@@ -161,12 +152,28 @@
             <xs:enumeration value="In-phase/Quadrature"/>
         </xs:restriction>
     </xs:simpleType>
+    <xs:simpleType name="SourceTypeValue">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="Ground Truth"/>
+            <xs:enumeration value="Analyst Truth"/>
+            <xs:enumeration value="Algorithm Truth"/>
+            <xs:enumeration value="Other"/>
+            <xs:enumeration value="Unknown"/>
+        </xs:restriction>
+    </xs:simpleType>
     <xs:complexType name="ProjectionPerturbationType">
         <xs:sequence>
             <xs:element name="CoordinateFrame" type="CoordinateFrameValue"/>
             <xs:element name="DeltaArp" type="XYZType" minOccurs="0"/>
             <xs:element name="DeltaVarp" type="XYZType" minOccurs="0"/>
             <xs:element name="DeltaRange" type="xs:double" minOccurs="0"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="LabelSourceType">
+        <xs:sequence>
+            <xs:element name="SourceType" type="SourceTypeValue"/>
+            <xs:element name="SourceID" type="xs:string" minOccurs="0"/>
+            <xs:element name="Description" type="xs:string" minOccurs="0"/>
         </xs:sequence>
     </xs:complexType>
     <xs:complexType name="BeamWidthType">
@@ -207,7 +214,7 @@
         <xs:sequence>
             <xs:element name="Name" type="xs:string" minOccurs="0"/>
             <xs:element name="SerialNumber" type="xs:string" minOccurs="0"/>
-            <xs:element name="FiducialType" type="FiducialTypeValue"/>
+            <xs:element name="FiducialType" type="xs:string"/>
             <xs:element name="DatasetFiducialNumber" type="xs:int" minOccurs="0"/>
             <xs:element name="ImageLocation" type="FiducialImageLocationType"/>
             <xs:element name="GeoLocation" type="FiducialGeoLocationType"/>
@@ -376,6 +383,7 @@
         <xs:sequence>
             <xs:element name="NumberOfFiducialsInImage" type="xs:int"/>
             <xs:element name="NumberOfFiducialsInScene" type="xs:int"/>
+            <xs:element name="LabelSource" type="LabelSourceType"/>
             <xs:element name="Fiducial" type="FiducialType" minOccurs="0" maxOccurs="unbounded"/>
         </xs:sequence>
     </xs:complexType>
@@ -383,6 +391,7 @@
         <xs:sequence>
             <xs:element name="NumberOfObjectsInImage" type="xs:int"/>
             <xs:element name="NumberOfObjectsInScene" type="xs:int"/>
+            <xs:element name="LabelSource" type="LabelSourceType"/>
             <xs:element name="Object" type="ObjectType" minOccurs="0" maxOccurs="unbounded"/>
         </xs:sequence>
     </xs:complexType>

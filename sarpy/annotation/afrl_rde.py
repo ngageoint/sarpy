@@ -12,6 +12,7 @@ from typing import Dict
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd import SICDReader
 
+from sarpy.annotation.afrl_rde_elements.blocks import LabelSourceType
 from sarpy.annotation.afrl_rde_elements.Research import ResearchType
 from sarpy.annotation.afrl_rde_elements.CollectionInfo import CollectionInfoType
 from sarpy.annotation.afrl_rde_elements.SubCollectionInfo import SubCollectionInfoType
@@ -33,19 +34,24 @@ class GroundTruthConstructor(object):
     """
 
     __slots__ = (
-        '_collection_info', '_subcollection_info', '_objects', '_fiducials')
+        '_collection_info', '_subcollection_info', '_label_source', '_objects', '_fiducials')
 
-    def __init__(self, collection_info, subcollection_info):
+    def __init__(self, collection_info, subcollection_info, label_source=None):
         """
 
         Parameters
         ----------
         collection_info : CollectionInfoType
         subcollection_info : SubCollectionInfoType
+        label_source : None|LabelSourceType
         """
 
         self._collection_info = collection_info
         self._subcollection_info = subcollection_info
+        if label_source is None:
+            self._label_source = LabelSourceType(SourceType='Ground Truth', SourceID='Unspecified')
+        else:
+            self._label_source = label_source
         self._objects = []
         self._fiducials = []
 
@@ -205,9 +211,13 @@ class GroundTruthConstructor(object):
             DetailSubCollectionInfo=self._subcollection_info,
             DetailFiducialInfo=FiducialInfoType(
                 NumberOfFiducialsInScene=len(self._fiducials),
+                NumberOfFiducialsInImage=len(self._fiducials),
+                LabelSource=self._label_source,
                 Fiducials=self._fiducials),
             DetailObjectInfo=ObjectInfoType(
                 NumberOfObjectsInScene=len(self._objects),
+                NumberOfObjectsInImage=len(self._objects),
+                LabelSource=self._label_source,
                 Objects=self._objects)).copy()
 
     def localize_for_sicd(
@@ -287,11 +297,11 @@ class AnalystTruthConstructor(object):
     __slots__ = (
         '_sicd', '_base_file',
         '_collection_info', '_subcollection_info', '_image_info', '_sensor_info',
-        '_objects', '_fiducials',
+        '_label_source', '_objects', '_fiducials',
         '_projection_type', '_proj_kwargs')
 
     def __init__(self, sicd, base_file, collection_info, subcollection_info,
-                 projection_type='HAE', proj_kwargs=None, md5_checksum=None):
+                 label_source=None, projection_type='HAE', proj_kwargs=None, md5_checksum=None):
         """
 
         Parameters
@@ -300,6 +310,7 @@ class AnalystTruthConstructor(object):
         base_file : str
         collection_info : CollectionInfoType
         subcollection_info : SubCollectionInfoType
+        label_source : None|LabelSourceType
         projection_type : str
             One of 'PLANE', 'HAE', or 'DEM'. The value of `proj_kwargs`
             will need to be appropriate.
@@ -318,6 +329,11 @@ class AnalystTruthConstructor(object):
         self._subcollection_info = subcollection_info
         self._image_info = ImageInfoType.from_sicd(self._sicd, self._base_file, md5_checksum=md5_checksum)
         self._sensor_info = SensorInfoType.from_sicd(self._sicd)
+        if label_source is None:
+            self._label_source = LabelSourceType(SourceType='Analyst Truth', SourceID='Unspecified')
+        else:
+            self._label_source = label_source
+
         self._objects = []
         self._fiducials = []
 
@@ -501,10 +517,12 @@ class AnalystTruthConstructor(object):
             DetailFiducialInfo=FiducialInfoType(
                 NumberOfFiducialsInScene=len(self._fiducials),
                 NumberOfFiducialsInImage=len(self._fiducials),
+                LabelSource=self._label_source,
                 Fiducials=self._fiducials),
             DetailObjectInfo=ObjectInfoType(
                 NumberOfObjectsInScene=len(self._objects),
                 NumberOfObjectsInImage=len(self._objects),
+                LabelSource=self._label_source,
                 Objects=self._objects))
 
 
