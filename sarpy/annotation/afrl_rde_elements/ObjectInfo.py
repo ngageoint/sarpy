@@ -799,7 +799,7 @@ class TheObjectType(Serializable):
         self.Size = Size
         self.Orientation = Orientation
 
-        if isinstance(Articulation, str):
+        if isinstance(Articulation, (str, dict)):
             self.add_articulation(Articulation)
         elif isinstance(Articulation, list):
             for entry in Articulation:
@@ -807,7 +807,7 @@ class TheObjectType(Serializable):
         else:
             self.Articulation = Articulation
 
-        if isinstance(Configuration, str):
+        if isinstance(Configuration, (str, dict)):
             self.add_configuration(Configuration)
         elif isinstance(Configuration, list):
             for entry in Configuration:
