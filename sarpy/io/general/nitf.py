@@ -1497,7 +1497,7 @@ class NITFReader(BaseReader):
             # extract the image and dump out to a flat file
             image_offset = self.nitf_details.img_segment_offsets[index]
             image_size = self.nitf_details.nitf_header.ImageSegments.item_sizes[index]
-            our_memmap = MemMap(self.file_object, image_size, image_offset)
+            our_memmap = MemMap(self.file_name, image_size, image_offset)
             img = PIL.Image.open(our_memmap)  # this is a lazy operation
             # dump the extracted image data out to a temp file
             fi, path_name = mkstemp(suffix='.sarpy_cache', text=False)
