@@ -3,40 +3,36 @@ Setup module for SarPy.
 """
 
 import os
-import sys
-from setuptools import setup, find_packages
+
 from codecs import open
+from pathlib import Path
+from setuptools import setup, find_packages
 
 
 # Get the long description from the README file
 here = os.path.abspath(os.path.dirname(__file__))
 # Get the long description from the README file
-with open(os.path.join(here, 'README.md'), 'r') as f:
+with open(Path(here, 'README.md'), 'r') as f:
     long_description = f.read()
 
 
 # Get the relevant setup parameters from the package
 parameters = {}
-with open(os.path.join(here, 'sarpy', '__about__.py'), 'r') as f:
+with open(Path(here, 'sarpy', '__about__.py'), 'r') as f:
     exec(f.read(), parameters)
 
 
 def my_package_data():
     def find_dirs(init_dir, start, the_list):
-        for root, dirs, files in os.walk(os.path.join(init_dir, start)):
+        for root, dirs, files in os.walk(Path(init_dir, start)):
             include_root = False
             for fil in files:
-                if os.path.splitext(fil)[1] == '.xsd':
+                if Path(fil).suffix == '.xsd':
                     include_root = True
                     break
             if include_root:
-                root_dir = root.replace('\\', '/')
-                rel_dir = root_dir[len(init_dir):]
-                if rel_dir[0] == '/':
-                    rel_dir = rel_dir[1:]
-                if rel_dir[-1] == '/':
-                    rel_dir = rel_dir[:-1]
-                the_list.append(rel_dir + '/*.xsd')
+                root_dir = Path(root)
+                the_list.append(str(Path(root_dir, '*.xsd')))
 
     package_list = []
     find_dirs('sarpy', 'io/complex/sicd_schema/', package_list)
@@ -82,3 +78,4 @@ setup(name=parameters['__title__'],
       ],
       platforms=['any'],
       license='MIT')
+
