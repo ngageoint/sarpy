@@ -3,10 +3,7 @@ Setup module for SarPy.
 """
 
 import os
-import sys
 from setuptools import setup, find_packages
-from codecs import open
-
 
 # Get the long description from the README file
 here = os.path.abspath(os.path.dirname(__file__))
