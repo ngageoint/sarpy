@@ -4,6 +4,15 @@ SarPy follows a continuous release process, so there are lots of releases. Since
 essentially every commit corresponds to a release, specific release points are 
 not being annotated in github.
 
+## [1.2.58] - 2022-02-17
+### Fixed
+Resolved bug in NITF with compression, but the support is still only partial and 
+fairly fragile
+
+## [1.2.57] - 2022-02-15
+### Changed
+Incorporating changes to AFRL/RDE labeling structure agreed upon on 2022-02-15
+
 ## [1.2.56] - 2022-02-07
 ### Fixed
 Fixed a bug in scaling failure for the creation of KMZ from SICD

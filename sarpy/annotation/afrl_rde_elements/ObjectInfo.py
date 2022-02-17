@@ -23,7 +23,7 @@ from sarpy.annotation.base import GeometryProperties
 
 from .base import DEFAULT_STRICT
 from .blocks import RangeCrossRangeType, RowColDoubleType, LatLonEleType, \
-    ProjectionPerturbationType
+    ProjectionPerturbationType, LabelSourceType
 
 
 logger = logging.getLogger(__name__)
@@ -799,7 +799,7 @@ class TheObjectType(Serializable):
         self.Size = Size
         self.Orientation = Orientation
 
-        if isinstance(Articulation, str):
+        if isinstance(Articulation, (str, dict)):
             self.add_articulation(Articulation)
         elif isinstance(Articulation, list):
             for entry in Articulation:
@@ -807,7 +807,7 @@ class TheObjectType(Serializable):
         else:
             self.Articulation = Articulation
 
-        if isinstance(Configuration, str):
+        if isinstance(Configuration, (str, dict)):
             self.add_configuration(Configuration)
         elif isinstance(Configuration, list):
             for entry in Configuration:
@@ -1200,8 +1200,8 @@ class TheObjectType(Serializable):
 
 class ObjectInfoType(Serializable):
     _fields = (
-        'NumberOfObjectsInImage', 'NumberOfObjectsInScene', 'Objects')
-    _required = ('NumberOfObjectsInImage', 'NumberOfObjectsInScene', 'Objects')
+        'NumberOfObjectsInImage', 'NumberOfObjectsInScene', 'LabelSource', 'Objects')
+    _required = ('NumberOfObjectsInImage', 'NumberOfObjectsInScene', 'LabelSource', 'Objects')
     _collections_tags = {'Objects': {'array': False, 'child_tag': 'Object'}}
     # descriptors
     NumberOfObjectsInImage = IntegerDescriptor(
@@ -1210,17 +1210,21 @@ class ObjectInfoType(Serializable):
     NumberOfObjectsInScene = IntegerDescriptor(
         'NumberOfObjectsInScene', _required, strict=DEFAULT_STRICT,
         docstring='Number of ground truthed objects in the scene.')  # type: int
+    LabelSource = SerializableDescriptor(
+        'LabelSource', LabelSourceType, _required, strict=DEFAULT_STRICT,
+        docstring='The source of the labels')  # type: LabelSourceType
     Objects = SerializableListDescriptor(
         'Objects', TheObjectType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='The object collection')  # type: List[TheObjectType]
 
     def __init__(self, NumberOfObjectsInImage=None, NumberOfObjectsInScene=None,
-                 SlantPlane=None, GroundPlane=None, Objects=None, **kwargs):
+                 LabelSource=None, Objects=None, **kwargs):
         """
         Parameters
         ----------
         NumberOfObjectsInImage : int
         NumberOfObjectsInScene : int
+        LabelSource : LabelSourceType
         Objects : List[ObjectType]
         kwargs
             Other keyword arguments
@@ -1232,6 +1236,7 @@ class ObjectInfoType(Serializable):
             self._xml_ns_key = kwargs['_xml_ns_key']
         self.NumberOfObjectsInImage = NumberOfObjectsInImage
         self.NumberOfObjectsInScene = NumberOfObjectsInScene
+        self.LabelSource = LabelSource
         self.Objects = Objects
         super(ObjectInfoType, self).__init__(**kwargs)
 
