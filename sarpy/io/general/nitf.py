@@ -2759,12 +2759,12 @@ class MemMap(object):
 
     __slots__ = ('_mem_map', '_file_obj', '_offset_shift')
 
-    def __init__(self, file_name, length, offset):
+    def __init__(self, file_obj, length, offset):
         """
 
         Parameters
         ----------
-        file_name : str
+        file_obj : str|BinaryIO
         length : int
         offset : int
         """
@@ -2780,7 +2780,10 @@ class MemMap(object):
         offset = offset - self._offset_shift
         length = length + self._offset_shift
         # establish the mem map
-        self._file_obj = open(file_name, 'rb')
+        if isinstance(file_obj, str):
+            self._file_obj = open(file_obj, 'rb')
+        else:
+            self._file_obj = file_obj
         self._mem_map = mmap.mmap(self._file_obj.fileno(), length, access=mmap.ACCESS_READ, offset=offset)
 
     def read(self, n):
