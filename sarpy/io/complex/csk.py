@@ -446,7 +446,13 @@ class CSKDetails(object):
             az_fit_times = numpy.linspace(first_time, last_time, num=11)
 
             geom_dop_cent_poly = band_dict[band_name]['Doppler Centroid vs Azimuth Time Polynomial - RAW']
-            dop_rate_poly = band_dict[band_name]['Doppler Rate vs Azimuth Time Polynomial']
+
+            dop_rate_poly = h5_dict.get('Doppler Rate vs Azimuth Time Polynomial', None)
+            if dop_rate_poly is None:
+                dop_rate_poly = band_dict[band_name].get('Doppler Rate vs Azimuth Time Polynomial', None)
+            if dop_rate_poly is None:
+                raise ValueError('No Doppler Rate Range Time polynomial found')
+
             centroid_values = polynomial.polyval(az_fit_times - az_ref_time_nozd, geom_dop_cent_poly)
             rate_values = polynomial.polyval(az_fit_times - az_ref_time_nozd, dop_rate_poly)
             zd_times = az_fit_times - centroid_values / rate_values
