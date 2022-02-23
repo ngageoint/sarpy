@@ -4,6 +4,10 @@ SarPy follows a continuous release process, so there are lots of releases. Since
 essentially every commit corresponds to a release, specific release points are 
 not being annotated in github.
 
+## [1.2.59] - 2022-02-23
+### Fixed
+Update for CSG metadata `Doppler Rate vs Azimuth Time Polynomial` location change
+
 ## [1.2.58] - 2022-02-17
 ### Fixed
 Resolved bug in NITF with compression, but the support is still only partial and 

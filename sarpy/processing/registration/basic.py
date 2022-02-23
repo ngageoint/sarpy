@@ -3,8 +3,9 @@ Basic image registration tools
 """
 
 __classification__ = "UNCLASSIFIED"
-__author__ = 'Thomas Mccullough'
+__author__ = 'Thomas McCullough'
 
+import logging
 from typing import Sequence
 
 import numpy
@@ -15,6 +16,9 @@ from sarpy.io.product.sidd1_elements.SIDD import SIDDType as SIDDType1
 from sarpy.io.product.sidd2_elements.SIDD import SIDDType as SIDDType2
 from sarpy.geometry.geocoords import ecf_to_geodetic
 from sarpy.geometry.point_projection import ground_to_image
+
+
+logger = logging.getLogger(__name__)
 
 
 def best_physical_location_fit(structs, locs, **minimization_args):
@@ -50,13 +54,18 @@ def best_physical_location_fit(structs, locs, **minimization_args):
         The minimization result object
     """
 
-    def get_mean_location(hae_value):
+    def get_mean_location(hae_value, log_residue=False):
         ecf_locs = numpy.zeros((points, 3), dtype='float64')
         for i, (loc, struct) in enumerate(zip(locs, structs)):
             ecf_locs[i, :] = struct.project_image_to_ground(loc, projection_type='HAE', hae0=hae_value)
         ecf_mean = numpy.mean(ecf_locs, axis=0)
         diff = ecf_locs - ecf_mean
-        avg_residue = numpy.mean(numpy.sum(diff*diff, axis=1))
+        residue = numpy.sum(diff*diff, axis=1)
+        if log_residue:
+            logger.info(
+                'best physical location residues [m^2]\n{}'.format(residue))
+
+        avg_residue = numpy.mean(residue)
         return ecf_mean, avg_residue
 
     def average_residue(hae_value):
@@ -86,7 +95,7 @@ def best_physical_location_fit(structs, locs, **minimization_args):
     if not result.success:
         raise ValueError('Optimization failed {}'.format(result))
 
-    values = get_mean_location(result.x)
+    values = get_mean_location(result.x, log_residue=True)
     return values[0], values[1], result
 
 
@@ -150,6 +159,10 @@ def _find_best_adjustable_parameters_sicd(sicd, ecf_coords, img_coords, **minimi
     if not result.success:
         raise ValueError('Optimization failed {}'.format(result))
 
+    logger.info(
+        'best adjustable parameters residues [pix^2]\n{}'.format(
+            get_sq_residue(result.x)))
+
     delta_arp, delta_varp, delta_range = get_params(result.x)
     return delta_arp, delta_varp, delta_range, result.fun, result
 
@@ -209,6 +222,10 @@ def _find_best_adjustable_parameters(struct, ecf_coords, img_coords, **minimizat
     result = minimize(average_residue, p0, **minimization_args)
     if not result.success:
         raise ValueError('Optimization failed {}'.format(result))
+
+    logger.info(
+        'best adjustable parameters residues [pix^2]\n{}'.format(
+            get_sq_residue(result.x)))
 
     delta_arp, delta_varp, delta_range = get_params(result.x)
     return delta_arp, delta_varp, delta_range, result.fun, result
