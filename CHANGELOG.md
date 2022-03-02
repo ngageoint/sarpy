@@ -4,6 +4,11 @@ SarPy follows a continuous release process, so there are lots of releases. Since
 essentially every commit corresponds to a release, specific release points are 
 not being annotated in github.
 
+## [1.2.60] - 2022-03-01
+### Fixed
+Resolving BIP chipper definition/application bug for segmented files
+
+
 ## [1.2.59] - 2022-02-23
 ### Fixed
 Update for CSG metadata `Doppler Rate vs Azimuth Time Polynomial` location change
