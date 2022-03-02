@@ -10,7 +10,7 @@ import logging
 from typing import Union, Generator
 
 import numpy
-from scipy.constants.constants import speed_of_light
+from scipy.constants import speed_of_light
 
 from sarpy.processing.fft_base import FFTCalculator, fft, ifft, fftshift, fft2_sicd, ifft2_sicd
 from sarpy.io.general.slice_parsing import validate_slice, validate_slice_int
