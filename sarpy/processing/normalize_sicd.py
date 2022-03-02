@@ -1068,7 +1068,7 @@ def sicd_degrade_reweight(
     if noise_level is not None:
         noise_level.NoisePoly[0, 0] += 10*numpy.log10(noise_adjustment_multiplier)
 
-    if sicd.Radiometric is not None:
+    if sicd.Radiometric is not None and sicd.Radiometric.RCSSFPoly is not None:
         sf_adjust = old_sicd.Grid.get_slant_plane_area()/noise_adjustment_multiplier
         sicd.Radiometric.RCSSFPoly.Coefs = sicd.Radiometric.RCSSFPoly.get_array()*sf_adjust
         sicd.Radiometric.BetaZeroSFPoly.Coefs = sicd.Radiometric.BetaZeroSFPoly.get_array() / \
