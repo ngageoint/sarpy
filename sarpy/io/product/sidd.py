@@ -725,6 +725,13 @@ class SIDDWriter(NITFWriter):
         bands = [ImageBand(ISUBCAT='', IREPBAND=entry) for entry in irepband]
 
         for i, entry in enumerate(image_segment_limits):
+            if i == 0:
+                iloc = '0000000000'
+            else:
+                prev_lims = image_segment_limits[i]
+                prev_rows = prev_lims[1] - prev_lims[0]
+                iloc = '{0:05d}00000'.format(prev_rows)
+
             this_rows = entry[1]-entry[0]
             this_cols = entry[3]-entry[2]
             subhead = ImageSegmentHeader(
@@ -745,7 +752,7 @@ class SIDDWriter(NITFWriter):
                 NBPP=abpp,
                 IDLVL=i+1+len(img_details),
                 IALVL=i+len(img_details),
-                ILOC='{0:05d}{1:05d}'.format(entry[0], entry[2]),
+                ILOC=iloc,
                 Bands=ImageBands(values=bands),
                 Security=security)
             img_details.append(ImageDetails(band_count, raw_dtype, transform_data, entry, subhead))

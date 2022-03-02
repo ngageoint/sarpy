@@ -2116,14 +2116,7 @@ def image_segmentation(rows, cols, pixel_size):
         # how many bytes per row for this column section
         row_memory_size = cols*pixel_size
         # how many rows can we use?
-        row_count = min(rows - row_offset, int(im_seg_limit / row_memory_size))
-
-        if row_offset > 99999:
-            msg = 'Cannot viably create a SICD/SIDD (NITF) containing an image of size ({}, {}).\n\t' \
-                  'NITF image segment ILOC field is limited to 5 digits in each of row/column,\n\t' \
-                  'and this segmentation will require row portion of ILOC to be {}'.format(rows, cols, row_offset)
-            raise ValueError(msg)
-
+        row_count = min(99999, rows - row_offset, int(im_seg_limit / row_memory_size))
         im_segments.append((row_offset, row_offset + row_count, 0, cols))
         row_offset += row_count  # move the next row offset
     return tuple(im_segments)
