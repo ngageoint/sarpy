@@ -2092,7 +2092,9 @@ def get_npp_block(value):
 
 def image_segmentation(rows, cols, pixel_size):
     """
-    Determine the appropriate segmentation for the image.
+    Determine the appropriate segmentation for the image. This is driven
+    by the SICD/SIDD standard, and not the only generally feasible segmentation
+    scheme for other NITF file types.
 
     Parameters
     ----------
@@ -2106,7 +2108,7 @@ def image_segmentation(rows, cols, pixel_size):
         Of the form `((row start, row end, column start, column end))`
     """
 
-    im_seg_limit = 10**10 - 2  # as big as can be stored in 10 digits, given at least 2 bytes per pixel
+    im_seg_limit = 10**10 - 2  # as big as can be stored in 10 digits
     im_segments = []
     row_offset = 0
     while row_offset < rows:
@@ -2114,13 +2116,7 @@ def image_segmentation(rows, cols, pixel_size):
         # how many bytes per row for this column section
         row_memory_size = cols*pixel_size
         # how many rows can we use?
-        row_count = min(rows - row_offset, int(im_seg_limit / row_memory_size))
-
-        if row_offset > 99999:
-            raise ValueError(
-                'NITF image segment ILOC field is limited to 5 digits in each of row/column,\n\t'
-                'and this segmentation will require row portion of ILOC to be {}'.format(row_offset))
-
+        row_count = min(99999, rows - row_offset, int(im_seg_limit / row_memory_size))
         im_segments.append((row_offset, row_offset + row_count, 0, cols))
         row_offset += row_count  # move the next row offset
     return tuple(im_segments)
