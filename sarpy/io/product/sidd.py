@@ -728,7 +728,7 @@ class SIDDWriter(NITFWriter):
             if i == 0:
                 iloc = '0000000000'
             else:
-                prev_lims = image_segment_limits[i]
+                prev_lims = image_segment_limits[i-1]
                 prev_rows = prev_lims[1] - prev_lims[0]
                 iloc = '{0:05d}00000'.format(prev_rows)
 
