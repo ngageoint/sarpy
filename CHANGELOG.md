@@ -4,6 +4,11 @@ SarPy follows a continuous release process, so there are lots of releases. Since
 essentially every commit corresponds to a release, specific release points are 
 not being annotated in github.
 
+## [1.3.0] - 2022-03-XX
+### Changed
+Overhaul of the file reading base structures and extension to allow the use of 
+pathlib paths in addition to filename strings
+
 ## [1.2.61] - 2022-03-02
 ### Fixed
 Resolving bug/error in NITF segmentation scheme and the population of SICD/SIDD 

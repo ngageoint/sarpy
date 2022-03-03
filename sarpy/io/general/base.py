@@ -8,7 +8,7 @@ __author__ = "Thomas McCullough"
 import io
 import os
 import logging
-from typing import Union, Tuple, BinaryIO, Sequence, Optional
+from typing import Union, Tuple, BinaryIO, Sequence, Callable, Optional
 from importlib import import_module
 import pkgutil
 
@@ -23,6 +23,194 @@ logger = logging.getLogger(__name__)
 # module variables
 _SUPPORTED_TRANSFORM_VALUES = ('COMPLEX', )
 READER_TYPES = ('SICD', 'SIDD', 'CPHD', 'CRSD', 'OTHER')
+
+############
+# TODO: structure of changes
+#   - Chipper replacement details:
+#       * replace not fully baked Chipper with DataSegment
+#       * what to do about DataSegmentWriter? Solve the file writing error that I see in windows...
+#   - Reader changes:
+#       * I don't know right now...
+
+
+class DataSegmentBase(object):
+    """
+    One conceptual fragment of data which will be read directly. This is heavily
+    geared towards images.
+    """
+
+    __slots__ = (
+        '_raw_dtype', '_raw_shape',
+        '_symmetry', '_format_function', '_relative_index',
+        '_output_dtype', '_output_shape')
+
+    def __init__(self,
+                 raw_dtype: Union[str, numpy.dtype],
+                 raw_shape: Tuple[int],
+                 symmetry: Tuple[bool],
+                 format_function: Union[None, str, Callable],
+                 output_dtype: Union[str, numpy.dtype],
+                 output_shape: Tuple[int],
+                 relative_index: Tuple[int] = (0, 0)):
+        """
+
+        Parameters
+        ----------
+        raw_dtype : str|numpy.dtype
+        raw_shape : Tuple[int]
+        symmetry : Tuple[bool]
+        format_function : None|str|Callable
+        output_dtype : str|numpy.dtype
+        output_shape : Tuple[int]
+        relative_index : Tuple[int]
+            The upper left corner of the data segment, in the output coordinate system
+        """
+
+        self._raw_dtype = raw_dtype
+        self._raw_shape = raw_shape
+        self._symmetry = symmetry
+        self._format_function = format_function
+        self._output_dtype = output_dtype
+        self._output_shape = output_shape
+        self._relative_index = relative_index
+
+    @property
+    def ndim(self):
+        return len(self._output_shape)
+
+    @property
+    def symmetry(self) -> Tuple[bool]:
+        """
+        Tuple[bool, bool, bool]: Entries of the form (`flip1`, `flip2`, `swap_axes`).
+        This describes necessary symmetry transformation to be performed to convert
+        from raw order into the expected order.
+        """
+
+        return self._symmetry
+
+    def read_raw(self, item: Union[slice, tuple]) -> numpy.ndarray:
+        """
+        Reads the raw data from the source. Note that this expects input slice
+        arguments relative to the raw data shape/order.
+
+        Parameters
+        ----------
+        item : slice|Tuple[slice]
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
+        raise NotImplementedError
+
+    def _reorient_reformat(self,
+                           item: tuple,
+                           raw_item: tuple,
+                           data: numpy.ndarray) -> numpy.ndarray:
+        """
+        Reorients and reformats the fetched raw data into intermediate output shape.
+
+        Parameters
+        ----------
+        item : Tuple[slice]
+        raw_item : Tuple[slice]
+        data : numpy.ndarray
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
+        raise NotImplementedError
+
+    def _reinterpret_slice_arguments(self, item: tuple) -> tuple:
+        """
+        Reinteprets the input slice arguments, relative to output order, in raw
+        coordinates.
+
+        Parameters
+        ----------
+        item : Tuple[slice]
+
+        Returns
+        -------
+        item_out : Tuple[slice]
+        """
+
+        raise NotImplementedError
+
+    def _validate_item(self, dimension: int, item: Union[None, int, tuple, slice]):
+        def check_bound(entry):
+            if entry is None or (0 <= entry < max_element):
+                return
+            raise ValueError('Got out of bounds argument in dimension {}'.format(dimension))
+
+        if not (0 <= dimension < self.ndim):
+            raise KeyError('Got invalid dimension {}'.format(dimension))
+
+        max_element = self._output_shape[dimension]
+        if isinstance(item, tuple):
+            item = slice(*item)
+
+        if item is None:
+            return slice(max_element)
+        elif isinstance(item, int):
+            check_bound(item)
+            return slice(item, item+1)
+        elif isinstance(item, slice):
+            check_bound(item.start)
+            check_bound(item.stop)
+            if item.start is not None and item.stop is not None and item.start >= item.stop:
+                raise ValueError('slice elements out of expected order in dimension {}'.format(dimension))
+        else:
+            raise ValueError('Got unexpected argument of type {} in dimension {}'.format(type(item), dimension))
+
+    def _interpret_item(self, item: Union[None, int, tuple, slice]) -> tuple:
+        if item is None:
+            return tuple([slice(self._output_shape[i]) for i in range(self.ndim)])
+        elif isinstance(item, int):
+            out = [slice(item, item+1), ]
+            out.extend([slice(self._output_shape[i]) for i in range(1, self.ndim)])
+            return tuple(out)
+        elif isinstance(item, slice):
+            out = [item, ]
+            out.extend([slice(self._output_shape[i]) for i in range(1, self.ndim)])
+            return tuple(out)
+        else:
+            pass
+
+    def read(self, item: Union[int, tuple, slice, numpy.ndarray]) -> numpy.ndarray:
+        """
+        Read the data slice specified relative to the output data coordinates.
+
+        Parameters
+        ----------
+        item : int|slice|tuple
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
+        norm_item = self._interpret_item(item)
+        raw_item = self._reinterpret_slice_arguments(norm_item)
+        return self._reorient_reformat(norm_item, raw_item, self.read_raw(raw_item))
+
+    def __getitem__(self, item):
+        """
+        Fetch the data via slice definition.
+
+        Parameters
+        ----------
+        item : int|slice|tuple
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
+        return self.read(item)
 
 
 class SarpyIOError(SarpyError):
