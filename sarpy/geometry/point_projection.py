@@ -1789,7 +1789,7 @@ def image_to_ground_dem(
                     (llh_rough[:, 1] >= entry[2]) & (llh_rough[:, 1] <= entry[3]))
             if numpy.any(mask):
                 coords[mask, :] = _image_to_ground_dem_block(
-                    im_points[mask, :], coa_proj, dem_interpolator, vertical_step_size,
+                    im_points_view[mask, :], coa_proj, dem_interpolator, vertical_step_size,
                     entry, block_size, lat_grid_size, lon_grid_size)
     if len(orig_shape) == 1:
         coords = numpy.reshape(coords, (-1,))
