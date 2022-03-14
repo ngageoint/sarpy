@@ -4,6 +4,15 @@ SarPy follows a continuous release process, so there are lots of releases. Since
 essentially every commit corresponds to a release, specific release points are 
 not being annotated in github.
 
+## [1.2.62] - 2022-03-08
+### Changed
+- Made md5 checksum calculation optional for afrl/rde construction
+- Permit an optional call which returns of raw values (not cast to unit8/16) 
+  from remap functions
+
+### Fixed
+Fixed the PEDF remap calculation
+
 ## [1.2.61] - 2022-03-02
 ### Fixed
 Resolving bug/error in NITF segmentation scheme and the population of SICD/SIDD 

@@ -157,7 +157,7 @@ class ResearchType(Serializable):
 
     def apply_sicd_reader(
             self, sicd_reader, populate_in_periphery=False, include_out_of_range=False,
-            padding_fraction=0.05, minimum_pad=0):
+            padding_fraction=0.05, minimum_pad=0, populate_md5=True):
         """
         Apply the given sicd to define all the relevant derived data, assuming
         that the starting point is physical ground truth populated, and image
@@ -171,9 +171,12 @@ class ResearchType(Serializable):
         include_out_of_range : bool
         padding_fraction : None|float
         minimum_pad : int|float
+        populate_md5 : bool
         """
 
-        md5_checksum = None if sicd_reader.file_name is None else calculate_md5(sicd_reader.file_name)
+        md5_checksum = None if (sicd_reader.file_name is None or not populate_md5) \
+            else calculate_md5(sicd_reader.file_name)
+
         base_file = os.path.split(sicd_reader.file_name)[1]
         self.apply_sicd(
             sicd_reader.sicd_meta,

@@ -258,7 +258,7 @@ class GroundTruthConstructor(object):
 
     def localize_for_sicd_reader(
             self, sicd_reader, populate_in_periphery=False, include_out_of_range=False,
-            padding_fraction=0.05, minimum_pad=0):
+            padding_fraction=0.05, minimum_pad=0, populate_md5=True):
         """
         Localize the AFRL structure for the given sicd file.
 
@@ -273,6 +273,7 @@ class GroundTruthConstructor(object):
         include_out_of_range : bool
         padding_fraction : None|float
         minimum_pad : int|float
+        populate_md5 : bool
 
         Returns
         -------
@@ -285,7 +286,8 @@ class GroundTruthConstructor(object):
             populate_in_periphery=populate_in_periphery,
             include_out_of_range=include_out_of_range,
             padding_fraction=padding_fraction,
-            minimum_pad=minimum_pad)
+            minimum_pad=minimum_pad,
+            populate_md5=populate_md5)
         return out_research
 
 
