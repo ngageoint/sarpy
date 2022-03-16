@@ -206,7 +206,7 @@ def parse_xml_from_file(xml_file_path):
     return parse_xml_from_string(xml_bytes)
 
 
-def validate_xml_from_string(xml_string, xsd_path):
+def validate_xml_from_string(xml_string, xsd_path, output_logger=None):
     """
     Validate an xml string against a given xsd document.
 
@@ -215,6 +215,8 @@ def validate_xml_from_string(xml_string, xsd_path):
     xml_string : str|bytes
     xsd_path : str
         The path to the relevant xsd document.
+    output_logger
+        A desired output logger.
 
     Returns
     -------
@@ -233,12 +235,16 @@ def validate_xml_from_string(xml_string, xsd_path):
     validity = xml_schema.validate(xml_doc)
     if not validity:
         for entry in xml_schema.error_log:
-            logger.error(
-                'xml validation on line {}\n\t{}'.format(entry.line, entry.message.encode('utf-8')))
+            msg = 'XML validation error on line {}\n\t{}'.format(
+                entry.line, entry.message.encode('utf-8'))
+            if output_logger is None:
+                logger.error(msg)
+            else:
+                output_logger.error(msg)
     return validity
 
 
-def validate_xml_from_file(xml_path, xsd_path):
+def validate_xml_from_file(xml_path, xsd_path, output_logger=None):
     """
     Validate an xml string against a given xsd document.
 
@@ -248,6 +254,8 @@ def validate_xml_from_file(xml_path, xsd_path):
         The path to the relevant xml file
     xsd_path : str
         The path to the relevant xsd document.
+    output_logger
+        A desired output logger.
 
     Returns
     -------
@@ -259,7 +267,7 @@ def validate_xml_from_file(xml_path, xsd_path):
     with open(xml_path, 'rb') as fi:
         xml_bytes = fi.read()
 
-    return validate_xml_from_string(xml_bytes, xsd_path)
+    return validate_xml_from_string(xml_bytes, xsd_path, output_logger=output_logger)
 
 
 ###
