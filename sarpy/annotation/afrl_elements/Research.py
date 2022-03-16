@@ -8,7 +8,7 @@ __authors__ = "Thomas McCullough"
 from typing import Optional
 import os
 
-from sarpy.io.xml.base import Serializable
+from sarpy.io.xml.base import Serializable, parse_xml_from_string, parse_xml_from_file
 from sarpy.io.xml.descriptors import SerializableDescriptor, StringDescriptor
 
 from sarpy.io.complex.sicd_elements.SICD import SICDType
@@ -176,3 +176,37 @@ class ResearchType(Serializable):
             include_out_of_range=include_out_of_range,
             padding_fraction=padding_fraction,
             minimum_pad=minimum_pad)
+
+    @classmethod
+    def from_xml_file(cls, file_path):
+        """
+        Construct the research object from an xml file path.
+
+        Parameters
+        ----------
+        file_path : str
+
+        Returns
+        -------
+        ResearchType
+        """
+
+        root_node, xml_ns = parse_xml_from_file(file_path)
+        return cls.from_node(root_node, xml_ns=xml_ns)
+
+    @classmethod
+    def from_xml_string(cls, xml_string):
+        """
+        Construct the research object from an xml string.
+
+        Parameters
+        ----------
+        xml_string : str|bytes
+
+        Returns
+        -------
+        ResearchType
+        """
+
+        root_node, xml_ns = parse_xml_from_string(xml_string)
+        return cls.from_node(root_node, xml_ns=xml_ns)

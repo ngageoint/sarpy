@@ -182,6 +182,25 @@ def parse_xml_from_string(xml_string):
     return root_node, xml_ns
 
 
+def parse_xml_from_file(xml_file_path):
+    """
+    Parse the ElementTree root node and xml namespace dict from an xml file.
+
+    Parameters
+    ----------
+    xml_file_path : str
+
+    Returns
+    -------
+    root_node: ElementTree.Element
+    xml_ns: Dict[str, str]
+    """
+
+    with open(xml_file_path, 'rb') as fi:
+        xml_bytes = fi.read()
+    return parse_xml_from_string(xml_bytes)
+
+
 ###
 # parsing functions - for reusable functionality in descriptors or other property definitions
 
