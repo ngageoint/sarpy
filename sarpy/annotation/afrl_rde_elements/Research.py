@@ -202,7 +202,8 @@ class ResearchType(Serializable):
         """
 
         root_node, xml_ns = parse_xml_from_file(file_path)
-        return cls.from_node(root_node, xml_ns=xml_ns)
+        ns_key = 'default' if 'default' in xml_ns else None
+        return cls.from_node(root_node, xml_ns=xml_ns, ns_key=ns_key)
 
     @classmethod
     def from_xml_string(cls, xml_string):
@@ -219,4 +220,5 @@ class ResearchType(Serializable):
         """
 
         root_node, xml_ns = parse_xml_from_string(xml_string)
-        return cls.from_node(root_node, xml_ns=xml_ns)
+        ns_key = 'default' if 'default' in xml_ns else None
+        return cls.from_node(root_node, xml_ns=xml_ns, ns_key=ns_key)

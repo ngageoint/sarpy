@@ -1339,8 +1339,8 @@ class Serializable(object):
         """
         if tag is None:
             tag = self.__class__.__name__
-        etree = ElementTree.ElementTree()
-        node = self.to_node(etree, tag, ns_key=getattr(self, '_xml_ns_key', None),
+        the_etree = ElementTree.ElementTree()
+        node = self.to_node(the_etree, tag, ns_key=getattr(self, '_xml_ns_key', None),
                             check_validity=check_validity, strict=strict)
 
         if urn is None:
