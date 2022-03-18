@@ -12,7 +12,7 @@ from copy import deepcopy
 
 import numpy
 
-from sarpy.io.xml.base import Serializable
+from sarpy.io.xml.base import Serializable, parse_xml_from_string, parse_xml_from_file
 from sarpy.io.xml.descriptors import SerializableDescriptor
 from sarpy.geometry import point_projection
 from sarpy.io.product.sidd_schema import get_specification_identifier, \
@@ -435,3 +435,39 @@ class SIDDType(Serializable):
         out = super(SIDDType, self).copy()
         out._NITF = deepcopy(self._NITF)
         return out
+
+    @classmethod
+    def from_xml_file(cls, file_path):
+        """
+        Construct the sidd object from a stand-alone xml file path.
+
+        Parameters
+        ----------
+        file_path : str
+
+        Returns
+        -------
+        SIDDType
+        """
+
+        root_node, xml_ns = parse_xml_from_file(file_path)
+        ns_key = 'default' if 'default' in xml_ns else None
+        return cls.from_node(root_node, xml_ns=xml_ns, ns_key=ns_key)
+
+    @classmethod
+    def from_xml_string(cls, xml_string):
+        """
+        Construct the sidd object from an xml string.
+
+        Parameters
+        ----------
+        xml_string : str|bytes
+
+        Returns
+        -------
+        SIDDType
+        """
+
+        root_node, xml_ns = parse_xml_from_string(xml_string)
+        ns_key = 'default' if 'default' in xml_ns else None
+        return cls.from_node(root_node, xml_ns=xml_ns, ns_key=ns_key)
