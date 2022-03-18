@@ -21,7 +21,7 @@ import argparse
 import os
 from typing import Union
 
-from sarpy.io.xml.base import parse_xml_from_string
+from sarpy.io.xml.base import parse_xml_from_string, validate_xml_from_string
 from sarpy.io.general.nitf import NITFDetails
 from sarpy.io.general.nitf_elements.des import DataExtensionHeader, \
     DataExtensionHeader0
@@ -30,10 +30,6 @@ from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd_schema import get_urn_details, get_schema_path, \
     get_specification_identifier
 
-try:
-    from lxml import etree
-except ImportError:
-    etree = None
 
 logger = logging.getLogger('validation')
 
@@ -51,24 +47,17 @@ def evaluate_xml_versus_schema(xml_string, urn_string):
     -------
     None|bool
     """
-    if etree is None:
-        return None
 
-    # get schema path
     try:
         the_schema = get_schema_path(urn_string)
-    except Exception as e:
+    except KeyError:
         logger.exception('SICD: Failed getting the schema for urn {}'.format(urn_string))
         return False
 
-    xml_doc = etree.fromstring(xml_string)
-    xml_schema = etree.XMLSchema(file=the_schema)
-    validity = xml_schema.validate(xml_doc)
-    if not validity:
-        for entry in xml_schema.error_log:
-            logger.error('SICD: SICD schema validation error on line {}'
-                         '\n\t{}'.format(entry.line, entry.message.encode('utf-8')))
-    return validity
+    try:
+        return validate_xml_from_string(xml_string, the_schema, output_logger=logger)
+    except ImportError:
+        return None
 
 
 def _evaluate_xml_string_validity(xml_string):

@@ -10,7 +10,8 @@ from collections import OrderedDict
 from typing import Union
 import numpy
 
-from sarpy.io.xml.base import Serializable, find_children
+from sarpy.io.xml.base import Serializable, find_children, parse_xml_from_file, \
+    parse_xml_from_string
 from sarpy.io.xml.descriptors import SerializableDescriptor, IntegerDescriptor, \
     StringDescriptor
 from sarpy.io.complex.sicd_elements.MatchInfo import MatchInfoType
@@ -446,3 +447,39 @@ class CPHDType(Serializable):
         if self.PVP is None:
             raise ValueError('No PVP defined.')
         return self.PVP.get_vector_dtype()
+
+    @classmethod
+    def from_xml_file(cls, file_path):
+        """
+        Construct the cphd object from a stand-alone xml file path.
+
+        Parameters
+        ----------
+        file_path : str
+
+        Returns
+        -------
+        CPHDType
+        """
+
+        root_node, xml_ns = parse_xml_from_file(file_path)
+        ns_key = 'default' if 'default' in xml_ns else None
+        return cls.from_node(root_node, xml_ns=xml_ns, ns_key=ns_key)
+
+    @classmethod
+    def from_xml_string(cls, xml_string):
+        """
+        Construct the cphd object from an xml string.
+
+        Parameters
+        ----------
+        xml_string : str|bytes
+
+        Returns
+        -------
+        CPHDType
+        """
+
+        root_node, xml_ns = parse_xml_from_string(xml_string)
+        ns_key = 'default' if 'default' in xml_ns else None
+        return cls.from_node(root_node, xml_ns=xml_ns, ns_key=ns_key)

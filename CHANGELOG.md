@@ -4,6 +4,10 @@ SarPy follows a continuous release process, so there are lots of releases. Since
 essentially every commit corresponds to a release, specific release points are 
 not being annotated in github.
 
+## [1.2.63] - 2022-03-16
+### Added
+Created a few methods for parsing a sicd structure directly from an xml file
+
 ## [1.2.62] - 2022-03-08
 ### Changed
 - Made md5 checksum calculation optional for afrl/rde construction
