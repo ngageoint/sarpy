@@ -19,6 +19,11 @@ import numpy
 
 from sarpy.compliance import bytes_to_string
 
+try:
+    from lxml import etree
+except ImportError:
+    etree = None
+
 
 logger = logging.getLogger(__name__)
 valid_logger = logging.getLogger('validation')
@@ -180,6 +185,89 @@ def parse_xml_from_string(xml_string):
             raise ValueError('Trouble finding the default namespace for tag {}'.format(root_node.tag))
         xml_ns['default'] = namespace_match[0][1:-1]
     return root_node, xml_ns
+
+
+def parse_xml_from_file(xml_file_path):
+    """
+    Parse the ElementTree root node and xml namespace dict from an xml file.
+
+    Parameters
+    ----------
+    xml_file_path : str
+
+    Returns
+    -------
+    root_node: ElementTree.Element
+    xml_ns: Dict[str, str]
+    """
+
+    with open(xml_file_path, 'rb') as fi:
+        xml_bytes = fi.read()
+    return parse_xml_from_string(xml_bytes)
+
+
+def validate_xml_from_string(xml_string, xsd_path, output_logger=None):
+    """
+    Validate an xml string against a given xsd document.
+
+    Parameters
+    ----------
+    xml_string : str|bytes
+    xsd_path : str
+        The path to the relevant xsd document.
+    output_logger
+        A desired output logger.
+
+    Returns
+    -------
+    bool
+        `True` if valid, `False` otherwise. Failure reasons will be
+        logged at `'error'` level by the module.
+    """
+
+    if etree is None:
+        raise ImportError(
+            'The lxml package was not successfully imported,\n\t'
+            'and this xml validation requires lxml.')
+
+    xml_doc = etree.fromstring(xml_string)
+    xml_schema = etree.XMLSchema(file=xsd_path)
+    validity = xml_schema.validate(xml_doc)
+    if not validity:
+        for entry in xml_schema.error_log:
+            msg = 'XML validation error on line {}\n\t{}'.format(
+                entry.line, entry.message.encode('utf-8'))
+            if output_logger is None:
+                logger.error(msg)
+            else:
+                output_logger.error(msg)
+    return validity
+
+
+def validate_xml_from_file(xml_path, xsd_path, output_logger=None):
+    """
+    Validate an xml string against a given xsd document.
+
+    Parameters
+    ----------
+    xml_path : str
+        The path to the relevant xml file
+    xsd_path : str
+        The path to the relevant xsd document.
+    output_logger
+        A desired output logger.
+
+    Returns
+    -------
+    bool
+        `True` if valid, `False` otherwise. Failure reasons will be
+        logged at `'error'` level by the module.
+    """
+
+    with open(xml_path, 'rb') as fi:
+        xml_bytes = fi.read()
+
+    return validate_xml_from_string(xml_bytes, xsd_path, output_logger=output_logger)
 
 
 ###
@@ -1251,8 +1339,8 @@ class Serializable(object):
         """
         if tag is None:
             tag = self.__class__.__name__
-        etree = ElementTree.ElementTree()
-        node = self.to_node(etree, tag, ns_key=getattr(self, '_xml_ns_key', None),
+        the_etree = ElementTree.ElementTree()
+        node = self.to_node(the_etree, tag, ns_key=getattr(self, '_xml_ns_key', None),
                             check_validity=check_validity, strict=strict)
 
         if urn is None:
