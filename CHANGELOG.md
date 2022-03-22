@@ -4,6 +4,11 @@ SarPy follows a continuous release process, so there are lots of releases. Since
 essentially every commit corresponds to a release, specific release points are 
 not being annotated in github.
 
+## [1.2.64] - 2022-03-22
+### Fixed
+Fixed a bug associated with a plane projection where the column unit vector was 
+misidentified
+
 ## [1.2.63] - 2022-03-16
 ### Added
 Created a few methods for parsing a sicd structure directly from an xml file
