@@ -288,7 +288,7 @@ def _get_sicd_type_specific_projection(sicd):
     def plane_projection():
         SCP = sicd.GeoData.SCP.ECF.get_array()
         uRow = sicd.Grid.Row.UVectECF.get_array()
-        uCol = sicd.Grid.Row.UVectECF.get_array()
+        uCol = sicd.Grid.Col.UVectECF.get_array()
 
         # noinspection PyUnusedLocal, PyIncorrectDocstring
         def method_projection(instance, row_transform, col_transform, time_coa, arp_coa, varp_coa):
