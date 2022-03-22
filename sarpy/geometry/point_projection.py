@@ -288,7 +288,7 @@ def _get_sicd_type_specific_projection(sicd):
     def plane_projection():
         SCP = sicd.GeoData.SCP.ECF.get_array()
         uRow = sicd.Grid.Row.UVectECF.get_array()
-        uCol = sicd.Grid.Row.UVectECF.get_array()
+        uCol = sicd.Grid.Col.UVectECF.get_array()
 
         # noinspection PyUnusedLocal, PyIncorrectDocstring
         def method_projection(instance, row_transform, col_transform, time_coa, arp_coa, varp_coa):
@@ -1789,7 +1789,7 @@ def image_to_ground_dem(
                     (llh_rough[:, 1] >= entry[2]) & (llh_rough[:, 1] <= entry[3]))
             if numpy.any(mask):
                 coords[mask, :] = _image_to_ground_dem_block(
-                    im_points[mask, :], coa_proj, dem_interpolator, vertical_step_size,
+                    im_points_view[mask, :], coa_proj, dem_interpolator, vertical_step_size,
                     entry, block_size, lat_grid_size, lon_grid_size)
     if len(orig_shape) == 1:
         coords = numpy.reshape(coords, (-1,))

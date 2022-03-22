@@ -8,7 +8,7 @@ __authors__ = "Thomas McCullough"
 from typing import Optional
 import os
 
-from sarpy.io.xml.base import Serializable
+from sarpy.io.xml.base import Serializable, parse_xml_from_string, parse_xml_from_file
 from sarpy.io.xml.descriptors import SerializableDescriptor, StringDescriptor
 
 from sarpy.io.complex.sicd_elements.SICD import SICDType
@@ -157,7 +157,7 @@ class ResearchType(Serializable):
 
     def apply_sicd_reader(
             self, sicd_reader, populate_in_periphery=False, include_out_of_range=False,
-            padding_fraction=0.05, minimum_pad=0):
+            padding_fraction=0.05, minimum_pad=0, populate_md5=True):
         """
         Apply the given sicd to define all the relevant derived data, assuming
         that the starting point is physical ground truth populated, and image
@@ -171,9 +171,12 @@ class ResearchType(Serializable):
         include_out_of_range : bool
         padding_fraction : None|float
         minimum_pad : int|float
+        populate_md5 : bool
         """
 
-        md5_checksum = None if sicd_reader.file_name is None else calculate_md5(sicd_reader.file_name)
+        md5_checksum = None if (sicd_reader.file_name is None or not populate_md5) \
+            else calculate_md5(sicd_reader.file_name)
+
         base_file = os.path.split(sicd_reader.file_name)[1]
         self.apply_sicd(
             sicd_reader.sicd_meta,
@@ -183,3 +186,39 @@ class ResearchType(Serializable):
             padding_fraction=padding_fraction,
             minimum_pad=minimum_pad,
             md5_checksum=md5_checksum)
+
+    @classmethod
+    def from_xml_file(cls, file_path):
+        """
+        Construct the research object from an xml file path.
+
+        Parameters
+        ----------
+        file_path : str
+
+        Returns
+        -------
+        ResearchType
+        """
+
+        root_node, xml_ns = parse_xml_from_file(file_path)
+        ns_key = 'default' if 'default' in xml_ns else None
+        return cls.from_node(root_node, xml_ns=xml_ns, ns_key=ns_key)
+
+    @classmethod
+    def from_xml_string(cls, xml_string):
+        """
+        Construct the research object from an xml string.
+
+        Parameters
+        ----------
+        xml_string : str|bytes
+
+        Returns
+        -------
+        ResearchType
+        """
+
+        root_node, xml_ns = parse_xml_from_string(xml_string)
+        ns_key = 'default' if 'default' in xml_ns else None
+        return cls.from_node(root_node, xml_ns=xml_ns, ns_key=ns_key)

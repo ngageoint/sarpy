@@ -13,7 +13,6 @@ from collections import OrderedDict
 
 import numpy
 
-from sarpy.io.xml.base import parse_xml_from_string
 from sarpy.io.general.utils import validate_range, is_file_like
 from sarpy.io.general.base import AbstractWriter, BaseReader, BIPChipper, SarpyIOError
 
@@ -188,11 +187,7 @@ class CRSDDetails(object):
         else:
             raise ValueError(_unhandled_version_text.format(self.crsd_version))
 
-        root_node, xml_ns = parse_xml_from_string(xml)
-        if 'default' in xml_ns:
-            self._crsd_meta = the_type.from_node(root_node, xml_ns, ns_key='default')
-        else:
-            self._crsd_meta = the_type.from_node(root_node, xml_ns)
+        self._crsd_meta = the_type.from_xml_string(xml)
 
     def get_crsd_bytes(self):
         """

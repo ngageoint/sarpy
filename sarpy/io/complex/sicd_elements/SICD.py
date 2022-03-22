@@ -16,7 +16,7 @@ from sarpy.geometry import point_projection
 from sarpy.io.complex.naming.utils import get_sicd_name
 from sarpy.io.complex.sicd_schema import get_urn_details, get_specification_identifier
 
-from sarpy.io.xml.base import Serializable
+from sarpy.io.xml.base import Serializable, parse_xml_from_file, parse_xml_from_string
 from sarpy.io.xml.descriptors import SerializableDescriptor
 
 from .base import DEFAULT_STRICT
@@ -944,3 +944,39 @@ class SICDType(Serializable):
             out_col_bounds = (0, num_cols)
         sicd.define_geo_image_corners(override=True)
         return sicd, out_row_bounds, out_col_bounds
+
+    @classmethod
+    def from_xml_file(cls, file_path):
+        """
+        Construct the sicd object from a stand-alone xml file path.
+
+        Parameters
+        ----------
+        file_path : str
+
+        Returns
+        -------
+        SICDType
+        """
+
+        root_node, xml_ns = parse_xml_from_file(file_path)
+        ns_key = 'default' if 'default' in xml_ns else None
+        return cls.from_node(root_node, xml_ns=xml_ns, ns_key=ns_key)
+
+    @classmethod
+    def from_xml_string(cls, xml_string):
+        """
+        Construct the sicd object from an xml string.
+
+        Parameters
+        ----------
+        xml_string : str|bytes
+
+        Returns
+        -------
+        SICDType
+        """
+
+        root_node, xml_ns = parse_xml_from_string(xml_string)
+        ns_key = 'default' if 'default' in xml_ns else None
+        return cls.from_node(root_node, xml_ns=xml_ns, ns_key=ns_key)

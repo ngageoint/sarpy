@@ -9,6 +9,24 @@ not being annotated in github.
 Overhaul of the file reading base structures and extension to allow the use of 
 pathlib paths in addition to filename strings
 
+## [1.2.64] - 2022-03-22
+### Fixed
+Fixed a bug associated with a plane projection where the column unit vector was 
+misidentified
+
+## [1.2.63] - 2022-03-16
+### Added
+Created a few methods for parsing a sicd structure directly from an xml file
+
+## [1.2.62] - 2022-03-08
+### Changed
+- Made md5 checksum calculation optional for afrl/rde construction
+- Permit an optional call which returns of raw values (not cast to unit8/16) 
+  from remap functions
+
+### Fixed
+Fixed the PEDF remap calculation
+
 ## [1.2.61] - 2022-03-02
 ### Fixed
 Resolving bug/error in NITF segmentation scheme and the population of SICD/SIDD 

@@ -19,6 +19,6 @@ def get_schema_path(version='1.0.0'):
 
     if version == '1.0.0':
         return pkg_resources.resource_filename(
-            'sarpy.annotation.afrl_rde_schema', 'afrl_rde_schema_V1.0.0_2022_02_15.xsd')
+            'sarpy.annotation.afrl_rde_schema', 'afrl_rde_schema_v1.0.0_2022-02-15.xsd')
     else:
         raise ValueError('Got unrecognized version {}'.format(version))

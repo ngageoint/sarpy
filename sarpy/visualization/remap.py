@@ -412,6 +412,26 @@ class RemapFunction(object):
 
         return True
 
+    def raw_call(self, data, **kwargs):
+        """
+        This performs the mapping from input data to output floating point
+        version, this is directly used by the :func:`call` method.
+
+        Parameters
+        ----------
+        data : numpy.ndarray
+            The (presumably) complex data to remap.
+        kwargs
+            Some keyword arguments may be allowed here
+
+        Returns
+        -------
+        numpy.ndarray
+            This should generally have `float64` dtype.
+        """
+
+        raise NotImplementedError
+
     def call(self, data, **kwargs):
         """
         This performs the mapping from input data to output discrete version.
@@ -434,7 +454,7 @@ class RemapFunction(object):
         numpy.ndarray
         """
 
-        raise NotImplementedError
+        return clip_cast(self.raw_call(data, **kwargs), dtype=self.output_dtype)
 
     def __call__(self, data, **kwargs):
         return self.call(data, **kwargs)
@@ -481,7 +501,7 @@ class MonochromaticRemap(RemapFunction):
     """
 
     _name = '_Monochromatic'
-    __slots__ = ( '_override_name', '_bit_depth', '_dimension','_max_output_value')
+    __slots__ = ('_override_name', '_bit_depth', '_dimension','_max_output_value')
     _allowed_dimension = {0, }
 
     def __init__(self, override_name=None, bit_depth=8, max_output_value=None):
@@ -523,7 +543,7 @@ class MonochromaticRemap(RemapFunction):
                 'the max_output_value must be between 0 and {}, '
                 'got {}'.format(max_possible, value))
 
-    def call(self, data, **kwargs):
+    def raw_call(self, data, **kwargs):
         raise NotImplementedError
 
     def calculate_global_parameters_from_reader(self, reader, index=0, pixel_bounds=None):
@@ -633,6 +653,31 @@ class Density(MonochromaticRemap):
 
         return self._data_mean is not None
 
+    def raw_call(self, data, data_mean=None):
+        """
+        This performs the mapping from input data to output floating point
+        version, this is directly used by the :func:`call` method.
+
+        Parameters
+        ----------
+        data : numpy.ndarray
+            The (presumably) complex data to remap.
+        data_mean : None|float
+            The pre-calculated data mean, for consistent global use. The order
+            of preference is the value provided here, the class data_mean property
+            value, then the value calculated from the present sample.
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
+        data_mean = float(data_mean) if data_mean is not None else self._data_mean
+        # the amplitude_to_density function is ort specifically geared towards
+        # dynamic range of 0 - 255, just adjust it.
+        multiplier = float(self.max_output_value)/255.0
+        return multiplier*amplitude_to_density(data, dmin=self.dmin, mmult=self.mmult, data_mean=data_mean)
+
     def call(self, data, data_mean=None):
         """
         This performs the mapping from input data to output discrete version.
@@ -657,13 +702,8 @@ class Density(MonochromaticRemap):
         numpy.ndarray
         """
 
-        data_mean = float(data_mean) if data_mean is not None else self._data_mean
-        # the amplitude_to_density function is ort specifically geared towards
-        # dynamic range of 0 - 255, just adjust it.
-
-        multiplier = float(self.max_output_value)/255.0
         return clip_cast(
-            multiplier*amplitude_to_density(data, dmin=self.dmin, mmult=self.mmult, data_mean=data_mean),
+            self.raw_call(data, data_mean=data_mean),
             dtype=self.output_dtype, min_value=0, max_value=self.max_output_value)
 
     def calculate_global_parameters_from_reader(self, reader, index=0, pixel_bounds=None):
@@ -801,6 +841,53 @@ class Linear(MonochromaticRemap):
 
         return min_value, max_value
 
+    def raw_call(self, data, min_value=None, max_value=None):
+        """
+        This performs the mapping from input data to output floating point
+        version, this is directly used by the :func:`call` method.
+
+        Parameters
+        ----------
+        data : numpy.ndarray
+            The (presumably) complex data to remap.
+        min_value : None|float
+            A minimum threshold, or pre-calculated data minimum, for consistent
+            global use. The order of preference is the value provided here, the
+            class `min_value` property value, then calculated from the present
+            sample.
+        max_value : None|float
+            A maximum value threshold, or pre-calculated data maximum, for consistent
+            global use. The order of preference is the value provided here, the
+            class `max_value` property value, then calculated from the present
+            sample.
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
+        if numpy.iscomplexobj(data):
+            amplitude = numpy.abs(data)
+        else:
+            amplitude = data
+
+        out = numpy.empty(amplitude.shape, dtype='float64')
+        max_output_value = self.max_output_value
+
+        finite_mask = numpy.isfinite(amplitude)
+        out[~finite_mask] = max_output_value
+
+        if numpy.any(finite_mask):
+            temp_data = amplitude[finite_mask]
+
+            min_value, max_value = self._get_extrema(temp_data, min_value, max_value)
+
+            if min_value == max_value:
+                out[finite_mask] = 0
+            else:
+                out[finite_mask] = max_output_value*_linear_map(amplitude[finite_mask], min_value, max_value)
+        return out
+
     def call(self, data, min_value=None, max_value=None):
         """
         This performs the mapping from input data to output discrete version.
@@ -831,30 +918,9 @@ class Linear(MonochromaticRemap):
         numpy.ndarray
         """
 
-        if numpy.iscomplexobj(data):
-            amplitude = numpy.abs(data)
-        else:
-            amplitude = data
-
-        dtype = self.output_dtype
-        out = numpy.empty(amplitude.shape, dtype=dtype)
-        max_output_value = self.max_output_value
-
-        finite_mask = numpy.isfinite(amplitude)
-        out[~finite_mask] = max_output_value
-
-        if numpy.any(finite_mask):
-            temp_data = amplitude[finite_mask]
-
-            min_value, max_value = self._get_extrema(temp_data, min_value, max_value)
-
-            if min_value == max_value:
-                out[finite_mask] = 0
-            else:
-                out[finite_mask] = clip_cast(
-                    max_output_value*_linear_map(amplitude[finite_mask], min_value, max_value),
-                    dtype=dtype, min_value=0, max_value=max_output_value)
-        return out
+        return clip_cast(
+            self.raw_call(data, min_value=min_value, max_value=max_value),
+            dtype=self.output_dtype, min_value=0, max_value=self.max_output_value)
 
     def calculate_global_parameters_from_reader(self, reader, index=0, pixel_bounds=None):
         pixel_bounds = self._validate_pixel_bounds(reader, index, pixel_bounds)
@@ -956,6 +1022,54 @@ class Logarithmic(MonochromaticRemap):
 
         return min_value, max_value
 
+    def raw_call(self, data, min_value=None, max_value=None):
+        """
+        This performs the mapping from input data to output floating point
+        version, this is directly used by the :func:`call` method.
+
+        Parameters
+        ----------
+        data : numpy.ndarray
+            The (presumably) complex data to remap.
+        min_value : None|float
+            A minimum threshold, or pre-calculated data minimum, for consistent
+            global use. The order of preference is the value provided here, the
+            class `min_value` property value, then calculated from the present
+            sample.
+        max_value : None|float
+            A maximum value threshold, or pre-calculated data maximum, for consistent
+            global use. The order of preference is the value provided here, the
+            class `max_value` property value, then calculated from the present
+            sample.
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
+        amplitude = numpy.abs(data)
+
+        out = numpy.empty(amplitude.shape, dtype='float64')
+        max_output_value = self.max_output_value
+
+        finite_mask = numpy.isfinite(amplitude)
+        zero_mask = (amplitude == 0)
+        use_mask = finite_mask & (~zero_mask)
+
+        out[~finite_mask] = max_output_value
+        out[zero_mask] = 0
+
+        if numpy.any(use_mask):
+            temp_data = amplitude[use_mask]
+            min_value, max_value = self._get_extrema(temp_data, min_value, max_value)
+
+            if min_value == max_value:
+                out[use_mask] = 0
+            else:
+                temp_data = (numpy.clip(temp_data, min_value, max_value) - min_value)/(max_value - min_value) + 1
+                out[use_mask] = max_output_value*numpy.log2(temp_data)
+        return out
+
     def call(self, data, min_value=None, max_value=None):
         """
         This performs the mapping from input data to output discrete version.
@@ -986,30 +1100,9 @@ class Logarithmic(MonochromaticRemap):
         numpy.ndarray
         """
 
-        amplitude = numpy.abs(data)
-
-        dtype = self.output_dtype
-        out = numpy.empty(amplitude.shape, dtype=dtype)
-        max_output_value = self.max_output_value
-
-        finite_mask = numpy.isfinite(amplitude)
-        zero_mask = (amplitude == 0)
-        use_mask = finite_mask & (~zero_mask)
-
-        out[~finite_mask] = max_output_value
-        out[zero_mask] = 0
-
-        if numpy.any(use_mask):
-            temp_data = amplitude[use_mask]
-            min_value, max_value = self._get_extrema(temp_data, min_value, max_value)
-
-            if min_value == max_value:
-                out[use_mask] = 0
-            else:
-                temp_data = (numpy.clip(temp_data, min_value, max_value) - min_value)/(max_value - min_value) + 1
-                out[use_mask] = clip_cast(
-                    max_output_value*numpy.log2(temp_data), dtype=dtype, min_value=0, max_value=max_output_value)
-        return out
+        return clip_cast(
+            self.raw_call(data, min_value=min_value, max_value=max_value),
+            dtype=self.output_dtype, min_value=0, max_value=self.max_output_value)
 
     def calculate_global_parameters_from_reader(self, reader, index=0, pixel_bounds=None):
         pixel_bounds = self._validate_pixel_bounds(reader, index, pixel_bounds)
@@ -1063,6 +1156,31 @@ class PEDF(MonochromaticRemap):
 
         return self._density.are_global_parameters_set
 
+    def raw_call(self, data, data_mean=None):
+        """
+        This performs the mapping from input data to output floating point
+        version, this is directly used by the :func:`call` method.
+
+        Parameters
+        ----------
+        data : numpy.ndarray
+            The (presumably) complex data to remap.
+        data_mean : None|float
+            The pre-calculated data mean, for consistent global use. The order
+            of preference is the value provided here, the class data_mean property
+            value, then the value calculated from the present sample.
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
+        half_value = 0.5*self.max_output_value
+        out = self._density.raw_call(data, data_mean=data_mean)
+        top_mask = (out > half_value)
+        out[top_mask] = 0.5*(out[top_mask] + half_value)
+        return out
+
     def call(self, data, data_mean=None):
         """
         This performs the mapping from input data to output discrete version.
@@ -1087,11 +1205,9 @@ class PEDF(MonochromaticRemap):
         numpy.ndarray
         """
 
-        half_value = 0.5*self.max_output_value
-        out = self._density(data, data_mean=data_mean)
-        top_mask = (out > half_value)
-        out[top_mask] = 0.5*(out[top_mask]) + half_value
-        return numpy.clip(out, 0, self.max_output_value)
+        return clip_cast(
+            self.raw_call(data, data_mean=data_mean),
+            dtype=self.output_dtype, min_value=0, max_value=self.max_output_value)
 
     def calculate_global_parameters_from_reader(self, reader, index=0, pixel_bounds=None):
         self._density.calculate_global_parameters_from_reader(
@@ -1207,6 +1323,59 @@ class NRL(MonochromaticRemap):
 
         return self._stats is not None
 
+    def raw_call(self, data, stats=None):
+        """
+        This performs the mapping from input data to output floating point
+        version, this is directly used by the :func:`call` method.
+
+        Parameters
+        ----------
+        data : numpy.ndarray
+            The (presumably) complex data to remap.
+        stats : None|tuple
+            The stats `(minimum, maximum, chnageover)`, for consistent
+            global use. The order of preference is the value provided here, the
+            class `stats` property value, then calculated from the present
+            sample.
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
+        output_dtype = self.output_dtype
+        max_index = self.max_output_value
+
+        amplitude = numpy.abs(data)
+        amplitude_min, amplitude_max, changeover = self._validate_stats(amplitude, stats)
+        out = numpy.empty(amplitude.shape, dtype='float64')
+        if amplitude_min == amplitude_max:
+            out[:] = 0
+            return out
+
+        linear_region = (amplitude <= changeover)
+        if changeover > amplitude_min:
+
+            out[linear_region] = numpy.clip(
+                self.knee*_linear_map(amplitude[linear_region], amplitude_min, changeover),
+                0,
+                max_index)
+        else:
+            logger.warning(
+                'The remap array is at least significantly constant, the nrl remap may return '
+                'strange results.')
+            out[linear_region] = 0
+
+        if changeover == amplitude_max:
+            out[~linear_region] = self.knee
+        else:
+            # calculate the log values
+            extreme_data = numpy.clip(amplitude[~linear_region], changeover, amplitude_max)
+            log_values = (extreme_data - changeover)/(amplitude_max - changeover) + 1
+            # this is now linearly scaled from 1 to 2, apply log_2 and then scale appropriately
+            out[~linear_region] = numpy.log2(log_values)*(max_index - self.knee) + self.knee
+        return out
+
     def call(self, data, stats=None):
         """
         This performs the mapping from input data to output discrete version.
@@ -1232,39 +1401,9 @@ class NRL(MonochromaticRemap):
         numpy.ndarray
         """
 
-        output_dtype = self.output_dtype
-        max_index = self.max_output_value
-
-        amplitude = numpy.abs(data)
-        amplitude_min, amplitude_max, changeover = self._validate_stats(amplitude, stats)
-        out = numpy.empty(amplitude.shape, dtype=output_dtype)
-        if amplitude_min == amplitude_max:
-            out[:] = 0
-            return out
-
-        linear_region = (amplitude <= changeover)
-        if changeover > amplitude_min:
-
-            out[linear_region] = clip_cast(
-                self.knee*_linear_map(amplitude[linear_region], amplitude_min, changeover),
-                dtype=output_dtype, min_value=0, max_value=max_index)
-        else:
-            logger.warning(
-                'The remap array is at least significantly constant, the nrl remap may return '
-                'strange results.')
-            out[linear_region] = 0
-
-        if changeover == amplitude_max:
-            out[~linear_region] = self.knee
-        else:
-            # calculate the log values
-            extreme_data = numpy.clip(amplitude[~linear_region], changeover, amplitude_max)
-            log_values = (extreme_data - changeover)/(amplitude_max - changeover) + 1
-            # this is now linearly scaled from 1 to 2, apply log_2 and then scale appropriately
-            out[~linear_region] = clip_cast(
-                numpy.log2(log_values)*(max_index - self.knee) + self.knee,
-                dtype=output_dtype, min_value=0, max_value=max_index)
-        return out
+        return clip_cast(
+            self.raw_call(data, stats=stats),
+            dtype=self.output_dtype, min_value=0, max_value=self.max_output_value)
 
     def calculate_global_parameters_from_reader(self, reader, index=0, pixel_bounds=None):
         pixel_bounds = self._validate_pixel_bounds(reader, index, pixel_bounds)
@@ -1372,12 +1511,9 @@ class LUT8bit(RemapFunction):
 
         return self.mono_remap.are_global_parameters_set
 
-    def call(self, data, **kwargs):
+    def raw_call(self, data, **kwargs):
         """
-        This performs the mapping from input data to output discrete version.
-
-        This method os directly called by the :func:`__call__` method, so the
-        class instance (once constructed) is itself callable.
+        Contrary to monochromatic remaps, this is identical to :func:`call`.
 
         Parameters
         ----------
@@ -1391,6 +1527,9 @@ class LUT8bit(RemapFunction):
         """
 
         return self._lookup_table[self._mono_remap(data, **kwargs)]
+
+    def call(self, data, **kwargs):
+        return self.raw_call(data, **kwargs)
 
     def calculate_global_parameters_from_reader(self, reader, index=0, pixel_bounds=None):
         self.mono_remap.calculate_global_parameters_from_reader(

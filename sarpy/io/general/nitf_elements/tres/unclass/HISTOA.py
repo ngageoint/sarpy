@@ -23,30 +23,30 @@ class EVENT(TREElement):
         self.add_field('IPVTYPE', 's', 3, value)
         self.add_field('INBWC', 's', 10, value)
         self.add_field('DISP_FLAG', 's', 1, value)
-        self.add_field('ROT_FLAG', 'd', 1, value)
-        if self.ROT_FLAG == 1:
+        self.add_field('ROT_FLAG', 's', 1, value)
+        if self.ROT_FLAG == '1':
             self.add_field('ROT_ANGLE', 's', 8, value)
         self.add_field('ASYM_FLAG', 's', 1, value)
-        if self.ASYM_FLAG == 1:
+        if self.ASYM_FLAG == '1':
             self.add_field('ZOOMROW', 's', 7, value)
             self.add_field('ZOOMCOL', 's', 7, value)
         self.add_field('PROJ_FLAG', 's', 1, value)
-        self.add_field('SHARP_FLAG', 'd', 1, value)
-        if self.SHARP_FLAG == 1:
+        self.add_field('SHARP_FLAG', 's', 1, value)
+        if self.SHARP_FLAG == '1':
             self.add_field('SHARPFAM', 's', 2, value)
             self.add_field('SHARPMEM', 's', 2, value)
-        self.add_field('MAG_FLAG', 'd', 1, value)
-        if self.MAG_FLAG == 1:
+        self.add_field('MAG_FLAG', 's', 1, value)
+        if self.MAG_FLAG == '1':
             self.add_field('MAG_LEVEL', 's', 7, value)
-        self.add_field('DRA_FLAG', 'd', 1, value)
-        if self.DRA_FLAG == 1:
+        self.add_field('DRA_FLAG', 's', 1, value)
+        if self.DRA_FLAG == '1':
             self.add_field('DRA_MULT', 's', 7, value)
             self.add_field('DRA_SUB', 's', 5, value)
-        self.add_field('TTC_FLAG', 'd', 1, value)
-        if self.TTC_FLAG == 1:
+        self.add_field('TTC_FLAG', 's', 1, value)
+        if self.TTC_FLAG == '1':
             self.add_field('TTCFAM', 's', 2, value)
             self.add_field('TTCMEM', 's', 2, value)
-        self.add_field('DEVLUT_FLAG', 'd', 1, value)
+        self.add_field('DEVLUT_FLAG', 's', 1, value)
         self.add_field('OBPP', 's', 2, value)
         self.add_field('OPVTYPE', 's', 3, value)
         self.add_field('OUTBWC', 's', 10, value)
