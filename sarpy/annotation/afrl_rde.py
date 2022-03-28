@@ -221,7 +221,7 @@ class GroundTruthConstructor(object):
                 Objects=self._objects)).copy()
 
     def localize_for_sicd(
-            self, sicd, base_sicd_file, populate_in_periphery=False, include_out_of_range=False,
+            self, sicd, base_sicd_file, layover_shift=False, populate_in_periphery=False, include_out_of_range=False,
             padding_fraction=0.05, minimum_pad=0, md5_checksum=None):
         """
         Localize the AFRL structure for the given sicd structure.
@@ -234,6 +234,7 @@ class GroundTruthConstructor(object):
         ----------
         sicd : SICDType
         base_sicd_file : str
+        layover_shift : bool
         populate_in_periphery : bool
         include_out_of_range : bool
         padding_fraction : None|float
@@ -249,6 +250,7 @@ class GroundTruthConstructor(object):
         out_research.apply_sicd(
             sicd,
             base_sicd_file,
+            layover_shift=layover_shift,
             populate_in_periphery=populate_in_periphery,
             include_out_of_range=include_out_of_range,
             padding_fraction=padding_fraction,
@@ -257,7 +259,7 @@ class GroundTruthConstructor(object):
         return out_research
 
     def localize_for_sicd_reader(
-            self, sicd_reader, populate_in_periphery=False, include_out_of_range=False,
+            self, sicd_reader, layover_shift=False, populate_in_periphery=False, include_out_of_range=False,
             padding_fraction=0.05, minimum_pad=0, populate_md5=True):
         """
         Localize the AFRL structure for the given sicd file.
@@ -269,6 +271,7 @@ class GroundTruthConstructor(object):
         Parameters
         ----------
         sicd_reader : SICDReader
+        layover_shift : bool
         populate_in_periphery : bool
         include_out_of_range : bool
         padding_fraction : None|float
@@ -283,6 +286,7 @@ class GroundTruthConstructor(object):
         out_research = self.get_final_structure()
         out_research.apply_sicd_reader(
             sicd_reader,
+            layover_shift=layover_shift,
             populate_in_periphery=populate_in_periphery,
             include_out_of_range=include_out_of_range,
             padding_fraction=padding_fraction,
