@@ -4,6 +4,11 @@ SarPy follows a continuous release process, so there are lots of releases. Since
 essentially every commit corresponds to a release, specific release points are 
 not being annotated in github.
 
+## [1.2.65] - 2022-03-25
+### Fixed
+- Resolved minor bug involved with xml namespace handling
+- Corrected layover calculation in AFRL object population
+
 ## [1.2.64] - 2022-03-22
 ### Fixed
 Fixed a bug associated with a plane projection where the column unit vector was 
