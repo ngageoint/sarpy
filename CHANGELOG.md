@@ -9,6 +9,11 @@ not being annotated in github.
 Overhaul of the file reading base structures and extension to allow the use of 
 pathlib paths in addition to filename strings
 
+## [1.2.65] - 2022-03-25
+### Fixed
+- Resolved minor bug involved with xml namespace handling
+- Corrected layover calculation in AFRL object population
+
 ## [1.2.64] - 2022-03-22
 ### Fixed
 Fixed a bug associated with a plane projection where the column unit vector was 

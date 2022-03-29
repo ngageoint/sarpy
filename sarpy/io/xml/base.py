@@ -1023,7 +1023,7 @@ class Serializable(object):
         """
 
         def serialize_attribute(node, the_tag, val, format_function, the_xml_ns_key):
-            if the_xml_ns_key is None:
+            if the_xml_ns_key is None or the_xml_ns_key == 'default':
                 node.attrib[the_tag] = format_function(val)
             else:
                 node.attrib['{}:{}'.format(the_xml_ns_key, the_tag)] = format_function(val)
@@ -1075,7 +1075,8 @@ class Serializable(object):
                 return  # serializing an empty list is dumb
             else:
                 for entry in val:
-                    serialize_plain(node, ch_tag, entry, format_function, the_xml_ns_key)
+                    if entry is not None:
+                        serialize_plain(node, ch_tag, entry, format_function, the_xml_ns_key)
 
         def serialize_plain(node, the_tag, val, format_function, the_xml_ns_key):
             # may be called not at top level - if object array or list is present
@@ -1139,14 +1140,14 @@ class Serializable(object):
             fmt_func = self._get_formatter(attribute)
             base_tag_name = self._tag_overide.get(attribute, attribute)
             if attribute in self._set_as_attribute:
-                xml_ns_key = self._child_xml_ns_key.get(attribute, None)
+                xml_ns_key = self._child_xml_ns_key.get(attribute, ns_key)
                 serialize_attribute(nod, base_tag_name, value, fmt_func, xml_ns_key)
             else:
                 # should we be using some namespace?
                 if attribute in self._child_xml_ns_key:
                     xml_ns_key = self._child_xml_ns_key[attribute]
                 else:
-                    xml_ns_key = getattr(self, '_xml_ns_key', None)
+                    xml_ns_key = getattr(self, '_xml_ns_key', ns_key)
                     if xml_ns_key == 'default':
                         xml_ns_key = None
 
@@ -1237,7 +1238,7 @@ class Serializable(object):
             if len(val) == 0:
                 return []
             else:
-                return [serialize_plain(ch_tag, entry) for entry in val]
+                return [serialize_plain(ch_tag, entry) for entry in val if entry is not None]
 
         def serialize_plain(field, val):
             # may be called not at top level - if object array or list is present

@@ -8,7 +8,5 @@ Annotation elements (sarpy.annotation)
     base
     label
     rcs
-    afrl
-    afrl_elements/index
     afrl_rde
     afrl_rde_elements/index
