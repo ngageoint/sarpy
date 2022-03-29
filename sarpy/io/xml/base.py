@@ -1023,7 +1023,7 @@ class Serializable(object):
         """
 
         def serialize_attribute(node, the_tag, val, format_function, the_xml_ns_key):
-            if the_xml_ns_key is None:
+            if the_xml_ns_key is None or the_xml_ns_key == 'default':
                 node.attrib[the_tag] = format_function(val)
             else:
                 node.attrib['{}:{}'.format(the_xml_ns_key, the_tag)] = format_function(val)
