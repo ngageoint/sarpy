@@ -749,8 +749,8 @@ class AbstractReader(object):
         .. code-block:: python
 
             data = reader[start:stop:stride, start:stop:stride, index]
-            data = reader((start1, stop1, stride1), (start2, stop2, stride2), index=index)`
-            data = reader.read_chip((start1, stop1, stride1), (start2, stop2, stride2) index=index)
+            data = reader((start1, stop1, stride1), (start2, stop2, stride2), index=index)
+            data = reader.read_chip((start1, stop1, stride1), (start2, stop2, stride2), index=index)
 
         Here the slice on index (dimension 3) is limited to a single integer. No
         slice on index will default to `index=0`, that is :code:`reader[:, :]` and
