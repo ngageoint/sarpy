@@ -18,7 +18,6 @@ import numpy
 from scipy.signal import correlate2d
 
 from sarpy.io.general.base import BaseReader
-from sarpy.io.complex.base import SICDTypeReader
 
 
 logger = logging.getLogger(__name__)
@@ -46,7 +45,7 @@ def _validate_reader(the_reader, the_index):
 
     Parameters
     ----------
-    the_reader : SICDTypeReader|numpy.ndarray
+    the_reader : BaseReader|numpy.ndarray
     the_index : None|int
 
     Returns
@@ -56,7 +55,7 @@ def _validate_reader(the_reader, the_index):
         The size of the input
     """
 
-    if isinstance(the_reader, SICDTypeReader):
+    if isinstance(the_reader, BaseReader):
         if the_index is None:
             the_index = 0
         the_size = the_reader.get_data_size_as_tuple()[the_index]
@@ -70,7 +69,19 @@ def _validate_reader(the_reader, the_index):
     return the_reader, the_index, the_size
 
 
-def _validate_match_parameters(reference_size, moving_size, match_box_size, moving_deviation):
+def _validate_match_parameters(reference_size, moving_size, match_box_size, moving_deviation, decimation):
+    """
+    Validate the match paramaters based the size of the images.
+
+    Parameters
+    ----------
+    reference_size : Tuple[int, int]
+    moving_size : Tuple[int, int]
+    match_box_size : Tuple[int, int]
+    moving_deviation : Tuple[int, int]
+    decimation : Tuple[int, int]
+    """
+
     if not ((match_box_size[0] % 2) == 1 and match_box_size[0] > 1 and
             (match_box_size[1] % 2) == 1 and match_box_size[1] > 1):
         raise ValueError('The match box size must have both odd entries greater than 1')
@@ -79,14 +90,87 @@ def _validate_match_parameters(reference_size, moving_size, match_box_size, movi
             (moving_deviation[1] % 2) == 1 and moving_deviation[1] > 1):
         raise ValueError('The match box size must have both odd entries greater than 1')
 
-    if match_box_size[0] > 0.3*reference_size[0] or match_box_size[1] > 0.3*reference_size[1]:
+    limit_fraction = 0.5
+    if match_box_size[0]*decimation[0] > limit_fraction*reference_size[0] or \
+            match_box_size[1]*decimation[1] > limit_fraction*reference_size[1]:
         raise ValueError(
-            'The size of the match box ({}) is too close\n\t'
-            'to the size of the reference image ({})'.format(match_box_size, reference_size))
-    if match_box_size[0] > 0.3*moving_size[0] or match_box_size[1] > 0.3*moving_size[1]:
+            'The size of the match box - {} with decimation - {} is too large\n\t'
+            'with respect tothe size of the reference image - {}'.format(
+                match_box_size, decimation, reference_size))
+    if match_box_size[0]*decimation[0] > limit_fraction*moving_size[0] or \
+            match_box_size[1]*decimation[1] > limit_fraction*moving_size[1]:
         raise ValueError(
-            'The size of the match box ({}) is too close\n\t'
-            'to the size of the moving image ({})'.format(match_box_size, moving_size))
+            'The size of the match box - {} with decimation - {} is too close\n\t'
+            'to the size of the moving image - {}'.format(
+                match_box_size, decimation, moving_size))
+
+
+def _populate_difference_structure(mapping_values):
+    """
+    Helper function for populating derivative estimates into our structure.
+
+    Parameters
+    ----------
+    mapping_values: List[List[dict]]
+    """
+
+    # NB: this assumes the expected structure
+
+    def do_diff(the_diff, the_count, direction, ref_loc0, mov_loc0, ref_loc1, mov_loc1):
+        if mov_loc0 is None or mov_loc1 is None:
+            return the_diff, the_count
+        the_diff += float(mov_loc1[direction] - mov_loc0[direction]) / \
+                    float(ref_loc1[direction] - ref_loc0[direction])
+        the_count += 1
+        return the_diff, the_count
+
+    def basic_estimate_diff(entry, i, j):
+        ref_loc = entry['reference_location']
+        mov_loc = entry['moving_location']
+        if mov_loc is None:
+            return
+
+        # calculate row derivative
+        r_diff = 0.0
+        r_count = 0
+        # get value based on before
+        if i > 0:
+            o_entry = mapping_values[i-1][j]
+            do_diff(r_diff, r_count, 0, ref_loc, mov_loc,
+                    o_entry['reference_location'], o_entry['moving_location'])
+        # get value based on after
+        if i < len(mapping_values) - 1:
+            o_entry = mapping_values[i+1][j]
+            do_diff(r_diff, r_count, 0, ref_loc, mov_loc,
+                    o_entry['reference_location'], o_entry['moving_location'])
+        if r_count > 0:
+            row_der = r_diff/float(r_count)
+            entry['row_derivative'] = row_der
+            if row_der < 0.0:
+                logger.warning('Entry ({}, {}) has negative row derivative ({})'.format(i, j, row_der))
+
+        # calculate the column derivative
+        c_diff = 0.0
+        c_count = 0
+        # get the value based on before
+        if j > 0:
+            o_entry = mapping_values[i][j-1]
+            do_diff(c_diff, c_count, 1, ref_loc, mov_loc,
+                    o_entry['reference_location'], o_entry['moving_location'])
+        # get value based on after
+        if j < len(mapping_values[0]) - 1:
+            o_entry = mapping_values[i][j+1]
+            do_diff(c_diff, c_count, 1, ref_loc, mov_loc,
+                    o_entry['reference_location'], o_entry['moving_location'])
+        if c_count > 0:
+            col_der = c_diff/float(c_count)
+            entry['column_derivative'] = col_der
+            if col_der < 0.0:
+                logger.warning('Entry ({}, {}) has negative column derivative ({})'.format(i, j, col_der))
+
+    for row_index, grid_row in enumerate(mapping_values):
+        for col_index, element in enumerate(grid_row):
+            basic_estimate_diff(element, row_index, col_index)
 
 
 def _subpixel_shift(values):
@@ -234,10 +318,10 @@ def _single_step_location(
 
     Parameters
     ----------
-    reference_data : SICDTypeReader|numpy.ndarray
+    reference_data : BaseReader|numpy.ndarray
     reference_index : None|int
     reference_size : Tuple[int, int]
-    moving_data : SICDTypeReader|numpy.ndarray
+    moving_data : BaseReader|numpy.ndarray
     moving_index : None|int
     moving_size : Tuple[int, int]
     reference_location : Tuple[int, int]
@@ -334,10 +418,10 @@ def _single_step_grid(
 
     Parameters
     ----------
-    reference_data : SICDTypeReader|numpy.ndarray
+    reference_data : BaseReader|numpy.ndarray
     reference_index : None|int
     reference_size : Tuple[int, int]
-    moving_data : SICDTypeReader|numpy.ndarray
+    moving_data : BaseReader|numpy.ndarray
     moving_index : None|int
     moving_size : Tuple[int, int]
     reference_box_rough : Tuple[int, int, int, int]
@@ -345,10 +429,35 @@ def _single_step_grid(
     match_box_size : Tuple[int, int]
     moving_deviation : Tuple[int, int]
     decimation : Tuple[int, int]
+    previous_values : None|List[List[dict]]
 
     Returns
     -------
-
+    List[List[dict]]
     """
+
+    effective_ref_size = (
+        int(reference_box_rough[1] - reference_box_rough[0]),
+        int(reference_box_rough[3] - reference_box_rough[2]))
+    effective_move_size = (
+        int(moving_box_rough[1] - moving_box_rough[0]),
+        int(moving_box_rough[3] - moving_box_rough[2]))
+
+    # validate the parameters at this scale
+    _validate_match_parameters(
+        effective_ref_size, effective_move_size, match_box_size, moving_deviation, decimation)
+
+    if previous_values is not None:
+        _populate_difference_structure(previous_values)
+
+    # the format of our values [[]]
+    #   entry [i, j] tell the mapping of the reference location in nominal reference
+    #   grid to moving grid location - {
+    #      'reference_location': ,
+    #      'moving_location': ,
+    #      'max_correlation':,
+    #      'row_derivative':, (optionally populated)
+    #      'column_derivative': (optionally populated)
+    #  }
 
     pass
