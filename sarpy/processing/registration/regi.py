@@ -16,6 +16,7 @@ from typing import Tuple
 
 import numpy
 from scipy.signal import correlate2d
+from scipy.interpolate import LinearNDInterpolator
 
 from sarpy.io.general.base import BaseReader
 
@@ -130,43 +131,45 @@ def _populate_difference_structure(mapping_values):
         if mov_loc is None:
             return
 
-        # calculate row derivative
-        r_diff = 0.0
-        r_count = 0
-        # get value based on before
-        if i > 0:
-            o_entry = mapping_values[i-1][j]
-            do_diff(r_diff, r_count, 0, ref_loc, mov_loc,
-                    o_entry['reference_location'], o_entry['moving_location'])
-        # get value based on after
-        if i < len(mapping_values) - 1:
-            o_entry = mapping_values[i+1][j]
-            do_diff(r_diff, r_count, 0, ref_loc, mov_loc,
-                    o_entry['reference_location'], o_entry['moving_location'])
-        if r_count > 0:
-            row_der = r_diff/float(r_count)
-            entry['row_derivative'] = row_der
-            if row_der < 0.0:
-                logger.warning('Entry ({}, {}) has negative row derivative ({})'.format(i, j, row_der))
+        if entry.get('row_derivative', None) is None:
+            # calculate row derivative
+            r_diff = 0.0
+            r_count = 0
+            # get value based on before
+            if i > 0:
+                o_entry = mapping_values[i-1][j]
+                do_diff(r_diff, r_count, 0, ref_loc, mov_loc,
+                        o_entry['reference_location'], o_entry['moving_location'])
+            # get value based on after
+            if i < len(mapping_values) - 1:
+                o_entry = mapping_values[i+1][j]
+                do_diff(r_diff, r_count, 0, ref_loc, mov_loc,
+                        o_entry['reference_location'], o_entry['moving_location'])
+            if r_count > 0:
+                row_der = r_diff/float(r_count)
+                entry['row_derivative'] = row_der
+                if row_der < 0.0:
+                    logger.warning('Entry ({}, {}) has negative row derivative ({})'.format(i, j, row_der))
 
-        # calculate the column derivative
-        c_diff = 0.0
-        c_count = 0
-        # get the value based on before
-        if j > 0:
-            o_entry = mapping_values[i][j-1]
-            do_diff(c_diff, c_count, 1, ref_loc, mov_loc,
-                    o_entry['reference_location'], o_entry['moving_location'])
-        # get value based on after
-        if j < len(mapping_values[0]) - 1:
-            o_entry = mapping_values[i][j+1]
-            do_diff(c_diff, c_count, 1, ref_loc, mov_loc,
-                    o_entry['reference_location'], o_entry['moving_location'])
-        if c_count > 0:
-            col_der = c_diff/float(c_count)
-            entry['column_derivative'] = col_der
-            if col_der < 0.0:
-                logger.warning('Entry ({}, {}) has negative column derivative ({})'.format(i, j, col_der))
+        if entry.get('column_derivative', None) is None:
+            # calculate the column derivative
+            c_diff = 0.0
+            c_count = 0
+            # get the value based on before
+            if j > 0:
+                o_entry = mapping_values[i][j-1]
+                do_diff(c_diff, c_count, 1, ref_loc, mov_loc,
+                        o_entry['reference_location'], o_entry['moving_location'])
+            # get value based on after
+            if j < len(mapping_values[0]) - 1:
+                o_entry = mapping_values[i][j+1]
+                do_diff(c_diff, c_count, 1, ref_loc, mov_loc,
+                        o_entry['reference_location'], o_entry['moving_location'])
+            if c_count > 0:
+                col_der = c_diff/float(c_count)
+                entry['column_derivative'] = col_der
+                if col_der < 0.0:
+                    logger.warning('Entry ({}, {}) has negative column derivative ({})'.format(i, j, col_der))
 
     for row_index, grid_row in enumerate(mapping_values):
         for col_index, element in enumerate(grid_row):
@@ -433,7 +436,7 @@ def _single_step_grid(
 
     Returns
     -------
-    List[List[dict]]
+    result_values : List[List[dict]]
     """
 
     effective_ref_size = (
@@ -447,17 +450,75 @@ def _single_step_grid(
     _validate_match_parameters(
         effective_ref_size, effective_move_size, match_box_size, moving_deviation, decimation)
 
+    # construct the grid which we are going to try to map
+    half_row_size = int(0.5*(match_box_size[0] - 1)*decimation[0])
+    half_col_size = int(0.5*(match_box_size[1] - 1)*decimation[1])
+    row_grid = numpy.arange(reference_box_rough[0] + half_row_size, reference_box_rough[1] + half_row_size, 2*half_row_size)
+    col_grid = numpy.arange(reference_box_rough[2] + half_col_size, reference_box_rough[3] + half_col_size, 2*half_col_size)
+
+    # create a mapping which estimates (ref_row, ref_col) -> (mov_row, mov_col)
+    row_interp = None
+    col_interp = None
     if previous_values is not None:
+        # determine the approximate derivative values
         _populate_difference_structure(previous_values)
 
-    # the format of our values [[]]
-    #   entry [i, j] tell the mapping of the reference location in nominal reference
-    #   grid to moving grid location - {
+        # get values from our grid, excluding places which require a negative derivative
+        ref_locs = []
+        mov_locs = []
+
+        for row_values in previous_values:
+            for entry in row_values:
+                row_der = entry.get('row_derivative', None)
+                col_der = entry.get('column_derivative', None)
+                if row_der is not None and 0.25 < row_der < 2.0 and \
+                        col_der is not None and 0.25 < col_der < 2.0:
+                    ref_locs.append(entry['reference_location'])
+                    mov_locs.append(entry['moving_location'])
+
+        if len(ref_locs) > 3:
+            ref_locs = numpy.array(ref_locs, dtype='float64')
+            mov_locs = numpy.array(mov_locs, dtype='float64')
+            # create an interpolation function mapping reference coords -> moving coords (so far)
+            row_interp = LinearNDInterpolator(ref_locs, moving_locs[:, 0])
+            col_interp = LinearNDInterpolator(ref_locs, moving_locs[:, 1])
+
+    result_values = []
+    if row_interp is None:
+        for row_grid_entry in row_grid:
+            out_row = row_grid_entry - reference_box_rough[0] + moving_box_rough[0]
+            if out_row >= moving_size[0]:
+                break
+            the_row_list = []
+            result_values.append(the_row_list)
+
+            for col_grid_entry in col_grid:
+                out_col = col_grid_entry - reference_box_rough[1] + moving_box_rough[1]
+                if out_col >= moving_size[1]:
+                    break
+                ref_loc = (row_grid_entry, col_grid_entry)
+                best_loc, max_correlation = _single_step_location(
+                    reference_data, reference_index, reference_size,
+                    moving_data, moving_index, moving_size,
+                    ref_loc, (out_row, out_col),
+                    match_box_size=match_box_size, moving_deviation=moving_deviation, decimation=decimation)
+                the_row_list.append(
+                    {
+                        'reference_location': ref_loc,
+                        'moving_location': best_loc,
+                        'max_correlation': max_correlation
+                    })
+    else:
+        assert(previous_values is not None)
+        pass
+
+    # the format of our result values - List[List[dict]]
+    #   entry [i][j] tell the mapping of the reference location in nominal reference
+    #   grid to moving grid location
+    #   {
     #      'reference_location': ,
     #      'moving_location': ,
     #      'max_correlation':,
-    #      'row_derivative':, (optionally populated)
-    #      'column_derivative': (optionally populated)
+    #      'row_derivative':, (populated by call to _populate_difference_structure())
+    #      'column_derivative':
     #  }
-
-    pass
