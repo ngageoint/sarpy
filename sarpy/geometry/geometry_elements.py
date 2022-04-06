@@ -1641,39 +1641,6 @@ class LinearRing(LineString):
             segment['min_value'] = min(val1, val2, segment['min_value'])
             segment['max_value'] = max(val1, val2, segment['max_value'])
 
-        def do_binary_step(fst, lst, the_index_low, the_index_high, the_list):
-            if the_index_high == the_index_low:
-                if overlap(fst, lst, segments[the_index_high]) == 1:
-                    the_list.append(the_index_high)
-                return
-
-            if the_index_high == the_index_low + 1:
-                low_state = overlap(fst, lst, segments[the_index_low])
-                if low_state == 2:
-                    return
-
-                if low_state == 1:
-                    the_list.append(the_index_low)
-
-                if overlap(fst, lst, segments[the_index_high]) == 1:
-                    the_list.append(the_index_high)
-                return
-
-            half_index = int(0.5*(the_index_high + the_index_low))
-            half_overlap_state = overlap(fst, lst, segments[half_index])
-
-            if half_overlap_state == 0:
-                do_binary_step(fst, lst, half_index+1, the_index_high, the_list)
-                return
-            elif half_overlap_state == 2:
-                do_binary_step(fst, lst, the_index_low, half_index-1, the_list)
-                return
-            else:  # == 1
-                the_list.append(half_index)
-                do_binary_step(fst, lst, the_index_low, half_index-1, the_list)
-                do_binary_step(fst, lst, half_index+1, the_index_high, the_list)
-                return
-
         if len(coords) == 1:
             return (
                 {'min': coords[0], 'max': coords[0], 'inds': [0, ],
@@ -1698,18 +1665,26 @@ class LinearRing(LineString):
                      'min_value': numpy.inf, 'max_value': -numpy.inf})
         del beg_val, val
 
-        # now, let's populate the inds lists and min/max_values elements
+        # order our segments based on smallest value in the given dimension, for fast analysis
+        this_sides = []
         for i, (beg_value, end_value, ocoord1, ocoord2) in \
                 enumerate(zip(coords[:-1], coords[1:], o_coords[:-1], o_coords[1:])):
             first, last = (beg_value, end_value) if beg_value <= end_value else (end_value, beg_value)
+            this_sides.append((first, last, i, ocoord1, ocoord2))
 
-            # find overlapping segments
-            overlapping_segments = []
-            do_binary_step(first, last, 0, len(segments) - 1, overlapping_segments)
-            for j in overlapping_segments:
+        # now, let's populate the inds lists and min/max_values elements for the segmentation
+        start_segment = 0
+        for entry in sorted(this_sides, key=lambda x: x[0]):
+            for j in range(start_segment, len(segments)):
                 seg = segments[j]
-                seg['inds'].append(i)
-                do_min_val_value(seg, ocoord1, ocoord2)
+                overlap_state = overlap(entry[0], entry[1], seg)
+                if overlap_state == 0:
+                    start_segment += 1
+                elif overlap_state == 1:
+                    seg['inds'].append(entry[2])
+                    do_min_val_value(seg, entry[3], entry[4])
+                else:
+                    break
         return tuple(segments)
 
     def _contained_segment_data(self, x, y):
