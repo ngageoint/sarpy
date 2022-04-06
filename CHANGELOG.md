@@ -4,6 +4,10 @@ SarPy follows a continuous release process, so there are lots of releases. Since
 essentially every commit corresponds to a release, specific release points are 
 not being annotated in github.
 
+## [1.2.66] - 2022-04-06
+### Fixed
+Improved construction of LinearRing geojson element
+
 ## [1.2.65] - 2022-03-25
 ### Fixed
 - Resolved minor bug involved with xml namespace handling
