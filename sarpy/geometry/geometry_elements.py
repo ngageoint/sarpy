@@ -1630,14 +1630,49 @@ class LinearRing(LineString):
         # helper method
         def overlap(fst, lst, segment):
             if fst == lst and fst == segment['min']:
-                return True
-            if segment['max'] <= fst or lst <= segment['min']:
-                return False
-            return True
+                return 1  # contained
+            if fst >= segment['max']:
+                return 0  # above the segment
+            if lst <= segment['min']:
+                return 2  # below the segment
+            return 1  # contained
 
         def do_min_val_value(segment, val1, val2):
             segment['min_value'] = min(val1, val2, segment['min_value'])
             segment['max_value'] = max(val1, val2, segment['max_value'])
+
+        def do_binary_step(fst, lst, the_index_low, the_index_high, the_list):
+            if the_index_high == the_index_low:
+                if overlap(fst, lst, segments[the_index_high]) == 1:
+                    the_list.append(the_index_high)
+                return
+
+            if the_index_high == the_index_low + 1:
+                low_state = overlap(fst, lst, segments[the_index_low])
+                if low_state == 2:
+                    return
+
+                if low_state == 1:
+                    the_list.append(the_index_low)
+
+                if overlap(fst, lst, segments[the_index_high]) == 1:
+                    the_list.append(the_index_high)
+                return
+
+            half_index = int(0.5*(the_index_high + the_index_low))
+            half_overlap_state = overlap(fst, lst, segments[half_index])
+
+            if half_overlap_state == 0:
+                do_binary_step(fst, lst, half_index+1, the_index_high, the_list)
+                return
+            elif half_overlap_state == 2:
+                do_binary_step(fst, lst, the_index_low, half_index-1, the_list)
+                return
+            else:  # == 1
+                the_list.append(half_index)
+                do_binary_step(fst, lst, the_index_low, half_index-1, the_list)
+                do_binary_step(fst, lst, half_index+1, the_index_high, the_list)
+                return
 
         if len(coords) == 1:
             return (
@@ -1667,12 +1702,14 @@ class LinearRing(LineString):
         for i, (beg_value, end_value, ocoord1, ocoord2) in \
                 enumerate(zip(coords[:-1], coords[1:], o_coords[:-1], o_coords[1:])):
             first, last = (beg_value, end_value) if beg_value <= end_value else (end_value, beg_value)
-            # check all the segments for overlap
-            for j, seg in enumerate(segments):
-                if overlap(first, last, seg):
-                    seg['inds'].append(i)
-                    do_min_val_value(seg, ocoord1, ocoord2)
 
+            # find overlapping segments
+            overlapping_segments = []
+            do_binary_step(first, last, 0, len(segments) - 1, overlapping_segments)
+            for j in overlapping_segments:
+                seg = segments[j]
+                seg['inds'].append(i)
+                do_min_val_value(seg, ocoord1, ocoord2)
         return tuple(segments)
 
     def _contained_segment_data(self, x, y):
@@ -1975,10 +2012,6 @@ class Polygon(GeometryObject):
         self.set_outer_ring(coordinates[0])
         for entry in coordinates[1:]:
             self.add_inner_ring(entry)
-        if self.self_intersection():
-            logger.warning(
-                'Polygon has a self-intersection.\n\t'
-                'This does not strictly comply with the geojson standard.')
 
     def self_intersection(self):
         """
