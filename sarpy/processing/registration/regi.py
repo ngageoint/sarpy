@@ -210,8 +210,8 @@ def _subpixel_shift(values):
         # recast maximization problem as minimization
         return _subpixel_shift(-values)
 
-    if (values[0] == values[1] or values[1] == values[2]):
-        # no information
+    if values[0] == values[1] or values[1] == values[2]:
+        # no real information
         return 0.0
     if values[0] == values[2]:
         # it's symmetric
@@ -219,18 +219,18 @@ def _subpixel_shift(values):
 
     values = (values + numpy.min(values))  # ensure that everything is positive by shifting up
 
-    # Here are the verbatim matlab comments - it's not clear to me why this is assumed:
-    # Algorithm:
-    # xm = min
-    # r = (rmsmid-rmsmin)/(rmsmax-rmsmin)
-    # empirical fit (r,xm) resembles arc of circle centered at xc=-11/8
-    # xm = 2(xc-3/8) + sqrt(4(xc-3/8)**2 - (r-1)((r-1)-2(xc-1)))
-    # empirical fit (r,xm) resembles arc of circle centered at xc=-6/8
-    # xm = 1-xc - sqrt(0.125 + 2(0.25-xc)**2 - (x-xc)**2)
+    # Here are the verbatim matlab comments:
+    # Algorithm -
+    #   xm = min
+    #   r = (rmsmid-rmsmin)/(rmsmax-rmsmin)
+    #   empirical fit (r,xm) resembles arc of circle centered at xc=-11/8
+    #   xm = 2(xc-3/8) + sqrt(4(xc-3/8)**2 - (r-1)((r-1)-2(xc-1)))
+    #   empirical fit (r,xm) resembles arc of circle centered at xc=-6/8
+    #   xm = 1-xc - sqrt(0.125 + 2(0.25-xc)**2 - (x-xc)**2)
 
     nsr = 0.5
     noise = nsr*numpy.max(values)
-    rms = numpy.sqrt(y - noise)
+    rms = numpy.sqrt(values - noise)
     rmsmin = rms[1]
     rmsmid = min(rms[0], rms[2])
     rmsmax = max(rms[0], rms[2])
@@ -405,14 +405,15 @@ def _single_step_location(
     if best_temp_location is None:
         return best_temp_location, maximum_correlation
 
-    return ((best_temp_location[0])*decimation[0] + mov_loc_temp[0], (best_temp_location[1])*decimation[1] + mov_loc_temp[1]), \
-        maximum_correlation
+    return ((best_temp_location[0])*decimation[0] + mov_loc_temp[0], (best_temp_location[1])*decimation[1] + mov_loc_temp[1]), maximum_correlation
+
 
 def _single_step_grid(
         reference_data, reference_index, reference_size,
         moving_data, moving_index, moving_size,
         reference_box_rough, moving_box_rough,
-        match_box_size=(25, 25), moving_deviation=(15, 15), decimation=(1, 1)):
+        match_box_size=(25, 25), moving_deviation=(15, 15), decimation=(1, 1),
+        previous_values=None):
     """
     We will determine a series of best matching (small size) patch locations
     between the pixel area of `reference_data` laid out in `reference_box_rough`
@@ -438,6 +439,16 @@ def _single_step_grid(
     -------
     result_values : List[List[dict]]
     """
+
+    def determine_best_guess(ref_point):
+        if row_interp is None:
+            return (
+                ref_point[0] - reference_box_rough[0] + moving_box_rough[0],
+                ref_point[1] - reference_box_rough[2] + moving_box_rough[2])
+        else:
+            return (
+                row_interp(ref_point[0]),
+                col_interp(ref_point[1]))
 
     effective_ref_size = (
         int(reference_box_rough[1] - reference_box_rough[0]),
@@ -480,37 +491,28 @@ def _single_step_grid(
             ref_locs = numpy.array(ref_locs, dtype='float64')
             mov_locs = numpy.array(mov_locs, dtype='float64')
             # create an interpolation function mapping reference coords -> moving coords (so far)
-            row_interp = LinearNDInterpolator(ref_locs, moving_locs[:, 0])
-            col_interp = LinearNDInterpolator(ref_locs, moving_locs[:, 1])
+            row_interp = LinearNDInterpolator(ref_locs, mov_locs[:, 0])
+            col_interp = LinearNDInterpolator(ref_locs, mov_locs[:, 1])
 
     result_values = []
-    if row_interp is None:
-        for row_grid_entry in row_grid:
-            out_row = row_grid_entry - reference_box_rough[0] + moving_box_rough[0]
-            if out_row >= moving_size[0]:
-                break
-            the_row_list = []
-            result_values.append(the_row_list)
+    # generate our grid of locations to compare, and then compare
+    for row_grid_entry in row_grid:
+        the_row_list = []
+        result_values.append(the_row_list)
 
-            for col_grid_entry in col_grid:
-                out_col = col_grid_entry - reference_box_rough[1] + moving_box_rough[1]
-                if out_col >= moving_size[1]:
-                    break
-                ref_loc = (row_grid_entry, col_grid_entry)
-                best_loc, max_correlation = _single_step_location(
-                    reference_data, reference_index, reference_size,
-                    moving_data, moving_index, moving_size,
-                    ref_loc, (out_row, out_col),
-                    match_box_size=match_box_size, moving_deviation=moving_deviation, decimation=decimation)
-                the_row_list.append(
-                    {
-                        'reference_location': ref_loc,
-                        'moving_location': best_loc,
-                        'max_correlation': max_correlation
-                    })
-    else:
-        assert(previous_values is not None)
-        pass
+        for col_grid_entry in col_grid:
+            ref_loc = (row_grid_entry, col_grid_entry)
+            best_loc, max_correlation = _single_step_location(
+                reference_data, reference_index, reference_size,
+                moving_data, moving_index, moving_size,
+                ref_loc, determine_best_guess(ref_loc),
+                match_box_size=match_box_size, moving_deviation=moving_deviation, decimation=decimation)
+            the_row_list.append(
+                {
+                    'reference_location': ref_loc,
+                    'moving_location': best_loc,
+                    'max_correlation': max_correlation
+                })
 
     # the format of our result values - List[List[dict]]
     #   entry [i][j] tell the mapping of the reference location in nominal reference
@@ -522,3 +524,5 @@ def _single_step_grid(
     #      'row_derivative':, (populated by call to _populate_difference_structure())
     #      'column_derivative':
     #  }
+
+    return result_values
