@@ -49,7 +49,7 @@ class GeographicInformationType(Serializable):
         CountryCodes : None|List[str]
         SecurityInfo : None|str
         GeographicInfoExtensions : None|ParametersCollection|dict
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:

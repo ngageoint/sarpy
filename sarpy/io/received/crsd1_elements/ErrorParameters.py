@@ -50,7 +50,7 @@ class RadarSensorType(Serializable):
         ClockFreqSF : None|float
         RefTimeError : None|float
         RangeBiasDecorr : None|ErrorDecorrFuncType
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -98,7 +98,7 @@ class IonoErrorType(Serializable):
         IonoRangeRateVertical : None|float
         IonoRgRgRateCC : None|float
         IonoRangeVertDecorr : None|ErrorDecorrFuncType
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:

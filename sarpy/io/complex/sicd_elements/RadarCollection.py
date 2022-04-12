@@ -93,7 +93,7 @@ class TxFrequencyType(Serializable, Arrayable):
         ----------
         Min : float
         Max : float
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -248,7 +248,7 @@ class WaveformParametersType(Serializable):
         RcvFreqStart : float
         RcvFMRate : float
         index : int
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -365,7 +365,7 @@ class TxStepType(Serializable):
         WFIndex : int
         TxPolarization : str
         index : int
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -405,7 +405,7 @@ class ChanParametersType(Serializable):
         TxRcvPolarization : str
         RcvAPCIndex : int
         index : int
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -466,7 +466,7 @@ class ReferencePointType(Serializable):
         Line : float
         Sample : float
         name : str
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -508,7 +508,7 @@ class XDirectionType(Serializable):
         LineSpacing : float
         NumLines : int
         FirstLine : int
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -550,7 +550,7 @@ class YDirectionType(Serializable):
         SampleSpacing : float
         NumSamples : int
         FirstSample : int
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -601,7 +601,7 @@ class SegmentArrayElement(Serializable):
         EndSample : int
         Identifier : str
         index : int
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -652,7 +652,7 @@ class ReferencePlaneType(Serializable):
         YDir : YDirectionType
         SegmentList : SerializableArray|List[SegmentArrayElement]
         Orientation : str
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -715,7 +715,7 @@ class AreaType(Serializable):
         ----------
         Corner : SerializableCPArray|List[LatLonHAECornerRestrictionType]|numpy.ndarray|list|tuple
         Plane : ReferencePlaneType
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -808,7 +808,7 @@ class RadarCollectionType(Serializable):
         RcvChannels : SerializableArray|List[ChanParametersType]
         Area : AreaType
         Parameters : ParametersCollection|dict
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:

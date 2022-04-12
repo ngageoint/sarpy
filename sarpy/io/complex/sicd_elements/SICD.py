@@ -156,7 +156,7 @@ class SICDType(Serializable):
         RgAzComp : RgAzCompType
         PFA : PFAType
         RMA : RMAType
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:

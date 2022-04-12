@@ -41,7 +41,7 @@ class FullImageType(Serializable, Arrayable):
         ----------
         NumRows : int
         NumCols : int
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -151,7 +151,7 @@ class ImageDataType(Serializable):
         FullImage : FullImageType|numpy.ndarray|list|tuple
         SCPPixel : RowColType|numpy.ndarray|list|tuple
         ValidData : SerializableArray|List[RowColArrayElement]|numpy.ndarray|list|tuple
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:

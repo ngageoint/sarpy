@@ -48,7 +48,7 @@ class RcvChanProcType(Serializable):
         NumChanProc : int
         PRFScaleFactor : float
         ChanIndices : List[int]
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -81,7 +81,7 @@ class TxFrequencyProcType(Serializable, Arrayable):
         ----------
         MinProc : float
         MaxProc : float
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -291,7 +291,7 @@ class DistortionType(Serializable):
         GainErrorF2 : float
         PhaseErrorF1 : float
         PhaseErrorF2 : float
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -327,7 +327,7 @@ class PolarizationCalibrationType(Serializable):
         ----------
         DistortCorrectApplied : bool
         Distortion : DistortionType
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -449,7 +449,7 @@ class ImageFormationType(Serializable):
         RgAutofocus : str
         Processings : None|List[ProcessingType]
         PolarizationCalibration : PolarizationCalibrationType
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
