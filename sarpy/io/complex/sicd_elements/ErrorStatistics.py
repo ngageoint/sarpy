@@ -470,3 +470,17 @@ class ErrorStatisticsType(Serializable):
         self.Unmodeled = Unmodeled
         self.AdditionalParms = AdditionalParms
         super(ErrorStatisticsType, self).__init__(**kwargs)
+
+    def version_required(self):
+        """
+        What SICD version is required?
+
+        Returns
+        -------
+        tuple
+        """
+
+        if self.Unmodeled is None:
+            return (1, 1, 0)
+        else:
+            return (1, 3, 0)

@@ -19,7 +19,7 @@ from sarpy.io.xml.descriptors import StringDescriptor, StringEnumDescriptor, \
 from .base import DEFAULT_STRICT, FLOAT_FORMAT
 from .blocks import DUAL_POLARIZATION_VALUES
 from .RadarCollection import get_band_name
-from .utils import is_polstring_version1
+from .utils import polstring_version_required
 
 
 class RcvChanProcType(Serializable):
@@ -565,13 +565,13 @@ class ImageFormationType(Serializable):
         else:
             return 'UN'
 
-    def permits_version_1_1(self):
+    def version_required(self):
         """
-        Does this value permit storage in SICD version 1.1?
+        What SICD version is required?
 
         Returns
         -------
-        bool
+        tuple
         """
 
-        return is_polstring_version1(self.TxRcvPolarizationProc)
+        return polstring_version_required(self.TxRcvPolarizationProc)

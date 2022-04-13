@@ -21,7 +21,7 @@ from .base import DEFAULT_STRICT, FLOAT_FORMAT, \
     SerializableCPArrayDescriptor, SerializableCPArray
 from .blocks import XYZType, LatLonHAECornerRestrictionType, \
     POLARIZATION1_VALUES, POLARIZATION2_VALUES, DUAL_POLARIZATION_VALUES
-from .utils import is_polstring_version1
+from .utils import polstring_version_required
 
 import sarpy.geometry.geocoords as geocoords
 
@@ -425,16 +425,16 @@ class ChanParametersType(Serializable):
         else:
             return self.TxRcvPolarization.split(':')[0]
 
-    def permits_version_1_1(self):
+    def version_required(self):
         """
-        Does this value permit storage in SICD version 1.1?
+        What SICD version is required?
 
         Returns
         -------
-        bool
+        tuple
         """
 
-        return is_polstring_version1(self.TxRcvPolarization)
+        return polstring_version_required(self.TxRcvPolarization)
 
 
 class ReferencePointType(Serializable):
@@ -1107,19 +1107,19 @@ class RadarCollectionType(Serializable):
         valid &= self._check_waveform_parameters()
         return valid
 
-    def permits_version_1_1(self):
+    def version_required(self):
         """
-        Does this value permit storage in SICD version 1.1?
+        What SICD version is required?
 
         Returns
         -------
-        bool
+        tuple
         """
 
+        requires = (1, 1, 0)
         if self.RcvChannels is None:
-            return True
+            return requires
 
-        cond = True
         for entry in self.RcvChannels:
-            cond &= entry.permits_version_1_1()
-        return cond
+            requires = max(requires, entry.version_required())
+        return requires
