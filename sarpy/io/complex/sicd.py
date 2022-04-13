@@ -610,7 +610,7 @@ class SICDWriter(NITFWriter):
     SICD data extension. 
     """
 
-    __slots__ = ('_sicd_meta', '_check_older_version')
+    __slots__ = ('_sicd_meta', '_check_older_version', '_required_version')
 
     def __init__(self, file_name, sicd_meta, check_older_version=False, check_existence=True):
         """
@@ -620,13 +620,14 @@ class SICDWriter(NITFWriter):
         file_name : str
         sicd_meta : sarpy.io.complex.sicd_elements.SICD.SICDType
         check_older_version : bool
-            Try to create a version 1.1 sicd, if possible?
+            Try to create an older version sicd, for compliance
         check_existence : bool
             Should we check if the given file already exists, and raises an exception if so?
         """
 
         self._check_older_version = check_older_version
         self._sicd_meta = validate_sicd_for_writing(sicd_meta)
+        self._required_version = self._sicd_meta.requires_version_number()
         self._security_tags = None
         self._nitf_header = None
         self._img_groups = None
@@ -707,7 +708,8 @@ class SICDWriter(NITFWriter):
             ftitle = 'SICD: {}'.format(self._sicd_meta.CollectionInfo.CoreName)
         if ftitle is None:
             ftitle = 'SICD: Unknown'
-        if self._check_older_version and not ftitle.startswith('SICD:'):
+        if self._check_older_version and self._required_version < (1, 2, 0) and \
+                not ftitle.startswith('SICD:'):
             ftitle = 'SICD:' + ftitle
         return ftitle
 
@@ -730,7 +732,8 @@ class SICDWriter(NITFWriter):
 
     def _get_iid2(self):
         iid2 = self._sicd_meta.NITF.get('IID2', self._get_ftitle())
-        if self._check_older_version and not iid2.startswith('SICD:'):
+        if self._check_older_version and self._required_version < (1, 2, 0) and \
+                not iid2.startswith('SICD:'):
             iid2 = 'SICD:' + iid2
         return iid2
 

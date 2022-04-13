@@ -179,7 +179,7 @@ class XYType(Serializable, Arrayable):
         ----------
         X : float
         Y : float
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:

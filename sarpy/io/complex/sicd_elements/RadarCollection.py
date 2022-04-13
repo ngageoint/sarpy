@@ -21,7 +21,7 @@ from .base import DEFAULT_STRICT, FLOAT_FORMAT, \
     SerializableCPArrayDescriptor, SerializableCPArray
 from .blocks import XYZType, LatLonHAECornerRestrictionType, \
     POLARIZATION1_VALUES, POLARIZATION2_VALUES, DUAL_POLARIZATION_VALUES
-from .utils import is_polstring_version1
+from .utils import polstring_version_required
 
 import sarpy.geometry.geocoords as geocoords
 
@@ -93,7 +93,7 @@ class TxFrequencyType(Serializable, Arrayable):
         ----------
         Min : float
         Max : float
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -248,7 +248,7 @@ class WaveformParametersType(Serializable):
         RcvFreqStart : float
         RcvFMRate : float
         index : int
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -365,7 +365,7 @@ class TxStepType(Serializable):
         WFIndex : int
         TxPolarization : str
         index : int
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -405,7 +405,7 @@ class ChanParametersType(Serializable):
         TxRcvPolarization : str
         RcvAPCIndex : int
         index : int
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -425,16 +425,16 @@ class ChanParametersType(Serializable):
         else:
             return self.TxRcvPolarization.split(':')[0]
 
-    def permits_version_1_1(self):
+    def version_required(self):
         """
-        Does this value permit storage in SICD version 1.1?
+        What SICD version is required?
 
         Returns
         -------
-        bool
+        tuple
         """
 
-        return is_polstring_version1(self.TxRcvPolarization)
+        return polstring_version_required(self.TxRcvPolarization)
 
 
 class ReferencePointType(Serializable):
@@ -466,7 +466,7 @@ class ReferencePointType(Serializable):
         Line : float
         Sample : float
         name : str
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -508,7 +508,7 @@ class XDirectionType(Serializable):
         LineSpacing : float
         NumLines : int
         FirstLine : int
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -550,7 +550,7 @@ class YDirectionType(Serializable):
         SampleSpacing : float
         NumSamples : int
         FirstSample : int
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -601,7 +601,7 @@ class SegmentArrayElement(Serializable):
         EndSample : int
         Identifier : str
         index : int
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -652,7 +652,7 @@ class ReferencePlaneType(Serializable):
         YDir : YDirectionType
         SegmentList : SerializableArray|List[SegmentArrayElement]
         Orientation : str
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -715,7 +715,7 @@ class AreaType(Serializable):
         ----------
         Corner : SerializableCPArray|List[LatLonHAECornerRestrictionType]|numpy.ndarray|list|tuple
         Plane : ReferencePlaneType
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -808,7 +808,7 @@ class RadarCollectionType(Serializable):
         RcvChannels : SerializableArray|List[ChanParametersType]
         Area : AreaType
         Parameters : ParametersCollection|dict
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -1107,19 +1107,19 @@ class RadarCollectionType(Serializable):
         valid &= self._check_waveform_parameters()
         return valid
 
-    def permits_version_1_1(self):
+    def version_required(self):
         """
-        Does this value permit storage in SICD version 1.1?
+        What SICD version is required?
 
         Returns
         -------
-        bool
+        tuple
         """
 
+        requires = (1, 1, 0)
         if self.RcvChannels is None:
-            return True
+            return requires
 
-        cond = True
         for entry in self.RcvChannels:
-            cond &= entry.permits_version_1_1()
-        return cond
+            requires = max(requires, entry.version_required())
+        return requires

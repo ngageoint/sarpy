@@ -120,7 +120,7 @@ class GeoInfoType(Serializable):
         Line : SerializableArray|List[LineType]
         Polygon : SerializableArray|List[PolygonType]
         GeoInfo : Dict[GeoInfoTpe]
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:

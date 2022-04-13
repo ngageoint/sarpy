@@ -7,7 +7,6 @@ __author__ = "Thomas McCullough"
 
 
 import logging
-import sys
 from functools import reduce
 import re
 from typing import List, Union, BinaryIO
@@ -821,7 +820,7 @@ class SIDDWriter(NITFWriter):
 
         security_tags = self.security_tags
         sicd = self.sicd_meta[index]
-        uh_args = sicd.get_des_details(check_version1_compliance=True)
+        uh_args = sicd.get_des_details(check_older_version=True)
         if sicd.ImageCreation.DateTime is None:
             desshdt = datetime.utcnow().isoformat('T', timespec='seconds')
         else:
