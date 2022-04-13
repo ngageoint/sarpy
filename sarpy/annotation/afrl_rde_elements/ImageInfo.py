@@ -34,7 +34,7 @@ class NumPixelsType(Serializable, Arrayable):
         ----------
         NumRows : int
         NumCols : int
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -146,7 +146,7 @@ class StringRangeCrossRangeType(Serializable):
         ----------
         Range : str
         CrossRange : str
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -184,7 +184,7 @@ class ImageCornerType(Serializable):
         UpperRight : LatLonType|numpy.ndarray|list|tuple
         LowerRight : LatLonType|numpy.ndarray|list|tuple
         LowerLeft : LatLonType|numpy.ndarray|list|tuple
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:

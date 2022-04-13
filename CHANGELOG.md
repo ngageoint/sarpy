@@ -4,6 +4,12 @@ SarPy follows a continuous release process, so there are lots of releases. Since
 essentially every commit corresponds to a release, specific release points are 
 not being annotated in github.
 
+
+## [1.2.67] - 2022-04-12
+### Added
+Added support for reading SICD version 1.3, full integration will not be complete 
+until the format is fully finalized and approved
+
 ## [1.2.66] - 2022-04-06
 ### Fixed
 Improved construction of LinearRing geojson element

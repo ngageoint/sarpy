@@ -39,23 +39,18 @@ from .PFA import PFAType
 from .RMA import RMAType
 from .validation_checks import detailed_validation_checks
 
+
 logger = logging.getLogger(__name__)
 
 #########
 # Module variables
 _SICD_SPECIFICATION_IDENTIFIER = get_specification_identifier()
-
-
-_SICD_SPECIFICATION_NAMESPACE_1_2 = 'urn:SICD:1.2.1'
-_details_1_2 = get_urn_details(_SICD_SPECIFICATION_NAMESPACE_1_2)
-_SICD_SPECIFICATION_VERSION_1_2 = _details_1_2['version']
-_SICD_SPECIFICATION_DATE_1_2 = _details_1_2['date']
-
-
-_SICD_SPECIFICATION_NAMESPACE_1_1 = 'urn:SICD:1.1.0'
-_details_1_1 = get_urn_details(_SICD_SPECIFICATION_NAMESPACE_1_1)
-_SICD_SPECIFICATION_VERSION_1_1 = _details_1_1['version']
-_SICD_SPECIFICATION_DATE_1_1 = _details_1_1['date']
+_SICD_DEFAULT_TUPLE = (1, 2, 1)
+_SICD_VERSION_DEFAULT = '{}.{}.{}'.format(*_SICD_DEFAULT_TUPLE)
+_SICD_SPEC_DETAILS = {
+    key : {'namespace': 'urn:SICD:{}'.format(key),
+           'details': get_urn_details('urn:SICD:{}'.format(key))}
+    for key in ['1.1.0', '1.2.1', '1.3.0']}
 
 
 class SICDType(Serializable):
@@ -156,7 +151,7 @@ class SICDType(Serializable):
         RgAzComp : RgAzCompType
         PFA : PFAType
         RMA : RMAType
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -841,32 +836,48 @@ class SICDType(Serializable):
             return self.CollectionInfo.CoreName
         return 'Unknown_Sicd{}'.format(product_number)
 
-    def get_des_details(self, check_version1_compliance=False):
+    def requires_version_number(self):
+        """
+        What SICD version is required for valid support?
+
+        Returns
+        -------
+        tuple
+        """
+
+        required = (1, 1, 0)
+        if self.ImageFormation is not None:
+            required = max(required, self.ImageFormation.version_required())
+        if self.RadarCollection is not None:
+            required = max(required, self.RadarCollection.version_required())
+        if self.ErrorStatistics is not None:
+            required = max(required, self.ImageFormation.version_required())
+        return required
+
+    def get_des_details(self, check_older_version=False):
         """
         Gets the correct current SICD DES subheader details.
 
         Parameters
         ----------
-        check_version1_compliance : bool
-            If true and structure is compatible, the version 1.1 information will
-            be returned. Otherwise, the most recent supported version will be
-            returned .
+        check_older_version : bool
+            If True and compatible, then version 1.1.0 information will be returned.
+            Otherwise, the most recent supported version will be returned.
 
         Returns
         -------
         dict
         """
 
-        if check_version1_compliance and (
-                (self.ImageFormation is None or self.ImageFormation.permits_version_1_1()) and
-                (self.RadarCollection is None or self.RadarCollection.permits_version_1_1())):
-            spec_version = _SICD_SPECIFICATION_VERSION_1_1
-            spec_date = _SICD_SPECIFICATION_DATE_1_1
-            spec_ns = _SICD_SPECIFICATION_NAMESPACE_1_1
+        required_version = self.requires_version_number()
+        if required_version > _SICD_DEFAULT_TUPLE or check_older_version:
+            info = _SICD_SPEC_DETAILS['{}.{}.{}'.format(*required_version)]
         else:
-            spec_version = _SICD_SPECIFICATION_VERSION_1_2
-            spec_date = _SICD_SPECIFICATION_DATE_1_2
-            spec_ns = _SICD_SPECIFICATION_NAMESPACE_1_2
+            info = _SICD_SPEC_DETAILS[_SICD_VERSION_DEFAULT]
+        spec_ns = info['namespace']
+        details = info['details']
+        spec_version = details['version']
+        spec_date = details['date']
 
         return OrderedDict([
             ('DESSHSI', _SICD_SPECIFICATION_IDENTIFIER),
@@ -889,7 +900,7 @@ class SICDType(Serializable):
 
     def to_xml_bytes(self, urn=None, tag='SICD', check_validity=False, strict=DEFAULT_STRICT):
         if urn is None:
-            urn = _SICD_SPECIFICATION_NAMESPACE_1_2
+            urn = _SICD_SPEC_DETAILS[_SICD_VERSION_DEFAULT]['namespace']
         return super(SICDType, self).to_xml_bytes(urn=urn, tag=tag, check_validity=check_validity, strict=strict)
 
     def to_xml_string(self, urn=None, tag='SICD', check_validity=False, strict=DEFAULT_STRICT):
