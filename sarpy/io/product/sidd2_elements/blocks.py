@@ -230,7 +230,7 @@ class RowColDoubleType(Serializable, Arrayable):
         ----------
         Row : float
         Col : float
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -453,7 +453,7 @@ class BankCustomType(Serializable, Arrayable):
         Parameters
         ----------
         Coefs : numpy.ndarray|list|tuple
-        kwargs : dict
+        kwargs
         """
 
         self._coefs = None

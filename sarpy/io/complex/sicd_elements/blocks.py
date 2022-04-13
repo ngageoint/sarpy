@@ -27,14 +27,11 @@ _array_type_text = 'Expected array to be numpy.ndarray, list, or tuple,\n\tgot `
 
 #########
 # Polarization constants
-POLARIZATION1_VALUES = ('V', 'H', 'RHC', 'LHC', 'OTHER', 'UNKNOWN', 'SEQUENCE')
-POLARIZATION2_VALUES = ('V', 'H', 'RHC', 'LHC', 'OTHER')
-DUAL_POLARIZATION_VALUES = (
-    'V:V', 'V:H', 'V:RHC', 'V:LHC',
-    'H:V', 'H:H', 'H:RHC', 'H:LHC',
-    'RHC:V', 'RHC:H', 'RHC:RHC', 'RHC:LHC',
-    'LHC:V', 'LHC:H', 'LHC:RHC', 'LHC:LHC',
-    'OTHER', 'UNKNOWN')
+POLARIZATION1_VALUES = ('V', 'H', 'X', 'Y', 'S', 'E', 'RHC', 'LHC', 'OTHER', 'UNKNOWN', 'SEQUENCE')
+POLARIZATION2_VALUES = ('V', 'H', 'X', 'Y', 'S', 'E', 'RHC', 'LHC', 'OTHER')
+DUAL_POLARIZATION_VALUES = tuple('{}:{}'.format(pol1, pol2) for pol1 in POLARIZATION2_VALUES
+                                 for pol2 in POLARIZATION2_VALUES) + \
+                           ('OTHER', 'UNKNOWN')
 
 
 ##########
@@ -64,7 +61,7 @@ class XYZType(Serializable, Arrayable):
         X : float
         Y : float
         Z : float
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -134,7 +131,7 @@ class LatLonType(Serializable, Arrayable):
         ----------
         Lat : float
         Lon : float
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -234,7 +231,7 @@ class LatLonArrayElementType(LatLonType):
         Lat : float
         Lon : float
         index : int
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -286,7 +283,7 @@ class LatLonRestrictionType(LatLonType):
         ----------
         Lat : float
         Lon : float
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -336,7 +333,7 @@ class LatLonHAEType(LatLonType):
         Lat : float
         Lon : float
         HAE : float
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -409,7 +406,7 @@ class LatLonHAERestrictionType(LatLonHAEType):
         Lat : float
         Lon : float
         HAE : float
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -460,7 +457,7 @@ class LatLonCornerType(LatLonType):
         Lat : float
         Lon : float
         index : int
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -513,7 +510,7 @@ class LatLonCornerStringType(LatLonType):
         Lat : float
         Lon : float
         index : str
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -568,7 +565,7 @@ class LatLonHAECornerRestrictionType(LatLonHAERestrictionType):
         Lon : float
         HAE : float
         index : int
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -620,7 +617,7 @@ class LatLonHAECornerStringType(LatLonHAEType):
         Lon : float
         HAE : float
         index : str
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -673,7 +670,7 @@ class RowColType(Serializable, Arrayable):
         ----------
         Row : int
         Col : int
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -741,7 +738,7 @@ class RowColArrayElement(RowColType):
         Row : int
         Col : int
         index : int
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -796,7 +793,7 @@ class Poly1DType(Serializable, Arrayable):
         Parameters
         ----------
         Coefs : numpy.ndarray|tuple|list
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -1068,7 +1065,7 @@ class Poly2DType(Serializable, Arrayable):
         Parameters
         ----------
         Coefs : numpy.ndarray|list|tuple
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -1350,7 +1347,7 @@ class XYZPolyType(Serializable, Arrayable):
         X : Poly1DType|numpy.ndarray|list|tuple
         Y : Poly1DType|numpy.ndarray|list|tuple
         Z : Poly1DType|numpy.ndarray|list|tuple
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -1552,7 +1549,7 @@ class XYZPolyAttributeType(XYZPolyType):
         Y : Poly1DType|numpy.ndarray|list|tuple
         Z : Poly1DType|numpy.ndarray|list|tuple
         index : int
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -1610,7 +1607,7 @@ class GainPhasePolyType(Serializable):
         ----------
         GainPoly : Poly2DType|numpy.ndarray|list|tuple
         PhasePoly : Poly2DType|numpy.ndarray|list|tuple
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -1687,7 +1684,7 @@ class ErrorDecorrFuncType(Serializable):
         ----------
         CorrCoefZero : float
         DecorrRate : float
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:

@@ -186,7 +186,7 @@ class RangeCrossRangeType(Serializable, Arrayable):
         ----------
         Range : float
         CrossRange : float
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -253,7 +253,7 @@ class RowColDoubleType(Serializable, Arrayable):
         ----------
         Row : float
         Col : float
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -329,7 +329,7 @@ class LatLonEleType(Serializable, Arrayable):
         Lat : float
         Lon : float
         Ele : float
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:

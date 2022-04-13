@@ -232,7 +232,7 @@ class SCPCOAType(Serializable):
         SlopeAng : float
         AzimAng : float
         LayoverAng : float
-        kwargs : dict
+        kwargs
         """
 
         self._ROV = None

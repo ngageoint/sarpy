@@ -48,7 +48,7 @@ class RgAzCompType(Serializable):
         ----------
         AzSF : float
         KazPoly : Poly1DType|numpy.ndarray|list|tuple
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:

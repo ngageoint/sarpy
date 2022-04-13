@@ -39,7 +39,7 @@ class EBType(Serializable):
         ----------
         DCXPoly : Poly1DType|numpy.ndarray|list|tuple
         DCYPoly : Poly1DType|numpy.ndarray|list|tuple
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -144,7 +144,7 @@ class AntParamType(Serializable):
         GainBSPoly : Poly1DType|numpy.ndarray|list|tuple
         EBFreqShift : bool
         MLFreqDilation : bool
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -187,7 +187,7 @@ class AntennaType(Serializable):
         Tx : AntParamType
         Rcv : AntParamType
         TwoWay : AntParamType
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:

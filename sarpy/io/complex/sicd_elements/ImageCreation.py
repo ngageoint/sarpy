@@ -44,7 +44,7 @@ class ImageCreationType(Serializable):
         DateTime : numpy.datetime64|datetime|date|str
         Site : str
         Profile : str
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:

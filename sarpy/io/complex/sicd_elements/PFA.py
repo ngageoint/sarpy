@@ -43,7 +43,7 @@ class STDeskewType(Serializable):
         ----------
         Applied : bool
         STDSPhasePoly : Poly2DType|numpy.ndarray|list|tuple
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -127,7 +127,7 @@ class PFAType(Serializable):
         Kaz1 : float
         Kaz2 : float
         STDeskew : STDeskewType
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:

@@ -6,6 +6,7 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
+from typing import Union
 from sarpy.io.xml.base import Serializable, ParametersCollection
 from sarpy.io.xml.descriptors import StringEnumDescriptor, FloatDescriptor, \
     SerializableDescriptor, ParametersDescriptor
@@ -41,7 +42,7 @@ class CompositeSCPErrorType(Serializable):
         Rg : float
         Az : float
         RgAz : float
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -115,7 +116,7 @@ class CorrCoefsType(Serializable):
         V1V2 : float
         V1V3 : float
         V2V3 : float
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -182,7 +183,7 @@ class PosVelErrType(Serializable):
         V3 : float
         CorrCoefs : CorrCoefsType
         PositionDecorr : ErrorDecorrFuncType
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -226,7 +227,7 @@ class RadarSensorErrorType(Serializable):
         ClockFreqSF : float
         TransmitFreqSF : float
         RangeBiasDecorr : ErrorDecorrFuncType
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -264,7 +265,7 @@ class TropoErrorType(Serializable):
         TropoRangeVertical : float
         TropoRangeSlant : float
         TropoRangeDecorr : ErrorDecorrFuncType
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -309,7 +310,7 @@ class IonoErrorType(Serializable):
         IonoRangeSlant : float
         IonoRgRgRateCC : float
         IonoRangeDecorr : ErrorDecorrFuncType
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -349,7 +350,7 @@ class ErrorComponentsType(Serializable):
         RadarSensor : RadarSensorErrorType
         TropoError : TropoErrorType
         IonoError : IonoErrorType
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -361,9 +362,75 @@ class ErrorComponentsType(Serializable):
         super(ErrorComponentsType, self).__init__(**kwargs)
 
 
+class UnmodeledDecorrType(Serializable):
+    """
+    Unmodeled decorrelation function definition
+    """
+
+    _fields = ('Xrow', 'Ycol')
+    _required = _fields
+    # descriptors
+    Xrow = SerializableDescriptor(
+        'Xrow', ErrorDecorrFuncType, _required, strict=DEFAULT_STRICT)  # type: ErrorDecorrFuncType
+    Ycol = SerializableDescriptor(
+        'Ycol', ErrorDecorrFuncType, _required, strict=DEFAULT_STRICT)  # type: ErrorDecorrFuncType
+
+    def __init__(self, Xrow=None, Ycol=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        Xrow : ErrorDecorrFuncType
+        Ycol : ErrorDecorrFuncType
+        kwargs
+        """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
+        self.Xrow = Xrow
+        self.Ycol = Ycol
+        super(UnmodeledDecorrType, self).__init__(**kwargs)
+
+
+class UnmodeledType(Serializable):
+    _fields = ('Xrow', 'Ycol', 'XrowYcol', 'UnmodeledDecorr')
+    _required = ('Xrow', 'Ycol', 'XrowYcol')
+    _numeric_format = {fld: '0.17G' for fld in ('Xrow', 'Ycol', 'XrowYcol')}
+    Xrow = FloatDescriptor('Xrow', _required, strict=DEFAULT_STRICT)  # type: float
+    Ycol = FloatDescriptor('Ycol', _required, strict=DEFAULT_STRICT)  # type: float
+    XrowYcol = FloatDescriptor('XrowYcol', _required, strict=DEFAULT_STRICT)  # type: float
+    UnmodeledDecorr = SerializableDescriptor(
+        'UnmodeledDecorr', UnmodeledDecorrType, _required,
+        strict=DEFAULT_STRICT)  # type: Union[None, UnmodeledDecorrType]
+
+    def __init__(self, Xrow=None, Ycol=None, XrowYcol=None, UnmodeledDecorr=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        Xrow : float
+        Ycol : float
+        XrowYcol : float
+        UnmodeledDecorr : None|UnmodeledDecorrType
+        kwargs
+        """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
+        self.Xrow = Xrow
+        self.Ycol = Ycol
+        self.XrowYcol = XrowYcol
+        self.UnmodeledDecorr = UnmodeledDecorr
+        super(UnmodeledType, self).__init__(**kwargs)
+
+
 class ErrorStatisticsType(Serializable):
     """Parameters used to compute error statistics within the SICD sensor model."""
-    _fields = ('CompositeSCP', 'Components', 'AdditionalParms')
+    _fields = ('CompositeSCP', 'Components', 'Unmodeled', 'AdditionalParms')
     _required = ()
     _collections_tags = {'AdditionalParms': {'array': False, 'child_tag': 'Parameter'}}
     # descriptors
@@ -371,24 +438,27 @@ class ErrorStatisticsType(Serializable):
         'CompositeSCP', CompositeSCPErrorType, _required, strict=DEFAULT_STRICT,
         docstring='Composite error statistics for the scene center point. *Slant plane range (Rg)* and *azimuth (Az)* '
                   'error statistics. Slant plane defined at *Scene Center Point, Center of Azimuth (SCP COA)*.'
-    )  # type: CompositeSCPErrorType
+    )  # type: Union[None, CompositeSCPErrorType]
     Components = SerializableDescriptor(
         'Components', ErrorComponentsType, _required, strict=DEFAULT_STRICT,
-        docstring='Error statistics by components.')  # type: ErrorComponentsType
+        docstring='Error statistics by components.')  # type: Union[None, ErrorComponentsType]
+    Unmodeled = SerializableDescriptor(
+        'Unmodeled', UnmodeledType, _required, strict=DEFAULT_STRICT)  # type: Union[None, UnmodeledType]
 
     AdditionalParms = ParametersDescriptor(
         'AdditionalParms', _collections_tags, _required, strict=DEFAULT_STRICT,
-        docstring='Any additional parameters.')  # type: ParametersCollection
+        docstring='Any additional parameters.')  # type: Union[None, ParametersCollection]
 
-    def __init__(self, CompositeSCP=None, Components=None, AdditionalParms=None, **kwargs):
+    def __init__(self, CompositeSCP=None, Components=None, Unmodeled=None, AdditionalParms=None, **kwargs):
         """
 
         Parameters
         ----------
-        CompositeSCP : CompositeSCPErrorType
-        Components : ErrorComponentsType
-        AdditionalParms : ParametersCollection|dict
-        kwargs : dict
+        CompositeSCP : None|CompositeSCPErrorType
+        Components : None|ErrorComponentsType
+        Unmodeled : None|UnmodeledType
+        AdditionalParms : None|ParametersCollection|dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -397,5 +467,20 @@ class ErrorStatisticsType(Serializable):
             self._xml_ns_key = kwargs['_xml_ns_key']
         self.CompositeSCP = CompositeSCP
         self.Components = Components
+        self.Unmodeled = Unmodeled
         self.AdditionalParms = AdditionalParms
         super(ErrorStatisticsType, self).__init__(**kwargs)
+
+    def version_required(self):
+        """
+        What SICD version is required?
+
+        Returns
+        -------
+        tuple
+        """
+
+        if self.Unmodeled is None:
+            return (1, 1, 0)
+        else:
+            return (1, 3, 0)

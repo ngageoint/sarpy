@@ -33,9 +33,9 @@ def _get_center_frequency(RadarCollection, ImageFormation):
     return 0.5 * (ImageFormation.TxFrequencyProc.MinProc + ImageFormation.TxFrequencyProc.MaxProc)
 
 
-def is_polstring_version1(str_in):
+def polstring_version_required(str_in):
     """
-    Is the polarization string compatible for SCD version 1.1?
+    What SICD version does the pol string require?
 
     Parameters
     ----------
@@ -44,20 +44,25 @@ def is_polstring_version1(str_in):
 
     Returns
     -------
-    bool
+    tuple
+        One of `(1, 1, 0)`, `(1, 2, 1)`, `(1, 3, 0)`
     """
 
     if str_in is None or str_in in ['OTHER', 'UNKNOWN']:
-        return True
+        return (1, 1, 0)
 
     parts = str_in.split(':')
     if len(parts) != 2:
-        return False
+        return (1, 1, 0)
 
     part1, part2 = parts
-    if (part1 in ['V', 'H'] and part2 in ['RHC', 'LHC']) or (part2 in ['V', 'H'] and part1 in ['RHC', 'LHC']):
-        return False
-    return True
+    if part1 in ['S', 'E', 'X', 'Y', 'OTHER'] or part2 in ['S', 'E', 'X', 'Y', 'OTHER']:
+        return (1, 3, 0)
+    elif (part1 in ['V', 'H'] and part2 in ['RHC', 'LHC']) or \
+            (part2 in ['V', 'H'] and part1 in ['RHC', 'LHC']):
+        return (1, 2, 1)
+    else:
+        return (1, 1, 0)
 
 
 ################

@@ -35,7 +35,7 @@ class BeamWidthType(Serializable, Arrayable):
         ----------
         Azimuth : float
         Elevation : float
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -146,7 +146,7 @@ class AircraftLocationType(Serializable, Arrayable):
         Lat : float
         Lon : float
         Altitude : float
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:

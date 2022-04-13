@@ -62,7 +62,7 @@ class GeoDataType(Serializable):
         ImageCorners : SerializableCPArray|List[LatLonCornerStringType]|numpy.ndarray|list|tuple
         ValidData : SerializableArray|List[LatLonArrayElementType]|numpy.ndarray|list|tuple
         GeoInfos : List[GeoInfoType]
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:

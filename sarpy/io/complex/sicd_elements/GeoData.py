@@ -67,7 +67,7 @@ class GeoInfoType(Serializable):
         Line : SerializableArray|List[LatLonArrayElementType]|numpy.ndarray|list|tuple
         Polygon : SerializableArray|List[LatLonArrayElementType]|numpy.ndarray|list|tuple
         GeoInfos : Dict[GeoInfoTpe]
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -210,7 +210,7 @@ class SCPType(Serializable):
         ----------
         ECF : XYZType|numpy.ndarray|list|tuple
         LLH : LatLonHAERestrictionType|numpy.ndarray|list|tuple
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -307,7 +307,7 @@ class GeoDataType(Serializable):
         ImageCorners : SerializableCPArray|List[LatLonCornerStringType]|numpy.ndarray|list|tuple
         ValidData : SerializableArray|List[LatLonArrayElementType]|numpy.ndarray|list|tuple
         GeoInfos : List[GeoInfoType]
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:

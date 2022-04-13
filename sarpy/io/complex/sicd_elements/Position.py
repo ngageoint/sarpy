@@ -51,7 +51,7 @@ class PositionType(Serializable):
         GRPPoly : XYZPolyType
         TxAPCPoly : XYZPolyType
         RcvAPC : SerializableArray|List[XYZPolyAttributeType]|list|tuple
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
