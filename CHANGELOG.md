@@ -4,6 +4,9 @@ SarPy follows a continuous release process, so there are lots of releases. Since
 essentially every commit corresponds to a release, specific release points are 
 not being annotated in github.
 
+## [1.2.68] - 2022-04-14
+### Fixed
+CPHD Version 1.0 parsing of GeoInfo Polygon and Line element has been fixed
 
 ## [1.2.67] - 2022-04-12
 ### Added
