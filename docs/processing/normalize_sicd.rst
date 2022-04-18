@@ -5,3 +5,4 @@ Methods for "normalizing" a SICD (sarpy.processing.normalize_sicd)
     :members:
     :show-inheritance:
     :inherited-members:
+    :exclude-members: randn
