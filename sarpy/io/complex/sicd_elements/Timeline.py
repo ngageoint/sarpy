@@ -58,7 +58,7 @@ class IPPSetType(Serializable):
         IPPEnd : int
         IPPPoly : Poly1DType|numpy.ndarray|list|tuple
         index : int
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -124,7 +124,7 @@ class TimelineType(Serializable):
         CollectStart : numpy.datetime64|datetime|date|str
         CollectDuration : float
         IPP : List[IPPSetType]
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:

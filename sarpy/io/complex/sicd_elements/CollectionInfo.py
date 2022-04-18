@@ -22,7 +22,7 @@ class RadarModeType(Serializable):
     _fields = ('ModeType', 'ModeID')
     _required = ('ModeType', )
     # other class variable
-    _MODE_TYPE_VALUES = ('SPOTLIGHT', 'STRIPMAP', 'DYNAMIC STRIPMAP', 'SCANSAR')
+    _MODE_TYPE_VALUES = ('SPOTLIGHT', 'STRIPMAP', 'DYNAMIC STRIPMAP')
     # descriptors
     ModeType = StringEnumDescriptor(
         'ModeType', _MODE_TYPE_VALUES, _required, strict=True,
@@ -38,7 +38,7 @@ class RadarModeType(Serializable):
         ----------
         ModeID : str
         ModeType : str
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -129,7 +129,7 @@ class CollectionInfoType(Serializable):
         Classification : str
         CountryCodes : list|str
         Parameters : ParametersCollection|dict
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:

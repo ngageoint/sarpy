@@ -41,7 +41,7 @@ class CollectionIDType(CollectionInfoType):
         ReleaseInfo : str
         CountryCodes : list|str
         Parameters : ParametersCollection|dict
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:

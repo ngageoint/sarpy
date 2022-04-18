@@ -1630,10 +1630,12 @@ class LinearRing(LineString):
         # helper method
         def overlap(fst, lst, segment):
             if fst == lst and fst == segment['min']:
-                return True
-            if segment['max'] <= fst or lst <= segment['min']:
-                return False
-            return True
+                return 1  # contained
+            if fst >= segment['max']:
+                return 0  # above the segment
+            if lst <= segment['min']:
+                return 2  # below the segment
+            return 1  # contained
 
         def do_min_val_value(segment, val1, val2):
             segment['min_value'] = min(val1, val2, segment['min_value'])
@@ -1663,16 +1665,26 @@ class LinearRing(LineString):
                      'min_value': numpy.inf, 'max_value': -numpy.inf})
         del beg_val, val
 
-        # now, let's populate the inds lists and min/max_values elements
+        # order our segments based on smallest value in the given dimension, for fast analysis
+        this_sides = []
         for i, (beg_value, end_value, ocoord1, ocoord2) in \
                 enumerate(zip(coords[:-1], coords[1:], o_coords[:-1], o_coords[1:])):
             first, last = (beg_value, end_value) if beg_value <= end_value else (end_value, beg_value)
-            # check all the segments for overlap
-            for j, seg in enumerate(segments):
-                if overlap(first, last, seg):
-                    seg['inds'].append(i)
-                    do_min_val_value(seg, ocoord1, ocoord2)
+            this_sides.append((first, last, i, ocoord1, ocoord2))
 
+        # now, let's populate the inds lists and min/max_values elements for the segmentation
+        start_segment = 0
+        for entry in sorted(this_sides, key=lambda x: x[0]):
+            for j in range(start_segment, len(segments)):
+                seg = segments[j]
+                overlap_state = overlap(entry[0], entry[1], seg)
+                if overlap_state == 0:
+                    start_segment += 1
+                elif overlap_state == 1:
+                    seg['inds'].append(entry[2])
+                    do_min_val_value(seg, entry[3], entry[4])
+                else:
+                    break
         return tuple(segments)
 
     def _contained_segment_data(self, x, y):
@@ -1975,10 +1987,6 @@ class Polygon(GeometryObject):
         self.set_outer_ring(coordinates[0])
         for entry in coordinates[1:]:
             self.add_inner_ring(entry)
-        if self.self_intersection():
-            logger.warning(
-                'Polygon has a self-intersection.\n\t'
-                'This does not strictly comply with the geojson standard.')
 
     def self_intersection(self):
         """

@@ -42,7 +42,7 @@ class MatchCollectionType(Serializable):
         CoreName : str
         MatchIndex : int
         Parameters : ParametersCollection|dict
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -81,7 +81,7 @@ class MatchType(Serializable):
         TypeID : str
         CurrentIndex : int
         MatchCollections : List[MatchCollectionType]
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -121,7 +121,7 @@ class MatchInfoType(Serializable):
         Parameters
         ----------
         MatchTypes : List[MatchType]
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:

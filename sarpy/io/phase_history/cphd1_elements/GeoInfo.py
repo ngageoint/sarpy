@@ -10,67 +10,257 @@ from xml.etree import ElementTree
 from typing import List, Union, Dict
 
 import numpy
-from sarpy.io.xml.base import Serializable, SerializableArray, ParametersCollection, \
-    find_children
-from sarpy.io.xml.descriptors import StringDescriptor, SerializableArrayDescriptor, \
-    ParametersDescriptor
+from sarpy.io.xml.base import Serializable, ParametersCollection, \
+    find_children, create_new_node
+from sarpy.io.xml.descriptors import StringDescriptor, \
+    ParametersDescriptor, SerializableListDescriptor
 from sarpy.io.complex.sicd_elements.blocks import LatLonRestrictionType, LatLonArrayElementType
 
 from .base import DEFAULT_STRICT
 
 
 class LineType(Serializable):
-    _fields = ('EndPoints', )
-    _required = ('EndPoints', )
-    _collections_tags = {'EndPoints': {'array': True, 'child_tag': 'Endpoint'}}
-    # descriptors
-    EndPoints = SerializableArrayDescriptor(
-        'EndPoints', LatLonArrayElementType, _collections_tags, _required, strict=DEFAULT_STRICT, minimum_length=2,
-        docstring='A geographic line (array) with WGS-84 coordinates.'
-    )  # type: Union[SerializableArray, List[LatLonArrayElementType]]
+    _fields = ('EndPoint', 'size')
+    _required = ('EndPoint', 'size')
 
-    def __init__(self, EndPoints=None, **kwargs):
+    def __init__(self, EndPoint=None, **kwargs):
         """
 
         Parameters
         ----------
-        EndPoints : SerializableArray|List[LatLonArrayElementType]|numpy.ndarray|list|tuple
+        EndPoint : List[LatLonArrayElementType]|numpy.ndarray|list|tuple
         kwargs
         """
 
+        self._array = None
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
         if '_xml_ns_key' in kwargs:
             self._xml_ns_key = kwargs['_xml_ns_key']
-        self.EndPoints = EndPoints
+        self.EndPoint = EndPoint
         super(LineType, self).__init__(**kwargs)
+
+    @property
+    def size(self):
+        """
+        int: The size attribute
+        """
+
+        return 0 if self._array is None else self._array.size
+
+    @property
+    def EndPoint(self):
+        """
+        numpy.ndarray: The array of points.
+        """
+
+        return numpy.array([], dtype='object') if self._array is None else self._array
+
+    @EndPoint.setter
+    def EndPoint(self, value):
+        if value is None:
+            self._array = None
+            return
+
+        if isinstance(value, numpy.ndarray):
+            is_type = True
+            for entry in value:
+                is_type &= isinstance(entry, LatLonArrayElementType)
+            if is_type:
+                self._array = value
+                return
+
+        if isinstance(value, (numpy.ndarray, list, tuple)):
+            use_value = []
+            for i, entry in enumerate(value):
+                if isinstance(entry, LatLonArrayElementType):
+                    entry.index = i+1
+                    use_value.append(entry)
+                elif isinstance(entry, dict):
+                    e_val = LatLonArrayElementType.from_dict(entry)
+                    e_val.index = i+1
+                    use_value.append(e_val)
+                elif isinstance(entry, (numpy.ndarray, list, tuple)):
+                    use_value.append(LatLonArrayElementType.from_array(entry, index=i+1))
+                else:
+                    raise TypeError('Got unexpected type for element of EndPoint array `{}`'.format(type(entry)))
+            self._array = numpy.array(use_value, dtype='object')
+        else:
+            raise TypeError('Got unexpected type for EndPoint array `{}`'.format(type(value)))
+
+    def __getitem__(self, item):
+        return self._array.__getitem__(item)
+
+    def __setitem__(self, key, value):
+        self._array.__setitem__(key, value)
+
+    @classmethod
+    def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
+        """
+        Parameters
+        ----------
+        node
+        xml_ns : None|dict
+        ns_key : None|str
+        kwargs : dict
+
+        Returns
+        -------
+        LineType
+        """
+
+        end_point_key = cls._child_xml_ns_key.get('EndPoint', ns_key)
+        end_points = []
+        for cnode in find_children(node, 'EndPoint', xml_ns, end_point_key):
+            end_points.append(LatLonArrayElementType.from_node(cnode, xml_ns, ns_key=end_point_key))
+        return cls(EndPoint=end_points)
+
+    def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
+        if parent is None:
+            parent = doc.getroot()
+
+        if ns_key is None:
+            node = create_new_node(doc, tag, parent=parent)
+        else:
+            node = create_new_node(doc, '{}:{}'.format(ns_key, tag), parent=parent)
+
+        node.attrib['size'] = str(self.size)
+        end_point_key = self._child_xml_ns_key.get('EndPoint', ns_key)
+
+        for entry in self.EndPoint:
+            entry.to_node(doc, 'EndPoint', ns_key=end_point_key, parent=node,
+                          check_validity=check_validity, strict=strict)
+        return node
+
+    def to_dict(self, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
+        return OrderedDict([
+            ('EndPoint', [entry.to_dict() for entry in self.EndPoint]),
+            ('size', self.size)])
 
 
 class PolygonType(Serializable):
-    _fields = ('Polygon', )
-    _required = ('Polygon', )
-    _collections_tags = {'Polygon': {'array': True, 'child_tag': 'Vertex'}}
-    # descriptors
-    Polygon = SerializableArrayDescriptor(
-        'Polygon', LatLonArrayElementType, _collections_tags, _required, strict=DEFAULT_STRICT, minimum_length=3,
-        docstring='A geographic polygon (array) with WGS-84 coordinates.'
-    )  # type: Union[SerializableArray, List[LatLonArrayElementType]]
+    _fields = ('Vertex', 'size')
+    _required = ('Vertex', 'size')
 
-    def __init__(self, Polygon=None, **kwargs):
+    def __init__(self, Vertex=None, **kwargs):
         """
 
         Parameters
         ----------
-        Polygon: SerializableArray|List[LatLonArrayElementType]|numpy.ndarray|list|tuple
+        Vertex : List[LatLonArrayElementType]|numpy.ndarray|list|tuple
         kwargs
         """
 
+        self._array = None
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
         if '_xml_ns_key' in kwargs:
             self._xml_ns_key = kwargs['_xml_ns_key']
-        self.Polygon = Polygon
+        self.Vertex = Vertex
         super(PolygonType, self).__init__(**kwargs)
+
+    @property
+    def size(self):
+        """
+        int: The size attribute
+        """
+
+        if self._array is None:
+            return 0
+        else:
+            return self._array.size
+
+    @property
+    def Vertex(self):
+        """
+        numpy.ndarray: The array of points.
+        """
+
+        if self._array is None:
+            return numpy.array((0,), dtype='object')
+        else:
+            return self._array
+
+    @Vertex.setter
+    def Vertex(self, value):
+        if value is None:
+            self._array = None
+            return
+
+        if isinstance(value, numpy.ndarray):
+            is_type = True
+            for entry in value:
+                is_type &= isinstance(entry, LatLonArrayElementType)
+            if is_type:
+                self._array = value
+                return
+
+        if isinstance(value, (numpy.ndarray, list, tuple)):
+            use_value = []
+            for i, entry in enumerate(value):
+                if isinstance(entry, LatLonArrayElementType):
+                    entry.index = i + 1
+                    use_value.append(entry)
+                elif isinstance(entry, dict):
+                    e_val = LatLonArrayElementType.from_dict(entry)
+                    e_val.index = i + 1
+                    use_value.append(e_val)
+                elif isinstance(entry, (numpy.ndarray, list, tuple)):
+                    use_value.append(LatLonArrayElementType.from_array(entry, index=i + 1))
+                else:
+                    raise TypeError('Got unexpected type for element of Vertex array `{}`'.format(type(entry)))
+            self._array = numpy.array(use_value, dtype='object')
+        else:
+            raise TypeError('Got unexpected type for Vertex array `{}`'.format(type(value)))
+
+    def __getitem__(self, item):
+        return self._array.__getitem__(item)
+
+    def __setitem__(self, key, value):
+        self._array.__setitem__(key, value)
+
+    @classmethod
+    def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
+        """
+        Parameters
+        ----------
+        node
+        xml_ns : None|dict
+        ns_key : None|str
+        kwargs : dict
+
+        Returns
+        -------
+        PolygonType
+        """
+
+        vertex_key = cls._child_xml_ns_key.get('Vertex', ns_key)
+        vertices = []
+        for cnode in find_children(node, 'Vertex', xml_ns, vertex_key):
+            vertices.append(LatLonArrayElementType.from_node(cnode, xml_ns, ns_key=vertex_key))
+        return cls(Vertex=vertices)
+
+    def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
+        if parent is None:
+            parent = doc.getroot()
+
+        if ns_key is None:
+            node = create_new_node(doc, tag, parent=parent)
+        else:
+            node = create_new_node(doc, '{}:{}'.format(ns_key, tag), parent=parent)
+
+        node.attrib['size'] = str(self.size)
+        end_point_key = self._child_xml_ns_key.get('Vertex', ns_key)
+
+        for entry in self.Vertex:
+            entry.to_node(doc, 'Vertex', ns_key=end_point_key, parent=node,
+                          check_validity=check_validity, strict=strict)
+        return node
+
+    def to_dict(self, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
+        return OrderedDict([
+            ('Vertex', [entry.to_dict() for entry in self.Vertex]),
+            ('size', self.size)])
 
 
 class GeoInfoType(Serializable):
@@ -83,9 +273,9 @@ class GeoInfoType(Serializable):
     _set_as_attribute = ('name', )
     _collections_tags = {
         'Descriptions': {'array': False, 'child_tag': 'Desc'},
-        'Point': {'array': True, 'child_tag': 'Point'},
-        'Line': {'array': True, 'child_tag': 'Line'},
-        'Polygon': {'array': True, 'child_tag': 'Polygon'},
+        'Point': {'array': False, 'child_tag': 'Point'},
+        'Line': {'array': False, 'child_tag': 'Line'},
+        'Polygon': {'array': False, 'child_tag': 'Polygon'},
         'GeoInfo': {'array': False, 'child_tag': 'GeoInfo'}
     }
     # descriptors
@@ -95,18 +285,18 @@ class GeoInfoType(Serializable):
     Descriptions = ParametersDescriptor(
         'Descriptions', _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Descriptions of the geographic feature.')  # type: ParametersCollection
-    Point = SerializableArrayDescriptor(
+    Point = SerializableListDescriptor(
         'Point', LatLonRestrictionType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Geographic points with WGS-84 coordinates.'
-    )  # type: Union[SerializableArray, List[LatLonRestrictionType]]
-    Line = SerializableArrayDescriptor(
+    )  # type: List[LatLonRestrictionType]
+    Line = SerializableListDescriptor(
         'Line', LineType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Geographic lines (array) with WGS-84 coordinates.'
-    )  # type: Union[SerializableArray, List[LineType]]
-    Polygon = SerializableArrayDescriptor(
+    )  # type: List[LineType]
+    Polygon = SerializableListDescriptor(
         'Polygon', PolygonType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Geographic polygons (array) with WGS-84 coordinates.'
-    )  # type: Union[SerializableArray, List[PolygonType]]
+    )  # type: List[PolygonType]
 
     def __init__(self, name=None, Descriptions=None, Point=None, Line=None,
                  Polygon=None, GeoInfo=None, **kwargs):
@@ -116,11 +306,11 @@ class GeoInfoType(Serializable):
         ----------
         name : str
         Descriptions : ParametersCollection|dict
-        Point : SerializableArray|List[LatLonRestrictionType]|numpy.ndarray|list|tuple
-        Line : SerializableArray|List[LineType]
-        Polygon : SerializableArray|List[PolygonType]
+        Point : List[LatLonRestrictionType]
+        Line : List[LineType]
+        Polygon : List[PolygonType]
         GeoInfo : Dict[GeoInfoTpe]
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:

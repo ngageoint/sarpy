@@ -57,7 +57,12 @@ urn_mapping = {
         'version': '1.2',
         'release': '1.2.1',
         'date': '2018-12-13T00:00:00Z',
-        'schema': os.path.join(_the_directory, 'SICD_schema_V1_2_1_2018_12_13.xsd')}
+        'schema': os.path.join(_the_directory, 'SICD_schema_V1_2_1_2018_12_13.xsd')},
+    'urn:SICD:1.3.0' :{
+        'version': '1.3',
+        'release': '1.3.0',
+        'date': ''
+    }
 }
 _SICD_SPECIFICATION_IDENTIFIER = 'SICD Volume 1 Design & Implementation Description Document'
 

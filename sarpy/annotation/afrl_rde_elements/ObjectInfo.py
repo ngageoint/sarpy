@@ -139,7 +139,7 @@ class SizeType(Serializable, Arrayable):
         Length : float
         Width : float
         Height : float
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -223,7 +223,7 @@ class OrientationType(Serializable):
         Pitch : float
         Yaw : float
         AzimuthAngle : float
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:

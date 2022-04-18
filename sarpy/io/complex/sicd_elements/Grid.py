@@ -59,7 +59,7 @@ class WgtTypeType(Serializable):
         ----------
         WindowName : str
         Parameters : ParametersCollection|dict
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -200,7 +200,7 @@ class DirParamType(Serializable):
         DeltaKCOAPoly : Poly2DType|numpy.ndarray|list|tuple
         WgtType : WgtTypeType
         WgtFunct : None|numpy.ndarray|list|tuple
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -563,7 +563,7 @@ class GridType(Serializable):
         TimeCOAPoly : Poly2DType|numpy.ndarray|list|tuple
         Row : DirParamType
         Col : DirParamType
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:

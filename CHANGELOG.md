@@ -9,6 +9,19 @@ not being annotated in github.
 Overhaul of the file reading base structures and extension to allow the use of 
 pathlib paths in addition to filename strings
 
+## [1.2.68] - 2022-04-14
+### Fixed
+CPHD Version 1.0 parsing of GeoInfo Polygon and Line element has been fixed
+
+## [1.2.67] - 2022-04-12
+### Added
+Added support for reading SICD version 1.3, full integration will not be complete 
+until the format is fully finalized and approved
+
+## [1.2.66] - 2022-04-06
+### Fixed
+Improved construction of LinearRing geojson element
+
 ## [1.2.65] - 2022-03-25
 ### Fixed
 - Resolved minor bug involved with xml namespace handling

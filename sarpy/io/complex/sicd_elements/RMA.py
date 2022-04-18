@@ -117,7 +117,7 @@ class INCAType(Serializable):
         DRateSFPoly : Poly2DType|numpy.ndarray|list|tuple
         DopCentroidPoly : Poly2DType|numpy.ndarray|list|tuple
         DopCentroidCOA : bool
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -176,7 +176,7 @@ class RMAType(Serializable):
         RMAT : RMRefType
         RMCR : RMRefType
         INCA : INCAType
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:

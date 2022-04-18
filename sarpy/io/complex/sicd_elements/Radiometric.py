@@ -42,7 +42,7 @@ class NoiseLevelType_(Serializable):
         ----------
         NoiseLevelType : str
         NoisePoly : Poly2DType|numpy.ndarray|list|tuple
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -109,7 +109,7 @@ class RadiometricType(Serializable):
         SigmaZeroSFPoly : Poly2DType|numpy.ndarray|list|tuple
         BetaZeroSFPoly : Poly2DType|numpy.ndarray|list|tuple
         GammaZeroSFPoly : Poly2DType|numpy.ndarray|list|tuple
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:

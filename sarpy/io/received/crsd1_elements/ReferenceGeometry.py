@@ -37,7 +37,7 @@ class CRPType(Serializable):
         ----------
         ECF : XYZType|numpy.ndarray|list|tuple
         LLH : LatLonHAEType|numpy.ndarray|list|tuple
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
