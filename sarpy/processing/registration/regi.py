@@ -23,22 +23,6 @@ from sarpy.io.general.base import BaseReader
 
 logger = logging.getLogger(__name__)
 
-# TODO: notes
-#  - multi-stage control point estimate - goes coarse grid to progressively finer (stopping criterion?)
-#       * the matlab forces you to choose the number of divisions, keeps the box size
-#         and grid spacing the same, and steps down the decimation by a factor of 2
-#  - "single stage control point estimate" (cpssestimate.m)
-#       * does correlation over box of given size, over search area of given size
-#       * at each point of grid, we determine the minimum difference of patch (after scaling and all that),
-#         by doing a correlation.
-#       * this determines grid of points and offsets at each grid point
-#   - matlab appears to use box size of 25 x 25, grid spacing of 15 x 15, search area of 15 x 15,
-#     and decimation that steps down by a factor of 2.
-#   - the end product is really this final collection of grid points and offsets at each grid point
-#     which is then used to formulate a warp transform.
-#   - I will worry about the warp transform later, and just focus on point information for now
-#   - Note that there is NO ROTATION here
-
 
 def _validate_reader(the_reader, the_index):
     """
@@ -438,6 +422,11 @@ def _single_step_grid(
     Returns
     -------
     result_values : List[List[dict]]
+        entry `[i][j]` tell the mapping of the reference location in nominal
+        reference grid to moving grid location
+        :code:`{'reference_location': (row, column),
+        'moving_location': (matched_row, matched_column),
+        'max_correlation': <value>}`
     """
 
     def determine_best_guess(ref_point):
@@ -514,15 +503,54 @@ def _single_step_grid(
                     'max_correlation': max_correlation
                 })
 
-    # the format of our result values - List[List[dict]]
-    #   entry [i][j] tell the mapping of the reference location in nominal reference
-    #   grid to moving grid location
-    #   {
-    #      'reference_location': ,
-    #      'moving_location': ,
-    #      'max_correlation':,
-    #      'row_derivative':, (populated by call to _populate_difference_structure())
-    #      'column_derivative':
-    #  }
-
     return result_values
+
+
+def register_arrays(reference_data, moving_data):
+    """
+    Register the moving_data array to the reference_data array using the regi algorithm.
+
+    Parameters
+    ----------
+    reference_data : numpy.ndarray
+    moving_data : numpy.ndarray
+
+    Returns
+    -------
+    result_values : List[List[dict]]
+        entry `[i][j]` tell the mapping of the reference location in nominal
+        reference grid to moving grid location
+        :code:`{'reference_location': (row, column),
+        'moving_location': (matched_row, matched_column),
+        'max_correlation': <value>}`
+    """
+
+    if not isinstance(reference_data, numpy.ndarray):
+        raise TypeError('reference_data must be a numpy array')
+    if not isinstance(moving_data, numpy.ndarray):
+        raise TypeError('moving_data must be a numpy array')
+    if reference_data.ndim != 2:
+        raise ValueError('data arrays must be two-dimensional')
+    if reference_data.shape != moving_data.shape:
+        raise ValueError('data arrays must have the same (2-d) shape')
+
+    the_size = reference_data.shape
+    box_rough = (0, the_size[0], 0, the_size[1])
+    size_min = min(*the_size)
+    if size_min > 2000:
+        decimation = (8, 8)
+    elif size_min > 1000:
+        decimation = (4, 4)
+    elif size_min > 500:
+        decimation = (2, 2)
+    else:
+        decimation = (1, 1)
+
+    match_box = (min(25, the_size[0]), min(25, the_size[1]))
+    deviation = (min(15, the_size[0]), min(15, the_size[1]))
+
+    return _single_step_grid(
+        reference_data, None, the_size,
+        moving_data, None, the_size,
+        box_rough, box_rough,
+        match_box_size=match_box, moving_deviation=deviation, decimation=decimation)
