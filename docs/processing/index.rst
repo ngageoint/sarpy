@@ -5,10 +5,11 @@ Processing elements (sarpy.processing)
     :maxdepth: 1
     :caption: Contents:
 
-    csi
     normalize_sicd
-    subaperture
-    ortho_rectify
     rgiqe
+    ortho_rectify
+    registration/index
+    csi
+    subaperture
     windows
     fft_base
