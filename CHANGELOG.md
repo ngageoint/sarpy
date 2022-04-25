@@ -4,12 +4,6 @@ SarPy follows a continuous release process, so there are lots of releases. Since
 essentially every commit corresponds to a release, specific release points are 
 not being annotated in github.
 
-## [1.3.0] - 2022-03-XX
-### Changed
-Overhaul of the file reading base structures and extension to allow the use of 
-pathlib paths in addition to filename strings
-
-# 1.3
 
 ## [1.2.69] - 2022-04-18
 ### Added
