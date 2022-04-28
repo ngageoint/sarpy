@@ -33,83 +33,269 @@ READER_TYPES = ('SICD', 'SIDD', 'CPHD', 'CRSD', 'OTHER')
 #       * I don't know right now...
 
 
-class DataSegmentBase(object):
+def complex_format_function(array):
     """
-    One conceptual fragment of data which will be read directly. This is heavily
-    geared towards images.
+    Reformats input data into complex format.
+
+    Parameters
+    ----------
+    array : numpy.ndarray
+
+    Returns
+    -------
+    numpy.ndarray
+    """
+
+    if numpy.iscomplexobj(array):
+        return array
+
+    if array.shape == (2, ):
+        out = numpy.zeros((1, ), dtype='complex64')
+        out.real = array[0]
+        out.imag = array[1]
+        return out
+    elif array.shape[-1] == 2:
+        out = numpy.zeros(array.shape[:-1], dtype='complex64')
+        out.real = array[..., 0]
+        out.imag = array[..., 1]
+        return out
+    elif (array.shape[-1] % 2) == 0:
+        out = numpy.zeros((array.shape[0], array.shape[1], int(array.shape[2] / 2)), dtype='complex64')
+        out.real = array[..., 0::2]
+        out.imag = array[..., 1::2]
+        return out
+    else:
+        raise ValueError('Input array has shape `{}`, it is not clear how to convert to complex'.format(array.shape))
+
+
+class DataReaderSegmentBase(object):
+    """
+    One conceptual fragment of data, potentially to be used as a component piece
+    to be assembled into a larger array of data.
+
+    This is geared somewhat towards images, but should be general enough to
+    support other usage.
     """
 
     __slots__ = (
-        '_raw_dtype', '_raw_shape',
-        '_symmetry', '_format_function', '_relative_index',
-        '_output_dtype', '_output_shape')
+        '_raw_dtype', '_raw_shape', '_output_dtype', '_output_shape',
+        '_symmetry', '_format_function', '_relative_index')
 
     def __init__(self,
                  raw_dtype: Union[str, numpy.dtype],
                  raw_shape: Tuple[int],
-                 symmetry: Tuple[bool],
-                 format_function: Union[None, str, Callable],
                  output_dtype: Union[str, numpy.dtype],
                  output_shape: Tuple[int],
-                 relative_index: Tuple[int] = (0, 0)):
+                 symmetry: Tuple[bool],
+                 format_function: Union[None, str, Callable] = None,
+                 relative_index: Union[None, Tuple[int]] = None):
         """
 
         Parameters
         ----------
         raw_dtype : str|numpy.dtype
         raw_shape : Tuple[int]
-        symmetry : Tuple[bool]
-        format_function : None|str|Callable
         output_dtype : str|numpy.dtype
         output_shape : Tuple[int]
+        symmetry : Tuple[bool]
+        format_function : None|str|Callable
         relative_index : Tuple[int]
-            The upper left corner of the data segment, in the output coordinate system
         """
 
-        self._raw_dtype = raw_dtype
-        self._raw_shape = raw_shape
-        self._symmetry = symmetry
-        self._format_function = format_function
-        self._output_dtype = output_dtype
-        self._output_shape = output_shape
-        self._relative_index = relative_index
+        self._raw_shape = None
+        self._set_raw_shape(raw_shape)
+        self._raw_dtype = None
+        self._set_raw_dtype(raw_dtype)
+        self._output_shape = None
+        self._set_output_shape(output_shape)
+        self._output_dtype = None
+        self._set_output_dtype(output_dtype)
+        self._symmetry = None
+        self._set_symmetry(symmetry)
+        self._format_function = None
+        self._set_format_function(format_function)
+        self._relative_index = None
+        self._set_relative_index(relative_index)
+
+    @property
+    def raw_shape(self) -> Tuple[int]:
+        """
+        Tuple[int]: The raw shape.
+        """
+
+        return self._raw_shape
+
+    def _set_raw_shape(self, value):
+        if not isinstance(value, tuple):
+            raise TypeError(
+                'raw_shape must be specified by a tuple of ints, got type `{}`'.format(type(value)))
+        for entry in value:
+            if not isinstance(entry, int):
+                raise TypeError(
+                    'raw_shape must be specified by a tuple of ints, got `{}`'.format(value))
+            if entry <= 0:
+                raise ValueError(
+                    'raw_shape must be specified by a tuple of positive ints, got `{}`'.format(value))
+        self._raw_shape = value
+
+    @property
+    def raw_dtype(self) -> numpy.dtype:
+        """
+        numpy.dtype: The data type of the data returned by the :func:`read_raw` function.
+        """
+
+        return self._raw_dtype
+
+    def _set_raw_dtype(self, value):
+        if not isinstance(value, numpy.dtype):
+            try:
+                value = numpy.dtype(value)
+            except Exception as e:
+                raise ValueError(
+                    'Tried interpreting raw_dtype value as a numpy.dtype, '
+                    'and failed with error\n\t{}'.format(e))
+        self._raw_dtype = value
+
+    @property
+    def output_shape(self) -> Tuple[int]:
+        """
+        Tuple[int]: The output shape. For multi-band images, it is the tacit
+        assumption that the data has been reorganized so that the band is
+        in the final dimension.
+        """
+
+        return self._output_shape
+
+    def _set_output_shape(self, value):
+        if not isinstance(value, tuple):
+            raise TypeError(
+                'output_shape must be specified by a tuple of ints, got type `{}`'.format(type(value)))
+        for entry in value:
+            if not isinstance(entry, int):
+                raise TypeError(
+                    'output_shape must be specified by a tuple of ints, got `{}`'.format(value))
+            if entry <= 0:
+                raise ValueError(
+                    'output_shape must be specified by a tuple of positive ints, got `{}`'.format(value))
+        self._output_shape = value
+
+    @property
+    def output_dtype(self) -> numpy.dtype:
+        """
+        numpy.dtype: The data type of the data returned by the :func:`read` function.
+        """
+
+        return self._output_dtype
+
+    def _set_output_dtype(self, value):
+        if not isinstance(value, numpy.dtype):
+            try:
+                value = numpy.dtype(value)
+            except Exception as e:
+                raise ValueError(
+                    'Tried interpreting output_dtype value as a numpy.dtype, '
+                    'and failed with error\n\t{}'.format(e))
+        self._output_dtype = value
+
+    @property
+    def symmetry(self) -> Tuple[bool]:
+        """
+        Tuple: This describes necessary symmetry transformation to be performed
+        to convert from raw order into the expected order. This is implicitly
+        image usage based, and used to account for regular, observed differences
+        in image orientation.
+
+        For image (two or greater dimensional) output, the entries are of the form
+        `(flip0, flip1, swap_axes)`. Where `flip0` indicates reversing along
+        the first (non-band) axis (in storage/raw order) before any required
+        swapping of axes, `flip1` indicates reversing along the second (non-band)
+        axis (in storage/raw order) before any required swapping of axes,
+        and `swap_axes` indicates swapping the first and second non-band dimensions,
+        while leaving any band dimensions unchanged. It is expected that the
+        band dimension will be re-ordered to be at the end.
+        """
+
+        return self._symmetry
+
+    def _set_symmetry(self, value):
+        if not isinstance(value, tuple):
+            raise TypeError(
+                'symmetry must be specified by a tuple of booleans, got type `{}`'.format(type(value)))
+        for entry in value:
+            if not isinstance(entry, int):
+                raise TypeError(
+                    'symmetry must be specified by a tuple of booleans, got `{}`'.format(value))
+        self._symmetry = value
+
+    def _set_format_function(self, value):
+        if value is None or callable(value):
+            self._format_function = value
+            return
+
+        if isinstance(value, str):
+            if value.lower() == 'complex':
+                self._format_function = complex_format_function
+            else:
+                raise ValueError('Got unexpected value `{}` for format_function'.format(value))
+        else:
+            raise ValueError('Got unexpected input for format_function of type `{}`'.format(type(value)))
+
+    @property
+    def relative_index(self) -> Union[None, Tuple[int]]:
+        """None|Tuple[int]: The "starting index" of this data segment, relative to the output
+            coordinate system. This is simply a potential helper for external
+            usage, and not used internally."""
+        return self._relative_index
+
+    def _set_relative_index(self, value):
+        if value is None:
+            self._relative_index = None
+            return
+
+        if not isinstance(value, tuple):
+            raise TypeError(
+                'relative_index must be specified by a tuple of ints, got type `{}`'.format(type(value)))
+        for entry in value:
+            if not isinstance(entry, int):
+                raise TypeError(
+                    'relative_index must be specified by a tuple of ints, got `{}`'.format(value))
+            if entry < 0:
+                raise ValueError(
+                    'relative_index must be specified by a tuple of non-negative ints, got `{}`'.format(value))
+        if len(value) != self.ndim:
+            raise ValueError('relative_index must have the same length as output_shape.')
+        self._relative_index = value
 
     @property
     def ndim(self):
         return len(self._output_shape)
 
-    @property
-    def symmetry(self) -> Tuple[bool]:
-        """
-        Tuple[bool, bool, bool]: Entries of the form (`flip1`, `flip2`, `swap_axes`).
-        This describes necessary symmetry transformation to be performed to convert
-        from raw order into the expected order.
-        """
-
-        return self._symmetry
-
     def read_raw(self, item: Union[slice, tuple]) -> numpy.ndarray:
         """
-        Reads the raw data from the source. Note that this expects input slice
-        arguments relative to the raw data shape/order.
+        Read raw data from the source, without reformatting and or applying
+        symmetry operations.
 
         Parameters
         ----------
         item : slice|Tuple[slice]
+            These arguments are relative to raw data shape and order, no symmetry
+            operations have been applied. These slice arguments are expected to
+            be fully defined.
 
         Returns
         -------
         numpy.ndarray
+            This will be of data type given by `raw_dtype`.
         """
 
         raise NotImplementedError
 
-    def _reorient_reformat(self,
-                           item: tuple,
-                           raw_item: tuple,
-                           data: numpy.ndarray) -> numpy.ndarray:
+    def _reorient(self,
+                  item: tuple,
+                  raw_item: tuple,
+                  data: numpy.ndarray) -> numpy.ndarray:
         """
-        Reorients and reformats the fetched raw data into intermediate output shape.
+        Reorients the fetched raw data into intermediate output shape.
 
         Parameters
         ----------
@@ -126,7 +312,7 @@ class DataSegmentBase(object):
 
     def _reinterpret_slice_arguments(self, item: tuple) -> tuple:
         """
-        Reinteprets the input slice arguments, relative to output order, in raw
+        Re-interprets the input slice arguments, relative to output order, in raw
         coordinates.
 
         Parameters
@@ -138,13 +324,47 @@ class DataSegmentBase(object):
         item_out : Tuple[slice]
         """
 
+        def reformat_slice(sl_in: slice, limit_in: int, reverse: bool) -> slice:
+            # NB: it is expected that sl_in.step is not None
+            if reverse:
+                start =
+                pass
+            else:
+                return sl_in
+
+        if self.ndim < 2:
+            return item
+
+        # NB: this will be the proper implementation only when any bands are
+        # after the first two dimensions
+        if self.symmetry[2]:
+            row_slice_in, col_slice_in = item[1], item[0]
+        else:
+            row_slice_in, col_slice_in = item[0], item[1]
+        row_slice = reformat_slice(row_slice_in, self.raw_shape[0], self.symmetry[0])
+        col_slice = reformat_slice(col_slice_in, self.raw_shape[1], self.symmetry[1])
+
         raise NotImplementedError
 
-    def _validate_item(self, dimension: int, item: Union[None, int, tuple, slice]):
-        def check_bound(entry):
-            if entry is None or (0 <= entry < max_element):
-                return
-            raise ValueError('Got out of bounds argument in dimension {}'.format(dimension))
+    def _validate_item(self, dimension: int, item: Union[None, int, tuple, slice]) -> slice:
+        """
+        Validates the slice or item definition along the given output dimension.
+
+        Returns
+        -------
+        slice
+        """
+
+        def check_bound(entry: Union[None, int]) -> Union[None, int]:
+            if entry is None:
+                return entry
+            elif -max_element <= entry < 0:
+                entry += max_element
+                return entry
+            elif 0 <= entry < max_element:
+                return entry
+            else:
+                raise ValueError('Got out of bounds argument in dimension {}'.format(dimension))
 
         if not (0 <= dimension < self.ndim):
             raise KeyError('Got invalid dimension {}'.format(dimension))
@@ -154,31 +374,38 @@ class DataSegmentBase(object):
             item = slice(*item)
 
         if item is None:
-            return slice(max_element)
+            return slice(step=1)
         elif isinstance(item, int):
-            check_bound(item)
-            return slice(item, item+1)
+            item = check_bound(item)
+            return slice(start=item, stop=item+1, step=1)
         elif isinstance(item, slice):
-            check_bound(item.start)
-            check_bound(item.stop)
-            if item.start is not None and item.stop is not None and item.start >= item.stop:
-                raise ValueError('slice elements out of expected order in dimension {}'.format(dimension))
+            item.start = check_bound(item.start)
+            item.stop = check_bound(item.stop)
+            if item.step is None:
+                item.step = 1
+            if item.start is not None and item.stop is not None:
+                if numpy.sign(item.stop - item.start) != numpy.sign(item.step):
+                    raise ValueError('slice {} is not well formed'.format(item))
+            return item
         else:
             raise ValueError('Got unexpected argument of type {} in dimension {}'.format(type(item), dimension))
 
     def _interpret_item(self, item: Union[None, int, tuple, slice]) -> tuple:
         if item is None:
-            return tuple([slice(self._output_shape[i]) for i in range(self.ndim)])
+            return tuple([slice(start=0, stop=self._output_shape[i], step=1) for i in range(self.ndim)])
         elif isinstance(item, int):
-            out = [slice(item, item+1), ]
-            out.extend([slice(self._output_shape[i]) for i in range(1, self.ndim)])
+            out = [self._validate_item(0, slice(start=item, stop=item+1, step=1)), ]
+            out.extend([slice(start=0, stop=self._output_shape[i], step=1) for i in range(1, self.ndim)])
             return tuple(out)
         elif isinstance(item, slice):
-            out = [item, ]
-            out.extend([slice(self._output_shape[i]) for i in range(1, self.ndim)])
+            out = [self._validate_item(0, item), ]
+            out.extend([slice(start=0, stop=self._output_shape[i], step=1) for i in range(1, self.ndim)])
             return tuple(out)
-        else:
-            pass
+        elif isinstance(item, tuple):
+            out = [self._validate_item(i, item_i) for i, item_i in enumerate(item)]
+            if len(out) < self.ndim:
+                out.extend([slice(start=0, stop=self._output_shape[i], step=1) for i in range(len(out), self.ndim)])
+            return tuple(out)
 
     def read(self, item: Union[int, tuple, slice, numpy.ndarray]) -> numpy.ndarray:
         """
@@ -195,7 +422,10 @@ class DataSegmentBase(object):
 
         norm_item = self._interpret_item(item)
         raw_item = self._reinterpret_slice_arguments(norm_item)
-        return self._reorient_reformat(norm_item, raw_item, self.read_raw(raw_item))
+        if self._format_function is None:
+            return self._reorient(item, raw_item, self.read_raw(raw_item))
+        else:
+            return self._format_function(self._reorient(norm_item, raw_item, self.read_raw(raw_item)))
 
     def __getitem__(self, item):
         """
