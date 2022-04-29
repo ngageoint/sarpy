@@ -30,7 +30,7 @@ class SarpyIOError(SarpyError):
     """A custom exception class for discovered input/output errors."""
 
 
-def complex_format_function(array):
+def _complex_format_function(array: numpy.ndarray) -> numpy.ndarray:
     """
     Reformats input data, assuming the final dimension is organized into
     real/imaginary pairs, into complex format. This is the most common observed
@@ -65,6 +65,133 @@ def complex_format_function(array):
         return out
     else:
         raise ValueError('Input array has shape `{}`, it is not clear how to convert to complex'.format(array.shape))
+
+
+####
+# slice helper functions
+
+def verify_slice(item: Union[None, int, slice, Tuple[int, ...]], max_element: int) -> slice:
+    """
+    Verify a given slice against a bound.
+
+    Parameters
+    ----------
+    item : None|int|slice|Tuple[int, ...]
+    max_element : int
+
+    Returns
+    -------
+    slice
+        This will certainly have `start` and `step` populated, and will have `stop`
+        populated unless `step < 0` and `stop` must be `None`.
+    """
+
+    def check_bound(entry: Union[None, int]) -> Union[None, int]:
+        if entry is None:
+            return entry
+        elif -max_element <= entry < 0:
+            entry += max_element
+            return entry
+        elif 0 <= entry <= max_element:
+            return entry
+        else:
+            raise ValueError('Got out of bounds argument ({}) in slice limited by `{}`'.format(entry, max_element))
+
+    if not isinstance(max_element, int) or max_element < 1:
+        raise ValueError('slice verification requires a positive integer limit')
+
+    if isinstance(item, tuple):
+        item = slice(*item)
+
+    if item is None:
+        return slice(0, None, 1)
+    elif isinstance(item, int):
+        item = check_bound(item)
+        return slice(item, item+1, 1)
+    elif isinstance(item, slice):
+        start = check_bound(item.start)
+        stop = check_bound(item.stop)
+        step = 1 if item.step is None else item.step
+        if step > 0:
+            if start is None:
+                start = 0
+            if stop is None:
+                stop = max_element
+        if step < 0:
+            if start is None:
+                start = max_element - 1
+        if start is not None and stop is not None:
+            if numpy.sign(stop - start) != numpy.sign(step):
+                raise ValueError('slice {} is not well formed'.format(item))
+        return slice(start, stop, step)
+    else:
+        raise ValueError('Got unexpected argument of type {} in slice'.format(type(item)))
+
+
+def verify_subscript(
+        subscript: Union[None, int, slice, Tuple[slice, ...]],
+        corresponding_shape: Tuple[int, ...]) -> Tuple[slice, ...]:
+    """
+    Verify a subscript like item against a corresponding shape.
+
+    Parameters
+    ----------
+    subscript : None|int|slice|Tuple[slice, ...]
+    corresponding_shape : Tuple[int, ...]
+
+    Returns
+    -------
+    Tuple[slice, ...]
+    """
+
+    ndim = len(corresponding_shape)
+
+    if subscript is None:
+        return tuple([slice(0, corresponding_shape[i], 1) for i in range(ndim)])
+    elif isinstance(subscript, int):
+        out = [verify_slice(slice(subscript, subscript + 1, 1), corresponding_shape[0]), ]
+        out.extend([slice(0, corresponding_shape[i], 1) for i in range(1, ndim)])
+        return tuple(out)
+    elif isinstance(subscript, slice):
+        out = [verify_slice(subscript, corresponding_shape[0]), ]
+        out.extend([slice(0, corresponding_shape[i], 1) for i in range(1, ndim)])
+        return tuple(out)
+    elif isinstance(subscript, tuple):
+        if len(subscript) > ndim:
+            raise ValueError('More subscript entries ({}) than shape dimensions ({}).'.format(len(subscript), ndim))
+        out = [verify_slice(item_i, corresponding_shape[i]) for i, item_i in enumerate(subscript)]
+        if len(out) < ndim:
+            out.extend([slice(0, corresponding_shape[i], 1) for i in range(len(out), ndim)])
+        return tuple(out)
+
+
+def result_size(
+        subscript: Union[None, int, slice, Tuple[slice, ...]],
+        corresponding_shape: Tuple[int, ...]) -> (Tuple[slice, ...], Tuple[int, ...]):
+    """
+    Validate the given subscript against the corresponding shape, and also determine
+    the shape of the resultant data reading result.
+
+    Parameters
+    ----------
+    subscript : None|int|slice|Tuple[slice, ...]
+    corresponding_shape : Tuple[int, ...]
+
+    Returns
+    -------
+    valid_subscript : Tuple[slice, ...]
+    output_shape : Tuple[int, ...]
+    """
+
+    def out_size(sl_in, limit):
+        if sl_in.stop is None:
+            return int(sl_in.start/abs(sl_in.step))
+        else:
+            return int((sl_in.stop - sl_in.start)/sl_in.step)
+
+    subscript = verify_subscript(subscript, corresponding_shape)
+    the_shape = tuple([out_size(sl, lim) for sl, lim in zip(subscript, corresponding_shape)])
+    return subscript, the_shape
 
 
 class DataReaderSegmentBase(object):
@@ -241,7 +368,7 @@ class DataReaderSegmentBase(object):
 
         if isinstance(value, str):
             if value.lower() == 'complex':
-                self._format_function = complex_format_function
+                self._format_function = _complex_format_function
             else:
                 raise ValueError('Got unexpected value `{}` for format_function'.format(value))
         else:
@@ -254,7 +381,7 @@ class DataReaderSegmentBase(object):
             usage, and not used internally."""
         return self._relative_index
 
-    def _set_relative_index(self, value: Union[None, Tuple[int, ...]]):
+    def _set_relative_index(self, value: Union[None, Tuple[int, ...]]) -> None:
         if value is None:
             self._relative_index = None
             return
@@ -336,72 +463,14 @@ class DataReaderSegmentBase(object):
         else:
             return sl_in
 
-    def _validate_item(self, dimension: int, item: Union[None, int, slice, Tuple[int, ...]]) -> slice:
-        """
-        Validates the slice or item definition along the given output dimension.
-
-        Parameters
-        ----------
-        dimension : int
-        item : None|int|slice|Tuple[int, ...]
-
-        Returns
-        -------
-        slice
-            At minimum, the step will be populated. If start/stop are populated,
-            then they will be positive.
-        """
-
-        def check_bound(entry: Union[None, int]) -> Union[None, int]:
-            if entry is None:
-                return entry
-            elif -max_element <= entry < 0:
-                entry += max_element
-                return entry
-            elif 0 <= entry <= max_element:
-                return entry
-            else:
-                raise ValueError('Got out of bounds argument in dimension {}'.format(dimension))
-
-        if not (0 <= dimension < self.ndim):
-            raise KeyError('Got invalid dimension {}'.format(dimension))
-
-        max_element = self._output_shape[dimension]
-        if isinstance(item, tuple):
-            item = slice(*item)
-
-        if item is None:
-            return slice(0, None, 1)
-        elif isinstance(item, int):
-            item = check_bound(item)
-            return slice(item, item+1, 1)
-        elif isinstance(item, slice):
-            start = check_bound(item.start)
-            stop = check_bound(item.stop)
-            step = 1 if item.step is None else item.step
-            if step > 0:
-                if start is None:
-                    start = 0
-                if stop is None:
-                    stop = max_element
-            if step < 0:
-                if start is None:
-                    start = max_element - 1
-            if start is not None and stop is not None:
-                if numpy.sign(stop - start) != numpy.sign(step):
-                    raise ValueError('slice {} is not well formed'.format(item))
-            return slice(start, stop, step)
-        else:
-            raise ValueError('Got unexpected argument of type {} in dimension {}'.format(type(item), dimension))
-
-    def _interpret_item(self, item: Union[None, int, slice, Tuple[slice, ...]]) -> Tuple[slice, ...]:
+    def _interpret_subscript(self, subscript: Union[None, int, slice, Tuple[slice, ...]]) -> Tuple[slice, ...]:
         """
         Restructures the input to be a tuple of slices guaranteed to be the same
         length as the dimension of the return.
 
         Parameters
         ----------
-        item : None|int|slice|Tuple[slice, ...]
+        subscript : None|int|slice|Tuple[slice, ...]
 
         Returns
         -------
@@ -409,53 +478,39 @@ class DataReaderSegmentBase(object):
             Of length `ndim`
         """
 
-        if item is None:
-            return tuple([slice(0, self._output_shape[i], 1) for i in range(self.ndim)])
-        elif isinstance(item, int):
-            out = [self._validate_item(0, slice(item, item+1, 1)), ]
-            out.extend([slice(0, self._output_shape[i], 1) for i in range(1, self.ndim)])
-            return tuple(out)
-        elif isinstance(item, slice):
-            out = [self._validate_item(0, item), ]
-            out.extend([slice(0, self._output_shape[i], 1) for i in range(1, self.ndim)])
-            return tuple(out)
-        elif isinstance(item, tuple):
-            out = [self._validate_item(i, item_i) for i, item_i in enumerate(item)]
-            if len(out) < self.ndim:
-                out.extend([slice(0, self._output_shape[i], 1) for i in range(len(out), self.ndim)])
-            return tuple(out)
+        return verify_subscript(subscript, self._output_shape)
 
-    def read(self, item: Union[int, slice, Tuple[slice, ...]]) -> numpy.ndarray:
+    def read(self, subscript: Union[int, slice, Tuple[slice, ...]]) -> numpy.ndarray:
         """
         Read the data slice specified relative to the output data coordinates.
 
         Parameters
         ----------
-        item : int|slice|tuple
+        subscript : int|slice|tuple
 
         Returns
         -------
         numpy.ndarray
         """
 
-        norm_item = self._interpret_item(item)
-        raw_item = self._reinterpret_slice_arguments(norm_item)
-        return self._reorient(norm_item, raw_item, self.read_raw(raw_item))
+        norm_subscript = self._interpret_subscript(subscript)
+        raw_subscript = self._reinterpret_slice_arguments(norm_subscript)
+        return self._reorient(norm_subscript, raw_subscript, self.read_raw(raw_subscript))
 
-    def __getitem__(self, item):
+    def __getitem__(self, subscript):
         """
         Fetch the data via slice definition.
 
         Parameters
         ----------
-        item : int|slice|tuple
+        subscript : int|slice|tuple
 
         Returns
         -------
         numpy.ndarray
         """
 
-        return self.read(item)
+        return self.read(subscript)
 
     def close(self):
         """
@@ -473,40 +528,40 @@ class DataReaderSegmentBase(object):
         # This order in which this happens may be unreliable
         self.close()
 
-    def _reinterpret_slice_arguments(self, item: Tuple[slice, ...]) -> Tuple[slice, ...]:
+    def _reinterpret_slice_arguments(self, subscript: Tuple[slice, ...]) -> Tuple[slice, ...]:
         """
         Re-interprets the input slice arguments, which are given relative to output
         order, in raw coordinate order.
 
         Parameters
         ----------
-        item : Tuple[slice, ...]
+        subscript : Tuple[slice, ...]
 
         Returns
         -------
-        item_out : Tuple[slice, ...]
+        subscript_out : Tuple[slice, ...]
         """
 
         if self.ndim < 2:
             # no reorientation operations performed for a one-dimensional definition
-            return item
+            return subscript
 
-        if len(item) < 2:
+        if len(subscript) < 2:
             raise ValueError('Expected input tuple of length at least 2')
 
         # NB: this is a generic version, in keeping with bands at the end of the data
         # in both raw and output data
         if self.symmetry[2]:
-            row_slice_in, col_slice_in = item[1], item[0]
+            row_slice_in, col_slice_in = subscript[1], subscript[0]
         else:
-            row_slice_in, col_slice_in = item[0], item[1]
+            row_slice_in, col_slice_in = subscript[0], subscript[1]
         row_slice = self._reformat_slice(row_slice_in, self.raw_shape[0], self.symmetry[0])
         col_slice = self._reformat_slice(col_slice_in, self.raw_shape[1], self.symmetry[1])
-        return (row_slice, col_slice) + item[2:]
+        return (row_slice, col_slice) + subscript[2:]
 
     def _reorient(self,
-                  item: tuple,
-                  raw_item: tuple,
+                  subscript: tuple,
+                  raw_subscript: tuple,
                   data: numpy.ndarray) -> numpy.ndarray:
         """
         Reorients the fetched raw data into intermediate output shape, and then
@@ -514,8 +569,8 @@ class DataReaderSegmentBase(object):
 
         Parameters
         ----------
-        item : Tuple[slice]
-        raw_item : Tuple[slice]
+        subscript : Tuple[slice]
+        raw_subscript : Tuple[slice]
         data : numpy.ndarray
 
         Returns
@@ -534,18 +589,18 @@ class DataReaderSegmentBase(object):
                 data = numpy.swapaxes(data, 1, 0)
 
         if self._format_function is None:
-            return numpy.copy(data)
+            return numpy.copy(numpy.squeeze(data))
         else:
-            return numpy.copy(self._format_function(data))
+            return numpy.copy(numpy.squeeze(self._format_function(data)))
 
-    def read_raw(self, item: Union[slice, Tuple[slice, ...]]) -> numpy.ndarray:
+    def read_raw(self, subscript: Union[slice, Tuple[slice, ...]]) -> numpy.ndarray:
         """
         Read raw data from the source, without reformatting and or applying
         symmetry operations.
 
         Parameters
         ----------
-        item : slice|Tuple[slice, ...]
+        subscript : slice|Tuple[slice, ...]
             These arguments are relative to raw data shape and order, no symmetry
             operations have been applied. These slice arguments are expected to
             be fully defined.
@@ -610,7 +665,7 @@ class SubsetSegmentBase(DataReaderSegmentBase):
         raw_shape = []
         output_shape = []
         original_indices = []
-        for index, entry in enumerate(self._parent._interpret_item(subset_definition)):
+        for index, entry in enumerate(self._parent._interpret_subscript(subset_definition)):
             if entry.step is None or entry.step < 0:
                 raise ValueError(
                     'Entry {} at index {} of subset definition does not have step defined'.format(entry, index))
@@ -633,10 +688,10 @@ class SubsetSegmentBase(DataReaderSegmentBase):
         self._subset_definition = tuple(sub_def)
         self._original_indices = tuple(original_indices)
 
-        raw_item = self._parent._reinterpret_slice_arguments(self._subset_definition)
+        raw_subscript = self._parent._reinterpret_slice_arguments(self._subset_definition)
         for index, siz in enumerate(self._parent.raw_shape):
-            if index < len(raw_item):
-                test_array = numpy.arange(siz)[raw_item[index]]
+            if index < len(raw_subscript):
+                test_array = numpy.arange(siz)[raw_subscript[index]]
                 if test_array.size == 0:
                     raise ValueError('Raw slice at index {} yield empty result'.format(index))
                 elif test_array.size == 1:
@@ -647,17 +702,17 @@ class SubsetSegmentBase(DataReaderSegmentBase):
                 raw_shape.append(siz)
         return tuple(raw_shape), tuple(output_shape)
 
-    def _reinterpret_slice_arguments(self, item: tuple) -> tuple:
+    def _reinterpret_slice_arguments(self, subscript: tuple) -> tuple:
         raise NotImplementedError  # this should never be called
 
-    def _interpret_item(self, item: Union[None, int, tuple, slice]) -> tuple:
-        norm_item = DataReaderSegmentBase._interpret_item(self, item)
+    def _interpret_subscript(self, subscript: Union[None, int, tuple, slice]) -> tuple:
+        norm_subscript = DataReaderSegmentBase._interpret_subscript(self, subscript)
         out = []
         for out_index, slice_def in zip(self._original_indices, self._subset_definition):
             if out_index == -1:
                 out.append(slice_def)
             else:
-                part_def = norm_item[out_index]
+                part_def = norm_subscript[out_index]
                 step = part_def.step*slice_def.step
                 if part_def.stop is None:
                     if part_def.step > 0:
@@ -670,18 +725,18 @@ class SubsetSegmentBase(DataReaderSegmentBase):
                 out.append(slice(start, stop, step))
         return tuple(out)
 
-    def read_raw(self, item: Union[slice, tuple]) -> numpy.ndarray:
+    def read_raw(self, subscript: Union[slice, tuple]) -> numpy.ndarray:
         raise NotImplementedError  # this is not permitted to be called
 
     def _reorient(self,
-                  item: tuple,
-                  raw_item: tuple,
+                  subscript: tuple,
+                  raw_subscript: tuple,
                   data: numpy.ndarray) -> numpy.ndarray:
         raise NotImplementedError  # this should never be called
 
-    def read(self, item: Union[int, tuple, slice, numpy.ndarray]) -> numpy.ndarray:
-        norm_item = self._interpret_item(item)  # this should reformulate into relative to the parent
-        return self._parent.read(norm_item)
+    def read(self, subscript: Union[int, tuple, slice, numpy.ndarray]) -> numpy.ndarray:
+        norm_subscript = self._interpret_subscript(subscript)  # this should reformulate into relative to the parent
+        return self._parent.read(norm_subscript)
 
 
 class RectangularAggregateSegmentBase(DataReaderSegmentBase):
@@ -782,31 +837,33 @@ class RectangularAggregateSegmentBase(DataReaderSegmentBase):
         self._child_arrangement = numpy.array(my_arrangement, dtype='int32')
         return raw_dtype, tuple(raw_shape_init) + terminal_shape
 
-    def _reinterpret_slice_arguments(self, item: Tuple[slice, ...]) -> Tuple[slice, ...]:
-        if self.symmetry[2]:
-            row_slice_in, col_slice_in = item[1], item[0]
-        else:
-            row_slice_in, col_slice_in = item[0], item[1]
-        row_slice = self._reformat_slice(row_slice_in, self.raw_shape[0], self.symmetry[0])
-        col_slice = self._reformat_slice(col_slice_in, self.raw_shape[1], self.symmetry[1])
-        return (row_slice, col_slice) + item[2:]
-
-    def read_raw(self, item: Union[slice, Tuple[slice, ...]]) -> numpy.ndarray:
-        
-        # TODO:
-        #  0.) prepare return array
-        #  1.) pull the slice definition apart according to child_arrangement
-        #  2.) iterate over the children and do child.read()
-        #  3.) return populated output
-
-        raise NotImplementedError
-
     def close(self):
         if not hasattr(self, '_closed') or self._closed or not hasattr(self, '_children'):
             return
         for child in self._children:
             child.close()
-        self._closed = True  # do something useful in extension
+        self._closed = True
+
+    def _reinterpret_slice_arguments(self, subscript: Tuple[slice, ...]) -> Tuple[slice, ...]:
+        if self.symmetry[2]:
+            row_slice_in, col_slice_in = subscript[1], subscript[0]
+        else:
+            row_slice_in, col_slice_in = subscript[0], subscript[1]
+        row_slice = self._reformat_slice(row_slice_in, self.raw_shape[0], self.symmetry[0])
+        col_slice = self._reformat_slice(col_slice_in, self.raw_shape[1], self.symmetry[1])
+        return (row_slice, col_slice) + subscript[2:]
+
+    def read_raw(self, subscript: Union[slice, Tuple[slice, ...]]) -> numpy.ndarray:
+
+        # TODO:
+        #  X - 0.) prepare return array
+        #  1.) pull the slice definition apart according to child_arrangement
+        #  2.) iterate over the children and do child.read()
+        #  3.) return populated output
+
+        subscript, output_shape = result_size(subscript, self.raw_shape)
+        out = numpy.full(output_shape, fill_value=self._missing_data_value)
+
 
 
 #################
