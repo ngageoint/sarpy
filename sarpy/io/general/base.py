@@ -16,6 +16,8 @@ import numpy
 
 from sarpy.compliance import SarpyError
 from sarpy.io.general.utils import validate_range, reverse_range, is_file_like
+from sarpy.io.general.image_format_functions import FormatFunction, \
+    ComplexFormatFunction
 
 logger = logging.getLogger(__name__)
 
@@ -28,43 +30,6 @@ READER_TYPES = ('SICD', 'SIDD', 'CPHD', 'CRSD', 'OTHER')
 
 class SarpyIOError(SarpyError):
     """A custom exception class for discovered input/output errors."""
-
-
-def _complex_format_function(array: numpy.ndarray) -> numpy.ndarray:
-    """
-    Reformats input data, assuming the final dimension is organized into
-    real/imaginary pairs, into complex format. This is the most common observed
-    requirement.
-
-    Parameters
-    ----------
-    array : numpy.ndarray
-
-    Returns
-    -------
-    numpy.ndarray
-    """
-
-    if numpy.iscomplexobj(array):
-        return array
-
-    if array.shape == (2, ):
-        out = numpy.zeros((1, ), dtype='complex64')
-        out.real = array[0]
-        out.imag = array[1]
-        return out
-    elif array.shape[-1] == 2:
-        out = numpy.zeros(array.shape[:-1], dtype='complex64')
-        out.real = array[..., 0]
-        out.imag = array[..., 1]
-        return out
-    elif (array.shape[-1] % 2) == 0:
-        out = numpy.zeros((array.shape[0], array.shape[1], int(array.shape[2] / 2)), dtype='complex64')
-        out.real = array[..., 0::2]
-        out.imag = array[..., 1::2]
-        return out
-    else:
-        raise ValueError('Input array has shape `{}`, it is not clear how to convert to complex'.format(array.shape))
 
 
 ####
@@ -202,26 +167,21 @@ class DataReaderSegmentBase(object):
 
     This is geared somewhat towards images, but is general enough to support
     other usage.
-
-    There is inherent uncertainty of the effect of rearranging and reformatting data
-    via an unrestricted format function. It not generally possible to deconflict
-    the values provided in `raw_shape`, `raw_dtype`, `output_shape`, and
-    `output_dtype`, so it is up to the user and/or extension classes to verify
-    correctness of these values.
     """
 
     __slots__ = (
-        '_raw_dtype', '_raw_shape', '_output_dtype', '_output_shape',
-        '_symmetry', '_format_function', '_relative_index', '_closed')
+        '_closed', '_raw_dtype', '_raw_shape', '_output_dtype', '_output_shape', 
+        '_reverse_axes', '_transpose_axes', '_reverse_transpose_axes', 
+        '_format_function', '_relative_index')
 
     def __init__(self,
                  raw_dtype: Union[str, numpy.dtype],
                  raw_shape: Tuple[int, ...],
                  output_dtype: Union[str, numpy.dtype],
                  output_shape: Tuple[int, ...],
-                 symmetry: Tuple[bool, ...],
-                 format_function: Union[None, str, Callable] = None,
-                 relative_index: Union[None, Tuple[int, ...]] = None):
+                 reverse_axes: Union[None, int, Sequence[int]]=None,
+                 transpose_order: Union[None, Tuple[int, ...]]=None,
+                 format_function: Union[None, str, Callable]=None):
         """
 
         Parameters
@@ -230,7 +190,11 @@ class DataReaderSegmentBase(object):
         raw_shape : Tuple[int, ...]
         output_dtype : str|numpy.dtype
         output_shape : Tuple[int, ...]
-        symmetry : Tuple[bool, ...]
+        reverse : None|int|Sequence[int, ...]
+            The collection of axes (in raw order) to reverse (prior to applying transpose operation)
+        transpose : None|Tuple[int, ...]
+            The transpose operation to perform, after applying any axis reversal, 
+            and before applying any format function
         format_function : None|str|Callable
         relative_index : Tuple[int, ...]
         """
@@ -238,19 +202,28 @@ class DataReaderSegmentBase(object):
         self._closed = False
         self._raw_shape = None
         self._set_raw_shape(raw_shape)
+        
         self._raw_dtype = None
         self._set_raw_dtype(raw_dtype)
+
         self._output_shape = None
         self._set_output_shape(output_shape)
+        
         self._output_dtype = None
         self._set_output_dtype(output_dtype)
-        self._symmetry = None
-        self._set_symmetry(symmetry)
+        
+        self._reverse_axes = None
+        self._set_reverse_axes(reverse_axes)
+
+        self._transpose_axes = None
+        self._reverse_transpose_axes = None
+        self._set_transpose_axes(transpose_axes)
+
         self._format_function = None
         self._set_format_function(format_function)
-        self._relative_index = None
-        self._set_relative_index(relative_index)
 
+        self._validate_shapes()
+        
     @property
     def raw_shape(self) -> Tuple[int, ...]:
         """
@@ -271,6 +244,14 @@ class DataReaderSegmentBase(object):
                 raise ValueError(
                     'raw_shape must be specified by a tuple of positive ints, got `{}`'.format(value))
         self._raw_shape = value
+
+    @property
+    def raw_ndim(self) -> int:
+        """
+        int: The number of raw dimensions.
+        """
+
+        return len(self._raw_shape)
 
     @property
     def raw_dtype(self) -> numpy.dtype:
@@ -332,35 +313,95 @@ class DataReaderSegmentBase(object):
         self._output_dtype = value
 
     @property
-    def symmetry(self) -> Tuple[bool, ...]:
+    def ndim(self) -> int:
         """
-        Tuple[bool, ...]: This describes necessary symmetry transformation to be
-        performed to convert from raw order into the expected order. This is
-        implicitly designed for image based usage , and used to account for
-        regular, observed differences in image orientation.
-
-        For image (two or greater dimensional) output, the entries are of the form
-        `(flip0, flip1, swap_axes)`. Where `flip0` indicates reversing along
-        the first (non-band) axis (in storage/raw order) before any required
-        swapping of axes, `flip1` indicates reversing along the second (non-band)
-        axis (in storage/raw order) before any required swapping of axes,
-        and `swap_axes` indicates swapping the first and second non-band dimensions,
-        while leaving any band dimensions unchanged. It is expected that the
-        band dimension will be re-ordered to be at the end.
+        int: The number of output dimensions.
         """
 
-        return self._symmetry
+        return len(self._output_shape)
 
-    def _set_symmetry(self, value: Union[Tuple[bool, ...]]) -> None:
-        if not isinstance(value, tuple):
-            raise TypeError(
-                'symmetry must be specified by a tuple of booleans, got type `{}`'.format(type(value)))
+    @property
+    def reverse_axes(self) -> Union[None, Tuple[int, ...]]:
+        """
+        None|Tuple[int, ...]: The collection of axes (with respect to raw order) 
+        along which we will reverse as part of transformation to output data order. 
+        If not `None`, then this will be a tuple in strictly increasing order.
+        """
+
+        return self._reverse_axes
+
+    def _set_reverse_axes(self, value: Union[None, int, Tuple[int, ...]]) -> None:
+        if value is None:
+            self._reverse_axes = None
+            return
+        elif isinstance(value, int):
+            value = (value, )
+        else:
+            value = tuple(sorted(list(set(int(entry) for entry in value)))
+
         for entry in value:
-            if not isinstance(entry, int):
-                raise TypeError(
-                    'symmetry must be specified by a tuple of booleans, got `{}`'.format(value))
-        self._symmetry = value
+            if not (0 <= entry < self.raw_ndim):
 
+        self._reverse_axes = value
+
+    @property
+    def transpose_axes(self):
+        """
+        None|Tuple[int, ...]: The transpose order for switching from raw order to 
+        output order, prior to applying any format function. 
+
+        If populated, this must be a permutation of `(0, 1, ..., raw_ndim-1)`.
+        """
+
+        return self._transpose_axes
+
+    def _set_transpose_axes(self, value: Union[None, Tuple[int, ...]]) -> None:
+        if value is None:
+            self._transpose_axes = None
+            return
+        value = tuple([int(entry) for entry in value])
+        if set(value) != set(range(self.raw_ndim)):
+            raise ValueError('transpose_axes must be a permutation of range(raw_ndim), got\n\t{}'.format(value))
+        self._transpose_axes = value
+        self._reverse_transpose_axes = tuple([value.find(i) for i in range(self.raw_ndim)])  
+        # how to invert transpose_axes
+
+    def _validate_shapes(self) -> None:
+        """
+        Do our best at validating the raw_shape and output_shape given `transpose_axes`. 
+        This will always assume that output bands will be in the final coordinate. 
+
+        This is complicated by format_function, so an exception will not generally 
+        be raised. 
+        """ 
+
+        # rearrange based on transpose information 
+        if self.transpose_axes is not None:
+            output_shape_guess = tuple(numpy.array(self.raw_shape, dtype='int64')[
+                numpy.array(self.transpose_axes, dtype='int64')].tolist())
+        else:
+            output_shape_guess = self.raw_shape
+        
+        log_message = False
+        if self.ndim > self.raw_ndim:
+            if self.output_shape[:self.raw_ndim] != output_shape_guess:
+                log_message = True
+        elif self.ndim == self.raw_ndim:
+            if self.output_shape != output_shape_guess:
+                log_message = True
+        else:
+            if self.output_shape != output_shape_guess[:self.ndim]:
+                log_message = True
+        if log_message:
+            msg = 'incompatibility in DataSegmentReader definition with'
+                  '\n\traw_shape `{}`,'
+                  '\n\ttranspose_axes `{}`,'
+                  '\n\toutput_shape `{}`'.format(self.raw_shape, self.transpose_axes, self.output_shape))
+            if self.format_function is None:
+                raise ValueError('There is ' + msg)
+            else:
+                logger.warning('There may be ' + msg)
+    
     def _set_format_function(self, value: Union[None, str, Callable]) -> None:
         if value is None or callable(value):
             self._format_function = value
@@ -373,40 +414,6 @@ class DataReaderSegmentBase(object):
                 raise ValueError('Got unexpected value `{}` for format_function'.format(value))
         else:
             raise ValueError('Got unexpected input for format_function of type `{}`'.format(type(value)))
-
-    @property
-    def relative_index(self) -> Union[None, Tuple[int, ...]]:
-        """None|Tuple[int, ...]: The "starting index" of this data segment, relative to the output
-            coordinate system. This is simply a potential helper for external
-            usage, and not used internally."""
-        return self._relative_index
-
-    def _set_relative_index(self, value: Union[None, Tuple[int, ...]]) -> None:
-        if value is None:
-            self._relative_index = None
-            return
-
-        if not isinstance(value, tuple):
-            raise TypeError(
-                'relative_index must be specified by a tuple of ints, got type `{}`'.format(type(value)))
-        for entry in value:
-            if not isinstance(entry, int):
-                raise TypeError(
-                    'relative_index must be specified by a tuple of ints, got `{}`'.format(value))
-            if entry < 0:
-                raise ValueError(
-                    'relative_index must be specified by a tuple of non-negative ints, got `{}`'.format(value))
-        if len(value) != self.ndim:
-            raise ValueError('relative_index must have the same length as output_shape.')
-        self._relative_index = value
-
-    @property
-    def ndim(self) -> int:
-        """
-        int: The number of dimensions.
-        """
-
-        return len(self._output_shape)
 
     @staticmethod
     def _reformat_slice(sl_in: slice, limit_in: int, reverse: bool) -> slice:
@@ -484,6 +491,10 @@ class DataReaderSegmentBase(object):
         """
         Read the data slice specified relative to the output data coordinates.
 
+        .. warning:: 
+            Attempting to slice on bands that are modified by format_function will 
+            likely fail, and probably not gracefully.
+
         Parameters
         ----------
         subscript : int|slice|tuple
@@ -533,6 +544,11 @@ class DataReaderSegmentBase(object):
         Re-interprets the input slice arguments, which are given relative to output
         order, in raw coordinate order.
 
+        .. warning::
+            The default implementation assumes that if an unknown format_function is 
+            used and it changes the presence/number of bands, then any output bands 
+            will present at the end of the output dimensions.
+
         Parameters
         ----------
         subscript : Tuple[slice, ...]
@@ -541,6 +557,13 @@ class DataReaderSegmentBase(object):
         -------
         subscript_out : Tuple[slice, ...]
         """
+
+        if len(subscript) != self.ndim:
+
+
+        if self.ndim == self.raw_ndim:
+            reordered_slices = []
+
 
         if self.ndim < 2:
             # no reorientation operations performed for a one-dimensional definition
