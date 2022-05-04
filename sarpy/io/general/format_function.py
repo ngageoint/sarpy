@@ -1,5 +1,5 @@
 """
-Standard format functions for use in DataSegmentReader definition. 
+Format functions for use in data segment definition
 """
 
 __classification__ = "UNCLASSIFIED"
@@ -15,8 +15,21 @@ logger = logging.getLogger(__name__)
 
 
 def _reformat_slice(sl_in: slice, limit_in: int, reverse: bool) -> slice:
-    # NB: it is expected that sl_in.step is not None from prior processing
-    #   sl_in.start and sl_in.stop will be non-negative, if populated
+    """
+    Reformat the slice in the event that it needs to be reversed.
+
+    Parameters
+    ----------
+    sl_in : slice
+        From prior processing, it is expected that sl_in.step is populated,
+        and sl_in.start and sl_in.stop will be non-negative, if populated
+    limit_in : int
+    reverse : bool
+
+    Returns
+    -------
+    slice
+    """
 
     if sl_in.step is None:
         raise ValueError('input slice has unpopulated step value')
@@ -221,7 +234,7 @@ class FormatFunction(object):
             array = numpy.transpose(array, axes=self.transpose_axes)
         return array
 
-    def __call__(self, array: numpy.ndarray) -> numpy.ndarray:
+    def __call__(self, array: numpy.ndarray, squeeze=True) -> numpy.ndarray:
         """
         Performs the reformatting operation. The output data will have
         dimensions of size 1 squeezed by this operation, it should not generally
@@ -231,6 +244,8 @@ class FormatFunction(object):
         ----------
         array : numpy.ndarray
             The input raw array.
+        squeeze : bool
+            Apply numpy.squeeze operation, which eliminates dimensions of size 1?
 
         Returns
         -------
@@ -240,7 +255,10 @@ class FormatFunction(object):
 
         array = self._reverse_and_transpose(array)
         array = self._functional_step(array)
-        return numpy.squeeze(array)
+        if squeeze:
+            return numpy.squeeze(array)
+        else:
+            return array
 
     def validate_shapes(self) -> None:
         """
@@ -555,6 +573,8 @@ class MagnitudePhaseFormatFunction(ComplexFormatFunction):
             raise ValueError(
                 'Requires {} dimensional input with even size along dimension {}'.format(
                     self.input_ndim, self.band_dimension))
+        if data.dtype.name not in ['uint8', 'uint16', 'uint32', 'float32', 'float64']:
+            raise ValueError('Expected an input aray of type uint8, uint16, uint32, float32, or float64')
 
         band_dim_size = data.shape[self.band_dimension]
         out_shape = numpy.array(data.shape, dtype='int64')
@@ -567,6 +587,11 @@ class MagnitudePhaseFormatFunction(ComplexFormatFunction):
         else:
             mag = data.take(indices=range(0, band_dim_size, 2), axis=self.band_dimension)
             theta = data.take(indices=range(1, band_dim_size, 2), axis=self.band_dimension)
+
+        if data.dtype.name in ['uint8', 'uint16', 'uint32']:
+            bit_depth = data.dtype.itemsize*8
+            theta = theta*(2*numpy.pi/(1 << bit_depth))
+
         out.real = mag*numpy.cos(theta)
         out.imag = mag*numpy.sin(theta)
         return out
