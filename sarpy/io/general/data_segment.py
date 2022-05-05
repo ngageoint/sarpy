@@ -7,7 +7,7 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 import logging
-from typing import Union, Tuple, Sequence, Callable
+from typing import Union, Tuple, Sequence, Callable, BinaryIO
 
 import numpy
 
@@ -627,6 +627,12 @@ class ReorientationSegment(DataSegmentBase):
     def read_raw(self, subscript: Union[slice, Tuple[slice, ...]], squeeze=True) -> numpy.ndarray:
         return self.parent.read(subscript, squeeze=squeeze)
 
+    def close(self):
+        if not (getattr(self, 'close_parent', True) is False):
+            if hasattr(self.parent, 'close'):
+                self.parent.close()
+        DataSegmentBase.close(self)
+
 
 class SubsetSegment(DataSegmentBase):
     """
@@ -1062,6 +1068,145 @@ class BlockAggregateSegment(DataSegmentBase):
                         entry.close()
         DataSegmentBase.close(self)
 
-####
-# Concrete file based implementations
 
+####
+# Concrete reading implementations
+
+class NumpyArraySegment(DataSegmentBase):
+    """
+    DataSegment based on reading from a numpy.ndarray
+    """
+
+    __slots__ = ('_underlying_array', )
+
+    def __init__(self,
+                 underlying_array : numpy.ndarray,
+                 output_dtype: Union[str, numpy.dtype],
+                 output_shape: Tuple[int, ...],
+                 reverse_axes: Union[None, int, Sequence[int]]=None,
+                 transpose_axes: Union[None, Tuple[int, ...]]=None,
+                 format_function: Union[None, str, Callable]=None):
+        """
+
+        Parameters
+        ----------
+        underlying_array : numpy.ndarray
+        output_dtype : str|numpy.dtype
+        output_shape : Tuple[int, ...]
+        reverse_axes : None|int|Sequence[int, ...]
+            The collection of axes (in raw order) to reverse, prior to applying
+            transpose operation
+        transpose_axes : None|Tuple[int, ...]
+            The transpose operation to perform to the raw data, after applying
+            any axis reversal, and before applying any format function
+        format_function : None|FormatFunction
+        """
+
+        if not isinstance(underlying_array, numpy.ndarray):
+            raise TypeError(
+                'underlying array must be a numpy.ndarray, got type `{}`'.format(
+                    type(underlying_array)))
+        self._underlying_array = underlying_array
+        DataSegmentBase.__init__(self, underlying_array.dtype, underlying_array.shape,
+                                 output_dtype, output_shape,
+                                 reverse_axes=reverse_axes, transpose_axes=transpose_axes, format_function=format_function)
+
+    @property
+    def underlying_array(self) -> numpy.ndarray:
+        """
+        The underlying data array.
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
+        return self._underlying_array
+
+    def read_raw(self, subscript: Union[slice, Tuple[slice, ...]], squeeze=True) -> numpy.ndarray:
+        subscript, out_shape = result_size(subscript, self.raw_shape)
+        out = self._underlying_array[subscript]  # squeezed by default
+
+        if squeeze:
+            return out
+        else:
+            return numpy.reshape(out, out_shape)
+
+    def close(self):
+        self._underlying_array = None
+        DataSegmentBase.close(self)
+
+
+class NumpyMemmapSegment(NumpyArraySegment):
+    """
+    DataSegment based on establishing a numpy memmap, and using that as the
+    underlying array.
+    """
+
+    __slots__ = (
+        '_file_object', '_close_file')
+
+    def __init__(self,
+                 file_object: Union[str, BinaryIO],
+                 data_offset: int,
+                 raw_dtype: Union[str, numpy.dtype],
+                 raw_shape: Tuple[int, ...],
+                 output_dtype: Union[str, numpy.dtype],
+                 output_shape: Tuple[int, ...],
+                 reverse_axes: Union[None, int, Sequence[int]]=None,
+                 transpose_axes: Union[None, Tuple[int, ...]]=None,
+                 format_function: Union[None, str, Callable]=None,
+                 close_file: bool=False):
+        """
+
+        Parameters
+        ----------
+        file_object : str|BinaryIO
+        data_offset : int
+        raw_dtype : str|numpy.dtype
+        raw_shape : Tuple[int, ...]
+        output_dtype : str|numpy.dtype
+        output_shape : Tuple[int, ...]
+        reverse_axes : None|int|Sequence[int, ...]
+            The collection of axes (in raw order) to reverse, prior to applying
+            transpose operation
+        transpose_axes : None|Tuple[int, ...]
+            The transpose operation to perform to the raw data, after applying
+            any axis reversal, and before applying any format function
+        format_function : None|FormatFunction
+        close_file : bool
+        """
+
+        self._close_file = None
+        self.close_file = close_file
+
+        memory_map = numpy.memmap(file_object,
+                                  dtype=raw_dtype,
+                                  mode='r',
+                                  offset=data_offset,
+                                  shape=raw_shape)
+
+        NumpyArraySegment.__init__(self,
+                                   memory_map, output_dtype, output_shape,
+                                   reverse_axes=reverse_axes, transpose_axes=transpose_axes,
+                                   format_function=format_function)
+
+    @property
+    def close_file(self) -> bool:
+        """
+        bool: Close the file object when complete?
+        """
+
+        return self._close_file
+
+    @close_file.setter
+    def close_file(self, value):
+        self._close_file = bool(value)
+
+    def close(self):
+        NumpyArraySegment.close(self)
+        if self._close_file:
+            if self._file_object is not None and \
+                    hasattr(self._file_object, 'closed') and \
+                    not self._file_object.closed:
+                self._file_object.close()
