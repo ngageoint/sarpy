@@ -136,14 +136,8 @@ class TxFrequencyType(Serializable, Arrayable):
         str
         """
 
-        min_band = get_band_name(self.Min)
-        max_band = get_band_name(self.Max)
-        if min_band == max_band:
-            return min_band + '_'*(3-len(min_band))
-        elif min_band == 'UN' or max_band == 'UN':
-            return 'UN_'
-        else:
-            return 'MB_'
+        band_name = get_band_name(self.center_frequency)
+        return band_name + '_'*(3 - len(band_name))
 
     def get_array(self, dtype=numpy.float64):
         """
