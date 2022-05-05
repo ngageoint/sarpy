@@ -4,6 +4,11 @@ SarPy follows a continuous release process, so there are lots of releases. Since
 essentially every commit corresponds to a release, specific release points are 
 not being annotated in github.
 
+## [1.2.70] - 2022-05-05
+### Changed
+Helper functions for determine radar band name have been changed to return the 
+band name of the center frequency versus an aggregate of the band name of the 
+maximum and minimum frequencies.
 
 ## [1.2.69] - 2022-04-18
 ### Added
