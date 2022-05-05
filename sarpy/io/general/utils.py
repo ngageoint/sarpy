@@ -8,9 +8,17 @@ __author__ = "Thomas McCullough"
 
 from typing import Union, Tuple
 import hashlib
+import os
+import warnings
 
 import numpy
 
+try:
+    import h5py
+except ImportError:
+    h5py = None
+
+# TODO: are validate_range, reverse_range still necessary here?
 
 def validate_range(arg, siz):
     # type: (Union[None, int, Tuple[int, int], Tuple[int, int, int]], int) -> tuple
@@ -92,6 +100,135 @@ def reverse_range(arg, siz):
     start, stop, step = validate_range(arg, siz)
     # read backwards
     return (siz - 1) - start, (siz - 1) - stop, -step
+
+
+###########
+
+def verify_slice(item: Union[None, int, slice, Tuple[int, ...]], max_element: int) -> slice:
+    """
+    Verify a given slice against a bound.
+
+    Parameters
+    ----------
+    item : None|int|slice|Tuple[int, ...]
+    max_element : int
+
+    Returns
+    -------
+    slice
+        This will certainly have `start` and `step` populated, and will have `stop`
+        populated unless `step < 0` and `stop` must be `None`.
+    """
+
+    def check_bound(entry: Union[None, int]) -> Union[None, int]:
+        if entry is None:
+            return entry
+        elif -max_element <= entry < 0:
+            entry += max_element
+            return entry
+        elif 0 <= entry <= max_element:
+            return entry
+        else:
+            raise ValueError('Got out of bounds argument ({}) in slice limited by `{}`'.format(entry, max_element))
+
+    if not isinstance(max_element, int) or max_element < 1:
+        raise ValueError('slice verification requires a positive integer limit')
+
+    if isinstance(item, tuple):
+        item = slice(*item)
+
+    if item is None:
+        return slice(0, None, 1)
+    elif isinstance(item, int):
+        item = check_bound(item)
+        return slice(item, item+1, 1)
+    elif isinstance(item, slice):
+        start = check_bound(item.start)
+        stop = check_bound(item.stop)
+        step = 1 if item.step is None else item.step
+        if step > 0:
+            if start is None:
+                start = 0
+            if stop is None:
+                stop = max_element
+        if step < 0:
+            if start is None:
+                start = max_element - 1
+        if start is not None and stop is not None:
+            if numpy.sign(stop - start) != numpy.sign(step):
+                raise ValueError('slice {} is not well formed'.format(item))
+        return slice(start, stop, step)
+    else:
+        raise ValueError('Got unexpected argument of type {} in slice'.format(type(item)))
+
+
+def verify_subscript(
+        subscript: Union[None, int, slice, Tuple[slice, ...]],
+        corresponding_shape: Tuple[int, ...]) -> Tuple[slice, ...]:
+    """
+    Verify a subscript like item against a corresponding shape.
+
+    Parameters
+    ----------
+    subscript : None|int|slice|Tuple[slice, ...]
+    corresponding_shape : Tuple[int, ...]
+
+    Returns
+    -------
+    Tuple[slice, ...]
+    """
+
+    ndim = len(corresponding_shape)
+
+    # TODO: handle Ellipsis...
+
+    if subscript is None:
+        return tuple([slice(0, corresponding_shape[i], 1) for i in range(ndim)])
+    elif isinstance(subscript, int):
+        out = [verify_slice(slice(subscript, subscript + 1, 1), corresponding_shape[0]), ]
+        out.extend([slice(0, corresponding_shape[i], 1) for i in range(1, ndim)])
+        return tuple(out)
+    elif isinstance(subscript, slice):
+        out = [verify_slice(subscript, corresponding_shape[0]), ]
+        out.extend([slice(0, corresponding_shape[i], 1) for i in range(1, ndim)])
+        return tuple(out)
+    elif isinstance(subscript, tuple):
+        if len(subscript) > ndim:
+            raise ValueError('More subscript entries ({}) than shape dimensions ({}).'.format(len(subscript), ndim))
+        out = [verify_slice(item_i, corresponding_shape[i]) for i, item_i in enumerate(subscript)]
+        if len(out) < ndim:
+            out.extend([slice(0, corresponding_shape[i], 1) for i in range(len(out), ndim)])
+        return tuple(out)
+
+
+def result_size(
+        subscript: Union[None, int, slice, Tuple[slice, ...]],
+        corresponding_shape: Tuple[int, ...]) -> (Tuple[slice, ...], Tuple[int, ...]):
+    """
+    Validate the given subscript against the corresponding shape, and also determine
+    the shape of the resultant data reading result.
+
+    Parameters
+    ----------
+    subscript : None|int|slice|Tuple[slice, ...]
+    corresponding_shape : Tuple[int, ...]
+
+    Returns
+    -------
+    valid_subscript : Tuple[slice, ...]
+    output_shape : Tuple[int, ...]
+    """
+
+    def out_size(sl_in):
+        if sl_in.stop is None:
+            return int(sl_in.start/abs(sl_in.step))
+        else:
+            return int((sl_in.stop - sl_in.start )/sl_in.step)
+
+    subscript = verify_subscript(subscript, corresponding_shape)
+    the_shape = tuple([out_size(sl) for sl in subscript])
+    return subscript, the_shape
+
 
 
 def parse_timestring(str_in, precision='us'):
@@ -181,3 +318,37 @@ def calculate_md5(the_path, chunk_size=1024*1024):
         for chunk in iter(lambda: fi.read(chunk_size), b''):
             md5_hash.update(chunk)
     return md5_hash.hexdigest()
+
+
+def is_hdf5(file_name):
+    """
+    Test whether the given input is a hdf5 file.
+
+    Parameters
+    ----------
+    file_name : str|BinaryIO
+
+    Returns
+    -------
+    bool
+    """
+
+    if is_file_like(file_name):
+        current_location = file_name.tell()
+        file_name.seek(0, os.SEEK_SET)
+        header = file_name.read(4)
+        file_name.seek(current_location, os.SEEK_SET)
+    elif isinstance(file_name, str):
+        if not os.path.isfile(file_name):
+            return False
+
+        with open(file_name, 'rb') as fi:
+            header = fi.read(4)
+    else:
+        return False
+
+    out = (header == b'\x89HDF')
+    if out and h5py is None:
+        warnings.warn('The h5py library was not successfully imported, and no hdf5 files can be read')
+    return out
+

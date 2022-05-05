@@ -12,136 +12,14 @@ from typing import Union, Tuple, Sequence, Callable, BinaryIO
 import numpy
 
 from sarpy.io.general.format_function import FormatFunction, IdentityFunction
+from sarpy.io.general.utils import h5py, verify_subscript, \
+    result_size
 
 logger = logging.getLogger(__name__)
 
 
 ####
-# slice helper functions
-
-def verify_slice(item: Union[None, int, slice, Tuple[int, ...]], max_element: int) -> slice:
-    """
-    Verify a given slice against a bound.
-
-    Parameters
-    ----------
-    item : None|int|slice|Tuple[int, ...]
-    max_element : int
-
-    Returns
-    -------
-    slice
-        This will certainly have `start` and `step` populated, and will have `stop`
-        populated unless `step < 0` and `stop` must be `None`.
-    """
-
-    def check_bound(entry: Union[None, int]) -> Union[None, int]:
-        if entry is None:
-            return entry
-        elif -max_element <= entry < 0:
-            entry += max_element
-            return entry
-        elif 0 <= entry <= max_element:
-            return entry
-        else:
-            raise ValueError('Got out of bounds argument ({}) in slice limited by `{}`'.format(entry, max_element))
-
-    if not isinstance(max_element, int) or max_element < 1:
-        raise ValueError('slice verification requires a positive integer limit')
-
-    if isinstance(item, tuple):
-        item = slice(*item)
-
-    if item is None:
-        return slice(0, None, 1)
-    elif isinstance(item, int):
-        item = check_bound(item)
-        return slice(item, item+1, 1)
-    elif isinstance(item, slice):
-        start = check_bound(item.start)
-        stop = check_bound(item.stop)
-        step = 1 if item.step is None else item.step
-        if step > 0:
-            if start is None:
-                start = 0
-            if stop is None:
-                stop = max_element
-        if step < 0:
-            if start is None:
-                start = max_element - 1
-        if start is not None and stop is not None:
-            if numpy.sign(stop - start) != numpy.sign(step):
-                raise ValueError('slice {} is not well formed'.format(item))
-        return slice(start, stop, step)
-    else:
-        raise ValueError('Got unexpected argument of type {} in slice'.format(type(item)))
-
-
-def verify_subscript(
-        subscript: Union[None, int, slice, Tuple[slice, ...]],
-        corresponding_shape: Tuple[int, ...]) -> Tuple[slice, ...]:
-    """
-    Verify a subscript like item against a corresponding shape.
-
-    Parameters
-    ----------
-    subscript : None|int|slice|Tuple[slice, ...]
-    corresponding_shape : Tuple[int, ...]
-
-    Returns
-    -------
-    Tuple[slice, ...]
-    """
-
-    ndim = len(corresponding_shape)
-
-    if subscript is None:
-        return tuple([slice(0, corresponding_shape[i], 1) for i in range(ndim)])
-    elif isinstance(subscript, int):
-        out = [verify_slice(slice(subscript, subscript + 1, 1), corresponding_shape[0]), ]
-        out.extend([slice(0, corresponding_shape[i], 1) for i in range(1, ndim)])
-        return tuple(out)
-    elif isinstance(subscript, slice):
-        out = [verify_slice(subscript, corresponding_shape[0]), ]
-        out.extend([slice(0, corresponding_shape[i], 1) for i in range(1, ndim)])
-        return tuple(out)
-    elif isinstance(subscript, tuple):
-        if len(subscript) > ndim:
-            raise ValueError('More subscript entries ({}) than shape dimensions ({}).'.format(len(subscript), ndim))
-        out = [verify_slice(item_i, corresponding_shape[i]) for i, item_i in enumerate(subscript)]
-        if len(out) < ndim:
-            out.extend([slice(0, corresponding_shape[i], 1) for i in range(len(out), ndim)])
-        return tuple(out)
-
-
-def result_size(
-        subscript: Union[None, int, slice, Tuple[slice, ...]],
-        corresponding_shape: Tuple[int, ...]) -> (Tuple[slice, ...], Tuple[int, ...]):
-    """
-    Validate the given subscript against the corresponding shape, and also determine
-    the shape of the resultant data reading result.
-
-    Parameters
-    ----------
-    subscript : None|int|slice|Tuple[slice, ...]
-    corresponding_shape : Tuple[int, ...]
-
-    Returns
-    -------
-    valid_subscript : Tuple[slice, ...]
-    output_shape : Tuple[int, ...]
-    """
-
-    def out_size(sl_in):
-        if sl_in.stop is None:
-            return int(sl_in.start/abs(sl_in.step))
-        else:
-            return int((sl_in.stop - sl_in.start )/sl_in.step)
-
-    subscript = verify_subscript(subscript, corresponding_shape)
-    the_shape = tuple([out_size(sl) for sl in subscript])
-    return subscript, the_shape
-
+# helper functions
 
 def _find_overlap(slice_in: slice, start_ind: int, stop_ind: int):
     """
@@ -1210,3 +1088,134 @@ class NumpyMemmapSegment(NumpyArraySegment):
                     hasattr(self._file_object, 'closed') and \
                     not self._file_object.closed:
                 self._file_object.close()
+
+
+class HDF5Segment(DataSegmentBase):
+    """
+    DataSegment based on reading from an hdf5 file, using the h5py library
+    """
+
+    __slots__ = (
+        '_file_object', '_data_set', '_close_file')
+
+    def __init__(self,
+                 file_object: Union[str, h5py.File],
+                 data_set: Union[str, h5py.Dataset],
+                 output_dtype: Union[str, numpy.dtype],
+                 output_shape: Tuple[int, ...],
+                 reverse_axes: Union[None, int, Sequence[int]]=None,
+                 transpose_axes: Union[None, Tuple[int, ...]]=None,
+                 format_function: Union[None, str, Callable]=None,
+                 close_file: bool=False):
+        """
+
+        Parameters
+        ----------
+        file_object : str|h5py.File
+        data_set : str|h5py.Dataset
+        output_dtype : str|numpy.dtype
+        output_shape : Tuple[int, ...]
+        reverse_axes : None|int|Sequence[int, ...]
+            The collection of axes (in raw order) to reverse, prior to applying
+            transpose operation
+        transpose_axes : None|Tuple[int, ...]
+            The transpose operation to perform to the raw data, after applying
+            any axis reversal, and before applying any format function
+        format_function : None|FormatFunction
+        close_file : bool
+        """
+
+        self._close_file = None
+        self._file_object = None
+        self._data_set = None
+
+        if h5py is None:
+            raise ValueError(
+                'h5py was not successfully imported, and no hdf5 file can be read')
+
+        self._set_file_object(file_object)
+        self._set_data_set(data_set)
+
+        self.close_file = close_file
+
+        DataSegmentBase.__init__(self, self.data_set.dtype, self.data_set.shape,
+                                 output_dtype, output_shape,
+                                 reverse_axes=reverse_axes, transpose_axes=transpose_axes,
+                                 format_function=format_function)
+
+    @property
+    def close_file(self) -> bool:
+        """
+        bool: Close the file object when complete?
+        """
+
+        return self._close_file
+
+    @close_file.setter
+    def close_file(self, value):
+        self._close_file = bool(value)
+
+    @property
+    def file_object(self) -> h5py.File:
+        return self._file_object
+
+    def _set_file_object(self, value):
+        if isinstance(value, str):
+            value = h5py.File(value, mode='r')
+        if not isinstance(value, h5py.File):
+            raise ValueError('Requires a path to a hdf5 file or h5py.File object')
+        self._file_object = value
+
+    @property
+    def data_set(self) -> h5py.Dataset:
+        return self._data_set
+
+    def _set_data_set(self, value):
+        if isinstance(value, str):
+            value = self.file_object[value]
+        if not isinstance(value, h5py.Dataset):
+            raise ValueError('Requires a dataset path or h5py.Dataset object')
+        self._data_set = value
+
+    def close(self):
+        self._data_set = None
+        if self._close_file:
+            if hasattr(self.file_object, 'close'):
+                self.file_object.close()
+        self._file_object = None
+        DataSegmentBase.close(self)
+
+    def read_raw(self, subscript: Union[slice, Tuple[slice, ...]], squeeze=True) -> numpy.ndarray:
+        subscript, out_shape = result_size(subscript, self.raw_shape)
+
+        def reverse_slice(slice_in: slice) -> slice:
+            if slice_in.step > 0:
+                return slice_in
+            stop = 0 if slice_in.stop is None else slice_in.stop + 1
+            mult = int(numpy.floor((stop - slice_in.start)/slice_in.step))
+            final_entry = slice_in.start + mult*slice_in.step
+            return slice(final_entry, slice_in.start-slice_in.step, -slice_in.step)
+
+        # NB: h5py does not support slicing with a negative step (right now)
+        #   we need to read the identical elements in positive order,
+        #   then reverse. Note that this is not the same as using the mirror
+        #   image slice, which is used in the reverse_axes operations.
+
+        reverse = []
+        use_subscript = []
+        for index, (the_size, entry) in enumerate(zip(self.raw_shape, subscript)):
+            if entry.step < 0:
+                use_subscript.append(reverse_slice(entry))
+                reverse.append(index)
+            else:
+                use_subscript.append(entry)
+        use_subscript = tuple(use_subscript)
+
+        out = numpy.reshape(self.data_set[use_subscript], out_shape)
+        for index in reverse:
+            out = numpy.flip(out, axis=index)
+
+        if squeeze:
+            return numpy.squeeze(out)
+        else:
+            return out

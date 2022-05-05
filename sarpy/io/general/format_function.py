@@ -7,16 +7,21 @@ __author__ = "Thomas McCullough"
 
 
 import logging
+from typing import Union, Tuple
+
 import numpy
 
-from typing import Union, Tuple
 
 logger = logging.getLogger(__name__)
 
 
-def _reformat_slice(sl_in: slice, limit_in: int, reverse: bool) -> slice:
+def reformat_slice(sl_in: slice, limit_in: int, mirror: bool) -> slice:
     """
-    Reformat the slice in the event that it needs to be reversed.
+    Reformat the slice, with optional reverse operation.
+
+    Note that the reverse operation doesn't merely run the slice backwards
+    across the same elements, but rather creates a mirror image of the slice.
+    Depending on the slice definition,
 
     Parameters
     ----------
@@ -24,7 +29,8 @@ def _reformat_slice(sl_in: slice, limit_in: int, reverse: bool) -> slice:
         From prior processing, it is expected that sl_in.step is populated,
         and sl_in.start and sl_in.stop will be non-negative, if populated
     limit_in : int
-    reverse : bool
+    mirror : bool
+        Create the mirror image slice?
 
     Returns
     -------
@@ -38,7 +44,7 @@ def _reformat_slice(sl_in: slice, limit_in: int, reverse: bool) -> slice:
     if sl_in.stop is not None and sl_in.stop < 0:
         raise ValueError('input slice has negative stop value')
 
-    if reverse:
+    if mirror:
         # reverse the indexing/ordering of the slice, and ensure that the
         # step gets handled properly
         if sl_in.step > 0:
@@ -353,7 +359,7 @@ class IdentityFunction(FormatFunction):
             rev = (i in reverse_axes)
             sl_in = subscript[index]
             lim = self.output_shape[index]  # also self.input_shape[i]
-            out.append(_reformat_slice(sl_in, lim, rev))
+            out.append(reformat_slice(sl_in, lim, rev))
         return tuple(out)
 
     def _functional_step(self, data: numpy.ndarray) -> numpy.ndarray:
@@ -502,7 +508,7 @@ class ComplexFormatFunction(FormatFunction):
             rev = (i in reverse_axes)
             sl_in = use_subscript[index]
             lim = self.input_shape[i]
-            sl_out = _reformat_slice(sl_in, lim, rev)
+            sl_out = reformat_slice(sl_in, lim, rev)
             out.append(sl_out)
 
         return tuple(out)
@@ -678,7 +684,7 @@ class SingleLUTFormatFunction(FormatFunction):
             rev = (i in reverse_axes)
             sl_in = subscript[index]
             lim = self.output_shape[index]  # also self.input_shape[i]
-            out.append(_reformat_slice(sl_in, lim, rev))
+            out.append(reformat_slice(sl_in, lim, rev))
         return tuple(out)
 
     def _functional_step(self, array: numpy.ndarray) -> numpy.ndarray:

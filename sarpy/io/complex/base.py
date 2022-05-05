@@ -289,7 +289,7 @@ class H5Chipper(BaseChipper):
 
 def is_hdf5(file_name):
     """
-    Test whether the given input file is an hdf5 file.
+    Test whether the given input is a hdf5 file.
 
     Parameters
     ----------
