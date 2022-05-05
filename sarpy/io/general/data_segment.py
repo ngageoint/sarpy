@@ -7,12 +7,13 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 import logging
+import os
 from typing import Union, Tuple, Sequence, Callable, BinaryIO
 
 import numpy
 
 from sarpy.io.general.format_function import FormatFunction, IdentityFunction
-from sarpy.io.general.utils import h5py, verify_subscript, \
+from sarpy.io.general.utils import h5py, is_file_like, verify_subscript, \
     result_size
 
 logger = logging.getLogger(__name__)
@@ -74,6 +75,32 @@ def _find_overlap(slice_in: slice, start_ind: int, stop_ind: int):
         if parent_stop < 0:
             parent_stop = None
         return slice(parent_start, parent_stop, slice_in.step), slice(child_start, child_stop, 1)
+
+
+def _reverse_slice(slice_in: slice) -> slice:
+    """
+    Given a slice with negative step, this returns a slice which will define the
+    same elements traversed in the opposite direction.
+
+    Parameters
+    ----------
+    slice_in : slice
+
+    Returns
+    -------
+    slice
+
+    Raises
+    ------
+    ValueError
+    """
+
+    if slice_in.step > 0:
+        raise ValueError('This is only applicable to slices with negative step value')
+    stop = 0 if slice_in.stop is None else slice_in.stop + 1
+    mult = int(numpy.floor((stop - slice_in.start)/slice_in.step))
+    final_entry = slice_in.start + mult*slice_in.step
+    return slice(final_entry, slice_in.start-slice_in.step, -slice_in.step)
 
 
 #####
@@ -1188,14 +1215,6 @@ class HDF5Segment(DataSegmentBase):
     def read_raw(self, subscript: Union[slice, Tuple[slice, ...]], squeeze=True) -> numpy.ndarray:
         subscript, out_shape = result_size(subscript, self.raw_shape)
 
-        def reverse_slice(slice_in: slice) -> slice:
-            if slice_in.step > 0:
-                return slice_in
-            stop = 0 if slice_in.stop is None else slice_in.stop + 1
-            mult = int(numpy.floor((stop - slice_in.start)/slice_in.step))
-            final_entry = slice_in.start + mult*slice_in.step
-            return slice(final_entry, slice_in.start-slice_in.step, -slice_in.step)
-
         # NB: h5py does not support slicing with a negative step (right now)
         #   we need to read the identical elements in positive order,
         #   then reverse. Note that this is not the same as using the mirror
@@ -1205,7 +1224,7 @@ class HDF5Segment(DataSegmentBase):
         use_subscript = []
         for index, (the_size, entry) in enumerate(zip(self.raw_shape, subscript)):
             if entry.step < 0:
-                use_subscript.append(reverse_slice(entry))
+                use_subscript.append(_reverse_slice(entry))
                 reverse.append(index)
             else:
                 use_subscript.append(entry)
@@ -1219,3 +1238,139 @@ class HDF5Segment(DataSegmentBase):
             return numpy.squeeze(out)
         else:
             return out
+
+
+class FileReadDataSegment(DataSegmentBase):
+    """
+    Read a data array manually from a file - this is really only for cloud usage.
+    """
+
+    __slots__ = (
+        '_file_object', '_data_offset', '_close_file')
+
+    def __init__(self,
+                 file_object: BinaryIO,
+                 data_offset : int,
+                 raw_dtype: Union[str, numpy.dtype],
+                 raw_shape: Tuple[int, ...],
+                 output_dtype: Union[str, numpy.dtype],
+                 output_shape: Tuple[int, ...],
+                 reverse_axes: Union[None, int, Sequence[int]]=None,
+                 transpose_axes: Union[None, Tuple[int, ...]]=None,
+                 format_function: Union[None, str, Callable]=None,
+                 close_file: bool=False):
+        """
+
+        Parameters
+        ----------
+        file_object : BinaryIO
+        data_offset : int
+        raw_dtype : str|numpy.dtype
+        raw_shape : Tuple[int, ...]
+        output_dtype : str|numpy.dtype
+        output_shape : Tuple[int, ...]
+        reverse_axes : None|int|Sequence[int, ...]
+            The collection of axes (in raw order) to reverse, prior to applying
+            transpose operation
+        transpose_axes : None|Tuple[int, ...]
+            The transpose operation to perform to the raw data, after applying
+            any axis reversal, and before applying any format function
+        format_function : None|FormatFunction
+        close_file : bool
+        """
+
+        self._file_object = None
+        self._data_offset = None
+        self._close_file = None
+        self.close_file = close_file
+        self._set_data_offset(data_offset)
+        self._set_file_object(file_object)
+        DataSegmentBase.__init__(self, raw_dtype, raw_shape,
+                                 output_dtype, output_shape,
+                                 reverse_axes=reverse_axes, transpose_axes=transpose_axes,
+                                 format_function=format_function)
+
+    @property
+    def close_file(self) -> bool:
+        """
+        bool: Close the file object when complete?
+        """
+
+        return self._close_file
+
+    @close_file.setter
+    def close_file(self, value):
+        self._close_file = bool(value)
+
+    @property
+    def file_object(self) -> BinaryIO:
+        return self._file_object
+
+    def _set_file_object(self, value):
+        if not is_file_like(value):
+            raise ValueError('Requires a file-like object')
+        self._file_object = value
+
+    @property
+    def data_offset(self) -> int:
+        """
+        int: The offset of the data in bytes from the start of the file-like
+        object.
+        """
+
+        return self._data_offset
+
+    def _set_data_offset(self, value: int) -> None:
+        value = int(value)
+        if value < 0:
+            raise ValueError('data_offset must be non-negative.')
+        self._data_offset = value
+
+    def close(self):
+        if self._close_file:
+            if hasattr(self.file_object, 'close'):
+                self.file_object.close()
+        self._file_object = None
+        DataSegmentBase.close(self)
+
+    def read_raw(self, subscript: Union[slice, Tuple[slice, ...]], squeeze=True) -> numpy.ndarray:
+        subscript, out_shape = result_size(subscript, self.raw_shape)
+
+        init_slice = subscript[0]
+        init_reverse = (init_slice.step < 0)
+        if init_reverse:
+            init_slice = _reverse_slice(init_slice)
+
+        pixel_per_row = 1 if self.ndim == 1 else int(numpy.prod(self.raw_shape[1:]))
+        row_stride = self.raw_dtype.itemsize*pixel_per_row
+
+        start_row = init_slice.start
+        rows = out_shape[0]
+
+        # read the whole contiguous chunk from start_row up to the final row
+        # seek to the proper start location
+        start_loc = self._data_offset + start_row*row_stride
+        self.file_object.seek(start_loc, os.SEEK_SET)
+        total_size = rows*row_stride
+        # read our data
+        data = self.file_object.read(total_size)
+        if len(data) != total_size:
+            raise ValueError(
+                'Tried to read {} bytes of data, but received {}.\n'
+                'The most likely reason for this is a malformed chipper, \n'
+                'which attempts to read more data than the file contains'.format(total_size, len(data)))
+        # define temp array from this data
+        data = numpy.frombuffer(data, self._raw_dtype, rows*pixel_per_row)
+        data = numpy.reshape(data, (rows, ) + self.raw_shape[1:])
+        # extract our data
+        out = data[(init_slice, ) + subscript[1:]]
+        out = numpy.reshape(out, out_shape)
+        if init_reverse:
+            out = numpy.flip(out, axis=0)
+
+        if squeeze:
+            out = numpy.copy(numpy.squeeze(out))
+        else:
+            out = numpy.copy(out)
+        del data
+        return out
