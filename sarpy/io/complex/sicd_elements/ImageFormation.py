@@ -134,12 +134,7 @@ class TxFrequencyProcType(Serializable, Arrayable):
         str
         """
 
-        min_band = get_band_name(self.MinProc)
-        max_band = get_band_name(self.MaxProc)
-        if min_band == max_band:
-            return min_band
-        else:
-            return '{}_{}'.format(min_band, max_band)
+        return get_band_name(self.center_frequency)
 
     def get_array(self, dtype=numpy.float64):
         """
