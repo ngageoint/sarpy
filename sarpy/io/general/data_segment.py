@@ -1,6 +1,5 @@
 """
-The fundamental general objects and methods for reading and presenting data
-from files.
+The general objects and methods for reading and presenting data as arrays.
 """
 
 __classification__ = "UNCLASSIFIED"

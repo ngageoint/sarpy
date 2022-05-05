@@ -138,7 +138,7 @@ def verify_slice(item: Union[None, int, slice, Tuple[int, ...]], max_element: in
         item = slice(*item)
 
     if item is None:
-        return slice(0, None, 1)
+        return slice(0, max_element, 1)
     elif isinstance(item, int):
         item = check_bound(item)
         return slice(item, item+1, 1)
@@ -163,14 +163,14 @@ def verify_slice(item: Union[None, int, slice, Tuple[int, ...]], max_element: in
 
 
 def verify_subscript(
-        subscript: Union[None, int, slice, Tuple[slice, ...]],
+        subscript: Union[None, int, slice, Ellipsis, Tuple[slice, ...]],
         corresponding_shape: Tuple[int, ...]) -> Tuple[slice, ...]:
     """
     Verify a subscript like item against a corresponding shape.
 
     Parameters
     ----------
-    subscript : None|int|slice|Tuple[slice, ...]
+    subscript : None|int|slice|Ellipsis|Tuple[slice, ...]
     corresponding_shape : Tuple[int, ...]
 
     Returns
@@ -180,9 +180,7 @@ def verify_subscript(
 
     ndim = len(corresponding_shape)
 
-    # TODO: handle Ellipsis...
-
-    if subscript is None:
+    if subscript is None or subscript is Ellipsis:
         return tuple([slice(0, corresponding_shape[i], 1) for i in range(ndim)])
     elif isinstance(subscript, int):
         out = [verify_slice(slice(subscript, subscript + 1, 1), corresponding_shape[0]), ]
@@ -193,8 +191,31 @@ def verify_subscript(
         out.extend([slice(0, corresponding_shape[i], 1) for i in range(1, ndim)])
         return tuple(out)
     elif isinstance(subscript, tuple):
+        # check for Ellipsis usage...
+        ellipsis_location = None
+        for index, entry in subscript:
+            if entry is Ellipsis:
+                if ellipsis_location is None:
+                    ellipsis_location = index
+                else:
+                    raise KeyError('slice definition cannot contain more than one ellipsis')
+
+        if ellipsis_location is not None:
+            if len(subscript) > ndim-1:
+                raise ValueError('More subscript entries ({}) than shape dimensions ({}).'.format(len(subscript), ndim))
+
+            if ellipsis_location == len(subscript)-1:
+                subscript = subscript[:ellipsis_location]
+            elif ellipsis_location == 0:
+                init_pad = ndim - len(subscript) + 1
+                subscript = tuple([None, ]*init_pad) + subscript[1:]
+            else:  # ellipsis in the middle
+                middle_pad = ndim - len(subscript) + 1
+                subscript = subscript[:ellipsis_location] + tuple([None, ]*middle_pad) + subscript[ellipsis_location+1:]
+
         if len(subscript) > ndim:
             raise ValueError('More subscript entries ({}) than shape dimensions ({}).'.format(len(subscript), ndim))
+
         out = [verify_slice(item_i, corresponding_shape[i]) for i, item_i in enumerate(subscript)]
         if len(out) < ndim:
             out.extend([slice(0, corresponding_shape[i], 1) for i in range(len(out), ndim)])
@@ -228,7 +249,6 @@ def result_size(
     subscript = verify_subscript(subscript, corresponding_shape)
     the_shape = tuple([out_size(sl) for sl in subscript])
     return subscript, the_shape
-
 
 
 def parse_timestring(str_in, precision='us'):
