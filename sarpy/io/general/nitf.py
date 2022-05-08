@@ -106,6 +106,7 @@ def extract_image_corners(img_header):
     corner_string = img_header.IGEOLO
     corner_strings = [corner_string[start:stop] for start, stop in zip(range(0, 59, 15), range(15, 74, 15))]
     icps = []
+    # TODO: handle ICORDS == 'U', which is MGRS
     if img_header.ICORDS in ['N', 'S']:
         if pyproj is None:
             logger.error('ICORDS is {}, which requires pyproj, which was not successfully imported.')
