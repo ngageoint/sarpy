@@ -222,7 +222,29 @@ def verify_subscript(
         return tuple(out)
 
 
-def result_size(
+def get_slice_result_size(slice_in: slice) -> int:
+    """
+    Gets the size of the slice result. This assumes a normalized slice definition.
+
+    Parameters
+    ----------
+    slice_in : slice
+
+    Returns
+    -------
+    int
+    """
+
+    # NB: this assumes a normalized slice definition
+    if slice_in.step > 0:
+        return int(numpy.floor((slice_in.stop - 1 - slice_in.start) / slice_in.step) + 1)
+    elif slice_in.stop is None:
+        return int(numpy.floor(slice_in.start / abs(slice_in.step)) + 1)
+    else:
+        return int(numpy.floor((slice_in.stop + 1 - slice_in.start) / slice_in.step) + 1)
+
+
+def get_subscript_result_size(
         subscript: Union[None, int, slice, Tuple[slice, ...]],
         corresponding_shape: Tuple[int, ...]) -> (Tuple[slice, ...], Tuple[int, ...]):
     """
@@ -240,14 +262,8 @@ def result_size(
     output_shape : Tuple[int, ...]
     """
 
-    def out_size(sl_in):
-        if sl_in.stop is None:
-            return int(sl_in.start/abs(sl_in.step))
-        else:
-            return int((sl_in.stop - sl_in.start )/sl_in.step)
-
     subscript = verify_subscript(subscript, corresponding_shape)
-    the_shape = tuple([out_size(sl) for sl in subscript])
+    the_shape = tuple([get_slice_result_size(sl) for sl in subscript])
     return subscript, the_shape
 
 
