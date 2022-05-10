@@ -6,7 +6,7 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
-from typing import Union, Tuple
+from typing import Union, Tuple, BinaryIO
 import hashlib
 import os
 import warnings
@@ -108,6 +108,8 @@ def verify_slice(item: Union[None, int, slice, Tuple[int, ...]], max_element: in
     """
     Verify a given slice against a bound.
 
+    New in version 1.3.0.
+
     Parameters
     ----------
     item : None|int|slice|Tuple[int, ...]
@@ -168,6 +170,8 @@ def verify_subscript(
     """
     Verify a subscript like item against a corresponding shape.
 
+    New in version 1.3.0.
+
     Parameters
     ----------
     subscript : None|int|slice|Ellipsis|Tuple[slice, ...]
@@ -226,6 +230,8 @@ def get_slice_result_size(slice_in: slice) -> int:
     """
     Gets the size of the slice result. This assumes a normalized slice definition.
 
+    New in version 1.3.0.
+
     Parameters
     ----------
     slice_in : slice
@@ -251,6 +257,8 @@ def get_subscript_result_size(
     Validate the given subscript against the corresponding shape, and also determine
     the shape of the resultant data reading result.
 
+    New in version 1.3.0.
+
     Parameters
     ----------
     subscript : None|int|slice|Tuple[slice, ...]
@@ -267,13 +275,29 @@ def get_subscript_result_size(
     return subscript, the_shape
 
 
-def parse_timestring(str_in, precision='us'):
+def parse_timestring(str_in: str, precision: str='us') -> numpy.datetime64:
+    """
+    Parse (naively) a timestring to numpy.datetime64 of the given precision.
+
+    Parameters
+    ----------
+    str_in : str
+    precision : str
+        See numpy.datetime64 for precision options.
+
+    Returns
+    -------
+    numpy.datetime64
+    """
+
     if str_in.strip()[-1] == 'Z':
         return numpy.datetime64(str_in[:-1], precision)
     return numpy.datetime64(str_in, precision)
 
 
-def get_seconds(dt1, dt2, precision='us'):
+def get_seconds(dt1: numpy.datetime64,
+                dt2: numpy.datetime64,
+                precision: str='us') -> float:
     """
     The number of seconds between two numpy.datetime64 elements.
 
@@ -282,7 +306,7 @@ def get_seconds(dt1, dt2, precision='us'):
     dt1 : numpy.datetime64
     dt2 : numpy.datetime64
     precision : str
-        one of 's', 'ms', 'us', or 'ns'
+        one of 's', 'ms', 'us', or 'ns'.
 
     Returns
     -------
@@ -307,7 +331,7 @@ def get_seconds(dt1, dt2, precision='us'):
     return float((tdt1.astype('int64') - tdt2.astype('int64'))*scale)
 
 
-def is_file_like(the_input):
+def is_file_like(the_input: BinaryIO) -> bool:
     """
     Verify whether the provided input appear to provide a "file-like object". This
     term is used ubiquitously, but not all usages are identical. In this case, we
@@ -318,7 +342,7 @@ def is_file_like(the_input):
 
     Parameters
     ----------
-    the_input
+    the_input : BinaryIO
 
     Returns
     -------
@@ -332,7 +356,7 @@ def is_file_like(the_input):
     return out
 
 
-def calculate_md5(the_path, chunk_size=1024*1024):
+def calculate_md5(the_path: str, chunk_size: int=1024*1024) -> str:
     """
     Calculate the md5 checksum of a given file defined by a path.
 
@@ -356,7 +380,7 @@ def calculate_md5(the_path, chunk_size=1024*1024):
     return md5_hash.hexdigest()
 
 
-def is_hdf5(file_name):
+def is_hdf5(file_name: Union[str, BinaryIO]) -> bool:
     """
     Test whether the given input is a hdf5 file.
 

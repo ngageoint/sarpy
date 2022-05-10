@@ -19,7 +19,7 @@ Each of these supackages contains an :meth:`open` function (aliased from the
 `converter` module), which should open eligible files of ONLY their given type.
 For example, the :meth:`sarpy.io.complex.open` function will open a SICD or SLC
 products from Cosmo Skymed, RadarSat, Sentinel, etc, but **will not** open a
-SIDD/WBID, general NITF file which isn't analogous to a SICD, CPHD, or CRSD file.
+SIDD/WBID, CPHD, CRSD, or general NITF file which isn't analogous to a SICD.
 
 SICD-Type Readers
 -----------------
@@ -55,7 +55,7 @@ Some basic properties:
   :code:`reader.get_data_size_as_tuple()` function
   (described here :meth:`sarpy.io.general.base.AbstractReader.get_data_size_as_tuple`).
 - The image data can be read using slice notation
-  :code:`data = reader[row_start:row_end:row_step, col_start:col_end:col_step, image_index=0]`.
+  :code:`data = reader[row_start:row_end:row_step, col_start:col_end:col_step, <image_index>]`.
   This data will have be recast or re-interpreted to be 64-bit complex data type,
   regardless of storage type.
 - The SICD structures can be referenced using the :code:`reader.sicd_meta` property
@@ -101,7 +101,7 @@ Some basic properties:
   :code:`reader.get_data_size_as_tuple()` function
   (described here :meth:`sarpy.io.general.base.AbstractReader.get_data_size_as_tuple`).
 - The image data can be read using slice notation
-  :code:`data = reader[row_start:row_end:row_step, col_start:col_end:col_step, image_index=0]`
+  :code:`data = reader[row_start:row_end:row_step, col_start:col_end:col_step, <band_slice>, <image_index>]`
 - The SIDD structures can be referenced as :code:`reader.sidd_meta` property (
   described here :attr:`sarpy.io.product.base.SIDDTypeReader.sidd_meta`).
 - **If the SICD structure from which the product is derived is populated in the product file,**
@@ -147,7 +147,7 @@ Some basic properties:
   :code:`reader.get_data_size_as_tuple()` function
   (described here :meth:`sarpy.io.general.base.AbstractReader.get_data_size_as_tuple`).
 - The phase history (or image) data can be read using slice notation
-  :code:`data = reader[row_start:row_end:row_step, col_start:col_end:col_step, image_index=0]`.
+  :code:`data = reader[row_start:row_end:row_step, col_start:col_end:col_step, <image_index>]`.
   This data will have be recast or re-interpreted to be 64-bit complex data type,
   regardless of storage type.
 - The full Per Vector Parameter (PVP) collection for a given range can be read using
@@ -192,7 +192,7 @@ Some basic properties:
   :code:`reader.get_data_size_as_tuple()` function
   (described here :meth:`sarpy.io.general.base.AbstractReader.get_data_size_as_tuple`).
 - The received signal (or image) data can be read using slice notation
-  :code:`data = reader[row_start:row_end:row_step, col_start:col_end:col_step, image_index=0]`.
+  :code:`data = reader[row_start:row_end:row_step, col_start:col_end:col_step, <image_index>]`.
   This data will have be recast or re-interpreted to be 64-bit complex data type,
   regardless of storage type.
 - The full Per Vector Parameter (PVP) collection for a given range can be read using

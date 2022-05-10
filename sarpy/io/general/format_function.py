@@ -1,5 +1,7 @@
 """
-Format functions for use in data reader and writer implementations
+Stateful functions for use in format operations for data segments.
+
+This module is new in version 1.3.0.
 """
 
 __classification__ = "UNCLASSIFIED"
@@ -23,16 +25,18 @@ def reformat_slice(sl_in: slice, limit_in: int, mirror: bool) -> slice:
     """
     Reformat the slice, with optional reverse operation.
 
-    Note that the reverse operation doesn't merely run the slice backwards
-    across the same elements, but rather creates a mirror image of the slice.
-    Depending on the slice definition,
+    Note that the mirror operation doesn't run the slice backwards across the
+    same elements, but rather creates a mirror image of the slice. This is
+    to properly accommodate the data segment reverse symmetry transform.
 
     Parameters
     ----------
     sl_in : slice
-        From prior processing, it is expected that sl_in.step is populated,
-        and sl_in.start and sl_in.stop will be non-negative, if populated
+        From prior processing, it is expected that `sl_in.step` is populated,
+        and `sl_in.start` is non-negative, and `sl_in.stop` is non-negative or
+        `None` (only in th event that `sl_in.step < 0`.
     limit_in : int
+        The upper limit for the axis to which this slice pertains.
     mirror : bool
         Create the mirror image slice?
 
@@ -110,6 +114,8 @@ class FormatFunction(object):
     to raw data (i.e format in the form inside the file) using
     :code:`raw_data = instance.inverse(formatted_data)`. Note that this requires
     that `formatted_data` has full shape (no squeezed dimensions).
+
+    New in version 1.3.0.
     """
 
     has_inverse=False
@@ -437,6 +443,8 @@ class IdentityFunction(FormatFunction):
     """
     A format function allowing only reversing and transposing operations, the
     actual functional step is simply the identity function.
+
+    New in version 1.3.0.
     """
     has_inverse=True
 
@@ -508,9 +516,12 @@ class ComplexFormatFunction(FormatFunction):
     Reformats data from real/imaginary dimension pairs
     to complex64 output, assuming that the raw data has
     fixed dimensionality and the real/imaginary pairs fall 
-    along a given dimension. 
+    along a given dimension.
+
+    New in version 1.3.0.
     """
     has_inverse=True
+    _allowed_ordering= ('IQ', 'QI', 'MP', 'PM')
 
     __slots__ = ('_band_dimension', '_order', '_raw_dtype')
 
@@ -587,9 +598,11 @@ class ComplexFormatFunction(FormatFunction):
         if not isinstance(value, str):
             raise TypeError('order must be an string')
 
-        value = value.upper()
-        if value not in ['IQ', 'QI', 'MP', 'PM']:
-            raise ValueError('Order is required to be one of `IQ` or `QI`,\n\tgot `{}`'.format(value))
+        value = value.strip().upper()
+        if value not in self._allowed_ordering:
+            raise ValueError(
+                'Order is required to be one of {},\n\t'
+                'got `{}`'.format(self._allowed_ordering, value))
         if self._order is not None:
             if value != self._order:
                 raise ValueError('order is read only once set')
@@ -600,11 +613,13 @@ class ComplexFormatFunction(FormatFunction):
                 raise ValueError(
                     'order is {}, and raw_dtype must be one of '
                     'int8, int16, int32, float32, or float64'.format(value))
-        else:
+        elif value in ['MP', 'PM']:
             if self._raw_dtype.name not in ['uint8', 'uint16', 'uint32', 'float32', 'float64']:
                 raise ValueError(
                     'order is {}, and raw_dtype must be one of '
                     'uint8, uint16, uint32, float32, or float64'.format(value))
+        else:
+            raise ValueError('Got unhandled ordering value `{}`'.format(value))
 
     def validate_shapes(self) -> None:
         self._verify_shapes_set()
@@ -676,10 +691,12 @@ class ComplexFormatFunction(FormatFunction):
                         'is only only permitted using step +/-1')
                 if temp_sl.step > 0:
                     start = 2*temp_sl.start
+                    # noinspection PyTypeChecker
                     stop = 2*temp_sl.stop
                     out.append(slice(start, stop, 1))
                 elif temp_sl.step < 0:
                     start = 2*temp_sl.start
+                    # noinspection PyTypeChecker
                     stop = None if temp_sl.stop is None else 2*temp_sl.stop
                     out.append(slice(start, stop, -1))
             else:
@@ -722,7 +739,7 @@ class ComplexFormatFunction(FormatFunction):
             out_shape = data.shape[:self.band_dimension] + data.shape[self.band_dimension + 1:]
         else:
             out_shape = data.shape[:self.band_dimension] + \
-                        (int(band_dim_size / 2),) + \
+                        (int(band_dim_size/2), ) + \
                         data.shape[self.band_dimension + 1:]
 
         out = numpy.empty(out_shape, dtype='complex64')
@@ -732,21 +749,22 @@ class ComplexFormatFunction(FormatFunction):
         elif self.order == 'QI':
             out.imag = data.take(indices=range(0, band_dim_size, 2), axis=self.band_dimension)
             out.real = data.take(indices=range(1, band_dim_size, 2), axis=self.band_dimension)
-        else:
+        elif self.order in ['MP', 'PM']:
             if self.order == 'MP':
                 mag = data.take(indices=range(0, band_dim_size, 2), axis=self.band_dimension)
                 theta = data.take(indices=range(1, band_dim_size, 2), axis=self.band_dimension)
-            elif self.order == 'PM':
+            else:
                 mag = data.take(indices=range(0, band_dim_size, 2), axis=self.band_dimension)
                 theta = data.take(indices=range(1, band_dim_size, 2), axis=self.band_dimension)
-            else:
-                raise ValueError('Unhandled order value {}'.format(self.order))
 
             if data.dtype.name in ['uint8', 'uint16', 'uint32']:
-                bit_depth = data.dtype.itemsize * 8
-                theta = theta * (2 * numpy.pi / (1 << bit_depth))
-            out.real = mag * numpy.cos(theta)
-            out.imag = mag * numpy.sin(theta)
+                bit_depth = data.dtype.itemsize*8
+                theta = theta*2*numpy.pi/(1 << bit_depth)
+            out.real = mag*numpy.cos(theta)
+            out.imag = mag*numpy.sin(theta)
+        else:
+            raise ValueError('Unhandled order value {}'.format(self.order))
+
         return out
 
     def _reverse_functional_step(self, data: numpy.ndarray, subscript: Tuple[slice, ...]) -> numpy.ndarray:
@@ -758,7 +776,7 @@ class ComplexFormatFunction(FormatFunction):
         else:
             band_dim_size = data.shape[self.band_dimension]
             out_shape = data.shape[:self.band_dimension] + \
-                        (2 * band_dim_size,) + \
+                        (2*band_dim_size, ) + \
                         data.shape[self.band_dimension + 1:]
 
         slice0 = []
@@ -780,32 +798,33 @@ class ComplexFormatFunction(FormatFunction):
         elif self.order == 'QI':
             out[slice1] = data.real
             out[slice0] = data.imag
-        else:
+        elif self.order in ['MP', 'PM']:
             magnitude = numpy.abs(data)
             theta = numpy.arctan2(data.imag, data.real)
             theta[theta < 0] += 2 * numpy.pi
 
             if self._raw_dtype.name in ['uint8', 'uint16', 'uint32']:
-                bit_depth = self._raw_dtype.itemsize * 8
-                theta *= (1 << bit_depth) / (2 * numpy.pi)
+                bit_depth = self._raw_dtype.itemsize*8
+                theta *= (1 << bit_depth)/(2*numpy.pi)
 
             if self.order == 'MP':
                 out[slice0] = magnitude
                 out[slice1] = theta
-            elif self.order == 'PM':
+            else:
                 out[slice1] = magnitude
                 out[slice0] = theta
-            else:
-                raise ValueError('Unhandled order value {}'.format(self.order))
+        else:
+            raise ValueError('Unhandled order value {}'.format(self.order))
         return out
 
 
 class SingleLUTFormatFunction(FormatFunction):
     """
     Reformat the raw data according to the use of a single 8-bit lookup table.
-
     In the case of a 2-d LUT, and effort to slice on the final dimension
     (from the LUT) is not supported.
+
+    New in version 1.3.0.
     """
     has_inverse=False
 
