@@ -10,6 +10,7 @@ from typing import Union, Tuple, BinaryIO
 import hashlib
 import os
 import warnings
+import struct
 
 import numpy
 
@@ -18,7 +19,7 @@ try:
 except ImportError:
     h5py = None
 
-# TODO: are validate_range, reverse_range still necessary here?
+# TODO: validate_range still necessary here?
 
 def validate_range(arg, siz):
     # type: (Union[None, int, Tuple[int, int], Tuple[int, int, int]], int) -> tuple
@@ -81,199 +82,107 @@ def validate_range(arg, siz):
     return start, stop, step
 
 
-def reverse_range(arg, siz):
-    # type: (Union[None, int, Tuple[int, int], Tuple[int, int, int]], int) -> Tuple[int, int, int]
+###########
+# general file type checks
+
+def _fetch_initial_bytes(file_name: Union[str, BinaryIO], size: int) -> Union[None, bytes]:
+    header = b''
+    if is_file_like(file_name):
+        current_location = file_name.tell()
+        file_name.seek(0, os.SEEK_SET)
+        header = file_name.read(size)
+        file_name.seek(current_location, os.SEEK_SET)
+    elif isinstance(file_name, str):
+        if not os.path.isfile(file_name):
+            return None
+
+        with open(file_name, 'rb') as fi:
+            header = fi.read(size)
+
+    if len(header) != size:
+        return None
+    return header
+
+
+def is_nitf(file_name: Union[str, BinaryIO]) -> bool:
     """
-    Reverse the range definition.
+    Test whether the given input is a NITF 2.0 or 2.1 file.
 
     Parameters
     ----------
-    arg : None|int|Tuple[int,int]|Tuple[int,int,int]
-    siz : int
+    file_name : str|BinaryIO
 
     Returns
     -------
-    Tuple[int,int,int]
-        Of the form `(start, stop, step)`.
+    bool
     """
 
-    start, stop, step = validate_range(arg, siz)
-    # read backwards
-    return (siz - 1) - start, (siz - 1) - stop, -step
+    header = _fetch_initial_bytes(file_name, 9)
+    if header is None:
+        return False
+    return header in [b'NITF02.00', b'NITF02.10']
+
+
+def is_hdf5(file_name: Union[str, BinaryIO]) -> bool:
+    """
+    Test whether the given input is a hdf5 file.
+
+    Parameters
+    ----------
+    file_name : str|BinaryIO
+
+    Returns
+    -------
+    bool
+    """
+
+    header = _fetch_initial_bytes(file_name, 4)
+    if header is None:
+        return False
+
+    out = (header == b'\x89HDF')
+    if out and h5py is None:
+        warnings.warn('The h5py library was not successfully imported, and no hdf5 files can be read')
+    return out
+
+
+def is_tiff(file_name: Union[str, BinaryIO]) -> bool:
+    """
+    Test whether the given input is a NITF 2.0 or 2.1 file.
+
+    Parameters
+    ----------
+    file_name : str|BinaryIO
+
+    Returns
+    -------
+    bool
+    """
+
+    header = _fetch_initial_bytes(file_name, 4)
+    if header is None:
+        return False
+
+    try:
+        endian_part = header[:2].decode('utf-8')
+    except ValueError:
+        return False
+
+    if endian_part not in ['II', 'MM']:
+        return False
+
+    if endian_part == 'II':
+        magic_number = struct.unpack('<h', header[2:])[0]
+    else:
+        magic_number = struct.unpack('>h', header[2:])[0]
+
+    if magic_number not in [42, 43]:
+        # NB: 42 is regular tiff, while 43 is big tiff
+        return False
+    return True
 
 
 ###########
-
-def verify_slice(item: Union[None, int, slice, Tuple[int, ...]], max_element: int) -> slice:
-    """
-    Verify a given slice against a bound.
-
-    New in version 1.3.0.
-
-    Parameters
-    ----------
-    item : None|int|slice|Tuple[int, ...]
-    max_element : int
-
-    Returns
-    -------
-    slice
-        This will certainly have `start` and `step` populated, and will have `stop`
-        populated unless `step < 0` and `stop` must be `None`.
-    """
-
-    def check_bound(entry: Union[None, int]) -> Union[None, int]:
-        if entry is None:
-            return entry
-        elif -max_element <= entry < 0:
-            entry += max_element
-            return entry
-        elif 0 <= entry <= max_element:
-            return entry
-        else:
-            raise ValueError('Got out of bounds argument ({}) in slice limited by `{}`'.format(entry, max_element))
-
-    if not isinstance(max_element, int) or max_element < 1:
-        raise ValueError('slice verification requires a positive integer limit')
-
-    if isinstance(item, tuple):
-        item = slice(*item)
-
-    if item is None:
-        return slice(0, max_element, 1)
-    elif isinstance(item, int):
-        item = check_bound(item)
-        return slice(item, item+1, 1)
-    elif isinstance(item, slice):
-        start = check_bound(item.start)
-        stop = check_bound(item.stop)
-        step = 1 if item.step is None else item.step
-        if step > 0:
-            if start is None:
-                start = 0
-            if stop is None:
-                stop = max_element
-        if step < 0:
-            if start is None:
-                start = max_element - 1
-        if start is not None and stop is not None:
-            if numpy.sign(stop - start) != numpy.sign(step):
-                raise ValueError('slice {} is not well formed'.format(item))
-        return slice(start, stop, step)
-    else:
-        raise ValueError('Got unexpected argument of type {} in slice'.format(type(item)))
-
-
-def verify_subscript(
-        subscript: Union[None, int, slice, Ellipsis, Tuple[slice, ...]],
-        corresponding_shape: Tuple[int, ...]) -> Tuple[slice, ...]:
-    """
-    Verify a subscript like item against a corresponding shape.
-
-    New in version 1.3.0.
-
-    Parameters
-    ----------
-    subscript : None|int|slice|Ellipsis|Tuple[slice, ...]
-    corresponding_shape : Tuple[int, ...]
-
-    Returns
-    -------
-    Tuple[slice, ...]
-    """
-
-    ndim = len(corresponding_shape)
-
-    if subscript is None or subscript is Ellipsis:
-        return tuple([slice(0, corresponding_shape[i], 1) for i in range(ndim)])
-    elif isinstance(subscript, int):
-        out = [verify_slice(slice(subscript, subscript + 1, 1), corresponding_shape[0]), ]
-        out.extend([slice(0, corresponding_shape[i], 1) for i in range(1, ndim)])
-        return tuple(out)
-    elif isinstance(subscript, slice):
-        out = [verify_slice(subscript, corresponding_shape[0]), ]
-        out.extend([slice(0, corresponding_shape[i], 1) for i in range(1, ndim)])
-        return tuple(out)
-    elif isinstance(subscript, tuple):
-        # check for Ellipsis usage...
-        ellipsis_location = None
-        for index, entry in subscript:
-            if entry is Ellipsis:
-                if ellipsis_location is None:
-                    ellipsis_location = index
-                else:
-                    raise KeyError('slice definition cannot contain more than one ellipsis')
-
-        if ellipsis_location is not None:
-            if len(subscript) > ndim-1:
-                raise ValueError('More subscript entries ({}) than shape dimensions ({}).'.format(len(subscript), ndim))
-
-            if ellipsis_location == len(subscript)-1:
-                subscript = subscript[:ellipsis_location]
-            elif ellipsis_location == 0:
-                init_pad = ndim - len(subscript) + 1
-                subscript = tuple([None, ]*init_pad) + subscript[1:]
-            else:  # ellipsis in the middle
-                middle_pad = ndim - len(subscript) + 1
-                subscript = subscript[:ellipsis_location] + tuple([None, ]*middle_pad) + subscript[ellipsis_location+1:]
-
-        if len(subscript) > ndim:
-            raise ValueError('More subscript entries ({}) than shape dimensions ({}).'.format(len(subscript), ndim))
-
-        out = [verify_slice(item_i, corresponding_shape[i]) for i, item_i in enumerate(subscript)]
-        if len(out) < ndim:
-            out.extend([slice(0, corresponding_shape[i], 1) for i in range(len(out), ndim)])
-        return tuple(out)
-
-
-def get_slice_result_size(slice_in: slice) -> int:
-    """
-    Gets the size of the slice result. This assumes a normalized slice definition.
-
-    New in version 1.3.0.
-
-    Parameters
-    ----------
-    slice_in : slice
-
-    Returns
-    -------
-    int
-    """
-
-    # NB: this assumes a normalized slice definition
-    if slice_in.step > 0:
-        return int(numpy.floor((slice_in.stop - 1 - slice_in.start) / slice_in.step) + 1)
-    elif slice_in.stop is None:
-        return int(numpy.floor(slice_in.start / abs(slice_in.step)) + 1)
-    else:
-        return int(numpy.floor((slice_in.stop + 1 - slice_in.start) / slice_in.step) + 1)
-
-
-def get_subscript_result_size(
-        subscript: Union[None, int, slice, Tuple[slice, ...]],
-        corresponding_shape: Tuple[int, ...]) -> (Tuple[slice, ...], Tuple[int, ...]):
-    """
-    Validate the given subscript against the corresponding shape, and also determine
-    the shape of the resultant data reading result.
-
-    New in version 1.3.0.
-
-    Parameters
-    ----------
-    subscript : None|int|slice|Tuple[slice, ...]
-    corresponding_shape : Tuple[int, ...]
-
-    Returns
-    -------
-    valid_subscript : Tuple[slice, ...]
-    output_shape : Tuple[int, ...]
-    """
-
-    subscript = verify_subscript(subscript, corresponding_shape)
-    the_shape = tuple([get_slice_result_size(sl) for sl in subscript])
-    return subscript, the_shape
-
 
 def parse_timestring(str_in: str, precision: str='us') -> numpy.datetime64:
     """
@@ -378,37 +287,3 @@ def calculate_md5(the_path: str, chunk_size: int=1024*1024) -> str:
         for chunk in iter(lambda: fi.read(chunk_size), b''):
             md5_hash.update(chunk)
     return md5_hash.hexdigest()
-
-
-def is_hdf5(file_name: Union[str, BinaryIO]) -> bool:
-    """
-    Test whether the given input is a hdf5 file.
-
-    Parameters
-    ----------
-    file_name : str|BinaryIO
-
-    Returns
-    -------
-    bool
-    """
-
-    if is_file_like(file_name):
-        current_location = file_name.tell()
-        file_name.seek(0, os.SEEK_SET)
-        header = file_name.read(4)
-        file_name.seek(current_location, os.SEEK_SET)
-    elif isinstance(file_name, str):
-        if not os.path.isfile(file_name):
-            return False
-
-        with open(file_name, 'rb') as fi:
-            header = fi.read(4)
-    else:
-        return False
-
-    out = (header == b'\x89HDF')
-    if out and h5py is None:
-        warnings.warn('The h5py library was not successfully imported, and no hdf5 files can be read')
-    return out
-

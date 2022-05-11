@@ -13,7 +13,7 @@ from typing import Union, Tuple
 
 import numpy
 
-from sarpy.io.general.utils import get_subscript_result_size
+from sarpy.io.general.slice_parsing import get_subscript_result_size
 
 logger = logging.getLogger(__name__)
 

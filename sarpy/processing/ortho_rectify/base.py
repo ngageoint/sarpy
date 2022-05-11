@@ -14,7 +14,7 @@ import numpy
 from sarpy.io.complex.converter import open_complex
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.base import SICDTypeReader
-from sarpy.io.general.slice_parsing import validate_slice_int, validate_slice
+from sarpy.io.general.slice_parsing import verify_subscript
 from sarpy.io.complex.utils import get_fetch_block_size, extract_blocks
 
 from sarpy.geometry.geocoords import ecf_to_geodetic
@@ -97,10 +97,9 @@ class FullResolutionFetcher(object):
         self._dimension = value
 
     @property
-    def data_size(self):
-        # type: () -> Tuple[int, int]
+    def data_size(self) -> Tuple[int, ...]:
         """
-        Tuple[int, int]: The data size for the reader at the given index.
+        Tuple[int, ...]: The data size for the reader at the given index.
         """
 
         return self._data_size
@@ -337,25 +336,21 @@ class FullResolutionFetcher(object):
         out_size = (row_count, col_count)
         return numpy.zeros(out_size, dtype=numpy.complex64)
 
-    def __getitem__(self, item):
+    def __getitem__(self, subscript):
         """
         Fetches the processed data based on the input slice.
 
         Parameters
         ----------
-        item
+        subscript
 
         Returns
         -------
         numpy.ndarray
         """
 
-        # parse the slicing to ensure consistent structure
-        row_range, col_range, _ = self._parse_slicing(item)
-        return self.reader[
-               row_range[0]:row_range[1]:row_range[2],
-               col_range[0]:col_range[1]:col_range[2],
-               self.index]
+        subscript = verify_subscript(subscript, self.data_size)
+        return self.reader.read(subscript, index=self.index)
 
 
 class OrthorectificationIterator(object):

@@ -13,7 +13,7 @@ import numpy
 from scipy.constants import speed_of_light
 
 from sarpy.processing.fft_base import FFTCalculator, fft, ifft, fftshift, fft2_sicd, ifft2_sicd
-from sarpy.io.general.slice_parsing import validate_slice, validate_slice_int
+from sarpy.io.general.slice_parsing import validate_slice_int, verify_slice
 from sarpy.processing.normalize_sicd import DeskewCalculator
 from sarpy.processing.ortho_rectify import OrthorectificationHelper, OrthorectificationIterator
 from sarpy.visualization.remap import RemapFunction
@@ -262,7 +262,7 @@ class SubapertureCalculator(FFTCalculator):
         if the_frame is None:
             return numpy.arange(self.frame_count)
         elif isinstance(the_frame, slice):
-            the_frame = validate_slice(the_frame, self.frame_count)
+            the_frame = verify_slice(the_frame, self.frame_count)
             return numpy.arange(the_frame.start, the_frame.stop, the_frame.step)
         elif isinstance(the_frame, int):
             return validate_slice_int(the_frame, self.frame_count)

@@ -16,7 +16,7 @@ import os
 
 import numpy
 import re
-from typing import Tuple
+from typing import Union, Tuple
 
 from sarpy.io.general.base import BaseReader, BIPChipper, SarpyIOError
 
@@ -137,7 +137,7 @@ _GEOTIFF_TAGS = {
 # base expected functionality for a module with an implemented Reader
 
 
-def is_a(file_name):
+def is_a(file_name: str) -> Union[None, TiffReader]:
     """
     Tests whether a given file_name corresponds to a tiff file. Returns a
     tiff reader instance, if so.
@@ -149,7 +149,7 @@ def is_a(file_name):
 
     Returns
     -------
-    TiffReader|None
+    None|TiffReader
         `TiffReader` instance if tiff file, `None` otherwise
     """
 

@@ -4,7 +4,8 @@ opened by the sicd, sidd, cphd, or other_image reader collections.
 """
 
 import os
-from sarpy.io.general.base import SarpyIOError, check_for_openers
+from typing import Callable
+from sarpy.io.general.base import SarpyIOError, AbstractReader, check_for_openers
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
@@ -16,13 +17,13 @@ _openers = []
 _parsed_openers = False
 
 
-def register_opener(open_func):
+def register_opener(open_func: Callable) -> None:
     """
     Provide a new opener.
 
     Parameters
     ----------
-    open_func
+    open_func : Callable
         This is required to be a function which takes a single argument (file name).
         This function should return a sarpy.io.general.base.BaseReader instance
         if the referenced file is viable for the underlying type, and None otherwise.
@@ -38,7 +39,7 @@ def register_opener(open_func):
         _openers.append(open_func)
 
 
-def parse_openers():
+def parse_openers() -> None:
     """
     Automatically find the viable openers (i.e. :func:`is_a`) in the various modules.
 
@@ -55,7 +56,7 @@ def parse_openers():
     check_for_openers('sarpy.io.general', register_opener)
 
 
-def open_general(file_name):
+def open_general(file_name: str) -> AbstractReader:
     """
     Given a file, try to find and return the appropriate reader object.
 
@@ -65,7 +66,7 @@ def open_general(file_name):
 
     Returns
     -------
-    sarpy.io.general.base.BaseReader
+    AbstractReader
 
     Raises
     ------

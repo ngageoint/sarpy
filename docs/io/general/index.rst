@@ -6,6 +6,8 @@ General sarpy reading and writing objects (sarpy.io.general)
     :caption: Contents:
 
     base
+    data_segment
+    format_function
     utils
     nitf
     tiff

@@ -16,8 +16,9 @@ from typing import Union, Tuple, Sequence, BinaryIO
 import numpy
 
 from sarpy.io.general.format_function import FormatFunction, IdentityFunction
-from sarpy.io.general.utils import h5py, is_file_like, verify_subscript, \
-    get_slice_result_size, get_subscript_result_size
+from sarpy.io.general.slice_parsing import verify_subscript, get_slice_result_size, \
+    get_subscript_result_size
+from sarpy.io.general.utils import h5py, is_file_like
 
 logger = logging.getLogger(__name__)
 
