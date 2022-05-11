@@ -1736,7 +1736,10 @@ class NumpyMemmapSegment(NumpyArraySegment):
         """
 
         self._close_file = None
+        if isinstance(file_object, str):
+            close_file = True
         self.close_file = close_file
+
         self._pixels_written = 0
         self._expected_pixels_written = 0
 

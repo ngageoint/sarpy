@@ -6,7 +6,7 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
-from typing import Union, Tuple, BinaryIO
+from typing import Union, Tuple, BinaryIO, Any
 import hashlib
 import os
 import warnings
@@ -240,7 +240,7 @@ def get_seconds(dt1: numpy.datetime64,
     return float((tdt1.astype('int64') - tdt2.astype('int64'))*scale)
 
 
-def is_file_like(the_input: BinaryIO) -> bool:
+def is_file_like(the_input: Any) -> bool:
     """
     Verify whether the provided input appear to provide a "file-like object". This
     term is used ubiquitously, but not all usages are identical. In this case, we
@@ -251,7 +251,7 @@ def is_file_like(the_input: BinaryIO) -> bool:
 
     Parameters
     ----------
-    the_input : BinaryIO
+    the_input
 
     Returns
     -------
