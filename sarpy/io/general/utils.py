@@ -6,11 +6,12 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
-from typing import Union, Tuple, BinaryIO, Any
+from typing import Union, Tuple, BinaryIO, Any, Optional
 import hashlib
 import os
 import warnings
 import struct
+import io
 
 import numpy
 
@@ -18,6 +19,7 @@ try:
     import h5py
 except ImportError:
     h5py = None
+
 
 # TODO: validate_range still necessary here?
 
@@ -85,6 +87,54 @@ def validate_range(arg, siz):
 ###########
 # general file type checks
 
+def is_file_like(the_input: Any) -> bool:
+    """
+    Verify whether the provided input appear to provide a "file-like object". This
+    term is used ubiquitously, but not all usages are identical. In this case, we
+    mean that there exist callable attributes `read`, `write`, `seek`, and `tell`.
+
+    Note that this does not check the mode (binary/string or read/write/append),
+    as it is not clear that there is any generally accessible way to do so.
+
+    Parameters
+    ----------
+    the_input
+
+    Returns
+    -------
+    bool
+    """
+
+    out = True
+    for attribute in ['read', 'write', 'seek', 'tell']:
+        value = getattr(the_input, attribute, None)
+        out &= callable(value)
+    return out
+
+
+def is_real_file(the_input: BinaryIO) -> bool:
+    """
+    Determine if the file-like object is associated with an actual file.
+    This is mainly to consider suitability for establishment of a numpy.memmap.
+
+    Parameters
+    ----------
+    the_input : BinaryIO
+
+    Returns
+    -------
+    bool
+    """
+
+    if hasattr(the_input, 'fileno'):
+        try:
+            # check that fileno actually works, not just exists.
+            the_input.fileno()
+            return True
+        except io.UnsupportedOperation:
+            return False
+
+
 def _fetch_initial_bytes(file_name: Union[str, BinaryIO], size: int) -> Union[None, bytes]:
     header = b''
     if is_file_like(file_name):
@@ -104,23 +154,89 @@ def _fetch_initial_bytes(file_name: Union[str, BinaryIO], size: int) -> Union[No
     return header
 
 
-def is_nitf(file_name: Union[str, BinaryIO]) -> bool:
+def is_nitf(
+        file_name: Union[str, BinaryIO],
+        return_version=False) -> Union[bool, Tuple[bool, Optional[str]]]:
     """
     Test whether the given input is a NITF 2.0 or 2.1 file.
 
     Parameters
     ----------
     file_name : str|BinaryIO
+    return_version : bool
+
 
     Returns
     -------
-    bool
+    is_nitf_file: bool
+        Is the file a NITF file, based solely on checking initial bytes.
+    nitf_version: None|str
+        Only returned is `return_version=True`. Will be `None` in the event that
+        `is_nitf_file=False`.
     """
 
     header = _fetch_initial_bytes(file_name, 9)
     if header is None:
-        return False
-    return header in [b'NITF02.00', b'NITF02.10']
+        if return_version:
+            return False, None
+        else:
+            return False
+
+    ihead = header[:4]
+    vers = header[4:]
+    if ihead == b'NITF':
+        try:
+            vers = vers.decode('utf-8')
+            return (True, vers) if return_version else True
+        except ValueError:
+            pass
+
+    return (False, None) if return_version else False
+
+
+def is_tiff(
+        file_name: Union[str, BinaryIO],
+        return_details=False) -> Union[bool, Tuple[bool, Optional[str], Optional[int]]]:
+    """
+    Test whether the given input is a tiff or big_tiff file.
+
+    Parameters
+    ----------
+    file_name : str|BinaryIO
+    return_details : bool
+        Return the tiff details of endianess and magic number?
+
+    Returns
+    -------
+    is_tiff_file : bool
+    endianness : None|str
+        Only returned if `return_details` is `True`. One of `['>', '<']`.
+    magic_number : None|int
+        Only returned if `return_details` is `True`. One of `[42, 43]`.
+    """
+
+    header = _fetch_initial_bytes(file_name, 4)
+    if header is None:
+        return (False, None, None) if return_details else False
+
+    try:
+        endian_part = header[:2].decode('utf-8')
+    except ValueError:
+        return (False, None, None) if return_details else False
+
+    if endian_part not in ['II', 'MM']:
+        return (False, None, None) if return_details else False
+
+    if endian_part == 'II':
+        endianness = '<'
+    else:
+        endianness = '>'
+    magic_number = struct.unpack('{}h'.format(endianness), header[2:])[0]
+
+    if magic_number in [42, 43]:
+        # NB: 42 is regular tiff, while 43 is big tiff
+        return (True, magic_number, endianness) if return_details else True
+    return (False, None, None) if return_details else False
 
 
 def is_hdf5(file_name: Union[str, BinaryIO]) -> bool:
@@ -144,42 +260,6 @@ def is_hdf5(file_name: Union[str, BinaryIO]) -> bool:
     if out and h5py is None:
         warnings.warn('The h5py library was not successfully imported, and no hdf5 files can be read')
     return out
-
-
-def is_tiff(file_name: Union[str, BinaryIO]) -> bool:
-    """
-    Test whether the given input is a NITF 2.0 or 2.1 file.
-
-    Parameters
-    ----------
-    file_name : str|BinaryIO
-
-    Returns
-    -------
-    bool
-    """
-
-    header = _fetch_initial_bytes(file_name, 4)
-    if header is None:
-        return False
-
-    try:
-        endian_part = header[:2].decode('utf-8')
-    except ValueError:
-        return False
-
-    if endian_part not in ['II', 'MM']:
-        return False
-
-    if endian_part == 'II':
-        magic_number = struct.unpack('<h', header[2:])[0]
-    else:
-        magic_number = struct.unpack('>h', header[2:])[0]
-
-    if magic_number not in [42, 43]:
-        # NB: 42 is regular tiff, while 43 is big tiff
-        return False
-    return True
 
 
 ###########
@@ -238,31 +318,6 @@ def get_seconds(dt1: numpy.datetime64,
     tdt1 = dt1.astype(dtype)
     tdt2 = dt2.astype(dtype)
     return float((tdt1.astype('int64') - tdt2.astype('int64'))*scale)
-
-
-def is_file_like(the_input: Any) -> bool:
-    """
-    Verify whether the provided input appear to provide a "file-like object". This
-    term is used ubiquitously, but not all usages are identical. In this case, we
-    mean that there exist callable attributes `read`, `write`, `seek`, and `tell`.
-
-    Note that this does not check the mode (binary/string or read/write/append),
-    as it is not clear that there is any generally accessible way to do so.
-
-    Parameters
-    ----------
-    the_input
-
-    Returns
-    -------
-    bool
-    """
-
-    out = True
-    for attribute in ['read', 'write', 'seek', 'tell']:
-        value = getattr(the_input, attribute, None)
-        out &= callable(value)
-    return out
 
 
 def calculate_md5(the_path: str, chunk_size: int=1024*1024) -> str:

@@ -7,11 +7,12 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
-from typing import Tuple, Sequence
+from typing import Tuple, Sequence, Union
 
 from sarpy.io.complex.converter import open_complex
 from sarpy.io.general.base import AggregateReader, SarpyIOError
 from sarpy.io.complex.base import SICDTypeReader
+from sarpy.io.complex.sicd_elements.SICD import SICDType
 
 
 class AggregateComplexReader(AggregateReader, SICDTypeReader):
@@ -21,23 +22,22 @@ class AggregateComplexReader(AggregateReader, SICDTypeReader):
 
     __slots__ = ('_readers', '_index_mapping')
 
-    def __init__(self, readers):
+    def __init__(self, readers: Union[Sequence[str], Sequence[SICDTypeReader]]):
         """
 
         Parameters
         ----------
-        readers : Sequence[SICDTypeReader|str]
+        readers : Sequence[str]|Sequence[SICDTypeReader]
         """
 
         readers = self._validate_readers(readers)
-        AggregateReader.__init__(self, readers, reader_type="SICD")
-
+        AggregateReader.__init__(self, readers)
         sicds = self._define_sicds()
-        SICDTypeReader.__init__(self, sicds)
+        SICDTypeReader.__init__(self, None, sicds)
         self._check_sizes()
 
     @staticmethod
-    def _validate_readers(readers):
+    def _validate_readers(readers : Sequence[SICDTypeReader]) -> Tuple[SICDTypeReader, ...]:
         """
         Validate the input reader/file collection.
 
@@ -75,7 +75,7 @@ class AggregateComplexReader(AggregateReader, SICDTypeReader):
             the_readers.append(reader)
         return tuple(the_readers)
 
-    def _define_sicds(self):
+    def _define_sicds(self)-> Tuple[SICDType, ...]:
         sicds = []
         for reader_index, sicd_index in self.index_mapping:
             reader = self._readers[reader_index]

@@ -9,7 +9,7 @@ import logging
 from collections import OrderedDict
 import os
 import re
-from typing import Tuple, Dict
+from typing import Tuple, Dict, BinaryIO, Union, Optional
 from datetime import datetime
 
 import numpy
@@ -17,7 +17,7 @@ from numpy.polynomial import polynomial
 from scipy.constants import speed_of_light
 
 from sarpy.compliance import bytes_to_string
-from sarpy.io.complex.base import SICDTypeReader, H5Chipper, h5py, is_hdf5
+from sarpy.io.complex.base import SICDTypeReader
 from sarpy.io.complex.sicd_elements.blocks import Poly1DType, Poly2DType, RowColType
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd_elements.CollectionInfo import CollectionInfoType, RadarModeType
@@ -34,8 +34,10 @@ from sarpy.io.complex.sicd_elements.ImageFormation import ImageFormationType, \
     RcvChanProcType
 from sarpy.io.complex.sicd_elements.RMA import RMAType, INCAType
 from sarpy.io.complex.sicd_elements.Radiometric import RadiometricType
-from sarpy.io.general.base import BaseReader, SarpyIOError
-from sarpy.io.general.utils import get_seconds, parse_timestring, is_file_like
+from sarpy.io.general.base import SarpyIOError
+from sarpy.io.general.data_segment import HDF5DatasetSegment
+from sarpy.io.general.format_function import ComplexFormatFunction
+from sarpy.io.general.utils import get_seconds, parse_timestring, is_file_like, is_hdf5, h5py
 from sarpy.io.complex.utils import fit_time_coa_polynomial, fit_position_xvalidation
 
 try:
@@ -46,41 +48,6 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 _unhandled_id_text = 'Unhandled mission id `{}`'
-
-########
-# base expected functionality for a module with an implemented Reader
-
-
-def is_a(file_name):
-    """
-    Tests whether a given file_name corresponds to a Cosmo Skymed file. Returns a reader instance, if so.
-
-    Parameters
-    ----------
-    file_name : str|BinaryIO
-        the file_name to check
-
-    Returns
-    -------
-    CSKReader|None
-        `CSKReader` instance if Cosmo Skymed file, `None` otherwise
-    """
-
-    if is_file_like(file_name):
-        return None
-
-    if not is_hdf5(file_name):
-        return None
-
-    if h5py is None:
-        return None
-
-    try:
-        csk_details = CSKDetails(file_name)
-        logger.info('File {} is determined to be a Cosmo Skymed file.'.format(file_name))
-        return CSKReader(csk_details)
-    except SarpyIOError:
-        return None
 
 
 ##########
@@ -105,7 +72,7 @@ class CSKDetails(object):
 
     __slots__ = ('_file_name', '_mission_id', '_product_type')
 
-    def __init__(self, file_name):
+    def __init__(self, file_name: str):
         """
 
         Parameters
@@ -140,7 +107,7 @@ class CSKDetails(object):
         self._file_name = file_name
 
     @property
-    def file_name(self):
+    def file_name(self) -> str:
         """
         str: the file name
         """
@@ -148,7 +115,7 @@ class CSKDetails(object):
         return self._file_name
 
     @property
-    def mission_id(self):
+    def mission_id(self) -> str:
         """
         str: the mission id
         """
@@ -156,19 +123,20 @@ class CSKDetails(object):
         return self._mission_id
 
     @property
-    def product_type(self):
+    def product_type(self) -> str:
         """
         str: the product type
         """
 
         return self._product_type
 
-    def _get_hdf_dicts(self):
+    def _get_hdf_dicts(self) -> (dict, dict, Dict[str, Tuple[int, ...]], Dict[str, numpy.dtype], Dict[str, str]):
         with h5py.File(self._file_name, 'r') as hf:
             h5_dict = _extract_attrs(hf)
             band_dict = OrderedDict()
             shape_dict = OrderedDict()
             dtype_dict = OrderedDict()
+            pixeltype_dict = OrderedDict()
 
             for gp_name in sorted(hf.keys()):
                 if self._mission_id == 'CSG' and gp_name == 'LRHM':
@@ -191,23 +159,23 @@ class CSKDetails(object):
                 _extract_attrs(the_dataset, out=band_dict[gp_name])
 
                 shape_dict[gp_name] = the_dataset.shape[:2]
+                dtype_dict[gp_name] = the_dataset.dtype
                 if the_dataset.dtype.name == 'float32':
-                    dtype_dict[gp_name] = 'RE32F_IM32F'
+                    pixeltype_dict[gp_name] = 'RE32F_IM32F'
                 elif the_dataset.dtype.name == 'int16':
-                    dtype_dict[gp_name] = 'RE16I_IM16I'
+                    pixeltype_dict[gp_name] = 'RE16I_IM16I'
                 else:
                     raise ValueError(
                         'Got unexpected data type {}, name {}'.format(
                             the_dataset.dtype, the_dataset.dtype.name))
 
-        return h5_dict, band_dict, shape_dict, dtype_dict
+        return h5_dict, band_dict, shape_dict, dtype_dict, pixeltype_dict
 
     @staticmethod
-    def _parse_pol(str_in):
+    def _parse_pol(str_in: str) -> str:
         return '{}:{}'.format(str_in[0], str_in[1])
 
-    def _get_polarization(self, h5_dict, band_dict, band_name):
-        # type: (dict, dict, str) -> str
+    def _get_polarization(self, h5_dict: dict, band_dict: dict, band_name: str) -> str:
         if 'Polarisation' in band_dict[band_name]:
             return band_dict[band_name]['Polarisation']
         elif 'Polarization' in h5_dict:
@@ -217,10 +185,8 @@ class CSKDetails(object):
                 'Failed finding polarization for file {}\n\t'
                 'mission id {} and band name {}'.format(self.file_name, self.mission_id, band_name))
 
-    def _get_base_sicd(self, h5_dict, band_dict):
-        # type: (dict, dict) -> SICDType
-
-        def get_collection_info():  # type: () -> (dict, CollectionInfoType)
+    def _get_base_sicd(self, h5_dict: dict, band_dict: dict) -> SICDType:
+        def get_collection_info() -> (dict, CollectionInfoType):
             acq_mode = h5_dict['Acquisition Mode'].upper()
             if self.mission_id == 'CSK':
                 if acq_mode in ['HIMAGE', 'PINGPONG']:
@@ -271,7 +237,7 @@ class CSKDetails(object):
                                         ModeType=mode_type))
             return collect_info
 
-        def get_image_creation():  # type: () -> ImageCreationType
+        def get_image_creation() -> ImageCreationType:
             from sarpy.__about__ import __version__
             return ImageCreationType(
                 DateTime=parse_timestring(h5_dict['Product Generation UTC'], precision='ns'),
@@ -281,7 +247,7 @@ class CSKDetails(object):
                     h5_dict.get('L1A Software Version', 'NONE')),
                 Profile='sarpy {}'.format(__version__))
 
-        def get_grid():  # type: () -> GridType
+        def get_grid() -> GridType:
             def get_wgt_type(weight_name, coefficient, direction):
                 if weight_name == 'GENERAL_COSINE':
                     # probably only for kompsat?
@@ -319,13 +285,13 @@ class CSKDetails(object):
             col = DirParamType(Sgn=-1, KCtr=0, WgtType=col_weight)
             return GridType(ImagePlane=image_plane, Type=gr_type, Row=row, Col=col)
 
-        def get_timeline():  # type: () -> TimelineType
+        def get_timeline() -> TimelineType:
             # NB: IPPEnd must be set, but will be replaced
             return TimelineType(CollectStart=collect_start,
                                 CollectDuration=duration,
                                 IPP=[IPPSetType(index=0, TStart=0, TEnd=0, IPPStart=0, IPPEnd=0), ])
 
-        def get_position():  # type: () -> PositionType
+        def get_position() -> PositionType:
             T = h5_dict['State Vectors Times']  # in seconds relative to ref time
             T += ref_time_offset
             Pos = h5_dict['ECEF Satellite Position']
@@ -333,8 +299,7 @@ class CSKDetails(object):
             P_x, P_y, P_z = fit_position_xvalidation(T, Pos, Vel, max_degree=8)
             return PositionType(ARPPoly=XYZPolyType(X=P_x, Y=P_y, Z=P_z))
 
-        def get_radar_collection():
-            # type: () -> RadarCollectionType
+        def get_radar_collection() -> RadarCollectionType:
             tx_pols = []
             chan_params = []
 
@@ -360,8 +325,7 @@ class CSKDetails(object):
                                            TxSequence=[TxStepType(TxPolarization=pol,
                                                                   index=i+1) for i, pol in enumerate(tx_pols)])
 
-        def get_image_formation():
-            # type: () -> ImageFormationType
+        def get_image_formation() -> ImageFormationType:
             return ImageFormationType(ImageFormAlgo='RMA',
                                       TStartProc=0,
                                       TEndProc=duration,
@@ -372,14 +336,12 @@ class CSKDetails(object):
                                       RcvChanProc=RcvChanProcType(NumChanProc=1,
                                                                   PRFScaleFactor=1))
 
-        def get_rma():
-            # type: () -> RMAType
+        def get_rma() -> RMAType:
             inca = INCAType(FreqZero=center_frequency)
             return RMAType(RMAlgoType='OMEGA_K',
                            INCA=inca)
 
-        def get_scpcoa():
-            # type: () -> SCPCOAType
+        def get_scpcoa() -> SCPCOAType:
             return SCPCOAType(SideOfTrack=h5_dict['Look Side'][0:1].upper())
 
         # some common use parameters
@@ -413,9 +375,11 @@ class CSKDetails(object):
             SCPCOA=scpcoa)
         return sicd
 
-    def _get_dop_poly_details(self, h5_dict, band_dict, band_name):
-        # type: (dict, dict, str) -> Tuple[float, float, numpy.ndarray, numpy.ndarray, numpy.ndarray]
-        def strip_poly(arr):
+    def _get_dop_poly_details(self,
+                              h5_dict: dict,
+                              band_dict: dict,
+                              band_name: str) -> (float, float, numpy.ndarray, numpy.ndarray, numpy.ndarray):
+        def strip_poly(arr: numpy.ndarray) -> numpy.ndarray:
             # strip worthless (all zero) highest order terms
             # find last non-zero index
             last_ind = arr.size
@@ -465,11 +429,13 @@ class CSKDetails(object):
             raise ValueError(_unhandled_id_text.format(self._mission_id))
         return az_ref_time, rg_ref_time, dop_poly_az, dop_poly_rg, dop_rate_poly_rg
 
-    def _get_band_specific_sicds(self, base_sicd, h5_dict, band_dict, shape_dict, dtype_dict):
-        # type: (SICDType, dict, dict, dict, dict) -> Dict[str, SICDType]
-
-        def update_scp_prelim(sicd, band_name):
-            # type: (SICDType, str) -> None
+    def _get_band_specific_sicds(self,
+                                 base_sicd: SICDType,
+                                 h5_dict: dict,
+                                 band_dict: dict,
+                                 shape_dict: dict,
+                                 pixeltype_dict: dict) -> Dict[str, SICDType]:
+        def update_scp_prelim(sicd: SICDType, band_name: str) -> None:
             if self._mission_id in ['CSK', 'KMPS']:
                 LLH = band_dict[band_name]['Centre Geodetic Coordinates']
             elif self._mission_id == 'CSG':
@@ -478,8 +444,7 @@ class CSKDetails(object):
                 raise ValueError(_unhandled_id_text.format(self._mission_id))
             sicd.GeoData = GeoDataType(SCP=SCPType(LLH=LLH))  # EarthModel & ECF will be populated
 
-        def update_image_data(sicd, band_name):
-            # type: (SICDType, str) -> Tuple[float, float, float, float, int]
+        def update_image_data(sicd: SICDType, band_name: str) -> (float, float, float, float, int):
             cols, rows = shape_dict[band_name]
             # zero doppler time of first/last columns
             t_az_first_time = band_dict[band_name]['Zero Doppler Azimuth First Time']
@@ -499,18 +464,16 @@ class CSKDetails(object):
                                            FirstRow=0,
                                            FirstCol=0,
                                            FullImage=(rows, cols),
-                                           PixelType=dtype_dict[band_name],
+                                           PixelType=pixeltype_dict[band_name],
                                            SCPPixel=RowColType(Row=int(rows/2),
                                                                Col=int(cols/2)))
             return t_rg_first_time, t_ss_rg_s, t_az_first_time, t_ss_az_s, t_use_sign2
 
-        def check_switch_state():
-            # type: () -> Tuple[int, Poly1DType]
+        def check_switch_state() -> (int, Poly1DType):
             use_sign = 1 if t_dop_rate_poly_rg[0] < 0 else -1
             return use_sign, Poly1DType(Coefs=use_sign*t_dop_rate_poly_rg)
 
-        def update_timeline(sicd, band_name):
-            # type: (SICDType, str) -> None
+        def update_timeline(sicd: SICDType, band_name: str) -> None:
             prf = band_dict[band_name]['PRF']
             duration = sicd.Timeline.CollectDuration
             ipp_el = sicd.Timeline.IPP[0]
@@ -518,8 +481,7 @@ class CSKDetails(object):
             ipp_el.TEnd = duration
             ipp_el.IPPPoly = Poly1DType(Coefs=(0, prf))
 
-        def update_radar_collection(sicd, band_name):
-            # type: (SICDType, str) -> None
+        def update_radar_collection(sicd: SICDType, band_name: str) -> None:
             ind = None
             for the_chan_index, chan in enumerate(sicd.RadarCollection.RcvChannels):
                 if chan.TxRcvPolarization == polarization:
@@ -550,8 +512,7 @@ class CSKDetails(object):
             sicd.ImageFormation.RcvChanProc.ChanIndices = [ind+1, ]
             sicd.ImageFormation.TxFrequencyProc = (fr_min, fr_max)
 
-        def update_rma_and_grid(sicd, band_name):
-            # type: (SICDType, str) -> None
+        def update_rma_and_grid(sicd: SICDType, band_name: str) -> None:
             rg_scp_time = rg_first_time + (ss_rg_s*sicd.ImageData.SCPPixel.Row)
             az_scp_time = az_first_time + (use_sign2*ss_az_s*sicd.ImageData.SCPPixel.Col)
             r_ca_scp = rg_scp_time*speed_of_light/2
@@ -604,8 +565,7 @@ class CSKDetails(object):
             if csk_addin is not None:
                 csk_addin.check_sicd(sicd, self.mission_id, h5_dict)
 
-        def update_radiometric(sicd, band_name):
-            # type: (SICDType, str) -> None
+        def update_radiometric(sicd: SICDType, band_name: str) -> None:
             if self.mission_id in ['KMPS', 'CSG']:
                 # TODO: skipping for now - strange results for flag == 77. Awaiting gidance - see Wade.
                 return
@@ -620,7 +580,7 @@ class CSKDetails(object):
                     sf /= cal
                 sicd.Radiometric = RadiometricType(BetaZeroSFPoly=Poly2DType(Coefs=[[sf, ], ]))
 
-        def update_geodata(sicd):  # type: (SICDType) -> None
+        def update_geodata(sicd: SICDType) -> None:
             scp_pixel = [sicd.ImageData.SCPPixel.Row, sicd.ImageData.SCPPixel.Col]
             ecf = sicd.project_image_to_ground(scp_pixel, projection_type='HAE')
             sicd.update_scp(ecf, coord_system='ECF')
@@ -665,40 +625,51 @@ class CSKDetails(object):
         return out
 
     @staticmethod
-    def _get_symmetry(h5_dict):
+    def _get_symmetry(h5_dict: dict) -> (Optional[Tuple[int, ...]], Tuple[int, ...]):
+        reverse_axes = []
+
         line_order = h5_dict['Lines Order'].upper()
         look_side = h5_dict['Look Side'].upper()
         symm_0 = ((line_order == 'EARLY-LATE') != (look_side == 'RIGHT'))
+        if symm_0:
+            reverse_axes.append(0)
 
         column_order = h5_dict['Columns Order'].upper()
         symm_1 = column_order != 'NEAR-FAR'
+        if symm_1:
+            reverse_axes.append(1)
 
-        return symm_0, symm_1, True
+        transpose_axes = (1, 0, 2)
+        return tuple(reverse_axes), transpose_axes
 
-    def get_sicd_collection(self):
-        # type: () -> Tuple[Dict[str, SICDType], Dict[str, str], Tuple[bool, bool, bool]]
+    def get_sicd_collection(self) -> (
+            Dict[str, SICDType], Dict[str, Tuple[int, ...]], Optional[Tuple[int, ...]], Tuple[int, ...]):
         """
         Get the sicd collection for the bands.
 
         Returns
         -------
-        Tuple[Dict[str, SICDType], Dict[str, str], Tuple[bool, bool, bool]]
-            the first entry is a dictionary of the form {band_name: sicd}
-            the second entry is of the form {band_name: shape}
-            the third entry is the symmetry tuple
+        sicd_dict : Dict[str, SICDType]
+            Of the form {band_name: sicd}
+        shape_dict : Dict[str, Tuple[int, ...]]
+            Of the form {band_name: shape}
+        dtype_dict : Dict[str, numpy.dtype]
+            Of the form {band_name: data type string}
+        reverse_axes : Optional[Tuple[int, ...]]
+        transpose_axes : Tuple[int, ...]
         """
 
-        h5_dict, band_dict, shape_dict, dtype_dict = self._get_hdf_dicts()
+        h5_dict, band_dict, shape_dict, dtype_dict, pixeltype_dict = self._get_hdf_dicts()
         base_sicd = self._get_base_sicd(h5_dict, band_dict)
-        return self._get_band_specific_sicds(base_sicd, h5_dict, band_dict, shape_dict, dtype_dict), \
-            shape_dict, self._get_symmetry(h5_dict)
+        # noinspection PyTypeChecker
+        return (self._get_band_specific_sicds(base_sicd, h5_dict, band_dict, shape_dict, pixeltype_dict), shape_dict, dtype_dict) + self._get_symmetry(h5_dict)
 
 
 ################
 # The CSK reader
 
 
-class CSKReader(BaseReader, SICDTypeReader):
+class CSKReader(SICDTypeReader):
     """
     Gets a reader type object for Cosmo Skymed files
     """
@@ -720,8 +691,8 @@ class CSKReader(BaseReader, SICDTypeReader):
             raise TypeError('The input argument for a CSKReader must be a '
                             'filename or CSKDetails object')
         self._csk_details = csk_details
-        sicd_data, shape_dict, symmetry = csk_details.get_sicd_collection()
-        chippers = []
+        sicd_data, shape_dict, dtype_dict, reverse_axes, transpose_axes = csk_details.get_sicd_collection()
+        data_segments = []
         sicds = []
         for band_name in sicd_data:
             if self._csk_details.mission_id in ['CSK', 'KMPS']:
@@ -732,15 +703,20 @@ class CSKReader(BaseReader, SICDTypeReader):
                 raise ValueError(_unhandled_id_text.format(self._csk_details.mission_id))
 
             sicds.append(sicd_data[band_name])
-            chippers.append(H5Chipper(csk_details.file_name, the_band, shape_dict[band_name], symmetry))
+            basic_shape = shape_dict[band_name]
+            data_segments.append(
+                HDF5DatasetSegment(
+                    csk_details.file_name, the_band,
+                    formatted_dtype='complex64', formatted_shape=(basic_shape[1], basic_shape[0]),
+                    reverse_axes=reverse_axes, transpose_axes=transpose_axes,
+                    format_function=ComplexFormatFunction(raw_dtype=dtype_dict[band_name], order='IQ'),
+                    close_file=True))
 
-        SICDTypeReader.__init__(self, tuple(sicds))
-        BaseReader.__init__(self, tuple(chippers), reader_type="SICD")
+        SICDTypeReader.__init__(self, data_segments, sicds, close_segments=True)
         self._check_sizes()
 
     @property
-    def csk_details(self):
-        # type: () -> CSKDetails
+    def csk_details(self) -> CSKDetails:
         """
         CSKDetails: The details object.
         """
@@ -748,5 +724,41 @@ class CSKReader(BaseReader, SICDTypeReader):
         return self._csk_details
 
     @property
-    def file_name(self):
+    def file_name(self) -> str:
         return self.csk_details.file_name
+
+
+########
+# base expected functionality for a module with an implemented Reader
+
+
+def is_a(file_name: Union[str, BinaryIO]) -> Union[None, CSKReader]:
+    """
+    Tests whether a given file_name corresponds to a Cosmo Skymed file. Returns a reader instance, if so.
+
+    Parameters
+    ----------
+    file_name : str|BinaryIO
+        the file_name to check
+
+    Returns
+    -------
+    CSKReader|None
+        `CSKReader` instance if Cosmo Skymed file, `None` otherwise
+    """
+
+    if is_file_like(file_name):
+        return None
+
+    if not is_hdf5(file_name):
+        return None
+
+    if h5py is None:
+        return None
+
+    try:
+        csk_details = CSKDetails(file_name)
+        logger.info('File {} is determined to be a Cosmo Skymed file.'.format(file_name))
+        return CSKReader(csk_details)
+    except SarpyIOError:
+        return None

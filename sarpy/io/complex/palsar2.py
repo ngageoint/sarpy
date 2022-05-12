@@ -15,8 +15,9 @@ import numpy
 from numpy.polynomial import polynomial
 from scipy.constants import speed_of_light
 
-from sarpy.io.general.base import BaseChipper, SubsetChipper, BaseReader, BIPChipper, SarpyIOError
-
+from sarpy.io.general.base import SarpyIOError
+from sarpy.io.general.data_segment import DataSegment, NumpyMemmapSegment, SubsetSegment
+from sarpy.io.general.format_function import ComplexFormatFunction
 from sarpy.io.general.utils import get_seconds, parse_timestring, is_file_like
 
 from sarpy.io.complex.base import SICDTypeReader
@@ -530,25 +531,43 @@ class _IMG_Elements(_CommonElements2):
         rcv_pol = 'H' if signal.rcv_pol == 0 else 'V'
         return tx_pol, rcv_pol
 
-    def construct_chipper(self, flip_pixels):
+    def construct_data_segment(self, flip_pixels):
         """
-        Construct the chipper associated with the IMG file.
+        Construct the data segment associated with the IMG file.
 
         Parameters
         ----------
         flip_pixels : bool
-            Should we flip in the pixel dimension?
+            Should we flip in the pixel (2nd raw) dimension?
 
         Returns
         -------
-        BaseChipper
+        DataSegment
         """
 
+        reverse_axes = (1, ) if flip_pixels else None
+
         pixel_size = self.num_bytes
-        raw_bands = 2
-        output_bands = 1
-        output_dtype = 'complex64'
-        transform_data = 'COMPLEX'
+        prefix_bytes = self.prefix_bytes
+        suffix_bytes = self.suffix_bytes
+        if (prefix_bytes % pixel_size) != 0:
+            raise ValueError('prefix size is not compatible with pixel size')
+        if (suffix_bytes % pixel_size) != 0:
+            raise ValueError('suffix size is not compatible with pixel size')
+        pref_cols = int(prefix_bytes/pixel_size)
+        suf_cols = int(suffix_bytes/pixel_size)
+
+        raw_shape = (self.num_lines, pref_cols + self.num_pixels + suf_cols, 2)
+        formatted_shape = raw_shape[1::-1]
+        formatted_dtype = 'complex64'
+        transpose_axes = (1, 0, 2)
+
+        if flip_pixels:
+            sub_start = suf_cols
+            sub_end = self.num_pixels+suf_cols
+        else:
+            sub_start = pref_cols
+            sub_end = self.num_pixels+pref_cols
 
         if pixel_size == 8:
             sar_datatype_code = self.sar_datatype_code.strip()
@@ -561,28 +580,16 @@ class _IMG_Elements(_CommonElements2):
         else:
             raise ValueError('Got unhandled pixel size = {}'.format(pixel_size))
 
-        symmetry = (False, flip_pixels, True)
-
-        prefix_bytes = self.prefix_bytes
-        suffix_bytes = self.suffix_bytes
-        if (prefix_bytes % pixel_size) != 0:
-            raise ValueError('prefix size is not compatible with pixel size')
-        if (suffix_bytes % pixel_size) != 0:
-            raise ValueError('suffix size is not compatible with pixel size')
-        pref_cols = int(prefix_bytes/pixel_size)
-        suf_cols = int(suffix_bytes/pixel_size)
-        data_size = (self.num_lines, pref_cols + self.num_pixels + suf_cols)
-        if flip_pixels:
-            sub_start = suf_cols
-            sub_end = self.num_pixels+suf_cols
-        else:
-            sub_start = pref_cols
-            sub_end = self.num_pixels+pref_cols
-
-        p_chipper = BIPChipper(
-            self._file_name, raw_dtype, data_size, raw_bands, output_bands, output_dtype,
-            symmetry, transform_data, data_offset=self.rec_length)
-        return SubsetChipper(p_chipper, dim1bounds=(sub_start, sub_end), dim2bounds=(0, self.num_lines))
+        format_function = ComplexFormatFunction(raw_dtype, order='IQ', band_dimension=2)
+        parent_data_segment = NumpyMemmapSegment(
+            self._file_name, self.rec_length,
+            raw_shape=raw_shape, raw_dtype=raw_dtype,
+            formatted_shape=formatted_shape, formatted_dtype=formatted_dtype,
+            reverse_axes=reverse_axes, transpose_axes=transpose_axes,
+            format_function=format_function, mode='r', close_file=True)
+        subset_definition = (slice(sub_start, sub_end, 1), slice(0, self.num_lines, 1))
+        return SubsetSegment(
+            parent_data_segment, subset_definition, coordinate_basis='formatted', close_parent=True)
 
 
 ###########
@@ -1178,7 +1185,7 @@ class PALSARDetails(object):
     __slots__ = (
         '_file_name', '_img_elements', '_led_element', '_trl_element', '_vol_element')
 
-    def __init__(self, file_name):
+    def __init__(self, file_name: str):
         """
 
         Parameters
@@ -1187,7 +1194,7 @@ class PALSARDetails(object):
         """
 
         self._file_name = None
-        self._img_elements = None  # type: Union[None, Tuple[_IMG_Elements]]
+        self._img_elements = None  # type: Union[None, Tuple[_IMG_Elements, ...]]
         self._led_element = None  # type: Union[None, _LED_Elements]
         self._trl_element = None  # type: Union[None, _TRL_Elements]
         self._vol_element = None  # type: Union[None, _VOL_Elements]
@@ -1198,7 +1205,7 @@ class PALSARDetails(object):
                     'image file {} corresponds to part of a ScanSAR collect, '
                     'which is currently unsupported'.format(entry.file_name))
 
-    def _validate_filename(self, file_name):
+    def _validate_filename(self, file_name: str) -> None:
         """
         Validate the input path, and find the associated files.
 
@@ -1253,7 +1260,7 @@ class PALSARDetails(object):
         self._vol_element = _VOL_Elements(vol_files[0]) if len(vol_files) > 0 else None
 
     @property
-    def file_name(self):
+    def file_name(self) -> str:
         """
         str: The parent directory.
         """
@@ -1261,14 +1268,17 @@ class PALSARDetails(object):
         return self._file_name
 
     @property
-    def img_elements(self):
+    def img_elements(self) -> Tuple[_IMG_Elements, ...]:
         """
-        Tuple[_IMG_Elements]: The img elements
+        Tuple[_IMG_Elements, ...]: The img elements
         """
 
         return self._img_elements
 
-    def _get_sicd(self, index, tx_pols, tx_rcv_pols):
+    def _get_sicd(self,
+                  index: int,
+                  tx_pols: List[str],
+                  tx_rcv_pols: List[str]) -> SICDType:
         """
         Gets the SICD structure for image at `index`.
 
@@ -1283,8 +1293,7 @@ class PALSARDetails(object):
         SICDType
         """
 
-        def get_collection_info():
-            # type: () -> CollectionInfoType
+        def get_collection_info() -> CollectionInfoType:
             collector_name = 'ALOS2' if self._vol_element.vol_set_id.startswith('ALOS2') else None
             core_name = self._vol_element.texts[-1].scene_id[7:]
             mode_id = self._vol_element.texts[-1].prod_id[8:11]
@@ -1296,8 +1305,7 @@ class PALSARDetails(object):
                 Classification='UNCLASSIFIED',
                 RadarMode=RadarModeType(ModeID=mode_id, ModeType=mode_type))
 
-        def get_image_creation():
-            # type: () -> ImageCreationType
+        def get_image_creation() -> ImageCreationType:
             from sarpy.__about__ import __version__
             the_date = self._vol_element.log_vol_create_date
             the_time = self._vol_element.log_vol_create_time
@@ -1315,8 +1323,7 @@ class PALSARDetails(object):
                                      Site=site,
                                      Profile='sarpy {}'.format(__version__))
 
-        def get_image_data():
-            # type: () -> ImageDataType
+        def get_image_data() -> ImageDataType:
             rows = img_element.num_pixels
             cols = img_element.num_lines
             if img_element.num_bytes == 8:
@@ -1341,15 +1348,13 @@ class PALSARDetails(object):
                 FullImage=(rows, cols),
                 SCPPixel=(scp_row, scp_col))
 
-        def get_geo_data():
-            # type: () -> GeoDataType
+        def get_geo_data() -> GeoDataType:
             # NB: lat/lon are expressed in 10-6 degrees
             scp_lat = 5e-7*(start_signal.lat_center + end_signal.lat_center)
             scp_lon = 5e-7*(start_signal.lon_center + end_signal.lon_center)
             return GeoDataType(SCP=SCPType(LLH=[scp_lat, scp_lon, 0.0]))
 
-        def get_timeline():
-            # type: () -> TimelineType
+        def get_timeline() -> TimelineType:
             start_time = numpy.datetime64('{0:04d}-01-01'.format(start_signal.year), 'us') + \
                          (start_signal.day-1)*86400*1000000 + start_signal.usec
             end_time = numpy.datetime64('{0:04d}-01-01'.format(end_signal.year), 'us') + \
@@ -1367,8 +1372,7 @@ class PALSARDetails(object):
                                 IPPEnd=int(prf*duration),
                                 IPPPoly=[0, prf]), ])
 
-        def get_position():
-            # type: () -> PositionType
+        def get_position() -> PositionType:
             pos_element = led_element.position
             position_start = numpy.datetime64(
                 '{0:04d}-{1:02d}-{2:02d}'.format(pos_element.year, pos_element.month, pos_element.day), 'us') + \
@@ -1382,8 +1386,7 @@ class PALSARDetails(object):
                 times_s[mask], arp_pos[mask, :], arp_vel[mask, :], max_degree=8)
             return PositionType(ARPPoly=XYZPolyType(X=P_x, Y=P_y, Z=P_z))
 
-        def get_radar_collection():
-            # type: () -> RadarCollectionType
+        def get_radar_collection() -> RadarCollectionType:
             data = led_element.data
             bw = data.bw_rng*1e3  # NB: bandwidth is given in strange units?
             tx_freq_min = center_frequency - bw*0.5  # NB: bandwidth is given in milliHz
@@ -1417,8 +1420,7 @@ class PALSARDetails(object):
                     ChanParametersType(TxRcvPolarization=tx_rcv_p, index=j+1)
                     for j, tx_rcv_p in enumerate(tx_rcv_pols)])
 
-        def get_image_formation():
-            # type: () -> ImageFormationType
+        def get_image_formation() -> ImageFormationType:
             az_autofocus = 'GLOBAL' if led_element.data.autofocus_flg.strip() == 'YES' else 'NO'
             tx_min_freq = radar_collection.TxFrequency.Min
             tx_max_freq = radar_collection.TxFrequency.Max
@@ -1435,13 +1437,11 @@ class PALSARDetails(object):
                 RcvChanProc=RcvChanProcType(NumChanProc=1,
                                             ChanIndices=[index+1, ]))
 
-        def get_radiometric():
-            # type: () -> RadiometricType
+        def get_radiometric() -> RadiometricType:
             sigma_zero = 10**(0.1*(led_element.radiometric.cal_factor - 32))
             return RadiometricType(SigmaZeroSFPoly=[[sigma_zero, ]])
 
-        def get_error_stats():
-            # type: () -> ErrorStatisticsType
+        def get_error_stats() -> ErrorStatisticsType:
             pos_element = led_element.position
             range_bias = 1e-2
             # NB: there is a comment in the matlab code for range bias error:
@@ -1457,8 +1457,7 @@ class PALSARDetails(object):
                                             V3=pos_element.ct_vel_err),
                     RadarSensor=RadarSensorErrorType(RangeBias=range_bias)))
 
-        def get_grid_and_rma():
-            # type: () -> (GridType, RMAType)
+        def get_grid_and_rma() -> Tuple[GridType, RMAType]:
             data = led_element.data
             dop_bw = data.bw_az
             ss_zd_s = 1000.0/data.prf
@@ -1552,7 +1551,7 @@ class PALSARDetails(object):
                 INCA=inca)
             return t_grid, t_rma
 
-        def adjust_scp():
+        def adjust_scp() -> None:
             scp_pixel = sicd.ImageData.SCPPixel.get_array()
             scp_ecf = sicd.project_image_to_ground(scp_pixel)
             sicd.update_scp(scp_ecf, coord_system='ECF')
@@ -1599,7 +1598,7 @@ class PALSARDetails(object):
         sicd.derive()
         return sicd
 
-    def get_sicd_collection(self):
+    def get_sicd_collection(self) -> List[SICDType]:
         """
         Gets the sicd structure collection.
 
@@ -1618,10 +1617,10 @@ class PALSARDetails(object):
             tx_pols.append(txp)
             tx_rcv_pols.append('{}:{}'.format(txp, rcvp))
 
-        return tuple([self._get_sicd(index, tx_pols, tx_rcv_pols) for index, _ in enumerate(self._img_elements)])
+        return [self._get_sicd(index, tx_pols, tx_rcv_pols) for index, _ in enumerate(self._img_elements)]
 
 
-class PALSARReader(BaseReader, SICDTypeReader):
+class PALSARReader(SICDTypeReader):
     """
     The reader object for the PALSAR ALOS2 file package.
     """
@@ -1647,17 +1646,15 @@ class PALSARReader(BaseReader, SICDTypeReader):
         self._palsar_details = palsar_details  # type: PALSARDetails
 
         sicds = self._palsar_details.get_sicd_collection()
-        chippers = []
+        data_segments = []
         data_sizes = []
         for sicd, img_details in zip(sicds, self._palsar_details.img_elements):
             data_sizes.append((sicd.ImageData.NumCols, sicd.ImageData.NumRows))
-            chippers.append(img_details.construct_chipper(sicd.SCPCOA.SideOfTrack == 'L'))
+            data_segments.append(img_details.construct_data_segment(sicd.SCPCOA.SideOfTrack == 'L'))
 
-        SICDTypeReader.__init__(self, tuple(sicds))
-        BaseReader.__init__(self, tuple(chippers), reader_type="SICD")
+        SICDTypeReader.__init__(self, data_segments, sicds, close_segments=True)
         self._check_sizes()
 
     @property
-    def file_name(self):
-        # type: () -> str
+    def file_name(self) -> str:
         return self._palsar_details.file_name

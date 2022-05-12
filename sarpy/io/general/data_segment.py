@@ -497,7 +497,7 @@ class DataSegment(object):
         else:
             return verify_subscript(subscript, self._formatted_shape)
 
-    def __getitem__(self, subscript: Union[None, int, slice, Ellipsis, Tuple[slice, ...]]):
+    def __getitem__(self, subscript: Union[None, int, slice, Tuple[slice, ...]]):
         """
         Fetch the data via slice definition.
 
@@ -520,7 +520,7 @@ class DataSegment(object):
         else:
             return self.read_raw(subscript, squeeze=kwargs.get('squeeze', True))
 
-    def read(self, subscript: Union[None, int, slice, Ellipsis, Tuple[slice, ...]], squeeze=True) -> numpy.ndarray:
+    def read(self, subscript: Union[None, int, slice, Tuple[slice, ...]], squeeze=True) -> numpy.ndarray:
         """
         In keeping with data segment mode, read the data slice specified relative
         to the formatted data coordinates. This requires that `mode` is `'r'`.
@@ -543,7 +543,7 @@ class DataSegment(object):
         raw_data = self.read_raw(raw_subscript, squeeze=False)
         return self.format_function(raw_data, raw_subscript, squeeze=squeeze)
 
-    def read_raw(self, subscript: Union[None, int, slice, Ellipsis, Tuple[slice, ...]], squeeze=True) -> numpy.ndarray:
+    def read_raw(self, subscript: Union[None, int, slice, Tuple[slice, ...]], squeeze=True) -> numpy.ndarray:
         """
         In keeping with data segment mode, read raw data from the source, without
         reformatting and or applying symmetry operations. This requires that `mode`
@@ -769,7 +769,7 @@ class ReorientationSegment(DataSegment):
     def close_parent(self, value):
         self._close_parent = bool(value)
 
-    def read_raw(self, subscript: Union[None, int, slice, Ellipsis, Tuple[slice, ...]], squeeze=True) -> numpy.ndarray:
+    def read_raw(self, subscript: Union[None, int, slice, Tuple[slice, ...]], squeeze=True) -> numpy.ndarray:
         if self.mode == 'r':
             raise ValueError('Requires mode == "r"')
         return self.parent.read(subscript, squeeze=squeeze)
@@ -1032,7 +1032,7 @@ class SubsetSegment(DataSegment):
             self.verify_formatted_subscript(subscript), self.parent.formatted_shape,
             self._original_formatted_indices, self._formatted_subset_definition)
 
-    def read_raw(self, subscript: Union[None, int, slice, Ellipsis, Tuple[slice, ...]], squeeze=True) -> numpy.ndarray:
+    def read_raw(self, subscript: Union[None, int, slice, Tuple[slice, ...]], squeeze=True) -> numpy.ndarray:
         if self.mode == 'r':
             raise ValueError('Requires mode == "r"')
 
@@ -1240,7 +1240,7 @@ class BandAggregateSegment(DataSegment):
 
         return len(self.children)
 
-    def read_raw(self, subscript: Union[None, int, slice, Ellipsis, Tuple[slice, ...]], squeeze=True) -> numpy.ndarray:
+    def read_raw(self, subscript: Union[None, int, slice, Tuple[slice, ...]], squeeze=True) -> numpy.ndarray:
         if self.mode == 'r':
             raise ValueError('Requires mode == "r"')
 
@@ -1448,7 +1448,7 @@ class BlockAggregateSegment(DataSegment):
         self._raw_child_arrangement = tuple(raw_arrangement)
         self._formatted_child_arrangement = tuple(formatted_arrangement)
 
-    def read_raw(self, subscript: Union[None, int, slice, Ellipsis, Tuple[slice, ...]], squeeze=True) -> numpy.ndarray:
+    def read_raw(self, subscript: Union[None, int, slice, Tuple[slice, ...]], squeeze=True) -> numpy.ndarray:
         if self.mode == 'r':
             raise ValueError('Requires mode == "r"')
 
@@ -1636,7 +1636,7 @@ class NumpyArraySegment(DataSegment):
 
         return self._underlying_array
 
-    def read_raw(self, subscript: Union[None, int, slice, Ellipsis, Tuple[slice, ...]], squeeze=True) -> numpy.ndarray:
+    def read_raw(self, subscript: Union[None, int, slice, Tuple[slice, ...]], squeeze=True) -> numpy.ndarray:
         if self.mode == 'r':
             raise ValueError('Requires mode == "r"')
 
@@ -1790,8 +1790,8 @@ class HDF5DatasetSegment(DataSegment):
     def __init__(self,
                  file_object: Union[str, h5py.File],
                  data_set: Union[str, h5py.Dataset],
-                 formatted_dtype: Union[str, numpy.dtype],
-                 formatted_shape: Tuple[int, ...],
+                 formatted_dtype: Union[None, str, numpy.dtype]=None,
+                 formatted_shape: Union[None, Tuple[int, ...]]=None,
                  reverse_axes: Union[None, int, Sequence[int]]=None,
                  transpose_axes: Union[None, Tuple[int, ...]]=None,
                  format_function: Union[None, FormatFunction]=None,
@@ -1822,8 +1822,23 @@ class HDF5DatasetSegment(DataSegment):
             raise ValueError(
                 'h5py was not successfully imported, and no hdf5 file can be read')
 
+        if isinstance(file_object, str):
+            close_file = True
+
         self._set_file_object(file_object)
         self._set_data_set(data_set)
+
+        if format_function is not None:
+            if formatted_dtype is None or formatted_shape is None:
+                raise ValueError(
+                    'format_function is supplied, so formatted_dtype and formatted_shape must also be supplied')
+        else:
+            formatted_dtype = self.data_set.dtype
+            raw_shape = self.data_set.shape
+            if transpose_axes is None:
+                formatted_shape = raw_shape
+            else:
+                formatted_shape = tuple(raw_shape[entry] for entry in transpose_axes)
 
         self.close_file = close_file
 
@@ -1874,7 +1889,7 @@ class HDF5DatasetSegment(DataSegment):
         self._file_object = None
         DataSegment.close(self)
 
-    def read_raw(self, subscript: Union[None, int, slice, Ellipsis, Tuple[slice, ...]], squeeze=True) -> numpy.ndarray:
+    def read_raw(self, subscript: Union[None, int, slice, Tuple[slice, ...]], squeeze=True) -> numpy.ndarray:
         subscript, out_shape = get_subscript_result_size(subscript, self.raw_shape)
 
         # NB: h5py does not support slicing with a negative step (right now)
@@ -2006,7 +2021,7 @@ class FileReadDataSegment(DataSegment):
         self._file_object = None
         DataSegment.close(self)
 
-    def read_raw(self, subscript: Union[None, int, slice, Ellipsis, Tuple[slice, ...]], squeeze=True) -> numpy.ndarray:
+    def read_raw(self, subscript: Union[None, int, slice, Tuple[slice, ...]], squeeze=True) -> numpy.ndarray:
         subscript, out_shape = get_subscript_result_size(subscript, self.raw_shape)
 
         init_slice = subscript[0]

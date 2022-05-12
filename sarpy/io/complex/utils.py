@@ -7,7 +7,7 @@ __author__ = "Thomas McCullough"
 
 
 import logging
-from typing import Iterator, Tuple, List
+from typing import Iterator, Tuple, List, Optional
 
 import numpy
 from numpy.polynomial import polynomial
@@ -20,9 +20,17 @@ from sarpy.io.complex.sicd_elements.blocks import Poly2DType
 logger = logging.getLogger(__name__)
 
 
-def two_dim_poly_fit(x, y, z, x_order=2, y_order=2, x_scale=1, y_scale=1, rcond=None):
+def two_dim_poly_fit(
+        x: numpy.ndarray,
+        y: numpy.ndarray,
+        z: numpy.ndarray,
+        x_order: int=2,
+        y_order: int=2,
+        x_scale: float=1.,
+        y_scale: float=1.,
+        rcond: Optional[float]=None) -> numpy.ndarray:
     """
-    Perform fit of data to two dimensional polynomial.
+    Perform fit of data to two-dimensional polynomial.
 
     Parameters
     ----------
@@ -74,7 +82,11 @@ def two_dim_poly_fit(x, y, z, x_order=2, y_order=2, x_scale=1, y_scale=1, rcond=
     return sol, residuals, rank, sing_values
 
 
-def get_im_physical_coords(array, grid, image_data, direction):
+def get_im_physical_coords(
+        array,
+        grid, 
+        image_data,
+        direction):
     """
     Converts one dimension of "pixel" image (row or column) coordinates to
     "physical" image (range or azimuth in meters) coordinates, for use in the

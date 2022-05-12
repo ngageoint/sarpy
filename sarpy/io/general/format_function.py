@@ -9,7 +9,7 @@ __author__ = "Thomas McCullough"
 
 
 import logging
-from typing import Union, Tuple
+from typing import Union, Tuple, Optional
 
 import numpy
 
@@ -126,10 +126,10 @@ class FormatFunction(object):
     __slots__ = ('_raw_shape', '_formatted_shape', '_reverse_axes', '_transpose_axes', '_reverse_transpose_axes')
 
     def __init__(self,
-                 raw_shape : Union[None, Tuple[int, ...]]=None,
-                 formatted_shape : Union[None, Tuple[int, ...]]=None,
-                 reverse_axes: Union[None, Tuple[int, ...]]=None,
-                 transpose_axes:Union[None, Tuple[int, ...]]=None):
+                 raw_shape : Optional[Tuple[int, ...]]=None,
+                 formatted_shape : Optional[Tuple[int, ...]]=None,
+                 reverse_axes: Optional[Tuple[int, ...]]=None,
+                 transpose_axes:Optional[Tuple[int, ...]]=None):
         """
 
         Parameters
@@ -151,14 +151,14 @@ class FormatFunction(object):
         self.set_transpose_axes(transpose_axes)
 
     @property
-    def raw_shape(self) -> Union[None, Tuple[int, ...]]:
+    def raw_shape(self) -> Optional[Tuple[int, ...]]:
         """
         None|Tuple[int, ...]: The expected full possible raw shape.
         """
 
         return self._raw_shape
 
-    def set_raw_shape(self, value: Union[None, Tuple[int, ...]]) -> None:
+    def set_raw_shape(self, value: Optional[Tuple[int, ...]]) -> None:
         if self._raw_shape is not None:
             if value is None or value != self._raw_shape:
                 raise ValueError('raw_shape is read only once set')
@@ -172,14 +172,14 @@ class FormatFunction(object):
         return len(self._raw_shape)
 
     @property
-    def formatted_shape(self) -> Union[None, Tuple[int, ...]]:
+    def formatted_shape(self) -> Optional[Tuple[int, ...]]:
         """
         None|Tuple[int, ...]: The expected output shape basis.
         """
 
         return self._formatted_shape
 
-    def set_formatted_shape(self, value: Union[None, Tuple[int, ...]]) -> None:
+    def set_formatted_shape(self, value: Optional[Tuple[int, ...]]) -> None:
         if self._formatted_shape is not None:
             if value is None or value != self._formatted_shape:
                 raise ValueError('formatted_shape is read only once set')
@@ -193,7 +193,7 @@ class FormatFunction(object):
         return len(self._formatted_shape)
 
     @property
-    def reverse_axes(self) -> Union[None, Tuple[int, ...]]:
+    def reverse_axes(self) -> Optional[Tuple[int, ...]]:
         """
         None|Tuple[int, ...]: The collection of axes (with respect to raw order)
         along which we will reverse as part of transformation to output data order.
@@ -202,7 +202,7 @@ class FormatFunction(object):
 
         return self._reverse_axes
 
-    def set_reverse_axes(self, value: Union[None, Tuple[int, ...]]) -> None:
+    def set_reverse_axes(self, value: Optional[Tuple[int, ...]]) -> None:
         if self._reverse_axes is not None:
             if value is None or value != self._reverse_axes:
                 raise ValueError('reverse_axes is read only once set')
@@ -218,7 +218,7 @@ class FormatFunction(object):
 
         return self._transpose_axes
 
-    def set_transpose_axes(self, value: Union[None, Tuple[int, ...]]) -> None:
+    def set_transpose_axes(self, value: Optional[Tuple[int, ...]]) -> None:
         if self._transpose_axes is not None:
             if value is None or value != self._transpose_axes:
                 raise ValueError('transpose_axes is read only once set')
@@ -523,16 +523,17 @@ class ComplexFormatFunction(FormatFunction):
     has_inverse=True
     _allowed_ordering= ('IQ', 'QI', 'MP', 'PM')
 
-    __slots__ = ('_band_dimension', '_order', '_raw_dtype')
+    __slots__ = ('_band_dimension', '_order', '_raw_dtype', '_magnitude_lookup_table')
 
     def __init__(self,
                  raw_dtype: Union[str, numpy.dtype],
                  order: str,
-                 raw_shape : Union[None, Tuple[int, ...]]=None,
-                 formatted_shape : Union[None, Tuple[int, ...]]=None,
-                 reverse_axes: Union[None, Tuple[int, ...]]=None,
-                 transpose_axes:Union[None, Tuple[int, ...]]=None,
-                 band_dimension: int=-1):
+                 raw_shape : Optional[Tuple[int, ...]]=None,
+                 formatted_shape : Optional[Tuple[int, ...]]=None,
+                 reverse_axes: Optional[Tuple[int, ...]]=None,
+                 transpose_axes:Optional[Tuple[int, ...]]=None,
+                 band_dimension: int=-1,
+                 magnitude_lookup_table: Optional[numpy.ndarray] = None):
         """
 
         Parameters
@@ -550,12 +551,17 @@ class ComplexFormatFunction(FormatFunction):
         transpose_axes : None|Tuple[int, ...]
         band_dimension : int
             Which band is the complex dimension, **after** the transpose operation.
+        magnitude_lookup_table : None|numpy.ndarray
+            This will be ignored unless `order` in `['MP', 'PM']` and `raw_dtype`
+            is `uint8`.
         """
 
         self._raw_dtype = numpy.dtype(raw_dtype)  # type: numpy.dtype
         self._band_dimension = None
         self._order = None
         self._set_order(order)
+        self._magnitude_lookup_table = None
+        self._set_magnitude_lookup(magnitude_lookup_table)
 
         FormatFunction.__init__(
             self, raw_shape=raw_shape, formatted_shape=formatted_shape,
@@ -593,6 +599,39 @@ class ComplexFormatFunction(FormatFunction):
         """
 
         return self._order
+
+    @property
+    def magnitude_lookup_table(self) -> Optional[numpy.ndarray]:
+        """
+        The magnitude lookup table.
+
+        Returns
+        -------
+        Optional[numpy.ndarray]
+        """
+        return self._magnitude_lookup_table
+
+    def _set_magnitude_lookup(self, lookup_table: Optional[numpy.ndarray]) -> None:
+        if lookup_table is None:
+            self._magnitude_lookup_table = None
+            return
+
+        if not isinstance(lookup_table, numpy.ndarray):
+            raise ValueError('requires a numpy.ndarray, got {}'.format(type(lookup_table)))
+        if lookup_table.dtype.name != 'float64':
+            raise ValueError('requires a numpy.ndarray of float64 dtype, got {}'.format(lookup_table.dtype))
+        if lookup_table.shape != (256,):
+            raise ValueError('Requires a one-dimensional numpy.ndarray with 256 elements, '
+                             'got shape {}'.format(lookup_table.shape))
+        if self._raw_dtype.name != 'uint8':
+            raise ValueError(
+                'A magnitude lookup table has been supplied,\n\t'
+                'but the raw datatype is not `uint8`.')
+        if self.order not in ['MP', 'PM']:
+            logger.warning(
+                'A magnitude lookup table has been supplied,\n\t'
+                'but the order is not one of `MP` or `PM`')
+        self._magnitude_lookup_table = lookup_table
 
     def _set_order(self, value: str) -> None:
         if not isinstance(value, str):
@@ -757,6 +796,9 @@ class ComplexFormatFunction(FormatFunction):
                 mag = data.take(indices=range(0, band_dim_size, 2), axis=self.band_dimension)
                 theta = data.take(indices=range(1, band_dim_size, 2), axis=self.band_dimension)
 
+            if self.magnitude_lookup_table is not None:
+                mag = self.magnitude_lookup_table[mag]
+
             if data.dtype.name in ['uint8', 'uint16', 'uint32']:
                 bit_depth = data.dtype.itemsize*8
                 theta = theta*2*numpy.pi/(1 << bit_depth)
@@ -800,8 +842,11 @@ class ComplexFormatFunction(FormatFunction):
             out[slice0] = data.imag
         elif self.order in ['MP', 'PM']:
             magnitude = numpy.abs(data)
+            if self.magnitude_lookup_table is not None:
+                magnitude = numpy.digitize(magnitude.ravel(), self.magnitude_lookup_table, right=False).reshape(data.shape)
+
             theta = numpy.arctan2(data.imag, data.real)
-            theta[theta < 0] += 2 * numpy.pi
+            theta[theta < 0] += 2*numpy.pi
 
             if self._raw_dtype.name in ['uint8', 'uint16', 'uint32']:
                 bit_depth = self._raw_dtype.itemsize*8
@@ -832,10 +877,10 @@ class SingleLUTFormatFunction(FormatFunction):
 
     def __init__(self,
                  lookup_table: numpy.ndarray,
-                 raw_shape : Union[None, Tuple[int, ...]]=None,
-                 formatted_shape : Union[None, Tuple[int, ...]]=None,
-                 reverse_axes: Union[None, Tuple[int, ...]]=None,
-                 transpose_axes:Union[None, Tuple[int, ...]]=None):
+                 raw_shape : Optional[Tuple[int, ...]]=None,
+                 formatted_shape : Optional[Tuple[int, ...]]=None,
+                 reverse_axes: Optional[Tuple[int, ...]]=None,
+                 transpose_axes:Optional[Tuple[int, ...]]=None):
         """
 
         Parameters
@@ -956,3 +1001,13 @@ class SingleLUTFormatFunction(FormatFunction):
             return numpy.squeeze(array)
         else:
             return array
+
+
+if __name__ == '__main__':
+    class testing(object):
+        __slots__ = ('poo', )
+
+        def __init__(self):
+            print(self.poo)
+
+    testing()

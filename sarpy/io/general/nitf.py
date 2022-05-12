@@ -1,16 +1,21 @@
 """
 Module laying out basic functionality for reading and writing NITF files.
-This is **intended** to represent base functionality to be extended for
-SICD and SIDD capability.
+
+**Updated extensively in version 1.3.0**.
 """
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
+# TODO:
+#   1.) update NITF reading paradigm
+#   2.) update NITF writing paradigm
+
+
 import logging
 import os
-from typing import Union, List, Tuple, BinaryIO
+from typing import Union, List, Tuple, BinaryIO, Sequence, Optional
 import re
 import mmap
 from tempfile import mkstemp
@@ -20,8 +25,13 @@ import gc
 
 import numpy
 
-from sarpy.io.general.base import BaseReader, AbstractWriter, SubsetChipper, \
-    AggregateChipper, BIPChipper, BIPWriter, BSQChipper, BIRChipper, SarpyIOError
+from sarpy.io.general.base import SarpyIOError, AbstractReader, AbstractWriter, \
+    BaseReader, SubsetChipper, AggregateChipper, BIPChipper, BIPWriter, \
+    BSQChipper, BIRChipper
+from sarpy.io.general.format_function import FormatFunction, ComplexFormatFunction, \
+    SingleLUTFormatFunction
+from sarpy.io.general.data_segment import DataSegment
+
 # noinspection PyProtectedMember
 from sarpy.io.general.nitf_elements.nitf_head import NITFHeader, NITFHeader0, \
     ImageSegmentsType, DataExtensionsType, _ItemArrayHeaders
@@ -33,7 +43,8 @@ from sarpy.io.general.nitf_elements.res import ReservedExtensionHeader, Reserved
 from sarpy.io.general.nitf_elements.security import NITFSecurityTags
 from sarpy.io.general.nitf_elements.image import ImageSegmentHeader, ImageSegmentHeader0, MaskSubheader
 from sarpy.io.general.nitf_elements.des import DataExtensionHeader, DataExtensionHeader0
-from sarpy.io.general.utils import is_file_like
+from sarpy.io.general.utils import is_file_like, is_nitf, is_real_file
+
 from sarpy.io.complex.sicd_elements.blocks import LatLonType
 from sarpy.geometry.geocoords import ecf_to_geodetic, geodetic_to_ecf
 from sarpy.geometry.latlon import num as lat_lon_parser
@@ -59,38 +70,11 @@ logger = logging.getLogger(__name__)
 _unhandled_version_text = 'Unhandled NITF version `{}`'
 
 
-########
-# base expected functionality for a module with an implemented Reader
-
-def is_a(file_name):
-    """
-    Tests whether a given file_name corresponds to a nitf file. Returns a
-    nitf reader instance, if so.
-
-    Parameters
-    ----------
-    file_name : str
-        the file_name to check
-
-    Returns
-    -------
-    NITFReader|None
-        `NITFReader` instance if nitf file, `None` otherwise
-    """
-
-    try:
-        nitf_details = NITFDetails(file_name)
-        logger.info('File {} is determined to be a nitf file.'.format(file_name))
-        return NITFReader(nitf_details)
-    except SarpyIOError:
-        # we don't want to catch parsing errors, for now
-        return None
-
-
 #####
-# A general nitf header interpreter - intended for extension
+# helper functions
 
-def extract_image_corners(img_header):
+def extract_image_corners(
+        img_header: Union[ImageSegmentHeader, ImageSegmentHeader0]) -> Union[None, numpy.ndarray]:
     """
     Extract the image corner point array for the image segment header.
 
@@ -104,7 +88,9 @@ def extract_image_corners(img_header):
     """
 
     corner_string = img_header.IGEOLO
+    # NB: there are 4 corner point string, each of length 15
     corner_strings = [corner_string[start:stop] for start, stop in zip(range(0, 59, 15), range(15, 74, 15))]
+
     icps = []
     # TODO: handle ICORDS == 'U', which is MGRS
     if img_header.ICORDS in ['N', 'S']:
@@ -156,7 +142,7 @@ class NITFDetails(object):
         'res_subheader_offsets', 'res_subheader_sizes',  # only 2.1
         'res_segment_offsets', 'res_segment_sizes')
 
-    def __init__(self, file_object):
+    def __init__(self, file_object: Union[str, BinaryIO]):
         """
 
         Parameters
@@ -185,26 +171,14 @@ class NITFDetails(object):
         else:
             raise TypeError('file_object is required to be a file like object, or string path to a file.')
 
-        # Read the first 9 bytes to verify NITF
-        self._file_object.seek(0, os.SEEK_SET)
-        try:
-            version_info = self._file_object.read(9)
-        except Exception:
-            raise SarpyIOError('Not a NITF 2.1 file.')
-        if not isinstance(version_info, bytes):
-            raise ValueError('Input file like object not open in bytes mode.')
-        try:
-            version_info = version_info.decode('utf-8')
-        except Exception as e:
-            msg = 'Failed checking potential version with error\n\t{}'.format(e)
-            logger.info(msg)
-            raise SarpyIOError(msg)
+        is_nitf_file, vers_string = is_nitf(self._file_object, return_version=True)
+        if not is_nitf_file:
+            raise SarpyIOError('Not a NITF file')
+        self._nitf_version = vers_string
 
-        if version_info[:4] != 'NITF':
-            raise SarpyIOError('File {} is not a NITF file.'.format(self._file_name))
-        self._nitf_version = version_info[4:]
         if self._nitf_version not in ['02.10', '02.00']:
             raise SarpyIOError('Unsupported NITF version {} for file {}'.format(self._nitf_version, self._file_name))
+
         if self._nitf_version == '02.10':
             self._file_object.seek(354, os.SEEK_SET)  # offset to header length field
             header_length = int(self._file_object.read(6))
@@ -268,8 +242,11 @@ class NITFDetails(object):
                 cur_loc, getattr(self._nitf_header, 'ReservedExtensions', None))
 
     @staticmethod
-    def _element_offsets(cur_loc, item_array_details):
-        # type: (int, Union[_ItemArrayHeaders, None]) -> Tuple[int, Union[None, numpy.ndarray], Union[None, numpy.ndarray], Union[None, numpy.ndarray], Union[None, numpy.ndarray]]
+    def _element_offsets(
+            cur_loc: int,
+            item_array_details: Union[_ItemArrayHeaders, None]
+    ) -> Tuple[int, Optional[numpy.ndarray], Optional[numpy.ndarray], Optional[numpy.ndarray], Optional[numpy.ndarray]]:
+
         if item_array_details is None:
             return cur_loc, None, None, None, None
         subhead_sizes = item_array_details.subhead_sizes
@@ -284,16 +261,16 @@ class NITFDetails(object):
         return cur_loc, subhead_offsets, subhead_sizes, item_offsets, item_sizes
 
     @property
-    def file_name(self):
+    def file_name(self) -> Optional[str]:
         """
-        str: the file name. This may not be useful if the input was based on a
-        file like object
+        None|str: the file name, which may not be useful if the input was based
+        on a file like object
         """
 
         return self._file_name
 
     @property
-    def file_object(self):
+    def file_object(self) -> BinaryIO:
         """
         BinaryIO: The binary file object
         """
@@ -301,8 +278,7 @@ class NITFDetails(object):
         return self._file_object
 
     @property
-    def nitf_header(self):
-        # type: () -> Union[NITFHeader, NITFHeader0]
+    def nitf_header(self) -> Union[NITFHeader, NITFHeader0]:
         """
         NITFHeader: the nitf header object
         """
@@ -310,37 +286,44 @@ class NITFDetails(object):
         return self._nitf_header
 
     @property
-    def img_headers(self):
+    def img_headers(self) -> Union[None, List[ImageSegmentHeader], List[ImageSegmentHeader0]]:
         """
         The image segment headers.
 
         Returns
         -------
-            None|List[sarpy.io.general.nitf_elements.image.ImageSegmentHeader]
+        None|List[ImageSegmentHeader]|List[ImageSegmentHeader0]
+            Only `None` in the unlikely event that there are no image segments.
         """
 
         if self._img_headers is not None:
             return self._img_headers
 
         self._parse_img_headers()
+        # noinspection PyTypeChecker
         return self._img_headers
 
     @property
-    def nitf_version(self):
+    def nitf_version(self) -> str:
         """
         str: The NITF version number.
         """
 
         return self._nitf_version
 
-    def _parse_img_headers(self):
-        if self.img_segment_offsets is None or self._img_headers is not None:
+    def _parse_img_headers(self) -> None:
+        if self.img_segment_offsets is None or \
+                self._img_headers is not None:
             return
 
         self._img_headers = [self.parse_image_subheader(i) for i in range(self.img_subheader_offsets.size)]
 
-    def _fetch_item(self, name, index, offsets, sizes):
-        # type: (str, int, numpy.ndarray, numpy.ndarray) -> bytes
+    def _fetch_item(
+            self,
+            name: str,
+            index: int,
+            offsets: numpy.ndarray,
+            sizes: numpy.ndarray) -> bytes:
         if index >= offsets.size:
             raise IndexError(
                 'There are only {0:d} {1:s}, invalid {1:s} position {2:d}'.format(
@@ -351,7 +334,7 @@ class NITFDetails(object):
         the_item = self._file_object.read(int(the_size))
         return the_item
 
-    def get_image_subheader_bytes(self, index):
+    def get_image_subheader_bytes(self, index: int) -> bytes:
         """
         Fetches the image segment subheader at the given index.
 
@@ -369,7 +352,7 @@ class NITFDetails(object):
                                 self.img_subheader_offsets,
                                 self._nitf_header.ImageSegments.subhead_sizes)
 
-    def parse_image_subheader(self, index):
+    def parse_image_subheader(self, index: int) -> Union[ImageSegmentHeader, ImageSegmentHeader0]:
         """
         Parse the image segment subheader at the given index.
 
@@ -403,7 +386,7 @@ class NITFDetails(object):
                 the_bytes, 0, band_depth=band_depth, blocks=blocks)
         return out
 
-    def get_text_subheader_bytes(self, index):
+    def get_text_subheader_bytes(self, index: int) -> bytes:
         """
         Fetches the text segment subheader at the given index.
 
@@ -421,7 +404,7 @@ class NITFDetails(object):
                                 self.text_subheader_offsets,
                                 self._nitf_header.TextSegments.subhead_sizes)
 
-    def get_text_bytes(self, index):
+    def get_text_bytes(self, index: int) -> bytes:
         """
         Fetches the text extension segment bytes at the given index.
 
@@ -439,7 +422,7 @@ class NITFDetails(object):
                                 self.text_segment_offsets,
                                 self._nitf_header.TextSegments.item_sizes)
 
-    def parse_text_subheader(self, index):
+    def parse_text_subheader(self, index: int) -> Union[TextSegmentHeader, TextSegmentHeader0]:
         """
         Parse the text segment subheader at the given index.
 
@@ -460,7 +443,7 @@ class NITFDetails(object):
         else:
             raise ValueError(_unhandled_version_text.format(self.nitf_version))
 
-    def get_graphics_subheader_bytes(self, index):
+    def get_graphics_subheader_bytes(self, index: int) -> bytes:
         """
         Fetches the graphics segment subheader at the given index (only version 2.1).
 
@@ -481,7 +464,7 @@ class NITFDetails(object):
         else:
             raise ValueError('Only NITF version 02.10 has graphics segments')
 
-    def get_graphics_bytes(self, index):
+    def get_graphics_bytes(self, index: int) -> bytes:
         """
         Fetches the graphics extension segment bytes at the given index (only version 2.1).
 
@@ -502,7 +485,7 @@ class NITFDetails(object):
         else:
             raise ValueError('Only NITF version 02.10 has graphics segments')
 
-    def parse_graphics_subheader(self, index):
+    def parse_graphics_subheader(self, index: int) -> GraphicsSegmentHeader:
         """
         Parse the graphics segment subheader at the given index (only version 2.1).
 
@@ -521,7 +504,7 @@ class NITFDetails(object):
         else:
             raise ValueError('Only NITF version 02.10 has graphics segments')
 
-    def get_symbol_subheader_bytes(self, index):
+    def get_symbol_subheader_bytes(self, index: int) -> bytes:
         """
         Fetches the symbol segment subheader at the given index (only version 2.0).
 
@@ -542,7 +525,7 @@ class NITFDetails(object):
         else:
             raise ValueError('Only NITF 02.00 has symbol elements.')
 
-    def get_symbol_bytes(self, index):
+    def get_symbol_bytes(self, index: int) -> bytes:
         """
         Fetches the symbol extension segment bytes at the given index (only version 2.0).
 
@@ -563,7 +546,7 @@ class NITFDetails(object):
         else:
             raise ValueError('Only NITF 02.00 has symbol elements.')
 
-    def parse_symbol_subheader(self, index):
+    def parse_symbol_subheader(self, index: int) -> SymbolSegmentHeader:
         """
         Parse the symbol segment subheader at the given index (only version 2.0).
 
@@ -582,7 +565,7 @@ class NITFDetails(object):
         else:
             raise ValueError('Only NITF 02.00 has symbol elements.')
 
-    def get_label_subheader_bytes(self, index):
+    def get_label_subheader_bytes(self, index: int) -> bytes:
         """
         Fetches the label segment subheader at the given index (only version 2.0).
 
@@ -603,7 +586,7 @@ class NITFDetails(object):
         else:
             raise ValueError('Only NITF 02.00 has label elements.')
 
-    def get_label_bytes(self, index):
+    def get_label_bytes(self, index: int) -> bytes:
         """
         Fetches the label extension segment bytes at the given index (only version 2.0).
 
@@ -624,7 +607,7 @@ class NITFDetails(object):
         else:
             raise ValueError('Only NITF 02.00 has symbol elements.')
 
-    def parse_label_subheader(self, index):
+    def parse_label_subheader(self, index: int) -> LabelSegmentHeader:
         """
         Parse the label segment subheader at the given index (only version 2.0).
 
@@ -643,7 +626,7 @@ class NITFDetails(object):
         else:
             raise ValueError('Only NITF 02.00 has label elements.')
 
-    def get_des_subheader_bytes(self, index):
+    def get_des_subheader_bytes(self, index: int) -> bytes:
         """
         Fetches the data extension segment subheader bytes at the given index.
 
@@ -661,7 +644,7 @@ class NITFDetails(object):
                                 self.des_subheader_offsets,
                                 self._nitf_header.DataExtensions.subhead_sizes)
 
-    def get_des_bytes(self, index):
+    def get_des_bytes(self, index: int) -> bytes:
         """
         Fetches the data extension segment bytes at the given index.
 
@@ -679,7 +662,7 @@ class NITFDetails(object):
                                 self.des_segment_offsets,
                                 self._nitf_header.DataExtensions.item_sizes)
 
-    def parse_des_subheader(self, index):
+    def parse_des_subheader(self, index: int) -> Union[DataExtensionHeader, DataExtensionHeader0]:
         """
         Parse the data extension segment subheader at the given index.
 
@@ -700,7 +683,7 @@ class NITFDetails(object):
         else:
             raise ValueError(_unhandled_version_text.format(self.nitf_version))
 
-    def get_res_subheader_bytes(self, index):
+    def get_res_subheader_bytes(self, index: int) -> bytes:
         """
         Fetches the reserved extension segment subheader bytes at the given index (only version 2.1).
 
@@ -718,7 +701,7 @@ class NITFDetails(object):
                                 self.res_subheader_offsets,
                                 self._nitf_header.ReservedExtensions.subhead_sizes)
 
-    def get_res_bytes(self, index):
+    def get_res_bytes(self, index: int) -> bytes:
         """
         Fetches the reserved extension segment bytes at the given index (only version 2.1).
 
@@ -736,7 +719,7 @@ class NITFDetails(object):
                                 self.res_segment_offsets,
                                 self._nitf_header.ReservedExtensions.item_sizes)
 
-    def parse_res_subheader(self, index):
+    def parse_res_subheader(self, index: int) -> Union[ReservedExtensionHeader, ReservedExtensionHeader0]:
         """
         Parse the reserved extension subheader at the given index (only version 2.1).
 
@@ -757,9 +740,9 @@ class NITFDetails(object):
         else:
             raise ValueError('Unhandled version {}.'.format(self.nitf_version))
 
-    def get_headers_json(self):
+    def get_headers_json(self) -> dict:
         """
-        Get a json representation of the NITF header elements.
+        Get a json (i.e. dict) representation of the NITF header elements.
 
         Returns
         -------
@@ -802,6 +785,461 @@ class NITFDetails(object):
 
 #####
 # A general nitf reader - intended for extension
+
+class NITFReaderTemp(AbstractReader):
+    """
+    A reader implementation based around array-type image data fetching for
+    NITF 2.0 or 2.1 files.
+
+    Note negative ILOC entries not currently supported.
+
+    **Significantly refactored in version 1.3.0**
+    """
+    _maximum_number_of_images = None
+
+    __slots__ = (
+        '_nitf_details', '_unsupported_segments', '_image_segment_collections',
+        '_cached_files', '_reverse_axes', '_transpose_axes')
+    # TODO:
+    #   what do we need to override for SICD?
+    #       - the format function when constructing the data segments.
+    #   what do we need to override for SIDD?
+
+    def __init__(
+            self,
+            nitf_details: Union[str, BinaryIO, NITFDetails],
+            reader_type="OTHER",
+            reverse_axes: Union[None, int, Sequence[int]]=None,
+            transpose_axes: Union[None, Tuple[int, ...]]=None):
+        """
+
+        Parameters
+        ----------
+        nitf_details : str|BinaryIO|NITFDetails
+            The NITFDetails object or path to a nitf file.
+        reader_type : str
+            What type of reader is this? e.g. "SICD", "SIDD", "OTHER"
+        reverse_axes : None|Sequence[int]
+            Any entries should be restricted to `{0, 1}`.
+        transpose_axes : None|Tuple[int, ...]
+            If presented this should be only `(1, 0)`.
+        """
+
+        self._cached_files = []
+        if isinstance(nitf_details, str) or is_file_like(nitf_details):
+            nitf_details = NITFDetails(nitf_details)
+        if not isinstance(nitf_details, NITFDetails):
+            raise TypeError('The input argument for NITFReader must be a NITFDetails object.')
+        self._nitf_details = nitf_details
+        if self._nitf_details.img_headers is None:
+            raise SarpyIOError(
+                'The input NITF has no image segments,\n\t'
+                'so there is no image data to be read.')
+
+        if reverse_axes is not None:
+            if isinstance(reverse_axes, int):
+                reverse_axes = (reverse_axes, )
+
+            for entry in reverse_axes:
+                if not 0 <= entry < 2:
+                    raise ValueError('reverse_axes values must be restricted to `{0, 1}`.')
+        self._reverse_axes = reverse_axes
+
+        if transpose_axes is not None:
+            if transpose_axes != (1, 0):
+                raise ValueError('transpose_axes, if not None, must be (1, 0)')
+        self._transpose_axes = transpose_axes
+
+        # find image segments which we can not support, for whatever reason
+        self._unsupported_segments = self._check_for_compliance()  # type: List[int]
+        if len(self._unsupported_segments) == len(self.nitf_details.img_headers):
+            raise SarpyIOError('There are no supported image segments in NITF file {}'.format(self.file_name))
+
+        # decompose our supported images into distinct image chunks
+        # governed by attachment and suitability of joint consideration
+        self._image_segment_collections = self._find_image_segment_collections()
+
+        if self._maximum_number_of_images is not None and \
+                len(self._image_segment_collections) > self._maximum_number_of_images:
+            raise SarpyIOError(
+                'Images in this NITF are grouped together in {} collections,\n\t'
+                'which exceeds the maximum number of collections permitted ({})\n\t'
+                'by class {} implementation'.format(
+                    len(self._image_segment_collections), self._maximum_number_of_images, self.__class__))
+
+        # create a data segment for each chunk (this will be overridden for sicd)...
+
+
+        # TODO:
+        #   - Find all image segments which have ILOC == 0.
+        #   - Determine image segmentation
+        #   - For each image constituent image block, only put
+        #   - Construct a data segment from a given image segment
+        #   - String together data segments into viable blocks
+
+
+    @property
+    def nitf_details(self) -> NITFDetails:
+        """
+        NITFDetails: The NITF details object.
+        """
+
+        return self._nitf_details
+
+    @property
+    def file_name(self) -> Optional[str]:
+        return self._nitf_details.file_name
+
+    @property
+    def file_object(self) -> BinaryIO:
+        """
+        BinaryIO: the binary file like object from which we are reading
+        """
+
+        return self._nitf_details.file_object
+
+    def _check_for_compliance(self) -> List[int]:
+        """
+        Gets indices of image segments that cannot be openned.
+
+        Returns
+        -------
+        List[int]
+        """
+
+        out = []
+        for index, img_header in enumerate(self.nitf_details.img_headers):
+            if img_header.NBPP not in (8, 16, 32, 64):
+                # numpy basically only supports traditional typing
+                logger.error(
+                    'Image segment at index {} has bits per pixel per band {},\n\t'
+                    'only 8, 16, 32, 64 are supported.'.format(index, img_header.NBPP))
+                out.append(index)
+                continue
+
+            if img_header.is_masked and img_header.is_compressed:
+                logger.error(
+                    'Image segment at index {} is both masked and compressed.\n\t'
+                    'This is not currently supported.'.format(index))
+                out.append(index)
+                continue
+
+            if img_header.IC == 'I1':
+                logger.error('Image segment at index {} has IC value I1, which is not supported.')
+                out.append(index)
+                continue
+
+            if img_header.IC in ['C0', 'C1', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8']:
+                if PIL is None:
+                    logger.error(
+                        'Image segment at index {} has IC value {},\n\t'
+                        'and PIL cannot be imported.\n\t'
+                        'Currently, compressed image segments require PIL.'.format(
+                            index, img_header.IC))
+                    out.append(index)
+                    continue
+        return out
+
+    def _find_image_segment_collections(self) -> Tuple[Tuple[int, ...]]:
+        """
+        Finds the image segments which go together to build a larger constituent
+        image. This relies purely on inspection of IALVL, ILOC values, and image
+        type details. Note that unsupported image segments are omitted from
+        consideration here.
+
+        Returns
+        -------
+        Tuple[Tuple[int]]
+            Each sublist will implicitly be in increasing IALVL order.
+        """
+
+        def is_compatible(index0, index1) -> bool:
+            img0 = img_headers[index0]
+            img1 = img_headers[index1]
+            if len(img0.Bands) != len(img1.Bands):
+                return False
+            if img0.PVTYPE != img1.PVTYPE:
+                return False
+            if img0.IREP != img1.IREP:
+                return False
+            if img0.ICAT != img1.ICAT:
+                return False
+            if img0.NBPP != img1.NBPP:
+                return False
+
+        img_headers = self.nitf_details.img_headers
+        temp_index = []
+
+        # note that each IALVL value should be unique
+        for index, entry in enumerate(img_headers):
+            temp_index.append((index, entry.IALVL))
+        # verify that each IALVL is actually unique
+        test_set = set(entry[1] for entry in temp_index)
+        if len(test_set) != len(temp_index):
+            raise ValueError(
+                'There are repeated IALVL value in the image segments. This is unsupported.')
+
+        out = []
+        last_index = None
+        current_chunk = []
+        for image_index, ialvl in sorted(temp_index, key=lambda x: x[1]):
+            # traverse in ialvl order
+
+            if image_index in self._unsupported_segments:
+                last_index = None
+                if len(current_chunk) > 0:
+                    out.append(current_chunk)
+                current_chunk = []
+                continue
+
+            entry = img_headers[image_index]
+            iloc = entry.ILOC
+            if iloc == '0'*10:
+                # this is deliberately a new block
+                if len(current_chunk) > 0:
+                    out.append(current_chunk)
+                current_chunk = [image_index, ]
+                last_index = image_index
+                continue
+
+            if is_compatible(last_index, image_index):
+                # the current block continues
+                current_chunk.append(image_index)
+                last_index = image_index
+            else:
+                # the block cannot continue
+                if len(current_chunk) > 0:
+                    out.append(current_chunk)
+                current_chunk = [image_index, ]
+                last_index = image_index
+        else:
+            if len(current_chunk) > 0:
+                out.append(current_chunk)
+        return tuple(tuple(entry) for entry in out)
+
+    def _get_collection_coordinate_limits(self, block: List[int]) -> numpy.ndarray:
+        """
+        For the given image segment collection, as defined in the
+        `_image_segment_collections` property value, get the relative coordinate
+        scheme of the form `[[start_row, end_row, start_column, end_column]]`.
+
+        Parameters
+        ----------
+        block : List[int]
+            The image segment indices.
+
+        Returns
+        -------
+        block_definition: numpy.ndarray
+            of the form `[[start_row, end_row, start_column, end_column]]`.
+        """
+
+        block_definition = numpy.empty((len(block), 4), dtype='int64')
+        previous_indices = numpy.zeros((4, ), dtype='int64')
+        for i, image_ind in enumerate(block):
+            img_header = self.nitf_details.img_headers[image_ind]
+            rows = img_header.NROWS
+            cols = img_header.NCOLS
+            iloc = img_header.ILOC
+            rel_row_start, rel_col_start = int(iloc[:5]), int(iloc[5:])
+            abs_row_start = rel_row_start + previous_indices[1]
+            abs_col_start = rel_col_start + previous_indices[3]
+            block_definition[i, :] = (abs_row_start, abs_row_start + rows, abs_col_start, abs_col_start + cols)
+        # now, renormalize for all non-negative entries
+        min_row = numpy.min(block_definition[:, 0])
+        min_col = numpy.min(block_definition[:, 2])
+        block_definition[:, 0:2:1] -= min_row
+        block_definition[:, 2:4:1] -= min_col
+        return block_definition
+
+    def _extract_data_segment_parameters_uncompressed(
+            self, image_header: Union[ImageSegmentHeader, ImageSegmentHeader0]) -> \
+            Tuple[numpy.dtype, Tuple[int, ...], numpy.dtype, Tuple[int, ...], Optional[Tuple[int, ...]], FormatFunction]:
+        """
+        Extract the requisite data segment parameters from the image segment.
+
+        Parameters
+        ----------
+        image_header : ImageSegmentHeader|ImageSegmentHeader0
+
+        Returns
+        -------
+        raw_dtype : numpy.dtype
+        raw_shape : Tuple[int, ...]
+        formatted_dtype : numpy.dtype
+        formatted_shape : Tuple[int, ...]
+        transpose_axes : None|Tuple[int, ...]
+        format_function : FormatFunction
+        """
+
+        nbpp = image_header.NBPP  # previously verified to be one of 8, 16, 32, 64
+        bpp = int(nbpp / 8)  # bytes per pixel per band
+        pvtype = image_header.PVTYPE
+        icat = image_header.ICAT.strip()
+        imode = image_header.IMODE
+
+        rows = image_header.NROWS
+        cols = image_header.NCOLS
+        bands = len(image_header.Bands)
+
+        # get raw shape and transpose definition from IMODE
+        if imode in ['B', 'P']:
+            raw_shape = (rows, cols, bands)
+            transpose_axes = None
+        elif imode == 'R':
+            # NB: this is not allowed for compressed data
+            raw_shape = (rows, bands, cols)
+            transpose_axes = (0, 2, 1)
+        elif imode == 'S':
+            # NB: this is dumb for blocked or compressed data
+            raw_shape = (bands, rows, cols)
+            transpose_axes = (1, 2, 0)
+        else:
+            raise ValueError('Unhandled imode value {}'.format(imode))
+
+        if (bands % 2) == 0:
+            # we are possibly in the complex situation
+            is_complex = True
+            for band in image_header.Bands:
+                if band.ISUBCAT not in ['I', 'Q', 'M', 'P']:
+                    is_complex = False
+
+            order = None
+            if is_complex:
+                for j in range(0, bands, 2):
+                    this_order = image_header.Bands[j].ISUBCAT+image_header.Bands[j+1].ISUBCAT
+                    if this_order not in ['IQ', 'QI', 'MP', 'PM']:
+                        is_complex = False
+                        order = None
+                        break
+                    if order is None:
+                        order = this_order
+                    elif order != this_order:
+                        is_complex = False
+                        order = None
+                        break
+            if is_complex and order is not None:
+                if pvtype == 'SI':
+                    raw_dtype = numpy.dtype('>i{}'.format(bpp))
+                elif pvtype == 'INT':
+                    raw_dtype = numpy.dtype('>u{}'.format(bpp))
+                elif pvtype == 'R':
+                    raw_dtype = numpy.dtype('>f{}'.format(bpp))
+                else:
+                    raise ValueError('Unclear how to handle complex values with PVTYPE {}'.format(pvtype))
+                out_bands = int(bands/2)
+                output_shape = (rows, cols) if out_bands == 1 else (rows, cols, out_bands)
+                return raw_dtype, raw_shape, numpy.dtype('complex64'), output_shape, transpose_axes, ComplexFormatFunction(raw_dtype, order)
+
+
+
+        # img_header = self.nitf_details.img_headers[index]
+        # nbpp = img_header.NBPP  # previously verified to be one of 8, 16, 32, 64
+        # bpp = int(nbpp / 8)  # bytes per pixel per band
+        # pvtype = img_header.PVTYPE
+        # if img_header.ICAT.strip() in ['SAR', 'SARIQ'] and ((len(img_header.Bands) % 2) == 0):
+        #     cont = True
+        #     for i in range(0, len(img_header.Bands), 2):
+        #         cont &= (img_header.Bands[i].ISUBCAT == 'I' and
+        #                  img_header.Bands[i + 1].ISUBCAT == 'Q')
+        #     if cont:
+        #         native_bands = len(img_header.Bands)
+        #         output_bands = int(native_bands / 2)
+        #         if pvtype == 'SI':
+        #             return numpy.dtype('>i{}'.format(bpp)), numpy.complex64, native_bands, output_bands, 'COMPLEX'
+        #         elif pvtype == 'R':
+        #             return numpy.dtype('>f{}'.format(bpp)), numpy.complex64, native_bands, output_bands, 'COMPLEX'
+        #     del cont
+        # if img_header.IREP.strip() == 'MONO' and img_header.Bands[0].LUTD is not None:
+        #     if not (pvtype == 'INT' and bpp not in [1, 2]):
+        #         raise ValueError(
+        #             'Got IREP = {} with a LUT, but PVTYPE = {} and '
+        #             'NBPP = {}'.format(img_header.IREP, pvtype, nbpp))
+        #     lut = img_header.Bands[0].LUTD
+        #     if lut.ndim == 1:
+        #         return numpy.dtype('>u{}'.format(bpp)), numpy.dtype('>u1'), 1, 1, single_lut_conversion(lut)
+        #     else:
+        #         return numpy.dtype('>u{}'.format(bpp)), numpy.dtype('>u1'), 1, lut.shape[0], single_lut_conversion(
+        #             numpy.transpose(lut))
+        # if img_header.IREP.strip() == 'RGB/LUT':
+        #     lut = img_header.Bands[0].LUTD
+        #     return numpy.dtype('>u1'), numpy.dtype('>u1'), 1, 3, single_lut_conversion(numpy.transpose(lut))
+        #
+        # if pvtype == 'INT':
+        #     return numpy.dtype('>u{}'.format(bpp)), numpy.dtype('>u{}'.format(bpp)), \
+        #            len(img_header.Bands), len(img_header.Bands), None
+        # elif pvtype == 'SI':
+        #     return numpy.dtype('>i{}'.format(bpp)), numpy.dtype('>i{}'.format(bpp)), \
+        #            len(img_header.Bands), len(img_header.Bands), None
+        # elif pvtype == 'R':
+        #     return numpy.dtype('>f{}'.format(bpp)), numpy.dtype('>f{}'.format(bpp)), \
+        #            len(img_header.Bands), len(img_header.Bands), None
+        # elif pvtype == 'C':
+        #     if bpp not in [8, 16]:
+        #         raise ValueError(
+        #             'Got PVTYPE = C and NBPP = {} (not 64 or 128), which is unsupported.'.format(nbpp))
+        #     bands = len(img_header.Bands)
+        #     return (
+        #         numpy.dtype('>c{}'.format(bpp)),
+        #         numpy.complex64,
+        #         bands,
+        #         bands,
+        #         'COMPLEX')
+
+        pass
+
+    def _create_data_segment_for_image_segment(self, image_segment_index: int) -> DataSegment:
+        """
+        Creates the data segment for the given image segment.
+
+        Parameters
+        ----------
+        image_segment_index : int
+
+        Returns
+        -------
+        DataSegment
+        """
+
+        # Uncompressed:
+        #   A single constituent data segment will be assembled from a constituent
+        #   data segment for each block. Any component DataSegment will be a
+        #   virtual DataSegment reading from the file. The specifics of the
+        #   assembly will depend on IMODE and how many blocks there are.
+        # Compressed:
+        #   Regardless of blocking scheme or imode, one single numpy memmap will
+        #   be set up in a temp file (tracked for deletion) for this image segment,
+        #   and the component data will be populated into this memmap.
+        #   The avoid nonsense, the entire image segment data will be read into
+        #   memory and manipulated from there.
+
+
+        # TODO: extract the DataSegment particulars...
+        #  raw_dtype, raw_shape, formatted_dtype, formatted_shape, reverse_axes=None,
+        #  transpose_axes (so bands are at the end), format_function
+
+        # can we use a numpy.memmap, or not?
+        use_memmap = is_real_file(self.nitf_details.file_object)
+
+
+        pass
+
+    def _create_data_segment_for_block(self, collection_index: int) -> DataSegment:
+        """
+        Creates the data segment overarching the given segment collection.
+
+        Parameters
+        ----------
+        collection_index : int
+
+        Returns
+        -------
+        DataSegment
+        """
+
+        pass
+
+
 
 def _validate_lookup(lookup_table):
     # type: (numpy.ndarray) -> None
@@ -2803,3 +3241,31 @@ class MemMap(object):
 
     def close(self):
         self._file_obj.close()
+
+
+########
+# base expected functionality for a module with an implemented Reader
+
+def is_a(file_name: Union[str, BinaryIO]) -> Union[None, NITFReader]:
+    """
+    Tests whether a given file_name corresponds to a nitf file. Returns a
+    nitf reader instance, if so.
+
+    Parameters
+    ----------
+    file_name : str|BinaryIO
+        the file_name to check
+
+    Returns
+    -------
+    None|NITFReader
+        `NITFReader` instance if nitf file, `None` otherwise
+    """
+
+    try:
+        nitf_details = NITFDetails(file_name)
+        logger.info('File {} is determined to be a nitf file.'.format(file_name))
+        return NITFReader(nitf_details)
+    except SarpyIOError:
+        # we don't want to catch parsing errors, for now
+        return None

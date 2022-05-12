@@ -10,7 +10,7 @@ __author__ = ("Wade Schwartzkopf", "Thomas McCullough")
 import os
 import numpy
 import logging
-from typing import Union, List, Tuple
+from typing import Union, List, Tuple, Callable, BinaryIO
 
 from sarpy.io.general.base import SarpyIOError, check_for_openers
 from sarpy.io.general.nitf import NITFReader
@@ -18,7 +18,6 @@ from sarpy.io.general.utils import is_file_like
 from sarpy.io.complex.base import SICDTypeReader
 from sarpy.io.complex.sicd import SICDWriter
 from sarpy.io.complex.sio import SIOWriter
-from sarpy.io.complex.sicd_elements.SICD import SICDType
 
 
 logger = logging.getLogger(__name__)
@@ -30,7 +29,7 @@ _openers = []
 _parsed_openers = False
 
 
-def register_opener(open_func):
+def register_opener(open_func: Callable) -> None:
     """
     Provide a new opener.
 
@@ -52,7 +51,7 @@ def register_opener(open_func):
         _openers.append(open_func)
 
 
-def parse_openers():
+def parse_openers() -> None:
     """
     Automatically find the viable openers (i.e. :func:`is_a`) in the various modules.
     """
@@ -65,20 +64,20 @@ def parse_openers():
     check_for_openers('sarpy.io.complex', register_opener)
 
 
-def _define_final_attempt_openers():
+def _define_final_attempt_openers() -> List[Callable]:
     """
     Gets the prioritized list of openers to attempt after regular openers.
 
     Returns
     -------
-    list
+    List[Callable]
     """
 
     from sarpy.io.complex.other_nitf import final_attempt
     return [final_attempt, ]
 
 
-def open_complex(file_name):
+def open_complex(file_name: Union[str, BinaryIO]) -> SICDTypeReader:
     """
     Given a file, try to find and return the appropriate reader object.
 

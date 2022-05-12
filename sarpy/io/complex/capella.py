@@ -17,7 +17,7 @@ from scipy.constants import speed_of_light
 import numpy
 from numpy.polynomial import polynomial
 
-from sarpy.io.general.base import AbstractReader, SarpyIOError
+from sarpy.io.general.base import SarpyIOError
 from sarpy.io.general.tiff import TiffDetails, NativeTiffDataSegment
 from sarpy.io.general.utils import parse_timestring, get_seconds, is_file_like
 from sarpy.io.complex.base import SICDTypeReader
@@ -473,7 +473,7 @@ class CapellaDetails(object):
         return sicd
 
 
-class CapellaReader(AbstractReader, SICDTypeReader):
+class CapellaReader(SICDTypeReader):
     """
     The Capella reader object.
     """
@@ -500,8 +500,7 @@ class CapellaReader(AbstractReader, SICDTypeReader):
         data_segment = NativeTiffDataSegment(
             self.capella_details.tiff_details, reverse_axes=reverse_axes, transpose_axes=transpose_axes)
 
-        SICDTypeReader.__init__(self, sicd)
-        AbstractReader.__init__(self, data_segment=data_segment, reader_type='SICD', close_segments=True)
+        SICDTypeReader.__init__(self, data_segment, sicd, close_segments=True)
         self._check_sizes()
 
     @property

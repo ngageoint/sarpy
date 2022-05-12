@@ -9,14 +9,14 @@ __author__ = "Thomas McCullough"
 import logging
 import os
 from collections import OrderedDict
-from typing import Tuple, Dict
+from typing import Tuple, Dict, Union, List, Sequence, Optional
 
 import numpy
 from numpy.polynomial import polynomial
 from scipy.constants import speed_of_light
 
 from sarpy.compliance import bytes_to_string
-from sarpy.io.complex.base import SICDTypeReader, H5Chipper, h5py, is_hdf5
+from sarpy.io.complex.base import SICDTypeReader
 from sarpy.io.complex.sicd_elements.blocks import Poly2DType
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd_elements.CollectionInfo import CollectionInfoType, RadarModeType
@@ -34,52 +34,20 @@ from sarpy.io.complex.sicd_elements.ImageFormation import ImageFormationType, \
 from sarpy.io.complex.sicd_elements.RMA import RMAType, INCAType
 from sarpy.io.complex.sicd_elements.Radiometric import RadiometricType, NoiseLevelType_
 from sarpy.geometry import point_projection
-from sarpy.io.general.base import BaseReader, SarpyIOError
-from sarpy.io.general.utils import get_seconds, parse_timestring, is_file_like
 from sarpy.io.complex.utils import fit_position_xvalidation, two_dim_poly_fit
 
+from sarpy.io.general.base import AbstractReader, SarpyIOError
+from sarpy.io.general.data_segment import HDF5DatasetSegment
+from sarpy.io.general.format_function import ComplexFormatFunction
+from sarpy.io.general.utils import get_seconds, parse_timestring, is_file_like, is_hdf5, h5py
+
 logger = logging.getLogger(__name__)
-
-########
-# base expected functionality for a module with an implemented Reader
-
-
-def is_a(file_name):
-    """
-    Tests whether a given file_name corresponds to a NISAR file. Returns a reader instance, if so.
-
-    Parameters
-    ----------
-    file_name : str|BinaryIO
-        the file_name to check
-
-    Returns
-    -------
-    NISARReader|None
-        `NISARReader` instance if NISAR file, `None` otherwise
-    """
-
-    if is_file_like(file_name):
-        return None
-
-    if not is_hdf5(file_name):
-        return None
-
-    if h5py is None:
-        return None
-
-    try:
-        nisar_details = NISARDetails(file_name)
-        logger.info('File {} is determined to be a NISAR file.'.format(file_name))
-        return NISARReader(nisar_details)
-    except (ImportError, SarpyIOError):
-        return None
 
 
 ###########
 # parser and interpreter for hdf5 attributes
 
-def _stringify(val):
+def _stringify(val: Union[str, bytes]) -> str:
     """
     Decode the value as necessary, for hdf5 string support issues.
 
@@ -95,7 +63,7 @@ def _stringify(val):
     return bytes_to_string(val).strip()
 
 
-def _get_ref_time(str_in):
+def _get_ref_time(str_in: Union[str, bytes]) -> numpy.datetime64:
     """
     Extract the given reference time.
 
@@ -115,7 +83,7 @@ def _get_ref_time(str_in):
     return parse_timestring(str_in[len(prefix):], precision='ns')
 
 
-def _get_string_list(array):
+def _get_string_list(array: Sequence[bytes]) -> List[str]:
     return [bytes_to_string(el) for el in array]
 
 
@@ -126,7 +94,7 @@ class NISARDetails(object):
 
     __slots__ = ('_file_name', )
 
-    def __init__(self, file_name):
+    def __init__(self, file_name: str):
         """
 
         Parameters
@@ -151,7 +119,7 @@ class NISARDetails(object):
         self._file_name = file_name
 
     @property
-    def file_name(self):
+    def file_name(self) -> str:
         """
         str: the file name
         """
@@ -159,7 +127,7 @@ class NISARDetails(object):
         return self._file_name
 
     @staticmethod
-    def _get_frequency_list(hf):
+    def _get_frequency_list(hf: h5py.File) -> List[str]:
         """
         Gets the list of frequencies.
 
@@ -175,7 +143,7 @@ class NISARDetails(object):
         return _get_string_list(hf['/science/LSAR/identification/listOfFrequencies'][:])
 
     @staticmethod
-    def _get_collection_times(hf):
+    def _get_collection_times(hf: h5py.File) -> Tuple[numpy.datetime64, numpy.datetime64, float]:
         """
         Gets the collection start and end times, and inferred duration.
 
@@ -186,17 +154,20 @@ class NISARDetails(object):
 
         Returns
         -------
-        (numpy.datetime64, numpy.datetime64, float)
-            Start and end times and duration
+        start_time : numpy.datetime64
+        end_time : numpy.datetime64
+        duration : float
         """
 
-        start = parse_timestring(_stringify(hf['/science/LSAR/identification/zeroDopplerStartTime'][()]), precision='ns')
-        end = parse_timestring(_stringify(hf['/science/LSAR/identification/zeroDopplerEndTime'][()]), precision='ns')
-        duration = get_seconds(end, start, precision='ns')
-        return start, end, duration
+        start_time = parse_timestring(_stringify(hf['/science/LSAR/identification/zeroDopplerStartTime'][()]), precision='ns')
+        end_time = parse_timestring(_stringify(hf['/science/LSAR/identification/zeroDopplerEndTime'][()]), precision='ns')
+        duration = get_seconds(end_time, start_time, precision='ns')
+        return start_time, end_time, duration
 
     @staticmethod
-    def _get_zero_doppler_data(hf, base_sicd):
+    def _get_zero_doppler_data(
+            hf: h5py.File,
+            base_sicd: SICDType) -> Tuple[numpy.ndarray, float, numpy.ndarray, numpy.ndarray]:
         """
         Gets zero-doppler parameters.
 
@@ -207,9 +178,10 @@ class NISARDetails(object):
 
         Returns
         -------
-        (numpy.ndarray, float, numpy.ndarray, numpy.ndarray)
-            The azimuth zero-doppler time array, azimuth zero-doppler time spacing,
-            grid range array, range zero doppler time array.
+        azimuth_zero_doppler_times : numpy.ndarray
+        azimuth_zero_doppler_spacing : float
+        grid_range_array : numpy.ndarray
+        range_zero_doppler_times : numpy.ndarray
         """
 
         gp = hf['/science/LSAR/SLC/swaths']
@@ -227,10 +199,9 @@ class NISARDetails(object):
         ds = gp['zeroDopplerTime']
         ref_time = _get_ref_time(ds.attrs['units'])
         grid_zd_time = ds[:] + get_seconds(ref_time, base_sicd.Timeline.CollectStart, precision='ns')
-
         return zd_time, ss_az_s, grid_r, grid_zd_time
 
-    def _get_base_sicd(self, hf):
+    def _get_base_sicd(self, hf: h5py.File) -> SICDType:
         """
         Defines the base SICD object, to be refined with further details.
 
@@ -239,8 +210,7 @@ class NISARDetails(object):
         SICDType
         """
 
-        def get_collection_info():
-            # type: () -> CollectionInfoType
+        def get_collection_info() -> CollectionInfoType:
             gp = hf['/science/LSAR/identification']
             return CollectionInfoType(
                 CollectorName=_stringify(hf.attrs['mission_name']),
@@ -250,8 +220,7 @@ class NISARDetails(object):
                 Classification='UNCLASSIFIED',
                 RadarMode=RadarModeType(ModeType='STRIPMAP'))
 
-        def get_image_creation():
-            # type: () -> ImageCreationType
+        def get_image_creation() -> ImageCreationType:
             application = 'ISCE'
             # noinspection PyBroadException
             try:
@@ -269,8 +238,7 @@ class NISARDetails(object):
                 Site='Unknown',
                 Profile='sarpy {}'.format(__version__))
 
-        def get_geo_data():
-            # type: () -> GeoDataType
+        def get_geo_data() -> GeoDataType:
             # seeds a rough SCP for projection usage
             poly_str = _stringify(hf['/science/LSAR/identification/boundingPolygon'][()])
             beg_str = 'POLYGON (('
@@ -291,8 +259,7 @@ class NISARDetails(object):
             llh[2] = numpy.mean(hf['/science/LSAR/SLC/metadata/processingInformation/parameters/referenceTerrainHeight'][:])
             return GeoDataType(SCP=SCPType(LLH=llh))
 
-        def get_grid():
-            # type: () -> GridType
+        def get_grid() -> GridType:
 
             # TODO: Future Change Required - JPL states that uniform weighting in data simulated
             #  from UAVSAR is a placeholder, not an accurate description of the data.
@@ -318,16 +285,14 @@ class NISARDetails(object):
 
             return GridType(ImagePlane='SLANT', Type='RGZERO', Row=row, Col=col)
 
-        def get_timeline():
-            # type: () -> TimelineType
+        def get_timeline() -> TimelineType:
             # NB: IPPEnd must be set, but will be replaced
             return TimelineType(
                 CollectStart=collect_start,
                 CollectDuration=duration,
                 IPP=[IPPSetType(index=0, TStart=0, TEnd=duration, IPPStart=0, IPPEnd=0), ])
 
-        def get_position():
-            # type: () -> PositionType
+        def get_position() -> PositionType:
             gp = hf['/science/LSAR/SLC/metadata/orbit']
             ref_time = _get_ref_time(gp['time'].attrs['units'])
             T = gp['time'][:] + get_seconds(ref_time, collect_start, precision='ns')
@@ -336,14 +301,12 @@ class NISARDetails(object):
             P_x, P_y, P_z = fit_position_xvalidation(T, Pos, Vel, max_degree=8)
             return PositionType(ARPPoly=XYZPolyType(X=P_x, Y=P_y, Z=P_z))
 
-        def get_scpcoa():
-            # type: () -> SCPCOAType
+        def get_scpcoa() -> SCPCOAType:
             # remaining fields set later
             sot = _stringify(hf['/science/LSAR/identification/lookDirection'][()])[0].upper()
             return SCPCOAType(SideOfTrack=sot)
 
-        def get_image_formation():
-            # type: () -> ImageFormationType
+        def get_image_formation() -> ImageFormationType:
             return ImageFormationType(
                 ImageFormAlgo='RMA',
                 TStartProc=0,
@@ -354,8 +317,7 @@ class NISARDetails(object):
                 RgAutofocus='NO',
                 RcvChanProc=RcvChanProcType(NumChanProc=1, PRFScaleFactor=1))
 
-        def get_rma():
-            # type: () -> RMAType
+        def get_rma() -> RMAType:
             return RMAType(RMAlgoType='OMEGA_K', INCA=INCAType(DopCentroidCOA=True))
 
         collect_start, collect_end, duration = self._get_collection_times(hf)
@@ -381,7 +343,9 @@ class NISARDetails(object):
             RMA=rma)
 
     @staticmethod
-    def _get_freq_specific_sicd(gp, base_sicd):
+    def _get_freq_specific_sicd(
+            gp: h5py.Group,
+            base_sicd: SICDType) -> Tuple[SICDType, List[str], List[str], float]:
         """
         Gets the frequency specific sicd.
 
@@ -392,24 +356,25 @@ class NISARDetails(object):
 
         Returns
         -------
-        (SICDType, numpy.ndarray, list, center_freq)
-            frequency dependent sicd, array of polarization names, list of formatted polarizations for sicd,
-            the processed center frequency
+        sicd: SICDType
+        pol_names : numpy.ndarray
+        pols : List[str]
+        center_frequency : float
         """
 
-        def update_grid():
+        def update_grid() -> None:
             row_imp_resp_bw = 2*gp['processedRangeBandwidth'][()]/speed_of_light
             t_sicd.Grid.Row.SS = gp['slantRangeSpacing'][()]
             t_sicd.Grid.Row.ImpRespBW = row_imp_resp_bw
             t_sicd.Grid.Row.DeltaK1 = -0.5*row_imp_resp_bw
             t_sicd.Grid.Row.DeltaK2 = -t_sicd.Grid.Row.DeltaK1
 
-        def update_timeline():
+        def update_timeline() -> None:
             prf = gp['nominalAcquisitionPRF'][()]
             t_sicd.Timeline.IPP[0].IPPEnd = prf*t_sicd.Timeline.CollectDuration
             t_sicd.Timeline.IPP[0].IPPPoly = [0, prf]
 
-        def define_radar_collection():
+        def define_radar_collection() -> List[str]:
             tx_rcv_pol_t = []
             tx_pol = []
             for entry in pols:
@@ -434,7 +399,7 @@ class NISARDetails(object):
                 TxSequence=tx_sequence)
             return tx_rcv_pol_t
 
-        def update_image_formation():
+        def update_image_formation() -> float:
             center_freq_t = gp['processedCenterFrequency'][()]
             bw = gp['processedRangeBandwidth'][()]
             t_sicd.ImageFormation.TxFrequencyProc = (center_freq_t - 0.5*bw, center_freq_t + 0.5*bw)
@@ -450,9 +415,26 @@ class NISARDetails(object):
         return t_sicd, pols, tx_rcv_pol, center_freq
 
     @staticmethod
-    def _get_pol_specific_sicd(hf, ds, base_sicd, pol_name, freq_name, j, pol,
-                               r_ca_sampled, zd_time, grid_zd_time, grid_r, doprate_sampled,
-                               dopcentroid_sampled, center_freq, ss_az_s, dop_bw, beta0, gamma0, sigma0):
+    def _get_pol_specific_sicd(
+            hf: h5py.File,
+            ds: h5py.Dataset,
+            base_sicd: SICDType,
+            pol_name: str,
+            freq_name: str,
+            j: int,
+            pol: str,
+            r_ca_sampled: numpy.ndarray,
+            zd_time: numpy.ndarray,
+            grid_zd_time: numpy.ndarray,
+            grid_r: numpy.ndarray,
+            doprate_sampled: numpy.ndarray,
+            dopcentroid_sampled: numpy.ndarray,
+            center_freq: float,
+            ss_az_s: float,
+            dop_bw: float,
+            beta0,
+            gamma0,
+            sigma0) -> Tuple[SICDType, Tuple[int, ...], numpy.dtype]:
         """
         Gets the frequency/polarization specific sicd.
 
@@ -477,31 +459,32 @@ class NISARDetails(object):
 
         Returns
         -------
-        (SICDType, Tuple[int])
+        sicd: SICDType
+        shape : Tuple[int, ...]
+        numpy.dtype
         """
 
-        def define_image_data():
-            dtype = ds.dtype.name
-            if dtype in ('float32', 'complex64'):
+        def define_image_data() -> None:
+            if dtype.name in ('float32', 'complex64'):
                 pixel_type = 'RE32F_IM32F'
-            elif dtype == 'int16':
+            elif dtype.name == 'int16':
                 pixel_type = 'RE16I_IM16I'
             else:
                 raise ValueError('Got unhandled dtype {}'.format(dtype))
             t_sicd.ImageData = ImageDataType(
                 PixelType=pixel_type,
-                NumRows=shape[0],
-                NumCols=shape[1],
+                NumRows=shape[1],
+                NumCols=shape[0],
                 FirstRow=0,
                 FirstCol=0,
                 SCPPixel=[0.5*shape[0], 0.5*shape[1]],
-                FullImage=[shape[0], shape[1]])
+                FullImage=[shape[1], shape[0]])
 
-        def update_image_formation():
+        def update_image_formation() -> None:
             t_sicd.ImageFormation.RcvChanProc.ChanIndices = [j, ]
             t_sicd.ImageFormation.TxRcvPolarizationProc = pol
 
-        def update_inca_and_grid():
+        def update_inca_and_grid() -> Tuple[numpy.ndarray, numpy.ndarray]:
             t_sicd.RMA.INCA.R_CA_SCP = r_ca_sampled[t_sicd.ImageData.SCPPixel.Row]
             scp_ca_time = zd_time[t_sicd.ImageData.SCPPixel.Col]
 
@@ -558,8 +541,8 @@ class NISARDetails(object):
 
             return coords_rg_2d_t, coords_az_2d_t
 
-        def define_radiometric():
-            def get_poly(ds, name):
+        def define_radiometric() -> None:
+            def get_poly(ds: h5py.Dataset, name: str) -> Optional[Poly2DType]:
                 array = ds[:]
                 fill = ds.attrs['_FillValue']
                 boolc = (array != fill)
@@ -608,13 +591,14 @@ class NISARDetails(object):
                 NoiseLevel=NoiseLevelType_(
                     NoiseLevelType='ABSOLUTE', NoisePoly=Poly2DType(Coefs=coefs)))
 
-        def update_geodata():
+        def update_geodata() -> None:
             ecf = point_projection.image_to_ground(
                 [t_sicd.ImageData.SCPPixel.Row, t_sicd.ImageData.SCPPixel.Col], t_sicd)
             t_sicd.GeoData.SCP = SCPType(ECF=ecf)  # LLH will be populated
 
         t_sicd = base_sicd.copy()
-        shape = (int(ds.shape[1]), int(ds.shape[0]))
+        shape = ds.shape
+        dtype = ds.dtype
 
         define_image_data()
         update_image_formation()
@@ -623,18 +607,18 @@ class NISARDetails(object):
         update_geodata()
         t_sicd.derive()
         t_sicd.populate_rniirs(override=False)
-        return t_sicd, shape
+        return t_sicd, shape, dtype
 
-    def get_sicd_collection(self):
+    def get_sicd_collection(self) -> Tuple[Dict[str, SICDType], Dict[str, Tuple[Tuple[int, ...], numpy.dtype]], Optional[Tuple[int, ...]], Optional[Tuple[int, ...]]]:
         """
         Get the sicd collection for the bands.
 
         Returns
         -------
-        Tuple[Dict[str, SICDType], Dict[str, str], Tuple[bool, bool, bool]]
-            the first entry is a dictionary of the form {band_name: sicd}
-            the second entry is of the form {band_name: shape}
-            the third entry is the symmetry tuple
+        sicd_dict : Dict[str, SICDType]
+        shape_dict : Dict[str, Tuple[Tuple[int, ...], numpy.dtype]]
+        reverse_axes : None|Tuple[int, ...]
+        transpose_axes : None|Tuple[int, ...]
         """
 
         # TODO: check if the hdf already has the sicds defined, and fish them out if so.
@@ -646,7 +630,8 @@ class NISARDetails(object):
             # prepare our output workspace
             out_sicds = OrderedDict()
             shapes = OrderedDict()
-            symmetry = (base_sicd.SCPCOA.SideOfTrack == 'L', False, True)
+            reverse_axes = (0, ) if base_sicd.SCPCOA.SideOfTrack == 'L' else None
+            transpose_axes = (1, 0)
 
             # fetch the common use data for frequency issues
             collect_start, collect_end, duration = self._get_collection_times(hf)
@@ -676,27 +661,27 @@ class NISARDetails(object):
                 for j, pol in enumerate(pols):
                     ds_name = '{}/{}'.format(gp_name, pol)
                     ds = gp[pol]
-                    pol_sicd, shape = self._get_pol_specific_sicd(
+                    pol_sicd, shape, dtype = self._get_pol_specific_sicd(
                         hf, ds, freq_sicd, pol, freq, j, tx_rcv_pol[j],
                         r_ca_sampled, zd_time, grid_zd_time, grid_r,
                         doprate_sampled, dopcentroid_sampled, center_freq,
                         ss_az_s, dop_bw, beta0, gamma0, sigma0)
                     out_sicds[ds_name] = pol_sicd
-                    shapes[ds_name] = ds.shape[:2]
-        return out_sicds, shapes, symmetry
+                    shapes[ds_name] = (shape, dtype)
+        return out_sicds, shapes, reverse_axes, transpose_axes
 
 
 ################
 # The NISAR reader
 
-class NISARReader(BaseReader, SICDTypeReader):
+class NISARReader(SICDTypeReader):
     """
     Gets a reader type object for NISAR files
     """
 
     __slots__ = ('_nisar_details', )
 
-    def __init__(self, nisar_details):
+    def __init__(self, nisar_details: Union[str, NISARDetails]):
         """
 
         Parameters
@@ -711,20 +696,33 @@ class NISARReader(BaseReader, SICDTypeReader):
             raise TypeError('The input argument for NISARReader must be a '
                             'filename or NISARDetails object')
         self._nisar_details = nisar_details
-        sicd_data, shape_dict, symmetry = nisar_details.get_sicd_collection()
-        chippers = []
+        sicd_data, shape_dict, reverse_axes, transpose_axes = nisar_details.get_sicd_collection()
+        data_segments = []
         sicds = []
         for band_name in sicd_data:
             sicds.append(sicd_data[band_name])
-            chippers.append(H5Chipper(nisar_details.file_name, band_name, shape_dict[band_name], symmetry))
+            raw_shape, raw_dtype = shape_dict[band_name]
+            formatted_shape = (raw_shape[1], raw_shape[0]) if transpose_axes is not None \
+                else raw_shape[:2]
+            if raw_dtype.name == 'complex64':
+                formatted_dtype = raw_dtype
+                format_function = None
+            else:
+                formatted_dtype = 'complex64'
+                format_function = ComplexFormatFunction(raw_dtype=raw_dtype, order='IQ', band_dimension=-1)
 
-        SICDTypeReader.__init__(self, tuple(sicds))
-        BaseReader.__init__(self, tuple(chippers), reader_type="SICD")
+            data_segments.append(
+                HDF5DatasetSegment(
+                    nisar_details.file_name, band_name,
+                    formatted_dtype=formatted_dtype, formatted_shape=formatted_shape,
+                    reverse_axes=reverse_axes, transpose_axes=transpose_axes,
+                    format_function=format_function, close_file=True))
+
+        SICDTypeReader.__init__(self, data_segments, sicds, close_segments=True)
         self._check_sizes()
 
     @property
-    def nisar_details(self):
-        # type: () -> NISARDetails
+    def nisar_details(self) -> NISARDetails:
         """
         NISARDetails: The nisar details object.
         """
@@ -732,5 +730,41 @@ class NISARReader(BaseReader, SICDTypeReader):
         return self._nisar_details
 
     @property
-    def file_name(self):
+    def file_name(self) -> str:
         return self.nisar_details.file_name
+
+
+########
+# base expected functionality for a module with an implemented Reader
+
+
+def is_a(file_name: str) -> Optional[NISARReader]:
+    """
+    Tests whether a given file_name corresponds to a NISAR file. Returns a reader instance, if so.
+
+    Parameters
+    ----------
+    file_name : str|BinaryIO
+        the file_name to check
+
+    Returns
+    -------
+    NISARReader|None
+        `NISARReader` instance if NISAR file, `None` otherwise
+    """
+
+    if is_file_like(file_name):
+        return None
+
+    if not is_hdf5(file_name):
+        return None
+
+    if h5py is None:
+        return None
+
+    try:
+        nisar_details = NISARDetails(file_name)
+        logger.info('File {} is determined to be a NISAR file.'.format(file_name))
+        return NISARReader(nisar_details)
+    except (ImportError, SarpyIOError):
+        return None

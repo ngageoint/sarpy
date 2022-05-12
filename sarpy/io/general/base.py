@@ -15,7 +15,7 @@ __author__ = "Thomas McCullough"
 
 import os
 import logging
-from typing import Union, List, Tuple, Sequence, Optional
+from typing import Union, List, Tuple, Sequence, Optional, Callable
 from importlib import import_module
 import pkgutil
 
@@ -27,6 +27,7 @@ from sarpy.io.general.data_segment import DataSegment, NumpyArraySegment
 
 logger = logging.getLogger(__name__)
 
+# TODO: does it make more sense to permit free form?
 READER_TYPES = ('SICD', 'SIDD', 'CPHD', 'CRSD', 'OTHER')
 """
 The reader_type enum 
@@ -40,9 +41,10 @@ class SarpyIOError(SarpyError):
 ############
 # module walking to register openers
 
-def check_for_openers(start_package, register_method):
+def check_for_openers(start_package: str, register_method: Callable) -> None:
     """
-    Walks the package, and registers the discovered openers.
+    Walks the package, and registers the discovered openers. That is, the modules
+    with an :meth:`is_a` method.
 
     Parameters
     ----------
@@ -76,7 +78,7 @@ class AbstractReader(object):
         '_delete_temp_files')
 
     def __init__(self,
-                 data_segment: Union[DataSegment, Sequence[DataSegment]],
+                 data_segment: Union[None, DataSegment, Sequence[DataSegment]],
                  reader_type: str='OTHER',
                  close_segments: bool=True,
                  delete_files: Union[None, str, Sequence[str]]=None):
@@ -84,7 +86,9 @@ class AbstractReader(object):
 
         Parameters
         ----------
-        data_segment : DataSegment|Sequence[DataSegment]
+        data_segment : None|DataSegment|Sequence[DataSegment]
+            None is a feasible value for extension tricks, ultimately the data_segments
+            must be defined on initialization (by some extension).
         reader_type : str
         close_segments : bool
             Call segment.close() for each data segment on reader.close()?
@@ -93,18 +97,11 @@ class AbstractReader(object):
             This will occur after closing segments.
         """
 
-        self._closed = False
-        self._close_segments = close_segments
+        # NB: it's entirely possible under multiple inheritance (class extends
+        # two classes each of which extends AbstractReader), that this initializer
+        # has already been called. Don't override appropriate values, in that case.
 
-        self._delete_temp_files = []  # type: List[str]
-        if delete_files is None:
-            pass
-        elif isinstance(delete_files, str):
-            self._delete_temp_files.append(delete_files)
-        else:
-            for entry in delete_files:
-                self._delete_temp_files.append(entry)
-
+        # override regardless here
         reader_type = reader_type.upper()
         if reader_type not in READER_TYPES:
             logger.error(
@@ -112,23 +109,40 @@ class AbstractReader(object):
                 'one of {}'.format(reader_type, READER_TYPES))
         self._reader_type = reader_type
 
-        if isinstance(data_segment, DataSegment):
-            data_segment = [data_segment, ]
-        if not isinstance(data_segment, Sequence):
-            raise TypeError('data_segment must be an instance of DataSegment or a sequence of such instances')
+        try:
+            _ = self._closed
+            # we didn't get an attribute error, so something has already defined
+        except AttributeError:
+            self._closed = False
 
-        for entry in data_segment:
-            if not isinstance(entry, DataSegment):
-                raise TypeError(
-                    'Requires all data segment entries to be an instance of DataSegment.\n\t'
-                    'Got type {}'.format(type(entry)))
-            if not entry.mode == 'r':
-                raise ValueError('Each data segment must have mode="r"')
+        try:
+            _ = self._close_segments
+        except AttributeError:
+            self._close_segments = close_segments
 
-        if len(data_segment) == 1:
-            self._data_segment = data_segment[0]
+        try:
+            _ = self._delete_temp_files
+        except AttributeError:
+            self._delete_temp_files = []  # type: List[str]
+
+        if delete_files is None:
+            pass
+        elif isinstance(delete_files, str):
+            if delete_files not in self._delete_temp_files:
+                self._delete_temp_files.append(delete_files)
         else:
-            self._data_segment = tuple(data_segment)
+            for entry in delete_files:
+                if entry not in self._delete_temp_files:
+                    self._delete_temp_files.append(entry)
+
+        try:
+            _ = self._data_segment
+            # we didn't get an attribute error, so something has already defined it
+            self._set_data_segment(data_segment)
+            # NB: this will raise a ValueError upon repeated definition attempts.
+        except AttributeError:
+            self._data_segment = None
+            self._set_data_segment(data_segment)
 
     @property
     def file_name(self) -> Optional[str]:
@@ -152,6 +166,43 @@ class AbstractReader(object):
         """
 
         return self._data_segment
+
+    def _set_data_segment(self, data_segment: Union[DataSegment, Sequence[DataSegment]]) -> None:
+        """
+        Sets the data segment collection. This can only be performed once.
+
+        Parameters
+        ----------
+        data_segment : DataSegment|Sequence[DataSegment]
+
+        Returns
+        -------
+        None
+        """
+
+        if data_segment is None:
+            return  # do nothing
+
+        if self._data_segment is not None:
+            raise ValueError('data_segment is read only, once set.')
+
+        if isinstance(data_segment, DataSegment):
+            data_segment = [data_segment, ]
+        if not isinstance(data_segment, Sequence):
+            raise TypeError('data_segment must be an instance of DataSegment or a sequence of such instances')
+
+        for entry in data_segment:
+            if not isinstance(entry, DataSegment):
+                raise TypeError(
+                    'Requires all data segment entries to be an instance of DataSegment.\n\t'
+                    'Got type {}'.format(type(entry)))
+            if not entry.mode == 'r':
+                raise ValueError('Each data segment must have mode="r"')
+
+        if len(data_segment) == 1:
+            self._data_segment = data_segment[0]
+        else:
+            self._data_segment = tuple(data_segment)
 
     @property
     def image_count(self) -> int:
@@ -232,7 +283,7 @@ class AbstractReader(object):
         return self._delete_temp_files
 
     def read_chip(self,
-             *ranges: Sequence[Union[None, int, slice, Ellipsis]],
+             *ranges: Sequence[Union[None, int, slice]],
              index: int=0,
              squeeze: bool=True) -> numpy.ndarray:
         """
@@ -256,7 +307,7 @@ class AbstractReader(object):
         return self.__call__(*ranges, index=index, raw=False, squeeze=squeeze)
 
     def read(self,
-             *ranges: Sequence[Union[None, int, slice, Ellipsis]],
+             *ranges: Sequence[Union[None, int, slice]],
              index: int=0,
              squeeze: bool=True) -> numpy.ndarray:
         """
@@ -285,7 +336,7 @@ class AbstractReader(object):
         return self.__call__(*ranges, index=index, raw=False, squeeze=squeeze)
 
     def read_raw(self,
-                 *ranges: Sequence[Union[None, int, slice, Ellipsis]],
+                 *ranges: Sequence[Union[None, int, slice]],
                  index: int=0,
                  squeeze: bool=True) -> numpy.ndarray:
         """
@@ -313,7 +364,7 @@ class AbstractReader(object):
         return self.__call__(*ranges, index=index, raw=True, squeeze=squeeze)
 
     def __call__(self,
-                 *ranges: Sequence[Union[None, int, slice, Ellipsis]],
+                 *ranges: Sequence[Union[None, int, slice]],
                  index: int=0,
                  raw: bool=False,
                  squeeze: bool=True) -> numpy.ndarray:
@@ -403,7 +454,8 @@ class FlatReader(AbstractReader):
                  formatted_shape: Union[None, Tuple[int, ...]] = None,
                  reverse_axes: Union[None, int, Sequence[int]] = None,
                  transpose_axes: Union[None, Tuple[int, ...]] = None,
-                 format_function: Union[None, FormatFunction] = None):
+                 format_function: Union[None, FormatFunction] = None,
+                 close_segments: bool=True):
         """
 
         Parameters
@@ -415,13 +467,15 @@ class FlatReader(AbstractReader):
         reverse_axes : None|Sequence[int]
         transpose_axes : None|Tuple[int, ...]
         format_function : None|FormatFunction
+        close_segments : bool
         """
 
         data_segment = NumpyArraySegment(
             underlying_array, formatted_dtype=formatted_dtype, formatted_shape=formatted_shape,
             reverse_axes=reverse_axes, transpose_axes=transpose_axes,
             format_function=format_function, mode='r')
-        AbstractReader.__init__(self, data_segment, reader_type=reader_type, close_segments=False)
+        AbstractReader.__init__(
+            self, data_segment, reader_type=reader_type, close_segments=close_segments)
 
 
 class AggregateReader(AbstractReader):
@@ -452,7 +506,9 @@ class AggregateReader(AbstractReader):
         self._index_mapping = None
         self._readers = self._validate_readers(readers)
         data_segments = self._define_index_mapping()
-        super(AggregateReader, self).__init__(data_segment=data_segments, reader_type=reader_type, close_segments=False)
+        # NB: close_segments is and should be handled by the constituent readers
+        AbstractReader.__init__(
+            self, data_segment=data_segments, reader_type=reader_type, close_segments=False)
 
     @staticmethod
     def _validate_readers(readers: Sequence[AbstractReader]):

@@ -10,16 +10,14 @@ import os
 import logging
 from datetime import datetime
 from xml.etree import ElementTree
-from typing import List, Tuple, Union
+from typing import List, Tuple, Union, Optional
 
 import numpy
 from numpy.polynomial import polynomial
 from scipy.constants import speed_of_light
 from scipy.interpolate import griddata
 
-from sarpy.io.general.base import SubsetReader, BaseReader, SarpyIOError
-from sarpy.io.general.tiff import TiffDetails, TiffReader
-from sarpy.io.general.utils import get_seconds, parse_timestring, is_file_like
+from sarpy.geometry.geocoords import geodetic_to_ecf
 
 from sarpy.io.complex.base import SICDTypeReader
 from sarpy.io.complex.sicd_elements.blocks import Poly1DType, Poly2DType
@@ -36,45 +34,21 @@ from sarpy.io.complex.sicd_elements.Timeline import TimelineType, IPPSetType
 from sarpy.io.complex.sicd_elements.ImageFormation import ImageFormationType, RcvChanProcType
 from sarpy.io.complex.sicd_elements.RMA import RMAType, INCAType
 from sarpy.io.complex.sicd_elements.Radiometric import RadiometricType, NoiseLevelType_
-from sarpy.geometry.geocoords import geodetic_to_ecf
 from sarpy.io.complex.utils import two_dim_poly_fit, get_im_physical_coords
 
+from sarpy.io.general.base import AbstractReader, SarpyIOError
+from sarpy.io.general.data_segment import SubsetSegment
+from sarpy.io.general.tiff import TiffDetails, NativeTiffDataSegment
+from sarpy.io.general.utils import get_seconds, parse_timestring, is_file_like
+
 logger = logging.getLogger(__name__)
-
-
-########
-# base expected functionality for a module with an implemented Reader
-
-def is_a(file_name):
-    """
-    Tests whether a given file_name corresponds to a Sentinel file. Returns a reader instance, if so.
-
-    Parameters
-    ----------
-    file_name : str
-        the file_name to check
-
-    Returns
-    -------
-    SentinelReader|None
-        `SentinelReader` instance if Sentinel-1 file, `None` otherwise
-    """
-
-    if is_file_like(file_name):
-        return None
-
-    try:
-        sentinel_details = SentinelDetails(file_name)
-        logger.info('Path {} is determined to be or contain a Sentinel-1 manifest.safe file.'.format(file_name))
-        return SentinelReader(sentinel_details)
-    except (SarpyIOError, AttributeError, SyntaxError, ElementTree.ParseError):
-        return None
 
 
 ##########
 # helper functions
 
-def _parse_xml(file_name, without_ns=False):
+def _parse_xml(file_name: str,
+               without_ns: bool=False) -> Union[ElementTree.Element, Tuple[dict, ElementTree.Element]]:
     root_node = ElementTree.parse(file_name).getroot()
     if without_ns:
         return root_node
@@ -87,9 +61,9 @@ def _parse_xml(file_name, without_ns=False):
 # parser and interpreter for sentinel-1 manifest.safe file
 
 class SentinelDetails(object):
-    __slots__ = ('_file_name', '_root_node', '_ns', '_satellite', '_product_type', '_base_sicd')
+    __slots__ = ('_file_name', '_directory_name', '_root_node', '_ns', '_satellite', '_product_type', '_base_sicd')
 
-    def __init__(self, file_name):
+    def __init__(self, file_name: str):
         """
 
         Parameters
@@ -106,6 +80,8 @@ class SentinelDetails(object):
         if os.path.split(file_name)[1] != 'manifest.safe':
             raise SarpyIOError('The sentinel file is expected to be named manifest.safe, got path {}'.format(file_name))
         self._file_name = file_name
+        absolute_path = os.path.abspath(file_name)
+        self._directory_name, _ = os.path.split(absolute_path)
 
         self._ns, self._root_node = _parse_xml(file_name)
         # note that the manifest.safe apparently does not have a default namespace,
@@ -132,7 +108,7 @@ class SentinelDetails(object):
         self._base_sicd = self._get_base_sicd()
 
     @property
-    def file_name(self):
+    def file_name(self) -> str:
         """
         str: the file name
         """
@@ -140,7 +116,15 @@ class SentinelDetails(object):
         return self._file_name
 
     @property
-    def satellite(self):
+    def directory_name(self) -> str:
+        """
+        str: the package directory name
+        """
+
+        return self._directory_name
+
+    @property
+    def satellite(self) -> str:
         """
         str: the satellite
         """
@@ -148,14 +132,14 @@ class SentinelDetails(object):
         return self._satellite
 
     @property
-    def product_type(self):
+    def product_type(self) -> str:
         """
         str: the product type
         """
 
         return self._product_type
 
-    def _find(self, tag):
+    def _find(self, tag: str) -> ElementTree.Element:
         """
         Pass through to ElementTree.Element.find(tag, ns).
 
@@ -170,7 +154,7 @@ class SentinelDetails(object):
 
         return self._root_node.find(tag, self._ns)
 
-    def _findall(self, tag):
+    def _findall(self, tag: str) -> List[ElementTree.Element]:
         """
         Pass through to ElementTree.Element.findall(tag, ns).
 
@@ -186,11 +170,10 @@ class SentinelDetails(object):
         return self._root_node.findall(tag, self._ns)
 
     @staticmethod
-    def _parse_pol(str_in):
-        # type: (str) -> str
+    def _parse_pol(str_in: str) -> str:
         return '{}:{}'.format(str_in[0], str_in[1])
 
-    def _get_file_sets(self):
+    def _get_file_sets(self) -> List[dict]:
         """
         Extracts paths for measurement and metadata files from a Sentinel manifest.safe file.
         These files will be grouped according to "measurement data unit" implicit in the
@@ -233,7 +216,7 @@ class SentinelDetails(object):
             files.append(fnames)
         return files
 
-    def _get_base_sicd(self):
+    def _get_base_sicd(self) -> SICDType:
         """
         Gets the base SICD element.
 
@@ -289,7 +272,7 @@ class SentinelDetails(object):
             for i, pol in enumerate(polarizations)])
         return SICDType(CollectionInfo=collection_info, ImageCreation=image_creation, RadarCollection=radar_collection)
 
-    def _parse_product_sicd(self, product_file_name):
+    def _parse_product_sicd(self, product_file_name: str) -> Union[SICDType, List[SICDType]]:
         """
 
         Parameters
@@ -785,7 +768,7 @@ class SentinelDetails(object):
         else:
             return finalize_stripmap()
 
-    def _refine_using_calibration(self, cal_file_name, sicds):
+    def _refine_using_calibration(self, cal_file_name: str, sicds: Union[SICDType, List[SICDType]]) -> None:
         """
 
         Parameters
@@ -857,7 +840,7 @@ class SentinelDetails(object):
         for ind, sic in enumerate(sicds):
             update_sicd(sic, ind)
 
-    def _refine_using_noise(self, noise_file_name, sicds):
+    def _refine_using_noise(self, noise_file_name: str, sicds: Union[SICDType, List[SICDType]]) -> None:
         """
 
         Parameters
@@ -997,8 +980,7 @@ class SentinelDetails(object):
             populate_noise(sic, ind)
 
     @staticmethod
-    def _derive(sicds):
-        # type: (Union[SICDType, List[SICDType]]) -> None
+    def _derive(sicds: Union[SICDType, List[SICDType]]) -> None:
         if isinstance(sicds, SICDType):
             sicds.derive()
             sicds.populate_rniirs(override=False)
@@ -1007,7 +989,7 @@ class SentinelDetails(object):
                 sicd.derive()
                 sicd.populate_rniirs(override=False)
 
-    def get_sicd_collection(self):
+    def get_sicd_collection(self) -> List[Tuple[str, Union[SICDType, List[SICDType]]]]:
         """
         Get the data file location(s) and corresponding sicd collection for each file.
 
@@ -1033,14 +1015,14 @@ class SentinelDetails(object):
         return out
 
 
-class SentinelReader(BaseReader, SICDTypeReader):
+class SentinelReader(SICDTypeReader):
     """
     Gets a reader type object for Sentinel-1 SAR files.
     """
 
-    __slots__ = ('_sentinel_details', '_readers')
+    __slots__ = ('_sentinel_details', '_parent_segments')
 
-    def __init__(self, sentinel_details):
+    def __init__(self, sentinel_details: Union[str, SentinelDetails]):
         """
 
         Parameters
@@ -1055,41 +1037,38 @@ class SentinelReader(BaseReader, SICDTypeReader):
 
         self._sentinel_details = sentinel_details  # type: SentinelDetails
 
-        symmetry = (False, False, True)  # True for all Sentinel-1 data
-        readers = []
+        reverse_axes = None
+        transpose_axes = (1, 0, 2) # True for all Sentinel-1 data
+
+        parent_segments = []
+        segments = []
         sicd_collection = self._sentinel_details.get_sicd_collection()
         sicd_collection_out = []
         for data_file, sicds in sicd_collection:
             tiff_details = TiffDetails(data_file)
             if isinstance(sicds, SICDType):
-                readers.append(TiffReader(tiff_details, symmetry=symmetry))
+                segments.append(NativeTiffDataSegment(tiff_details, reverse_axes=reverse_axes, transpose_axes=transpose_axes))
                 sicd_collection_out.append(sicds)
             elif len(sicds) == 1:
-                readers.append(TiffReader(tiff_details, symmetry=symmetry))
+                segments.append(NativeTiffDataSegment(tiff_details, reverse_axes=reverse_axes, transpose_axes=transpose_axes))
                 sicd_collection_out.append(sicds[0])
             else:
-                # no need for SICD here - we're using subreaders
-                p_reader = TiffReader(tiff_details, symmetry=symmetry)
+                p_segment = NativeTiffDataSegment(tiff_details, reverse_axes=reverse_axes, transpose_axes=transpose_axes)
+                parent_segments.append(p_segment)
                 begin_col = 0
                 for sicd in sicds:
-                    assert isinstance(sicd, SICDType)
                     end_col = begin_col + sicd.ImageData.NumCols
-                    dim1bounds = (0, tiff_details.tags['ImageWidth'])
-                    dim2bounds = (begin_col, end_col)
-                    readers.append(SubsetReader(p_reader, dim1bounds, dim2bounds))
+                    subet_def = (slice(0, tiff_details.tags['ImageWidth'], 1), slice(begin_col, end_col, 1))
+                    segments.append(SubsetSegment(p_segment, subet_def, 'formatted', close_parent=False))
                     begin_col = end_col
                     sicd_collection_out.append(sicd)
 
-        self._readers = tuple(readers)  # type: Tuple[Union[TiffReader, SubsetReader]]
-        chipper_tuple = tuple(reader._chipper for reader in readers)
-
-        SICDTypeReader.__init__(self, tuple(sicd_collection_out))
-        BaseReader.__init__(self, chipper_tuple, reader_type="SICD")
+        self._parent_segments = parent_segments # type: List[NativeTiffDataSegment]
+        SICDTypeReader.__init__(self, segments, sicd_collection_out, close_segments=True)
         self._check_sizes()
 
     @property
-    def sentinel_details(self):
-        # type: () -> SentinelDetails
+    def sentinel_details(self) -> SentinelDetails:
         """
         SentinelDetails: The sentinel details object.
         """
@@ -1097,5 +1076,46 @@ class SentinelReader(BaseReader, SICDTypeReader):
         return self._sentinel_details
 
     @property
-    def file_name(self):
-        return self.sentinel_details.file_name
+    def file_name(self) -> str:
+        return self.sentinel_details.directory_name
+
+    def close(self):
+        AbstractReader.close(self)
+        if hasattr(self, '_parent_segments') and self._parent_segments is not None:
+            # noinspection PyBroadException
+            try:
+                while len(self._parent_segments) > 0:
+                    segment = self._parent_segments.pop()
+                    segment.close()
+            except Exception:
+                pass
+            self._parent_segments = None
+
+
+########
+# base expected functionality for a module with an implemented Reader
+
+def is_a(file_name: str) -> Optional[SentinelReader]:
+    """
+    Tests whether a given file_name corresponds to a Sentinel file. Returns a reader instance, if so.
+
+    Parameters
+    ----------
+    file_name : str
+        the file_name to check
+
+    Returns
+    -------
+    SentinelReader|None
+        `SentinelReader` instance if Sentinel-1 file, `None` otherwise
+    """
+
+    if is_file_like(file_name):
+        return None
+
+    try:
+        sentinel_details = SentinelDetails(file_name)
+        logger.info('Path {} is determined to be or contain a Sentinel-1 manifest.safe file.'.format(file_name))
+        return SentinelReader(sentinel_details)
+    except (SarpyIOError, AttributeError, SyntaxError, ElementTree.ParseError):
+        return None
