@@ -33,6 +33,11 @@ class SICDTypeReader(AbstractReader):
         data_segment : None|DataSegment|Sequence[DataSegment]
         sicd_meta : None|SICDType|Sequence[SICDType]
             `None`, the SICD metadata object, or tuple of objects
+        close_segments : bool
+            Call segment.close() for each data segment on reader.close()?
+        delete_files : None|Sequence[str]
+            Any temp files which should be cleaned up on reader.close()?
+            This will occur after closing segments.
         """
 
         if sicd_meta is None:

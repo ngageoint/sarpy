@@ -1,6 +1,6 @@
 """
 This module provides utilities for attempting to open other image files not
-opened by the sicd, sidd, cphd, or other_image reader collections.
+opened by the sicd, sidd, cphd, or crsd reader collections.
 """
 
 import os

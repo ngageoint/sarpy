@@ -283,7 +283,7 @@ class AbstractReader(object):
         return self._delete_temp_files
 
     def read_chip(self,
-             *ranges: Sequence[Union[None, int, slice]],
+             *ranges: Sequence[Union[None, int, Tuple[int, ...], slice]],
              index: int=0,
              squeeze: bool=True) -> numpy.ndarray:
         """
@@ -291,7 +291,7 @@ class AbstractReader(object):
 
         Parameters
         ----------
-        ranges : Sequence[Union[None, int, slice, Ellipsis]]
+        ranges : Sequence[Union[None, int, Tuple[int, ...], slice]]
         index : int
         squeeze : bool
 
@@ -307,7 +307,7 @@ class AbstractReader(object):
         return self.__call__(*ranges, index=index, raw=False, squeeze=squeeze)
 
     def read(self,
-             *ranges: Sequence[Union[None, int, slice]],
+             *ranges: Sequence[Union[None, int, Tuple[int, ...], slice]],
              index: int=0,
              squeeze: bool=True) -> numpy.ndarray:
         """
@@ -317,7 +317,7 @@ class AbstractReader(object):
 
         Parameters
         ----------
-        ranges : Sequence[Union[None, int, slice, Ellipsis]]
+        ranges : Sequence[Union[None, int, Tuple[int, ...], slice]]
             The slice definition appropriate for `data_segment[index].read()` usage.
         index : int
             The data_segment index. This is ignored if `image_count== 1`.
@@ -336,7 +336,7 @@ class AbstractReader(object):
         return self.__call__(*ranges, index=index, raw=False, squeeze=squeeze)
 
     def read_raw(self,
-                 *ranges: Sequence[Union[None, int, slice]],
+                 *ranges: Sequence[Union[None, int, Tuple[int, ...], slice]],
                  index: int=0,
                  squeeze: bool=True) -> numpy.ndarray:
         """
@@ -346,7 +346,7 @@ class AbstractReader(object):
 
         Parameters
         ----------
-        ranges : Sequence[Union[None, int, slice, Ellipsis]]
+        ranges : Sequence[Union[None, int, Tuple[int, ...], slice]]
             The slice definition appropriate for `data_segment[index].read()` usage.
         index : int
             The data_segment index. This is ignored if `image_count== 1`.
@@ -399,7 +399,7 @@ class AbstractReader(object):
             return self.__call__(subscript, index=0, raw=False, squeeze=True)
 
         if isinstance(subscript, tuple):
-            if isinstance(subscript[-1], int):
+            if not isinstance(subscript[-1], slice):
                 return self.__call__(subscript[:-1], index=subscript[-1], raw=False, squeeze=True)
         return self.__call__(subscript, index=0, raw=False, squeeze=True)
 
@@ -657,7 +657,7 @@ class AbstractWriter(object):
               data: numpy.ndarray,
               start_indices: Union[None, int, Tuple[int, ...]] = None,
               subscript: Union[None, Tuple[slice, ...]] = None,
-              index=0) -> None:
+              index: int=0) -> None:
         """
         This is identical to :meth:`write`, and presented for backwards compatibility.
 
@@ -679,7 +679,7 @@ class AbstractWriter(object):
               data: numpy.ndarray,
               start_indices: Union[None, int, Tuple[int, ...]]=None,
               subscript: Union[None, Tuple[slice, ...]]=None,
-              index=0) -> None:
+              index: int=0) -> None:
         """
         Write the data to the appropriate data segment. This is an alias to
         :code:`writer(data, start_indices=start_indices, subscript=subscript, index=index, raw=False)`.
@@ -711,7 +711,7 @@ class AbstractWriter(object):
               data: numpy.ndarray,
               start_indices: Union[None, int, Tuple[int, ...]]=None,
               subscript: Union[None, Tuple[slice, ...]]=None,
-              index=0) -> None:
+              index: int=0) -> None:
         """
         Write the raw data to the file(s). This is an alias to
         :code:`writer(data, start_indices=start_indices, subscript=subscript, index=index, raw=True)`.

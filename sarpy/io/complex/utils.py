@@ -7,7 +7,7 @@ __author__ = "Thomas McCullough"
 
 
 import logging
-from typing import Iterator, Tuple, List, Optional
+from typing import Iterator, Tuple, List, Optional, Union
 
 import numpy
 from numpy.polynomial import polynomial
@@ -28,7 +28,7 @@ def two_dim_poly_fit(
         y_order: int=2,
         x_scale: float=1.,
         y_scale: float=1.,
-        rcond: Optional[float]=None) -> numpy.ndarray:
+        rcond: Optional[float]=None) -> Tuple[numpy.ndarray, numpy.ndarray, int, numpy.ndarray]:
     """
     Perform fit of data to two-dimensional polynomial.
 
@@ -53,8 +53,14 @@ def two_dim_poly_fit(
 
     Returns
     -------
-    numpy.ndarray
+    solution : numpy.ndarray
         the coefficient array
+    residuals : numpy.ndarray
+        this is often an empty array
+    rank : int
+        the rank of the fitting matrix
+    sing_values : numpy.ndarray
+        the singular values of the fitting matrix
     """
 
     if not isinstance(x, numpy.ndarray) or not isinstance(y, numpy.ndarray) or not isinstance(z, numpy.ndarray):
@@ -84,7 +90,7 @@ def two_dim_poly_fit(
 
 def get_im_physical_coords(
         array,
-        grid, 
+        grid,
         image_data,
         direction):
     """
@@ -94,7 +100,7 @@ def get_im_physical_coords(
 
     Parameters
     ----------
-    array : numpy.array|float|int
+    array : numpy.ndarray|float|int
         either row or col coordinate component
     grid : sarpy.io.complex.sicd_elements.Grid.GridType
     image_data : sarpy.io.complex.sicd_elements.ImageData.ImageDataType
@@ -113,7 +119,12 @@ def get_im_physical_coords(
         raise ValueError('Unrecognized direction {}'.format(direction))
 
 
-def fit_time_coa_polynomial(inca, image_data, grid, dop_rate_scaled_coeffs, poly_order=2):
+def fit_time_coa_polynomial(
+        inca,
+        image_data,
+        grid,
+        dop_rate_scaled_coeffs,
+        poly_order=2):
     """
 
     Parameters
@@ -152,7 +163,11 @@ def fit_time_coa_polynomial(inca, image_data, grid, dop_rate_scaled_coeffs, poly
     return Poly2DType(Coefs=coefs)
 
 
-def fit_position_xvalidation(time_array, position_array, velocity_array, max_degree=5):
+def fit_position_xvalidation(
+        time_array: numpy.ndarray,
+        position_array: numpy.ndarray,
+        velocity_array: numpy.ndarray,
+        max_degree: int=5) -> Tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray]:
     """
     Empirically fit the polynomials for the X, Y, Z ECF position array, using cross
     validation with the velocity array to determine the best fit degree up to a
@@ -167,8 +182,9 @@ def fit_position_xvalidation(time_array, position_array, velocity_array, max_deg
 
     Returns
     -------
-    (numpy.ndarray, numpy.ndarray, numpy.ndarray,)
-        The X, Y, Z polynomial coefficients.
+    X_poly : numpy.ndarray
+    Y_poly : numpy.ndarray
+    Z_poly : numpy.ndarray
     """
 
     if not isinstance(time_array, numpy.ndarray) or \
@@ -219,7 +235,11 @@ def fit_position_xvalidation(time_array, position_array, velocity_array, max_deg
     return P_x, P_y, P_z
 
 
-def sicd_reader_iterator(reader, partitions=None, polarization=None, band=None):
+def sicd_reader_iterator(
+        reader,
+        partitions=None,
+        polarization=None,
+        band=None):
     """
     Provides an iterator over a collection of partitions (tuple of tuple of integer
     indices for the reader) for a sicd type reader object.
@@ -266,7 +286,10 @@ def sicd_reader_iterator(reader, partitions=None, polarization=None, band=None):
                 yield this_partition, this_index, this_sicd
 
 
-def get_physical_coordinates(the_sicd, row_value, col_value):
+def get_physical_coordinates(
+        the_sicd,
+        row_value: Union[int, float, numpy.ndarray],
+        col_value: Union[int, float, numpy.ndarray]) -> Tuple[Union[float, numpy.ndarray], Union[float, numpy.ndarray]]:
     """
     Transform from image coordinates to physical coordinates, for polynomial evaluation.
 
@@ -278,8 +301,8 @@ def get_physical_coordinates(the_sicd, row_value, col_value):
 
     Returns
     -------
-    tuple
-        The row and colummn physical coordinates
+    row_coords : float|numpy.ndarray
+    col_coords : float|numpy.ndarray
     """
 
     return get_im_physical_coords(row_value, the_sicd.Grid, the_sicd.ImageData, 'row'), \

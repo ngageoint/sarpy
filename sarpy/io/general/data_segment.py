@@ -1700,7 +1700,7 @@ class NumpyMemmapSegment(NumpyArraySegment):
     """
 
     __slots__ = (
-        '_file_object', '_close_file')
+        '_file_object', '_memory_map', '_close_file')
 
     def __init__(self,
                  file_object: Union[str, BinaryIO],
@@ -1744,14 +1744,15 @@ class NumpyMemmapSegment(NumpyArraySegment):
         self._expected_pixels_written = 0
 
         mmap_mode = 'r' if mode == 'r' else 'r+'
-        memory_map = numpy.memmap(file_object,
-                                  dtype=raw_dtype,
-                                  mode=mmap_mode,
-                                  offset=data_offset,
-                                  shape=raw_shape)
+        self._memory_map = numpy.memmap(
+            file_object,
+            dtype=raw_dtype,
+            mode=mmap_mode,
+            offset=data_offset,
+            shape=raw_shape)
 
         NumpyArraySegment.__init__(
-            self, memory_map, formatted_dtype=formatted_dtype, formatted_shape=formatted_shape,
+            self, self._memory_map, formatted_dtype=formatted_dtype, formatted_shape=formatted_shape,
             reverse_axes=reverse_axes, transpose_axes=transpose_axes,
             format_function=format_function, mode=mode)
 
@@ -1768,7 +1769,13 @@ class NumpyMemmapSegment(NumpyArraySegment):
         self._close_file = bool(value)
 
     def close(self):
+        if hasattr(self, '_memory_map') and \
+                self.mode == 'w' and \
+                hasattr(self._memory_map, 'flush'):
+            self._memory_map.flush()
+
         NumpyArraySegment.close(self)
+        self._memory_map = None
         if self._close_file:
             if self._file_object is not None and \
                     hasattr(self._file_object, 'closed') and \
