@@ -144,7 +144,7 @@ The recommended methodology uses slice notation, with basic syntax as:
     # read all data from the 3rd image (requires that there is one).
     third_image_data = reader[:, :, 2]
 
-This behavior is implemented in  :meth:`sarpy.io.general.base.AbstractReader.__getitem__`.
+This behavior is implemented in  :meth:`sarpy.io.general.base.BaseReader.__getitem__`.
 
 Basic data plot and remap
 -------------------------

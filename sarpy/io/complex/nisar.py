@@ -36,7 +36,7 @@ from sarpy.io.complex.sicd_elements.Radiometric import RadiometricType, NoiseLev
 from sarpy.geometry import point_projection
 from sarpy.io.complex.utils import fit_position_xvalidation, two_dim_poly_fit
 
-from sarpy.io.general.base import AbstractReader, SarpyIOError
+from sarpy.io.general.base import BaseReader, SarpyIOError
 from sarpy.io.general.data_segment import HDF5DatasetSegment
 from sarpy.io.general.format_function import ComplexFormatFunction
 from sarpy.io.general.utils import get_seconds, parse_timestring, is_file_like, is_hdf5, h5py

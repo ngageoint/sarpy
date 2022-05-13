@@ -9,7 +9,7 @@ __author__ = "Thomas McCullough"
 import os
 from typing import Callable
 
-from sarpy.io.general.base import SarpyIOError, AbstractReader, check_for_openers
+from sarpy.io.general.base import SarpyIOError, BaseReader, check_for_openers
 from sarpy.io.received.base import CRSDTypeReader
 
 ###########
@@ -53,7 +53,7 @@ def parse_openers() -> None:
     check_for_openers('sarpy.io.received', register_opener)
 
 
-def open_received(file_name: str) -> AbstractReader:
+def open_received(file_name: str) -> BaseReader:
     """
     Given a file, try to find and return the appropriate reader object.
 

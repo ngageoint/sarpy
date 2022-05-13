@@ -39,6 +39,8 @@ from sarpy.io.product.sidd import SIDDWriter
 from sarpy.io.general.base import SarpyIOError
 from sarpy.visualization.remap import MonochromaticRemap, NRL
 
+# TODO: move this to processing for 1.3.0
+
 DEFAULT_IMG_REMAP = NRL
 DEFAULT_CSI_REMAP = NRL
 DEFAULT_DI_REMAP = NRL

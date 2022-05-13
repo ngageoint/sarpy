@@ -42,7 +42,7 @@ from sarpy.io.complex.sicd_elements.ImageFormation import ImageFormationType, \
 from sarpy.io.complex.sicd_elements.Radiometric import RadiometricType, \
     NoiseLevelType_
 
-# TODO: revamp this...
+# TODO: revamp this for 1.3.0
 
 try:
     import PIL

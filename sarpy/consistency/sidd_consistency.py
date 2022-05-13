@@ -84,8 +84,6 @@ def _evaluate_xml_string_validity(xml_string=None):
         raise ValueError(
             'Could not properly interpret the namespace collection from xml\n{}'.format(xml_ns))
 
-    # todo: validate the xml namespace elements here
-
     sidd_urn = xml_ns['default']
     # check that our urn is mapped
     try:

@@ -29,6 +29,7 @@ from sarpy.io.product.sidd1_elements.SIDD import SIDDType as SIDDType1
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd import extract_clas as extract_clas_sicd
 
+# TODO: revamp this for 1.3.0
 
 logger = logging.getLogger(__name__)
 

@@ -11,12 +11,12 @@ import numpy
 
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd_elements.utils import is_general_match
-from sarpy.io.general.base import AbstractReader, FlatReader
+from sarpy.io.general.base import BaseReader, FlatReader
 from sarpy.io.general.data_segment import DataSegment, SubsetSegment
 from sarpy.io.general.format_function import FormatFunction
 
 
-class SICDTypeReader(AbstractReader):
+class SICDTypeReader(BaseReader):
     """
     A class for ensuring common SICD reading functionality.
 
@@ -34,7 +34,7 @@ class SICDTypeReader(AbstractReader):
         ----------
         data_segment : None|DataSegment|Sequence[DataSegment]
         sicd_meta : None|SICDType|Sequence[SICDType]
-            `None`, the SICD metadata object, or tuple of objects
+            The SICD metadata object(s).
         close_segments : bool
             Call segment.close() for each data segment on reader.close()?
         delete_files : None|Sequence[str]
@@ -55,7 +55,8 @@ class SICDTypeReader(AbstractReader):
                         'to be instances of SICDType.')
                 temp_list.append(el)
             self._sicd_meta = tuple(temp_list)
-        AbstractReader.__init__(
+
+        BaseReader.__init__(
             self, data_segment, reader_type='SICD', close_segments=close_segments, delete_files=delete_files)
 
     def _check_sizes(self) -> None:
@@ -67,15 +68,15 @@ class SICDTypeReader(AbstractReader):
             expected_size = (sicd.ImageData.NumRows, sicd.ImageData.NumCols)
             if data_size != expected_size:
                 agree = False
-                msg += 'image/chipper at index {} has data size {}\n\t' \
+                msg += 'data segment at index {} has data size {}\n\t' \
                        'and expected size (from the sicd) {}\n'.format(i, data_size, expected_size)
         if not agree:
             raise ValueError(msg)
 
     @property
-    def sicd_meta(self) -> Union[None, SICDType, Tuple[SICDType]]:
+    def sicd_meta(self) -> Union[None, SICDType, Tuple[SICDType, ...]]:
         """
-        None|SICDType|Tuple[SICDType]: the sicd meta_data or meta_data collection.
+        None|SICDType|Tuple[SICDType, ...]: the sicd meta_data or meta_data collection.
         """
 
         return self._sicd_meta
@@ -89,13 +90,13 @@ class SICDTypeReader(AbstractReader):
         None|Tuple[SICDType, ...]
         """
 
-        if self._sicd_meta is None:
+        if self.sicd_meta is None:
             return None
-        elif isinstance(self._sicd_meta, tuple):
-            return self._sicd_meta
+        elif isinstance(self.sicd_meta, tuple):
+            return self.sicd_meta
         else:
-            # noinspection PyTypeChecker,PyRedundantParentheses
-            return (self._sicd_meta, )
+            # noinspection PyRedundantParentheses
+            return (self.sicd_meta, )
 
     def get_sicd_partitions(self, match_function: Callable=is_general_match) -> Tuple[Tuple[int, ...], ...]:
         """

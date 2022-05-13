@@ -14,7 +14,7 @@ from collections import OrderedDict
 import numpy
 
 from sarpy.io.general.utils import is_file_like
-from sarpy.io.general.base import AbstractReader, AbstractWriter, SarpyIOError
+from sarpy.io.general.base import BaseReader, BaseWriter, SarpyIOError
 from sarpy.io.general.data_segment import DataSegment, NumpyMemmapSegment
 from sarpy.io.general.format_function import ComplexFormatFunction
 from sarpy.io.general.slice_parsing import verify_subscript, verify_slice
@@ -354,7 +354,7 @@ class CRSDReader1_0(CRSDReader):
         self._create_support_array_memmaps()
 
         data_segments = self._create_data_segments()
-        AbstractReader.__init__(self, data_segments, reader_type='CRSD')
+        BaseReader.__init__(self, data_segments, reader_type='CRSD')
 
     @property
     def crsd_meta(self) -> CRSDType:
@@ -650,11 +650,11 @@ class CRSDReader1_0(CRSDReader):
                  raw: bool=False,
                  squeeze: bool=True) -> numpy.ndarray:
         index = self._validate_index(index)
-        return AbstractReader.__call__(*ranges, index=index, raw=raw, squeeze=squeeze)
+        return BaseReader.__call__(*ranges, index=index, raw=raw, squeeze=squeeze)
 
 
 
-class CRSDWriter1_0(AbstractWriter):
+class CRSDWriter1_0(BaseWriter):
     """
     The CRSD version 1.0 writer.
 
@@ -696,7 +696,7 @@ class CRSDWriter1_0(AbstractWriter):
         self._crsd_header = crsd_meta.make_file_header()
 
         data_segment = self._prepare_for_writing()
-        AbstractWriter.__init__(self, data_segment)
+        BaseWriter.__init__(self, data_segment)
 
     @property
     def crsd_meta(self) -> CRSDType:
@@ -1128,7 +1128,7 @@ class CRSDWriter1_0(AbstractWriter):
                 'The channel `{}` has an AmpSF whihc has not been determined,\n\t'
                 'but the corresponding PVP block has not yet been written'.format(identifier))
 
-        AbstractWriter.__call__(self, data, start_indices=start_indices, subscript=subscript, index=int_index, raw=raw)
+        BaseWriter.__call__(self, data, start_indices=start_indices, subscript=subscript, index=int_index, raw=raw)
 
     def _check_fully_written(self) -> bool:
         """
@@ -1180,7 +1180,7 @@ class CRSDWriter1_0(AbstractWriter):
             return
 
         fully_written = self._check_fully_written()
-        AbstractWriter.close(self)
+        BaseWriter.close(self)
 
         if hasattr(self, '_file_object') and hasattr(self._file_object, 'close'):
             self._file_object.close()

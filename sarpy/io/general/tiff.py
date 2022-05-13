@@ -18,7 +18,7 @@ import numpy
 import re
 from typing import Union, Tuple, Dict, BinaryIO, Sequence
 
-from sarpy.io.general.base import AbstractReader, SarpyIOError
+from sarpy.io.general.base import BaseReader, SarpyIOError
 from sarpy.io.general.format_function import ComplexFormatFunction
 from sarpy.io.general.data_segment import NumpyMemmapSegment
 
@@ -507,7 +507,7 @@ class NativeTiffDataSegment(NumpyMemmapSegment):
         return self._tiff_details
 
 
-class TiffReader(AbstractReader):
+class TiffReader(BaseReader):
     def __init__(self,
                  tiff_details: Union[str, TiffDetails],
                  reverse_axes: Union[None, int, Sequence[int]] = None,
@@ -522,7 +522,7 @@ class TiffReader(AbstractReader):
         """
 
         data_segment = NativeTiffDataSegment(tiff_details, reverse_axes=reverse_axes, transpose_axes=transpose_axes)
-        AbstractReader.__init__(self, data_segment, reader_type='OTHER', close_segments=True)
+        BaseReader.__init__(self, data_segment, reader_type='OTHER', close_segments=True)
 
     @property
     def data_segment(self) -> NativeTiffDataSegment:

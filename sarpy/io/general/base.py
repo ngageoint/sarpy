@@ -65,7 +65,7 @@ def check_for_openers(start_package: str, register_method: Callable) -> None:
 #############
 # reader implementation for array like data
 
-class AbstractReader(object):
+class BaseReader(object):
     """
     The basic reader definition, using array-like data fetching.
 
@@ -97,7 +97,7 @@ class AbstractReader(object):
         """
 
         # NB: it's entirely possible under multiple inheritance (class extends
-        # two classes each of which extends AbstractReader), that this initializer
+        # two classes each of which extends BaseReader), that this initializer
         # has already been called. Don't override appropriate values, in that case.
 
         # override regardless here
@@ -439,7 +439,7 @@ class AbstractReader(object):
         self.close()
 
 
-class FlatReader(AbstractReader):
+class FlatReader(BaseReader):
     """
     Class for passing a numpy array straight through as a reader.
 
@@ -473,11 +473,11 @@ class FlatReader(AbstractReader):
             underlying_array, formatted_dtype=formatted_dtype, formatted_shape=formatted_shape,
             reverse_axes=reverse_axes, transpose_axes=transpose_axes,
             format_function=format_function, mode='r')
-        AbstractReader.__init__(
+        BaseReader.__init__(
             self, data_segment, reader_type=reader_type, close_segments=close_segments)
 
 
-class AggregateReader(AbstractReader):
+class AggregateReader(BaseReader):
     """
     Aggregate multiple readers into a single reader instance. This default
     aggregate implementation will not preserve any other metadata structures.
@@ -486,14 +486,14 @@ class AggregateReader(AbstractReader):
     __slots__ = ('_readers', '_index_mapping', '_close_readers')
 
     def __init__(self,
-                 readers: Sequence[AbstractReader],
+                 readers: Sequence[BaseReader],
                  reader_type: str="OTHER",
                  close_readers: bool=False):
         """
 
         Parameters
         ----------
-        readers : Sequence[AbstractReader]
+        readers : Sequence[BaseReader]
             The readers.
         reader_type : str
             The reader type string.
@@ -506,21 +506,21 @@ class AggregateReader(AbstractReader):
         self._readers = self._validate_readers(readers)
         data_segments = self._define_index_mapping()
         # NB: close_segments is and should be handled by the constituent readers
-        AbstractReader.__init__(
+        BaseReader.__init__(
             self, data_segment=data_segments, reader_type=reader_type, close_segments=False)
 
     @staticmethod
-    def _validate_readers(readers: Sequence[AbstractReader]):
+    def _validate_readers(readers: Sequence[BaseReader]):
         """
         Validate the input reader/file collection.
 
         Parameters
         ----------
-        readers : Sequence[AbstractReader]
+        readers : Sequence[BaseReader]
 
         Returns
         -------
-        Tuple[AbstractReader]
+        Tuple[BaseReader]
         """
 
         if not isinstance(readers, Sequence):
@@ -529,7 +529,7 @@ class AggregateReader(AbstractReader):
         # validate each entry
         the_readers = []
         for i, entry in enumerate(readers):
-            if not isinstance(entry, AbstractReader):
+            if not isinstance(entry, BaseReader):
                 raise TypeError(
                     'All elements of the input argument must be reader instances. '
                     'Entry {} is of type {}'.format(i, type(entry)))
@@ -574,7 +574,7 @@ class AggregateReader(AbstractReader):
         if not hasattr(self, '_closed') or self._closed:
             return
 
-        AbstractReader.close(self)
+        BaseReader.close(self)
         if self._close_readers and self._readers is not None:
             for entry in self._readers:
                 entry.close()
@@ -584,7 +584,7 @@ class AggregateReader(AbstractReader):
 #############
 # writer implementation for array like data
 
-class AbstractWriter(object):
+class BaseWriter(object):
     """
     Abstract writer definition, using array-like data writing.
 

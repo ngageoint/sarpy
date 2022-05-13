@@ -10,13 +10,13 @@ from typing import Union, Tuple, Sequence, Dict, Optional
 
 import numpy
 
-from sarpy.io.general.base import AbstractReader
+from sarpy.io.general.base import BaseReader
 from sarpy.io.general.data_segment import DataSegment
 from sarpy.io.phase_history.cphd1_elements.CPHD import CPHDType as CPHDType1_0
 from sarpy.io.phase_history.cphd0_3_elements.CPHD import CPHDType as CPHDType0_3
 
 
-class CPHDTypeReader(AbstractReader):
+class CPHDTypeReader(BaseReader):
     """
     A class for common CPHD reading functionality.
 
@@ -50,7 +50,7 @@ class CPHDTypeReader(AbstractReader):
             raise TypeError(
                 'The cphd_meta must be of type CPHDType, got `{}`'.format(type(cphd_meta)))
 
-        AbstractReader.__init__(
+        BaseReader.__init__(
             self, data_segment, reader_type='CPHD', close_segments=close_segments, delete_files=delete_files)
 
     @property

@@ -9,12 +9,12 @@ from typing import Union, Tuple, Sequence, Dict, Optional
 
 import numpy
 
-from sarpy.io.general.base import AbstractReader
+from sarpy.io.general.base import BaseReader
 from sarpy.io.general.data_segment import DataSegment
 from sarpy.io.received.crsd1_elements.CRSD import CRSDType as CRSDType1_0
 
 
-class CRSDTypeReader(AbstractReader):
+class CRSDTypeReader(BaseReader):
     """
     A class for ensuring common CRSD reading functionality.
 
@@ -48,7 +48,7 @@ class CRSDTypeReader(AbstractReader):
             raise TypeError(
                 'The crsd_meta must be of type CRSDType, got `{}`'.format(type(crsd_meta)))
 
-        AbstractReader.__init__(
+        BaseReader.__init__(
             self, data_segment, reader_type='CRSD', close_segments=close_segments, delete_files=delete_files)
 
     @property

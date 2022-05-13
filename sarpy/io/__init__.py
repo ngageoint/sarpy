@@ -12,7 +12,7 @@ def open(file_name: str):
 
     Returns
     -------
-    AbstractReader
+    BaseReader
 
     Raises
     ------

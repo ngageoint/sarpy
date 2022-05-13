@@ -29,7 +29,7 @@ from sarpy.io.general.nitf_elements.des import DataExtensionHeader, XMLDESSubhea
 from sarpy.io.general.nitf_elements.security import NITFSecurityTags
 from sarpy.io.general.nitf_elements.image import ImageSegmentHeader, ImageBands, ImageBand
 
-
+# TODO: revamp this for 1.3.0
 logger = logging.getLogger(__name__)
 
 

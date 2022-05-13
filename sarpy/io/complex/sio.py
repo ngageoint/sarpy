@@ -19,7 +19,7 @@ from sarpy.io.complex.sicd_elements.blocks import RowColType
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd_elements.ImageData import ImageDataType, FullImageType
 
-from sarpy.io.general.base import AbstractWriter, SarpyIOError
+from sarpy.io.general.base import BaseWriter, SarpyIOError
 from sarpy.io.general.data_segment import NumpyMemmapSegment
 from sarpy.io.general.format_function import ComplexFormatFunction
 from sarpy.io.general.utils import is_file_like
@@ -361,7 +361,7 @@ def is_a(file_name: str) -> Optional[SIOReader]:
 #######
 #  The actual writing implementation
 
-class SIOWriter(AbstractWriter):
+class SIOWriter(BaseWriter):
     """
     **Changed in version 1.3.0** for writing changes.
     """
@@ -438,4 +438,4 @@ class SIOWriter(AbstractWriter):
         data_segment = NumpyMemmapSegment(
             file_name, data_offset, raw_dtype, image_size + (2, ),
             'complex64', image_size, format_function=format_function, mode='w', close_file=True)
-        AbstractWriter.__init__(self, data_segment)
+        BaseWriter.__init__(self, data_segment)

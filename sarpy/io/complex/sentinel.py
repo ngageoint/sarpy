@@ -36,7 +36,7 @@ from sarpy.io.complex.sicd_elements.RMA import RMAType, INCAType
 from sarpy.io.complex.sicd_elements.Radiometric import RadiometricType, NoiseLevelType_
 from sarpy.io.complex.utils import two_dim_poly_fit, get_im_physical_coords
 
-from sarpy.io.general.base import AbstractReader, SarpyIOError
+from sarpy.io.general.base import BaseReader, SarpyIOError
 from sarpy.io.general.data_segment import SubsetSegment
 from sarpy.io.general.tiff import TiffDetails, NativeTiffDataSegment
 from sarpy.io.general.utils import get_seconds, parse_timestring, is_file_like
@@ -1082,7 +1082,7 @@ class SentinelReader(SICDTypeReader):
         return self.sentinel_details.directory_name
 
     def close(self):
-        AbstractReader.close(self)
+        BaseReader.close(self)
         if hasattr(self, '_parent_segments') and self._parent_segments is not None:
             # noinspection PyBroadException
             try:

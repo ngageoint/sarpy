@@ -38,6 +38,8 @@ from sarpy.io.complex.sicd_elements.ImageFormation import ImageFormationType, Tx
 from sarpy.io.complex.sicd_elements.ImageCreation import ImageCreationType
 from sarpy.io.complex.sicd_elements.PFA import PFAType
 
+# TODO: revamp this for 1.3.0 - this is long overdue...
+
 logger = logging.getLogger(__name__)
 
 _iso_date_format = '{}-{}-{}T{}:{}:{}'

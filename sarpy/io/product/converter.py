@@ -8,6 +8,7 @@ __author__ = "Thomas McCullough"
 
 
 import os
+from typing import Callable
 
 from sarpy.io.general.base import SarpyIOError, check_for_openers
 from sarpy.io.product.base import SIDDTypeReader
@@ -18,7 +19,7 @@ _openers = []
 _parsed_openers = False
 
 
-def register_opener(open_func):
+def register_opener(open_func: Callable) -> None:
     """
     Provide a new opener.
 
@@ -40,7 +41,7 @@ def register_opener(open_func):
         _openers.append(open_func)
 
 
-def parse_openers():
+def parse_openers() -> None:
     """
     Automatically find the viable openers (i.e. :func:`is_a`) in the various modules.
 
@@ -57,7 +58,7 @@ def parse_openers():
     check_for_openers('sarpy.io.product', register_opener)
 
 
-def open_product(file_name):
+def open_product(file_name: str) -> SIDDTypeReader:
     """
     Given a file, try to find and return the appropriate reader object.
 

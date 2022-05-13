@@ -5,7 +5,7 @@ opened by the sicd, sidd, cphd, or crsd reader collections.
 
 import os
 from typing import Callable
-from sarpy.io.general.base import SarpyIOError, AbstractReader, check_for_openers
+from sarpy.io.general.base import SarpyIOError, BaseReader, check_for_openers
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
@@ -56,7 +56,7 @@ def parse_openers() -> None:
     check_for_openers('sarpy.io.general', register_opener)
 
 
-def open_general(file_name: str) -> AbstractReader:
+def open_general(file_name: str) -> BaseReader:
     """
     Given a file, try to find and return the appropriate reader object.
 
@@ -66,7 +66,7 @@ def open_general(file_name: str) -> AbstractReader:
 
     Returns
     -------
-    AbstractReader
+    BaseReader
 
     Raises
     ------

@@ -25,7 +25,7 @@ import gc
 
 import numpy
 
-from sarpy.io.general.base import SarpyIOError, AbstractReader, AbstractWriter, \
+from sarpy.io.general.base import SarpyIOError, BaseReader, BaseWriter, \
     BaseReader, SubsetChipper, AggregateChipper, BIPChipper, BIPWriter, \
     BSQChipper, BIRChipper
 from sarpy.io.general.format_function import FormatFunction, ComplexFormatFunction, \
@@ -786,7 +786,7 @@ class NITFDetails(object):
 #####
 # A general nitf reader - intended for extension
 
-class NITFReaderTemp(AbstractReader):
+class NITFReaderTemp(BaseReader):
     """
     A reader implementation based around array-type image data fetching for
     NITF 2.0 or 2.1 files.
@@ -2604,7 +2604,7 @@ def interpolate_corner_points_string(entry, rows, cols, icp):
     return ''.join(out)
 
 
-class NITFWriter(AbstractWriter):
+class NITFWriter(BaseWriter):
     __slots__ = (
         '_file_name', '_security_tags', '_nitf_header', '_nitf_header_written',
         '_img_groups', '_shapes', '_img_details', '_writing_chippers', '_des_details',
