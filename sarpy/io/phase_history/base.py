@@ -50,6 +50,7 @@ class CPHDTypeReader(AbstractReader):
         else:
             raise TypeError(
                 'The cphd_meta must be of type CPHDType, got `{}`'.format(type(cphd_meta)))
+
         AbstractReader.__init__(
             self, data_segment, reader_type='CPHD', close_segments=close_segments, delete_files=delete_files)
 
@@ -161,12 +162,26 @@ class CPHDTypeReader(AbstractReader):
 
     def read_signal_block(self) -> Dict[Union[int, str], numpy.ndarray]:
         """
-        Reads the entirety of signal block(s).
+        Reads the entirety of signal block(s), with data formatted as complex64
+        (after accounting for AmpSF).
 
         Returns
         -------
         Dict[Union[int, str], numpy.ndarray]
-            Dictionary of `numpy.ndarray` containing the support arrays.
+            Dictionary of `numpy.ndarray` containing the signal arrays.
+        """
+
+        raise NotImplementedError
+
+    def read_signal_block_raw(self) -> Dict[Union[int, str], numpy.ndarray]:
+        """
+        Reads the entirety of signal block(s), with data formatted in file
+        storage format (no converting to complex, no consideration of AmpSF).
+
+        Returns
+        -------
+        Dict[Union[int, str], numpy.ndarray]
+            Dictionary of `numpy.ndarray` containing the signal arrays.
         """
 
         raise NotImplementedError

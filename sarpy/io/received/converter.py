@@ -7,8 +7,9 @@ __author__ = "Thomas McCullough"
 
 
 import os
+from typing import Callable
 
-from sarpy.io.general.base import SarpyIOError, check_for_openers
+from sarpy.io.general.base import SarpyIOError, AbstractReader, check_for_openers
 from sarpy.io.received.base import CRSDTypeReader
 
 ###########
@@ -17,7 +18,7 @@ _openers = []
 _parsed_openers = False
 
 
-def register_opener(open_func):
+def register_opener(open_func: Callable) -> None:
     """
     Provide a new opener.
 
@@ -39,7 +40,7 @@ def register_opener(open_func):
         _openers.append(open_func)
 
 
-def parse_openers():
+def parse_openers() -> None:
     """
     Automatically find the viable openers (i.e. :func:`is_a`) in the various modules.
     """
@@ -52,7 +53,7 @@ def parse_openers():
     check_for_openers('sarpy.io.received', register_opener)
 
 
-def open_received(file_name):
+def open_received(file_name: str) -> AbstractReader:
     """
     Given a file, try to find and return the appropriate reader object.
 

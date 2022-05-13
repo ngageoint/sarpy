@@ -318,6 +318,9 @@ class CPHDReader(CPHDTypeReader):
     def read_signal_block(self) -> Dict[Union[int, str], numpy.ndarray]:
         raise NotImplementedError
 
+    def read_signal_block_raw(self) -> Dict[Union[int, str], numpy.ndarray]:
+        raise NotImplementedError
+
     def close(self):
         CPHDTypeReader.close(self)
         if hasattr(self, '_cphd_details'):
@@ -336,7 +339,7 @@ class CPHDReader1_0(CPHDReader):
         # the CPHDReader parent
         return object.__new__(cls)
 
-    def __init__(self, cphd_details):
+    def __init__(self, cphd_details: Union[str, CPHDDetails]):
         """
 
         Parameters
@@ -359,8 +362,7 @@ class CPHDReader1_0(CPHDReader):
         AbstractReader.__init__(self, data_segments, reader_type='CPHD')
 
     @property
-    def cphd_meta(self):
-        # type: () -> CPHDType1_0
+    def cphd_meta(self) -> CPHDType1_0:
         """
         CPHDType1_0: The CPHD structure.
         """
@@ -368,8 +370,7 @@ class CPHDReader1_0(CPHDReader):
         return self._cphd_meta
 
     @property
-    def cphd_header(self):
-        # type: () -> CPHDHeader1_0
+    def cphd_header(self) -> CPHDHeader1_0:
         """
         CPHDHeader1_0: The CPHD header object.
         """
@@ -439,7 +440,7 @@ class CPHDReader1_0(CPHDReader):
             self._pvp_memmap[entry.Identifier] = numpy.memmap(
                 self.cphd_details.file_name, dtype=pvp_dtype, mode='r', offset=offset, shape=shape)
 
-    def _create_support_array_memmaps(self):
+    def _create_support_array_memmaps(self) -> None:
         """
         Helper method which creates the support array mem_maps.
 
@@ -517,7 +518,9 @@ class CPHDReader1_0(CPHDReader):
                 raise ValueError(_index_range_text.format(cphd_meta.Data.NumCPHDChannels))
             return cphd_meta.Data.Channels[int_index].Identifier
 
-    def read_support_array(self, index: Union[int, str], *ranges):
+    def read_support_array(self,
+                           index: Union[int, str],
+                           *ranges: Sequence[Union[None, int, Tuple[int, ...], slice]]) -> numpy.ndarray:
         # find the support array identifier
         if isinstance(index, int):
             the_entry = self.cphd_meta.Data.SupportArrays[index]
@@ -534,7 +537,7 @@ class CPHDReader1_0(CPHDReader):
         subscript = verify_subscript(ranges, the_memmap.shape)
         return numpy.copy(the_memmap[subscript])
 
-    def read_support_block(self):
+    def read_support_block(self) -> Dict[str, numpy.ndarray]:
         if self.cphd_meta.Data.SupportArrays:
             return {
                 sa.Identifier: self.read_support_array(sa.Identifier)
@@ -542,7 +545,11 @@ class CPHDReader1_0(CPHDReader):
         else:
             return {}
 
-    def read_pvp_variable(self, variable, index, the_range=None):
+    def read_pvp_variable(
+            self,
+            variable: str,
+            index: Union[int, str],
+            the_range: Union[None, int, Tuple[int, ...], slice]=None) -> Optional[numpy.ndarray]:
         index_key = self._validate_index_key(index)
         the_memmap = self._pvp_memmap[index_key]
         the_slice = verify_slice(the_range, the_memmap.shape[0])
@@ -551,39 +558,27 @@ class CPHDReader1_0(CPHDReader):
         else:
             return None
 
-    def read_pvp_array(self, index, the_range=None):
+    def read_pvp_array(
+            self,
+            index: Union[int, str],
+            the_range: Union[None, int, Tuple[int, ...], slice]=None) -> numpy.ndarray:
         index_key = self._validate_index_key(index)
         the_memmap = self._pvp_memmap[index_key]
         the_slice = verify_slice(the_range, the_memmap.shape[0])
         return numpy.copy(the_memmap[the_slice])
 
-    def read_pvp_block(self):
-        """
-        Reads the entirety of the PVP block(s).
-
-        Returns
-        -------
-        Dict[str, numpy.ndarray]
-            Dictionary of `numpy.ndarray` containing the PVP arrays.
-        """
-
+    def read_pvp_block(self) -> Dict[str, numpy.ndarray]:
         return {chan.Identifier: self.read_pvp_array(chan.Identifier) for chan in self.cphd_meta.Data.Channels}
 
-    def read_signal_block(self):
-        """
-        Reads the entirety of signal block(s).
-
-        Returns
-        -------
-        Dict[str, numpy.ndarray]
-            Dictionary of `numpy.ndarray` containing the support arrays.
-        """
-
+    def read_signal_block(self) -> Dict[str, numpy.ndarray]:
         return {chan.Identifier: numpy.copy(self.read(index=chan.Identifier)) for chan in self.cphd_meta.Data.Channels}
+
+    def read_signal_block_raw(self) -> Dict[Union[int, str], numpy.ndarray]:
+        return {chan.Identifier: numpy.copy(self.read_raw(index=chan.Identifier)) for chan in self.cphd_meta.Data.Channels}
 
     def read_chip(self,
              *ranges: Sequence[Union[None, int, Tuple[int, ...], slice]],
-             index: int=0,
+             index: Union[int, str]=0,
              squeeze: bool=True) -> numpy.ndarray:
         """
         This is identical to :meth:`read`, and presented for backwards compatibility.
@@ -758,7 +753,7 @@ class CPHDReader0_3(CPHDReader):
             data_offset += raw_shape[0]*raw_shape[1]*2*raw_dtype.itemsize
         return data_segments
 
-    def _create_pvp_memmaps(self):
+    def _create_pvp_memmaps(self) -> None:
         """
         Helper method which creates the pvp mem_maps.
 
@@ -777,7 +772,11 @@ class CPHDReader0_3(CPHDReader):
                 numpy.memmap(
                     self.cphd_details.file_name, dtype=pvp_dtype, mode='r', offset=offset, shape=shape))
 
-    def read_pvp_variable(self, variable, index, the_range=None):
+    def read_pvp_variable(
+            self,
+            variable: str,
+            index: int,
+            the_range: Union[None, int, Tuple[int, ...], slice]=None) -> Optional[numpy.ndarray]:
         int_index = self._validate_index(index)
         the_memmap = self._pvp_memmap[int_index]
         the_slice = verify_slice(the_range, the_memmap.shape[0])
@@ -786,13 +785,16 @@ class CPHDReader0_3(CPHDReader):
         else:
             return None
 
-    def read_pvp_array(self, index, the_range=None):
+    def read_pvp_array(
+            self,
+            index: int,
+            the_range: Union[None, int, Tuple[int, ...], slice]=None) -> numpy.ndarray:
         int_index = self._validate_index(index)
         the_memmap = self._pvp_memmap[int_index]
         the_slice = verify_slice(the_range, the_memmap.shape[0])
         return numpy.copy(the_memmap[the_slice])
 
-    def read_pvp_block(self):
+    def read_pvp_block(self) -> Dict[int, numpy.ndarray]:
         """
         Reads the entirety of the PVP block(s).
 
@@ -804,17 +806,11 @@ class CPHDReader0_3(CPHDReader):
 
         return {chan: self.read_pvp_array(chan) for chan in range(self.cphd_meta.Data.NumCPHDChannels)}
 
-    def read_signal_block(self):
-        """
-        Reads the entirety of signal block(s).
-
-        Returns
-        -------
-        Dict[int, numpy.ndarray]
-            Dictionary of `numpy.ndarray` containing the support arrays.
-        """
-
+    def read_signal_block(self) -> Dict[int, numpy.ndarray]:
         return {chan: self.read(index=chan) for chan in range(self.cphd_meta.Data.NumCPHDChannels)}
+
+    def read_signal_block_raw(self) -> Dict[int, numpy.ndarray]:
+        return {chan: self.read_raw(index=chan) for chan in range(self.cphd_meta.Data.NumCPHDChannels)}
 
     def __call__(self,
                  *ranges: Sequence[Union[None, int, slice]],
@@ -862,11 +858,10 @@ class CPHDWriter1_0(AbstractWriter):
         self._can_write_regular_data = None  # type: Optional[Dict[str, bool]]
         self._channel_map = None  # type: Optional[Dict[str, int]]
         self._support_map = None  # type: Optional[Dict[str, int]]
-        self._writing_state = {'header': False, 'pvp': {}, 'support': {}, 'signal': {}}
+        self._writing_state = {'header': False, 'pvp': {}, 'support': {}}
         self._closed = False
         self._cphd_meta = cphd_meta
         self._cphd_header = cphd_meta.make_file_header()
-
 
         data_segment = self._prepare_for_writing()
         AbstractWriter.__init__(self, data_segment)
@@ -1084,7 +1079,6 @@ class CPHDWriter1_0(AbstractWriter):
         if self._writing_state['header']:
             logger.warning('The header for CPHD file {} has already been written. Exiting.'.format(self._file_name))
             return
-
 
         # write header
         self._file_object.write(self._cphd_header.to_string().encode())
@@ -1342,11 +1336,11 @@ class CPHDWriter1_0(AbstractWriter):
                         entry.Identifier, self._writing_state['support'][entry.Identifier], support_pixels)
 
         if not status:
-            logger.error('CPHD file %s is not completely written, and the result may be corrupt.', self._file_name)
+            logger.error('CPHD file {} is not completely written, and the result may be corrupt.', self._file_name)
             if pvp_message != '':
-                logger.error('PVP block(s) incompletely written\n%s', pvp_message)
+                logger.error('PVP block(s) incompletely written\n{}', pvp_message)
             if support_message != '':
-                logger.error('Support block(s) incompletely written\n%s',support_message)
+                logger.error('Support block(s) incompletely written\n{}',support_message)
         return status
 
     def close(self):
