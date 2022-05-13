@@ -1529,7 +1529,10 @@ class RadarSatDetails(object):
 
 class RadarSatReader(SICDTypeReader):
     """
-    The reader object for RadarSat SAR file package.
+    A RadarSat-2 and RadarSat Constellation Mission (RCM) SLC file package
+    reader implementation.
+
+    **Changed in version 1.3.0** for reading changes.
     """
 
     __slots__ = ('_radar_sat_details', '_readers')

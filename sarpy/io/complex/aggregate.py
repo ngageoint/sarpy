@@ -18,6 +18,8 @@ from sarpy.io.complex.sicd_elements.SICD import SICDType
 class AggregateComplexReader(AggregateReader, SICDTypeReader):
     """
     Aggregate multiple sicd type readers into a single reader instance.
+
+    **Changed in version 1.3.0** for reading changes.
     """
 
     __slots__ = ('_readers', '_index_mapping')

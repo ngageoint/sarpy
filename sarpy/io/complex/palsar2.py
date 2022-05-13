@@ -1622,7 +1622,9 @@ class PALSARDetails(object):
 
 class PALSARReader(SICDTypeReader):
     """
-    The reader object for the PALSAR ALOS2 file package.
+    A PALSAR ALOS2 SLC file package reader implementation.
+
+    **Changed in version 1.3.0** for reading changes.
     """
 
     __slots__ = (

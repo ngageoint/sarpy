@@ -671,7 +671,9 @@ class CSKDetails(object):
 
 class CSKReader(SICDTypeReader):
     """
-    Gets a reader type object for Cosmo Skymed files
+    A Cosmo SkyMed 1st or 2nd generation SLC reader implementation.
+
+    **Changed in version 1.3.0** for reading changes.
     """
 
     __slots__ = ('_csk_details', )

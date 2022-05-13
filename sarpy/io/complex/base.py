@@ -18,7 +18,9 @@ from sarpy.io.general.format_function import FormatFunction
 
 class SICDTypeReader(AbstractReader):
     """
-    A class for ensuring common SICD metadata functionality.
+    A class for ensuring common SICD reading functionality.
+
+    **Changed in version 1.3.0** for reading changes.
     """
 
     def __init__(self,
@@ -159,6 +161,8 @@ class SICDTypeReader(AbstractReader):
 class FlatSICDReader(FlatReader, SICDTypeReader):
     """
     Create a sicd type reader directly from an array.
+
+    **Changed in version 1.3.0** for reading changes.
     """
 
     def __init__(self,
@@ -220,6 +224,8 @@ class FlatSICDReader(FlatReader, SICDTypeReader):
 class SubsetSICDReader(SICDTypeReader):
     """
     Create a reader based on a specific subset of a given SICDTypeReader.
+
+    **Changed in version 1.3.0** for reading changes.
     """
 
     def __init__(self, reader, row_bounds, column_bounds, index=0, close_parent=False):

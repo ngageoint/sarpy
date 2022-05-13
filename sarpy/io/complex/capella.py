@@ -10,7 +10,7 @@ __author__ = ("Thomas McCullough", "Wade Schwartzkopf")
 
 import logging
 import json
-from typing import Dict, Any, Tuple, Union
+from typing import Dict, Any, Tuple, Union, Optional
 from collections import OrderedDict
 
 from scipy.constants import speed_of_light
@@ -39,36 +39,6 @@ from sarpy.io.complex.sicd_elements.RMA import RMAType, INCAType
 from sarpy.io.complex.sicd_elements.Radiometric import RadiometricType, NoiseLevelType_
 
 logger = logging.getLogger(__name__)
-
-
-########
-# base expected functionality for a module with an implemented Reader
-
-def is_a(file_name: str):
-    """
-    Tests whether a given file_name corresponds to a Capella SAR file.
-    Returns a reader instance, if so.
-
-    Parameters
-    ----------
-    file_name : str
-        the file_name to check
-
-    Returns
-    -------
-    CapellaReader|None
-        `CapellaReader` instance if Capella file, `None` otherwise
-    """
-
-    if is_file_like(file_name):
-        return None
-
-    try:
-        capella_details = CapellaDetails(file_name)
-        logger.info('File {} is determined to be a Capella file.'.format(file_name))
-        return CapellaReader(capella_details)
-    except SarpyIOError:
-        return None
 
 
 #########
@@ -475,7 +445,9 @@ class CapellaDetails(object):
 
 class CapellaReader(SICDTypeReader):
     """
-    The Capella reader object.
+    The Capella SLC reader implementation. **This is only partially complete.**
+
+    **Changed in version 1.3.0** for reading changes.
     """
 
     __slots__ = ('_capella_details', )
@@ -514,3 +486,33 @@ class CapellaReader(SICDTypeReader):
     @property
     def file_name(self) -> str:
         return self.capella_details.file_name
+
+
+########
+# base expected functionality for a module with an implemented Reader
+
+def is_a(file_name: str) -> Optional[CapellaReader]:
+    """
+    Tests whether a given file_name corresponds to a Capella SAR file.
+    Returns a reader instance, if so.
+
+    Parameters
+    ----------
+    file_name : str
+        the file_name to check
+
+    Returns
+    -------
+    CapellaReader|None
+        `CapellaReader` instance if Capella file, `None` otherwise
+    """
+
+    if is_file_like(file_name):
+        return None
+
+    try:
+        capella_details = CapellaDetails(file_name)
+        logger.info('File {} is determined to be a Capella file.'.format(file_name))
+        return CapellaReader(capella_details)
+    except SarpyIOError:
+        return None

@@ -1079,7 +1079,9 @@ class COSARDetails(object):
 
 class TSXReader(SICDTypeReader):
     """
-    The TerraSAR-X reader implementation
+    The TerraSAR-X SLC reader implementation.
+
+    **Changed in version 1.3.0** for reading changes.
     """
 
     __slots__ = ('_tsx_details', )

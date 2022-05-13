@@ -676,7 +676,9 @@ class NISARDetails(object):
 
 class NISARReader(SICDTypeReader):
     """
-    Gets a reader type object for NISAR files
+    An NISAR SLC reader implementation.
+
+    **Changed in version 1.3.0** for reading changes.
     """
 
     __slots__ = ('_nisar_details', )

@@ -441,7 +441,9 @@ def get_iceye_data_segment(file_name: str,
 
 class ICEYEReader(SICDTypeReader):
     """
-    Gets a reader type object for Cosmo Skymed files
+    An ICEYE SLC reader implementation.
+
+    **Changed in version 1.3.0** for reading changes.
     """
 
     __slots__ = ('_iceye_details', )

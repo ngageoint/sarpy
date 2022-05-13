@@ -251,6 +251,8 @@ class CPHDReader(CPHDTypeReader):
     class based on the CPHD version. Note that there is no __init__ method for
     this class, and it would be skipped regardless. Ensure that you make a direct
     call to the BaseReader.__init__() method when extending this class.
+
+    **Updated in version 1.3.0** for reading changes.
     """
 
     __slots__ = ('_cphd_details', )
@@ -332,6 +334,8 @@ class CPHDReader(CPHDTypeReader):
 class CPHDReader1_0(CPHDReader):
     """
     The CPHD version 1.0 reader.
+
+    **Updated in version 1.3.0** for reading changes.
     """
 
     def __new__(cls, *args, **kwargs):
@@ -670,6 +674,8 @@ class CPHDReader1_0(CPHDReader):
 class CPHDReader0_3(CPHDReader):
     """
     The CPHD version 0.3 reader.
+
+    **Updated in version 1.3.0** for reading changes.
     """
 
     def __new__(cls, *args, **kwargs):
@@ -824,6 +830,8 @@ class CPHDReader0_3(CPHDReader):
 class CPHDWriter1_0(AbstractWriter):
     """
     The CPHD version 1.0 writer.
+
+    **Updated in version 1.3.0** for writing changes.
     """
 
     __slots__ = (

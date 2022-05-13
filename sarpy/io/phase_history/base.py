@@ -18,10 +18,9 @@ from sarpy.io.phase_history.cphd0_3_elements.CPHD import CPHDType as CPHDType0_3
 
 class CPHDTypeReader(AbstractReader):
     """
-    An abstract class for ensuring common CPHD functionality.
+    A class for common CPHD reading functionality.
 
-    This is intended to be used solely in conjunction with implementing a
-    legitimate reader.
+    **Updated in version 1.3.0**
     """
 
     def __init__(self,

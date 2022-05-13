@@ -42,6 +42,7 @@ from sarpy.io.complex.sicd_elements.ImageFormation import ImageFormationType, \
 from sarpy.io.complex.sicd_elements.Radiometric import RadiometricType, \
     NoiseLevelType_
 
+# TODO: revamp this...
 
 try:
     import PIL
@@ -2085,7 +2086,9 @@ class GFFDetails(object):
 
 class GFFReader(BaseReader, SICDTypeReader):
     """
-    Gets a reader type object for GFF files
+    A GFF (Sandia format) reader implementation.
+
+    **Changed in version 1.3.0** for reading changes.
     """
 
     __slots__ = ('_gff_details', )

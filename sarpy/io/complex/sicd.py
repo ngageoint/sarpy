@@ -336,7 +336,9 @@ def amp_phase_to_complex(lookup_table):
 
 class SICDReader(NITFReader, SICDTypeReader):
     """
-    A reader object for a SICD file (NITF container with SICD contents)
+    A SICD reader implementation - file is NITF container following specified rules.
+
+    **Changed in version 1.3.0** for reading changes.
     """
 
     def __init__(self, nitf_details):
@@ -608,6 +610,8 @@ class SICDWriter(NITFWriter):
     """
     Writer class for a SICD file - a NITF file containing complex radar data and 
     SICD data extension. 
+
+    **Changed in version 1.3.0** for writing changes.
     """
 
     __slots__ = ('_sicd_meta', '_check_older_version', '_required_version')

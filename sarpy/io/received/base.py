@@ -16,10 +16,9 @@ from sarpy.io.received.crsd1_elements.CRSD import CRSDType as CRSDType1_0
 
 class CRSDTypeReader(AbstractReader):
     """
-    An abstract class for ensuring common CRSD functionality.
+    A class for ensuring common CRSD reading functionality.
 
-    This is intended to be used solely in conjunction with implementing a
-    legitimate reader.
+    **Updated in version 1.3.0** for reading changes.
     """
 
     def __init__(self,

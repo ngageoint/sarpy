@@ -2,7 +2,7 @@
 The basic definitions for file-like reading and writing. This is generally
 centered on image-like file efforts, and array-like interaction with image data.
 
-This module completely updated in version 1.3.0.
+**This module completely updated in version 1.3.0.**
 """
 
 __classification__ = "UNCLASSIFIED"
@@ -27,7 +27,6 @@ from sarpy.io.general.data_segment import DataSegment, NumpyArraySegment
 
 logger = logging.getLogger(__name__)
 
-# TODO: does it make more sense to permit free form?
 READER_TYPES = ('SICD', 'SIDD', 'CPHD', 'CRSD', 'OTHER')
 """
 The reader_type enum 
@@ -104,8 +103,8 @@ class AbstractReader(object):
         # override regardless here
         reader_type = reader_type.upper()
         if reader_type not in READER_TYPES:
-            logger.error(
-                'reader_type has value {}, while it is expected to be '
+            logger.info(
+                'reader_type has value {}, while it is generally expected to be '
                 'one of {}'.format(reader_type, READER_TYPES))
         self._reader_type = reader_type
 

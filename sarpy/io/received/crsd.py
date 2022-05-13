@@ -235,6 +235,8 @@ class CRSDReader(CRSDTypeReader):
     class based on the CRSD version. Note that there is no __init__ method for
     this class, and it would be skipped regardless. Ensure that you make a direct
     call to the BaseReader.__init__() method when extending this class.
+
+    **Updated in version 1.3.0** for reading changes.
     """
 
     __slots__ = ('_crsd_details', )
@@ -322,6 +324,8 @@ class CRSDReader(CRSDTypeReader):
 class CRSDReader1_0(CRSDReader):
     """
     The CRSD version 1.0 reader.
+
+    **Updated in version 1.3.0** for reading changes.
     """
 
     def __new__(cls, *args, **kwargs):
@@ -329,7 +333,7 @@ class CRSDReader1_0(CRSDReader):
         # the CRSDReader parent
         return object.__new__(cls)
 
-    def __init__(self, crsd_details):
+    def __init__(self, crsd_details: Union[str, CRSDDetails]):
         """
 
         Parameters
@@ -653,6 +657,8 @@ class CRSDReader1_0(CRSDReader):
 class CRSDWriter1_0(AbstractWriter):
     """
     The CRSD version 1.0 writer.
+
+    **Updated in version 1.3.0** for writing changes.
     """
 
     __slots__ = (

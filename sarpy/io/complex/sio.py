@@ -277,6 +277,9 @@ class SIODetails(object):
 #  The actual reading implementation
 
 class SIOReader(SICDTypeReader):
+    """
+    **Changed in version 1.3.0** for reading changes.
+    """
     __slots__ = ('_sio_details', )
 
     def __init__(self, sio_details):
@@ -359,6 +362,10 @@ def is_a(file_name: str) -> Optional[SIOReader]:
 #  The actual writing implementation
 
 class SIOWriter(AbstractWriter):
+    """
+    **Changed in version 1.3.0** for writing changes.
+    """
+
     def __init__(self,
                  file_name: str,
                  sicd_meta: SICDType,

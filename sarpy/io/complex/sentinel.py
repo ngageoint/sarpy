@@ -1017,7 +1017,9 @@ class SentinelDetails(object):
 
 class SentinelReader(SICDTypeReader):
     """
-    Gets a reader type object for Sentinel-1 SAR files.
+    A Sentinel-1 SLC file package reader implementation.
+
+    **Changed in version 1.3.0** for reading changes.
     """
 
     __slots__ = ('_sentinel_details', '_parent_segments')
