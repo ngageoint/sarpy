@@ -44,32 +44,8 @@ logger = logging.getLogger(__name__)
 
 _iso_date_format = '{}-{}-{}T{}:{}:{}'
 
-# NB: DO NOT implement is_a() here. This will explicitly happen after other readers
-
-def final_attempt(file_name):
-    """
-    Contingency check to open for some other complex NITF type file.
-    Returns a reader instance, if so.
-
-    Parameters
-    ----------
-    file_name : str|BinaryIO
-        the file_name to check
-
-    Returns
-    -------
-    ComplexNITFReader|None
-    """
-
-    if is_file_like(file_name):
-        return None
-
-    try:
-        nitf_details = ComplexNITFDetails(file_name)
-        logger.info('File {} is determined to be some other format complex NITF.')
-        return ComplexNITFReader(nitf_details)
-    except (SarpyIOError, ValueError):
-        return None
+# NB: DO NOT implement is_a() here.
+#   This will explicitly happen after other readers
 
 
 ########
@@ -1081,7 +1057,7 @@ class ComplexNITFReader(NITFReader, SICDTypeReader):
             raise TypeError('The input argument for ComplexNITFReader must be a filename or '
                             'ComplexNITFDetails object.')
 
-        SICDTypeReader.__init__(self, nitf_details.sicd_meta)
+        SICDTypeReader.__init__(self, None, nitf_details.sicd_meta)
         NITFReader.__init__(self, nitf_details, reader_type="SICD", symmetry=symmetry)
         self._check_sizes()
 
@@ -1152,3 +1128,29 @@ class ComplexNITFReader(NITFReader, SICDTypeReader):
             if key in entry:
                 kwargs[key] = entry[key]
         return self._define_chipper(entry['index'], **kwargs)
+
+
+def final_attempt(file_name: str) -> Optional[ComplexNITFReader]:
+    """
+    Contingency check to open for some other complex NITF type file.
+    Returns a reader instance, if so.
+
+    Parameters
+    ----------
+    file_name : str|BinaryIO
+        the file_name to check
+
+    Returns
+    -------
+    ComplexNITFReader|None
+    """
+
+    if is_file_like(file_name):
+        return None
+
+    try:
+        nitf_details = ComplexNITFDetails(file_name)
+        logger.info('File {} is determined to be some other format complex NITF.')
+        return ComplexNITFReader(nitf_details)
+    except (SarpyIOError, ValueError):
+        return None

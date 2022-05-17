@@ -26,13 +26,12 @@ from io import BytesIO
 
 import numpy
 
-from sarpy.io.general.base import SarpyIOError, BaseReader, BaseWriter, \
-    BaseReader, SubsetChipper, AggregateChipper, BIPChipper, BIPWriter, \
-    BSQChipper, BIRChipper
+from sarpy.io.general.base import SarpyIOError, BaseReader, BaseWriter  #, BIPWriter
 from sarpy.io.general.format_function import FormatFunction, ComplexFormatFunction, \
     SingleLUTFormatFunction
-from sarpy.io.general.data_segment import DataSegment, BandAggregateSegment, \
-    BlockAggregateSegment, SubsetSegment, NumpyMemmapSegment, FileReadDataSegment
+from sarpy.io.general.data_segment import DataSegment, ReorientationSegment, \
+    BandAggregateSegment, BlockAggregateSegment, SubsetSegment, NumpyMemmapSegment, \
+    FileReadDataSegment
 
 # noinspection PyProtectedMember
 from sarpy.io.general.nitf_elements.nitf_head import NITFHeader, NITFHeader0, \
@@ -113,8 +112,8 @@ def extract_image_corners(
 
 class NITFDetails(object):
     """
-    This class allows for somewhat general parsing of the header information in a NITF 2.1 file.
-    Experimental support for NITF 2.0 is also included.
+    This class allows for somewhat general parsing of the header information in
+    a NITF 2.0 or 2.1 file.
     """
 
     __slots__ = (
@@ -819,6 +818,23 @@ def find_jpeg_delimiters(the_bytes: bytes) -> List[Tuple[int, int]]:
 
 
 def _get_shape(rows: int, cols: int, bands: int, band_dimension=2) -> Tuple[int, ...]:
+    """
+    Helper function for turning rows/cols/bands into a shape tuple.
+
+    Parameters
+    ----------
+    rows: int
+    cols: int
+    bands: int
+    band_dimension : int
+        One of `{0, 1, 2}`.
+
+    Returns
+    -------
+    shape_tuple : Tuple[int, ...]
+        The shape tuple with band omitted if `bands=1`
+    """
+
     if bands == 1:
         return rows, cols
     elif band_dimension == 0:
@@ -829,18 +845,37 @@ def _get_shape(rows: int, cols: int, bands: int, band_dimension=2) -> Tuple[int,
         return rows, cols, bands
 
 
+def _get_subscript_def(
+        row_start: int,
+        row_end: int,
+        col_start: int,
+        col_end: int,
+        raw_bands: int,
+        raw_band_dimension: int) -> Tuple[slice, ...]:
+    if raw_bands == 1:
+        return slice(row_start, row_end, 1), slice(col_start, col_end, 1)
+    elif raw_band_dimension == 0:
+        return slice(0, raw_bands, 1), slice(row_start, row_end, 1), slice(col_start, col_end, 1)
+    elif raw_band_dimension == 1:
+        return slice(row_start, row_end, 1), slice(0, raw_bands, 1), slice(col_start, col_end, 1)
+    elif raw_band_dimension == 2:
+        return slice(row_start, row_end, 1), slice(col_start, col_end, 1), slice(0, raw_bands, 1)
+    else:
+        raise ValueError('Unhandled raw_band_dimension {}'.format(raw_band_dimension))
+
+
 #####
-# A general nitf reader - intended for extension
+# A general nitf reader
 
 class NITFReader(BaseReader):
     """
     A reader implementation based around array-type image data fetching for
     NITF 2.0 or 2.1 files.
 
-    Note negative ILOC entries not currently supported.
-
-    **Significantly refactored in version 1.3.0**
+    **Significantly refactored in version 1.3.0** General NITF support is improved
+    form previous version, but there remain unsupported edge cases.
     """
+
     _maximum_number_of_images = None
     unsupported_compressions = ('C1', 'C4', 'C6', 'C7', 'M1', 'M4', 'M6', 'M7')
 
@@ -848,8 +883,6 @@ class NITFReader(BaseReader):
         '_nitf_details', '_unsupported_segments', '_image_segment_collections',
         '_reverse_axes', '_transpose_axes', '_make_local_copy')
     # TODO:
-    #   what do we need to override for SICD?
-    #       - the format function when constructing the data segments.
     #   what do we need to override for SIDD?
 
     def __init__(
@@ -878,11 +911,15 @@ class NITFReader(BaseReader):
         except AttributeError:
             self._delete_temp_files = []
 
-        if isinstance(nitf_details, str) or is_file_like(nitf_details):
-            nitf_details = NITFDetails(nitf_details)
-        if not isinstance(nitf_details, NITFDetails):
-            raise TypeError('The input argument for NITFReader must be a NITFDetails object.')
-        self._nitf_details = nitf_details
+        try:
+            _ = self._nitf_details
+            # something has already defined this, so it's already ready
+        except AttributeError:
+            if isinstance(nitf_details, str) or is_file_like(nitf_details):
+                nitf_details = NITFDetails(nitf_details)
+            if not isinstance(nitf_details, NITFDetails):
+                raise TypeError('The input argument for NITFReader must be a NITFDetails object.')
+            self._nitf_details = nitf_details
         if self._nitf_details.img_headers is None:
             raise SarpyIOError(
                 'The input NITF has no image segments,\n\t'
@@ -919,7 +956,9 @@ class NITFReader(BaseReader):
                 'by class {} implementation'.format(
                     len(self._image_segment_collections), self._maximum_number_of_images, self.__class__))
 
-        # TODO: finish all the things...
+        data_segments = self._get_data_segments()
+        # create a data segment for each of these image segment collections
+        BaseReader.__init__(self, data_segments, reader_type=reader_type, close_segments=True)
 
     @property
     def nitf_details(self) -> NITFDetails:
@@ -956,6 +995,17 @@ class NITFReader(BaseReader):
 
         return self._nitf_details.file_object
 
+    @property
+    def image_segment_collections(self) -> Tuple[Tuple[int, ...]]:
+        """
+        Tuple[Tuple[int, ...]]: The definition for how image segments are grouped
+        together to form the output image collection. Each entry corresponds to
+        a single output image, and the entry defines the image segment indices
+        which are combined to make up the output image.
+        """
+
+        return self._image_segment_collections
+
     def _read_file_data(self, start_bytes: int, byte_length: int) -> bytes:
         initial_loc = self.file_object.tell()
         self.file_object.seek(start_bytes, os.SEEK_SET)
@@ -975,6 +1025,35 @@ class NITFReader(BaseReader):
 
         return is_real_file(self.nitf_details.file_object)
 
+    def _check_image_header_for_compliance(
+            self,
+            index: int,
+            img_header: Union[ImageSegmentHeader, ImageSegmentHeader0]) -> bool:
+        out = True
+        if img_header.NBPP not in (8, 16, 32, 64):
+            # TODO: is this really true? What about the compression situation?
+            # numpy basically only supports traditional typing
+            logger.error(
+                'Image segment at index {} has bits per pixel per band {},\n\t'
+                'only 8, 16, 32, 64 are supported.'.format(index, img_header.NBPP))
+            out = False
+
+        if img_header.is_compressed:
+            if PIL_Image is None:
+                logger.error(
+                    'Image segment at index {} has IC value {},\n\t'
+                    'and PIL cannot be imported.\n\t'
+                    'Currently, compressed image segments require PIL.'.format(
+                        index, img_header.IC))
+                out = False
+
+        if img_header.IC in self.unsupported_compressions:
+            logger.error(
+                'Image segment at index {} has IC value `{}`,\n\t'
+                'which is not supported.'.format(index, img_header.IMODE))
+            out = False
+        return out
+
     def _check_for_compliance(self) -> List[int]:
         """
         Gets indices of image segments that cannot be opened.
@@ -986,31 +1065,8 @@ class NITFReader(BaseReader):
 
         out = []
         for index, img_header in enumerate(self.nitf_details.img_headers):
-            # TODO: is this really true? What about the compression situation?
-            if img_header.NBPP not in (8, 16, 32, 64):
-                # numpy basically only supports traditional typing
-                logger.error(
-                    'Image segment at index {} has bits per pixel per band {},\n\t'
-                    'only 8, 16, 32, 64 are supported.'.format(index, img_header.NBPP))
+            if not self._check_image_header_for_compliance(index, img_header):
                 out.append(index)
-                continue
-
-            if img_header.is_compressed:
-                if PIL_Image is None:
-                    logger.error(
-                        'Image segment at index {} has IC value {},\n\t'
-                        'and PIL cannot be imported.\n\t'
-                        'Currently, compressed image segments require PIL.'.format(
-                            index, img_header.IC))
-                    out.append(index)
-                    continue
-
-            if img_header.IC in self.unsupported_compressions:
-                logger.error(
-                    'Image segment at index {} has IC value `{}`,\n\t'
-                    'which is not supported.'.format(index, img_header.IMODE))
-                out.append(index)
-                continue
         return out
 
     def _construct_block_bounds(self, image_segment_index: int) -> List[Tuple[int, int, int, int]]:
@@ -1021,7 +1077,7 @@ class NITFReader(BaseReader):
 
         Parameters
         ----------
-        img_header : ImageSegmentHeader|ImageSegmentHeader0
+        image_segment_index : int
 
         Returns
         -------
@@ -1068,7 +1124,7 @@ class NITFReader(BaseReader):
 
     def _get_mask_details(
             self,
-            image_segment_index: int) -> Tuple[Optional[numpy.ndarray], Optional[int], int]:
+            image_segment_index: int) -> Tuple[Optional[numpy.ndarray], int, int]:
         """
         Gets the mask byte offset location details.
 
@@ -1080,15 +1136,17 @@ class NITFReader(BaseReader):
         -------
         mask_offsets : Optional[numpy.ndarray]
             The mask byte offset from the end of the mask subheader definition.
-        exclude_value : Optional[int]
+            This is one dimensional, unless `IMODE = 'S'`
+        exclude_value : int
             The mask offset value when the block is excluded. Should always be
             `0xFFFFFFFF`.
         additional_offset : int
             The additional offset from the beginning of the image segment data,
             necessary to account for the presence of a mask subheader.
         """
-        image_header = self.get_image_header(image_segment_index)
 
+        image_header = self.get_image_header(image_segment_index)
+        exclude_value = 0xFFFFFFFF
         if image_header.is_masked:
             offset_shift = image_header.mask_subheader.IMDATOFF
             if image_header.mask_subheader.BMR is not None:
@@ -1097,10 +1155,15 @@ class NITFReader(BaseReader):
                 mask_offsets = image_header.mask_subheader.TMR
             else:
                 raise ValueError(
-                    'Image segment at index {} is marked at masked, but neither BMR nor TMR is defined'.format(image_segment_index))
-            return mask_offsets, 0xFFFFFFFF, offset_shift
+                    'Image segment at index {} is marked at masked,\n\t'
+                    'but neither BMR nor TMR is defined'.format(image_segment_index))
+            if mask_offsets.ndim != 2:
+                raise ValueError('Expected two dimensional raw mask offsets array')
+            if mask_offsets.shape[0] == 1:
+                mask_offsets = numpy.reshape(mask_offsets, (-1, ))
+            return mask_offsets, exclude_value, offset_shift
         else:
-            return None, None, 0
+            return None, exclude_value, 0
 
     def _get_dtypes(
             self, image_segment_index: int) -> Tuple[numpy.dtype, numpy.dtype, int, Optional[str], Optional[numpy.ndarray]]:
@@ -1178,6 +1241,7 @@ class NITFReader(BaseReader):
             formatted_bands = 1 if lut.ndim == 1 else lut.shape[1]
         return raw_dtype, formatted_dtype, formatted_bands, complex_order, lut
 
+    # noinspection PyMethodMayBeStatic, PyUnusedLocal
     def _get_format_function(
             self,
             image_segment_index: int,
@@ -1192,168 +1256,10 @@ class NITFReader(BaseReader):
         else:
             return None
 
-    def create_data_segment_for_image_segment(self, image_segment_index: int) -> DataSegment:
-        """
-        Creates the data segment for the given image segment. Regardless of IMODE
-        and other particulars, bands will be output by the data segment in the
-        final dimension.
+    def _handle_jpeg2k_no_mask(self, image_segment_index: int) -> DataSegment:
+        # NOTE: it appears that the PIL to numpy array conversion will rearrange
+        # bands to be in the final dimension, regardless of storage particulars?
 
-        Parameters
-        ----------
-        image_segment_index : int
-
-        Returns
-        -------
-        DataSegment
-        """
-
-        # TODO: document more completely
-
-        image_header = self.get_image_header(image_segment_index)
-
-        if image_header.IMODE == 'B':
-            return self._create_data_segment_from_imode_b(image_segment_index)
-        elif image_header.IMODE == 'P':
-            return self._create_data_segment_from_imode_p(image_segment_index)
-        elif image_header.IMODE == 'S':
-            return self._create_data_segment_from_imode_s(image_segment_index)
-        elif image_header.IMODE == 'R':
-            return self._create_data_segment_from_imode_r(image_segment_index)
-        else:
-            raise ValueError(
-                'Got unsupported IMODE `{}` at image segment index `{}`'.format(
-                    image_header.IMODE, image_segment_index))
-
-    def _handle_imode_b_no_compression_no_mask(self, image_segment_index: int) -> DataSegment:
-        image_header = self.get_image_header(image_segment_index)
-        if image_header.IMODE != 'B' or image_header.IC != 'NC':
-            raise ValueError(
-                'Requires IMODE = `B` and IC = `NC`, got `{}` and `{}` at image segment index {}'.format(
-                    image_header.IMODE, image_header.IC, image_segment_index))
-
-        # get bytes offset to this image segment (relative to start of file)
-        offset = self.nitf_details.img_segment_offsets[image_segment_index]
-        raw_bands = len(image_header.Bands)
-        raw_dtype, formatted_dtype, formatted_bands, complex_order, lut = self._get_dtypes(image_segment_index)
-        can_use_memmap = self.can_use_memmap()
-
-        block_bounds = self._construct_block_bounds(image_segment_index)
-        assert isinstance(block_bounds, list)
-
-        raw_shape = _get_shape(image_header.NROWS, image_header.NCOLS, raw_bands, band_dimension=2)
-        formatted_shape = _get_shape(image_header.NROWS, image_header.NCOLS, formatted_bands, band_dimension=2)
-
-        if len(block_bounds) == 1:
-            # set up our single data segment
-            if can_use_memmap:
-                return NumpyMemmapSegment(
-                    self.file_object, offset, raw_dtype, raw_shape,
-                    formatted_dtype, formatted_shape,
-                    format_function=self._get_format_function(
-                        image_segment_index, raw_dtype, complex_order, lut, 2))
-            else:
-                return FileReadDataSegment(
-                    self.file_object, offset, raw_dtype, raw_shape,
-                    formatted_dtype, formatted_shape,
-                    format_function=self._get_format_function(
-                        image_segment_index, raw_dtype, complex_order, lut, 2),
-                    close_file=False)
-        else:
-            bytes_per_pixel = raw_bands * raw_dtype.itemsize
-            block_offset = int(image_header.NPPBH * image_header.NPPBV * bytes_per_pixel)
-            total_offset = offset
-            data_segments = []
-            child_arrangement = []
-            for block_index, block_definition in enumerate(block_bounds):
-                b_rows = block_definition[1] - block_definition[0]
-                b_cols = block_definition[3] - block_definition[2]
-                b_raw_shape = _get_shape(b_rows, b_cols, raw_bands, band_dimension=2)
-                b_form_shape = _get_shape(b_rows, b_cols, formatted_bands, band_dimension=2)
-                if can_use_memmap:
-                    child_segment = NumpyMemmapSegment(
-                        self.file_object, total_offset, raw_dtype, b_raw_shape,
-                        formatted_dtype, b_form_shape,
-                        format_function=self._get_format_function(
-                            image_segment_index, raw_dtype, complex_order, lut, 2))
-                else:
-                    child_segment = FileReadDataSegment(
-                        self.file_object, total_offset, raw_dtype, b_raw_shape,
-                        formatted_dtype, b_form_shape,
-                        format_function=self._get_format_function(
-                            image_segment_index, raw_dtype, complex_order, lut, 2),
-                        close_file=False)
-                # handle block padding situation
-                row_start, row_end = block_definition[0], min(block_definition[1], image_header.NROWS)
-                col_start, col_end = block_definition[2], min(block_definition[3], image_header.NCOLS)
-                subset_def = (slice(row_start, row_end, 1), slice(col_start, col_end, 1))
-                child_arrangement.append(subset_def)
-                if row_end == block_definition[1] and col_end == block_definition[3]:
-                    data_segments.append(child_segment)
-                else:
-                    data_segments.append(
-                        SubsetSegment(child_segment, (slice(0, row_end - row_start, 1),
-                                                      slice(0, col_end - col_start, 1)), 'raw', close_parent=True))
-                total_offset += block_offset
-            return BlockAggregateSegment(
-                data_segments, child_arrangement, 'raw', 0, raw_shape,
-                formatted_dtype, formatted_shape, close_children=True)
-
-    def _handle_imode_b_jpeg_no_mask(self, image_segment_index: int) -> DataSegment:
-        image_header = self.get_image_header(image_segment_index)
-        if image_header.IMODE != 'B' or image_header.IC not in ['I1', 'C3', 'C5']:
-            raise ValueError(
-                'Requires IMODE = `B` and IC in `(I1, C3, C5)`, got `{}` and `{}` at image segment index {}'.format(
-                    image_header.IMODE, image_header.IC, image_segment_index))
-        if PIL_Image is None:
-            raise ValueError('Image segment {} is compressed, which requires PIL'.format(image_segment_index))
-
-        # get bytes offset to this image segment (relative to start of file)
-        offset = self.nitf_details.img_segment_offsets[image_segment_index]
-        image_segment_size = self.nitf_details.img_segment_sizes[image_segment_index]
-        raw_bands = len(image_header.Bands)
-        raw_dtype, formatted_dtype, formatted_bands, complex_order, lut = self._get_dtypes(image_segment_index)
-        # Establish block pixel bounds
-        block_bounds = self._construct_block_bounds(image_segment_index)
-        assert isinstance(block_bounds, list)
-
-        raw_shape = _get_shape(image_header.NROWS, image_header.NCOLS, raw_bands, band_dimension=2)
-        formatted_shape = _get_shape(image_header.NROWS, image_header.NCOLS, formatted_bands, band_dimension=2)
-
-        # jpeg compression, read everything and find the jpeg delimiters
-        the_bytes = self._read_file_data(offset, image_segment_size)
-        jpeg_delimiters = find_jpeg_delimiters(the_bytes)
-        if len(jpeg_delimiters) != len(block_bounds):
-            raise ValueError(
-                'Found different number of jpeg delimiters ({}) than blocks ({}) in image segment {}'.format(
-                    len(jpeg_delimiters), len(block_bounds), image_segment_index))
-
-        # create a memmap, and extract all of our jpeg data into it as appropriate
-        fi, path_name = mkstemp(suffix='.sarpy_cache', text=False)
-        self._delete_temp_files.append(path_name)
-        mem_map = numpy.memmap(
-            path_name, dtype=raw_dtype, mode='w+', offset=0,
-            shape=_get_shape(image_header.NROWS, image_header.NCOLS, raw_bands, band_dimension=2))
-        for jpeg_delim, block_bound in zip(jpeg_delimiters, block_bounds):
-            # noinspection PyUnresolvedReferences
-            img = PIL_Image.open(BytesIO(the_bytes[jpeg_delim[0]:jpeg_delim[1]]))
-            # handle block padding situation
-            row_start, row_end = block_bound[0], min(block_bound[1], image_header.NROWS)
-            col_start, col_end = block_bound[2], min(block_bound[3], image_header.NCOLS)
-            mem_map[row_start: row_end, col_start:col_end] = numpy.asarray(img)[0:row_end - row_start,
-                                                             0:col_end - col_start]
-        mem_map.flush()  # write all the data to the file
-        del mem_map  # clean up the memmap
-        os.close(fi)
-
-        return NumpyMemmapSegment(
-            path_name, 0, raw_dtype, raw_shape,
-            formatted_dtype, formatted_shape,
-            format_function=self._get_format_function(
-                image_segment_index, raw_dtype, complex_order, lut, 2),
-            mode='r',
-            close_file=False)
-
-    def _handle_imode_b_jpeg2k_no_mask(self, image_segment_index: int) -> DataSegment:
         image_header = self.get_image_header(image_segment_index)
         if image_header.IMODE != 'B' or image_header.IC != 'C8':
             raise ValueError(
@@ -1384,7 +1290,7 @@ class NITFReader(BaseReader):
         data = numpy.asarray(img)
         mem_map[:] = data[:image_header.NROWS, :image_header.NCOLS]
         mem_map.flush()  # write all the data to the file
-        del mem_map # clean up the memmap
+        del mem_map  # clean up the memmap
         os.close(fi)
 
         return NumpyMemmapSegment(
@@ -1393,154 +1299,10 @@ class NITFReader(BaseReader):
             format_function=self._get_format_function(
                 image_segment_index, raw_dtype, complex_order, lut, 2))
 
-    def _handle_imode_b_no_compression_with_mask(self, image_segment_index: int) -> DataSegment:
-        image_header = self.get_image_header(image_segment_index)
-        if image_header.IMODE != 'B' or image_header.IC != 'NM':
-            raise ValueError(
-                'Requires IMODE = `B` and IC = `NM`, got `{}` and `{}` at image segment index {}'.format(
-                    image_header.IMODE, image_header.IC, image_segment_index))
+    def _handle_jpeg2k_with_mask(self, image_segment_index: int) -> DataSegment:
+        # NOTE: it appears that the PIL to numpy array conversion will rearrange
+        # bands to be in the final dimension, regardless of storage particulars?
 
-        # get bytes offset to this image segment (relative to start of file)
-        offset = self.nitf_details.img_segment_offsets[image_segment_index]
-        raw_bands = len(image_header.Bands)
-        raw_dtype, formatted_dtype, formatted_bands, complex_order, lut = self._get_dtypes(image_segment_index)
-        can_use_memmap = self.can_use_memmap()
-
-        block_bounds = self._construct_block_bounds(image_segment_index)
-        assert isinstance(block_bounds, list)
-
-        raw_shape = _get_shape(image_header.NROWS, image_header.NCOLS, raw_bands, band_dimension=2)
-        formatted_shape = _get_shape(image_header.NROWS, image_header.NCOLS, formatted_bands, band_dimension=2)
-
-        # get mask definition details
-        mask_offsets, exclude_value, additional_offset = self._get_mask_details(image_segment_index)
-        if not (isinstance(mask_offsets, numpy.ndarray) and mask_offsets.ndim == 1):
-            raise ValueError('Got unexpected mask offsets `{}`'.format(mask_offsets))
-
-        if len(block_bounds) != len(mask_offsets):
-            raise ValueError('Got mismatch between block definition and mask offsets definition')
-
-        bytes_per_pixel = raw_bands * raw_dtype.itemsize
-        block_offset = int(image_header.NPPBH * image_header.NPPBV * bytes_per_pixel)
-        data_segments = []
-        child_arrangement = []
-        for block_index, (block_definition, mask_offset) in enumerate(zip(block_bounds, mask_offsets)):
-            if mask_offset == exclude_value:
-                continue  # just skip this, since it's masked out
-
-            b_rows = block_definition[1] - block_definition[0]
-            b_cols = block_definition[3] - block_definition[2]
-            b_raw_shape = _get_shape(b_rows, b_cols, raw_bands, band_dimension=2)
-            b_form_shape = _get_shape(b_rows, b_cols, formatted_bands, band_dimension=2)
-            total_offset = offset + additional_offset + mask_offset
-            if can_use_memmap:
-                child_segment = NumpyMemmapSegment(
-                    self.file_object, total_offset, raw_dtype, b_raw_shape,
-                    formatted_dtype, b_form_shape,
-                    format_function=self._get_format_function(
-                        image_segment_index, raw_dtype, complex_order, lut, 2))
-            else:
-                child_segment = FileReadDataSegment(
-                    self.file_object, total_offset, raw_dtype, b_raw_shape,
-                    formatted_dtype, b_form_shape,
-                    format_function=self._get_format_function(
-                        image_segment_index, raw_dtype, complex_order, lut, 2),
-                    close_file=False)
-            # handle block padding situation
-            row_start, row_end = block_definition[0], min(block_definition[1], image_header.NROWS)
-            col_start, col_end = block_definition[2], min(block_definition[3], image_header.NCOLS)
-            subset_def = (slice(row_start, row_end, 1), slice(col_start, col_end, 1))
-            child_arrangement.append(subset_def)
-            if row_end == block_definition[1] and col_end == block_definition[3]:
-                data_segments.append(child_segment)
-            else:
-                data_segments.append(
-                    SubsetSegment(child_segment, (slice(0, row_end - row_start, 1),
-                                                  slice(0, col_end - col_start, 1)), 'raw', close_parent=True))
-            total_offset += block_offset
-        return BlockAggregateSegment(
-            data_segments, child_arrangement, 'raw', 0, raw_shape,
-            formatted_dtype, formatted_shape, close_children=True)
-
-    def _handle_imode_b_jpeg_with_mask(self, image_segment_index: int) -> DataSegment:
-        image_header = self.get_image_header(image_segment_index)
-        if image_header.IMODE != 'B' or image_header.IC not in ['M3', 'M5']:
-            raise ValueError(
-                'Requires IMODE = `B` and IC in `(M3, M5)`, got `{}` and `{}` at image segment index {}'.format(
-                    image_header.IMODE, image_header.IC, image_segment_index))
-        if PIL_Image is None:
-            raise ValueError('Image segment {} is compressed, which requires PIL'.format(image_segment_index))
-
-        # get bytes offset to this image segment (relative to start of file)
-        offset = self.nitf_details.img_segment_offsets[image_segment_index]
-        image_segment_size = self.nitf_details.img_segment_sizes[image_segment_index]
-        raw_bands = len(image_header.Bands)
-        raw_dtype, formatted_dtype, formatted_bands, complex_order, lut = self._get_dtypes(image_segment_index)
-        # Establish block pixel bounds
-        block_bounds = self._construct_block_bounds(image_segment_index)
-        assert isinstance(block_bounds, list)
-
-        # get mask definition details
-        mask_offsets, exclude_value, additional_offset = self._get_mask_details(image_segment_index)
-        if not (isinstance(mask_offsets, numpy.ndarray) and mask_offsets.ndim == 1):
-            raise ValueError('Got unexpected mask offsets `{}`'.format(mask_offsets))
-
-        if len(block_bounds) != len(mask_offsets):
-            raise ValueError('Got mismatch between block definition and mask offsets definition')
-
-        anticipated_jpeg_indices = [index for index, entry in enumerate(mask_offsets) if entry != exclude_value]
-
-        # jpeg compression, read everything and find the jpeg delimiters
-        the_bytes = self._read_file_data(offset, image_segment_size)
-        jpeg_delimiters = find_jpeg_delimiters(the_bytes)
-        if len(jpeg_delimiters) != len(anticipated_jpeg_indices):
-            raise ValueError(
-                'Found different number of jpeg delimiters ({}) than populated blocks ({}) in image segment {}'.format(
-                    len(jpeg_delimiters), len(anticipated_jpeg_indices), image_segment_index))
-        for jpeg_delim, mask_index in zip(jpeg_delimiters, anticipated_jpeg_indices):
-            if mask_offsets[mask_index] != jpeg_delim[0] + additional_offset:
-                raise ValueError(
-                    'Populated mask offsets ({})\n\t'
-                    'do not agree with discovered jpeg offsets ({})\n\t'
-                    'with mask subheader length {}'.format(jpeg_delim, mask_offsets, additional_offset))
-
-        raw_shape = _get_shape(image_header.NROWS, image_header.NCOLS, raw_bands, band_dimension=2)
-        formatted_shape = _get_shape(image_header.NROWS, image_header.NCOLS, formatted_bands, band_dimension=2)
-
-        # create a memmap, and extract all of our jpeg data into it as appropriate
-        fi, path_name = mkstemp(suffix='.sarpy_cache', text=False)
-        self._delete_temp_files.append(path_name)
-        mem_map = numpy.memmap(
-            path_name, dtype=raw_dtype, mode='w+', offset=0,
-            shape=_get_shape(image_header.NROWS, image_header.NCOLS, raw_bands, band_dimension=2))
-        next_jpeg_block = 0
-        for mask_offset, block_bound in zip(mask_offsets, block_bounds):
-            if mask_offset == exclude_value:
-                continue  # just skip it, because it is masked out
-
-            jpeg_delim = jpeg_delimiters[next_jpeg_block]
-            # noinspection PyUnresolvedReferences
-            img = PIL_Image.open(BytesIO(the_bytes[jpeg_delim[0]:jpeg_delim[1]]))
-            # handle block padding situation
-            row_start, row_end = block_bound[0], min(block_bound[1], image_header.NROWS)
-            col_start, col_end = block_bound[2], min(block_bound[3], image_header.NCOLS)
-            mem_map[row_start: row_end, col_start:col_end] = numpy.asarray(img)[0:row_end - row_start,
-                                                             0:col_end - col_start]
-            next_jpeg_block += 1
-
-        mem_map.flush()  # write all the data to the file
-        del mem_map  # clean up the memmap
-        os.close(fi)
-
-        return NumpyMemmapSegment(
-            path_name, 0, raw_dtype, raw_shape,
-            formatted_dtype, formatted_shape,
-            format_function=self._get_format_function(
-                image_segment_index, raw_dtype, complex_order, lut, 2),
-            mode='r',
-            close_file=False)
-
-    def _handle_imode_b_jpeg2k_with_mask(self, image_segment_index: int) -> DataSegment:
         image_header = self.get_image_header(image_segment_index)
         if image_header.IMODE != 'B' or image_header.IC != 'M8':
             raise ValueError(
@@ -1606,7 +1368,277 @@ class NITFReader(BaseReader):
             mode='r',
             close_file=False)
 
-    def _create_data_segment_from_imode_b( self, image_segment_index: int) -> DataSegment:
+    def _handle_jpeg(self, image_segment_index: int) -> DataSegment:
+        # NOTE: it appears that the PIL to numpy array conversion will rearrange
+        # bands to be in the final dimension, regardless of storage particulars?
+
+        image_header = self.get_image_header(image_segment_index)
+        if image_header.IMODE not in ['B', 'P'] or image_header.IC not in ['I1', 'C3', 'C5', 'M3', 'M5']:
+            raise ValueError(
+                'Requires IMODE in `(B, P)` and IC in `(I1, C3, C5, M3, M5)`,\n\t'
+                'got `{}` and `{}` at image segment index {}'.format(
+                    image_header.IMODE, image_header.IC, image_segment_index))
+        if PIL_Image is None:
+            raise ValueError('Image segment {} is compressed, which requires PIL'.format(image_segment_index))
+
+        # get bytes offset to this image segment (relative to start of file)
+        offset = self.nitf_details.img_segment_offsets[image_segment_index]
+        image_segment_size = self.nitf_details.img_segment_sizes[image_segment_index]
+        raw_bands = len(image_header.Bands)
+        raw_dtype, formatted_dtype, formatted_bands, complex_order, lut = self._get_dtypes(image_segment_index)
+        # Establish block pixel bounds
+        block_bounds = self._construct_block_bounds(image_segment_index)
+        assert isinstance(block_bounds, list)
+
+        raw_shape = _get_shape(image_header.NROWS, image_header.NCOLS, raw_bands, band_dimension=2)
+        formatted_shape = _get_shape(image_header.NROWS, image_header.NCOLS, formatted_bands, band_dimension=2)
+
+        # get mask definition details
+        mask_offsets, exclude_value, additional_offset = self._get_mask_details(image_segment_index)
+
+        # jpeg compression, read everything and find the jpeg delimiters
+        the_bytes = self._read_file_data(offset+additional_offset, image_segment_size)
+        jpeg_delimiters = find_jpeg_delimiters(the_bytes)
+
+        # validate our discovered delimiters and the mask offsets
+        if mask_offsets is not None:
+            if not (isinstance(mask_offsets, numpy.ndarray) and mask_offsets.ndim == 1):
+                raise ValueError('Got unexpected mask offsets `{}`'.format(mask_offsets))
+
+            if len(block_bounds) != len(mask_offsets):
+                raise ValueError('Got mismatch between block definition and mask offsets definition')
+
+            anticipated_jpeg_indices = [index for index, entry in enumerate(mask_offsets) if entry != exclude_value]
+            if len(jpeg_delimiters) != len(anticipated_jpeg_indices):
+                raise ValueError(
+                    'Found different number of jpeg delimiters ({})\n\t'
+                    'than populated blocks ({}) in masked image segment {}'.format(
+                        len(jpeg_delimiters), len(anticipated_jpeg_indices), image_segment_index))
+            for jpeg_delim, mask_index in zip(jpeg_delimiters, anticipated_jpeg_indices):
+                if mask_offsets[mask_index] != jpeg_delim[0] + additional_offset:
+                    raise ValueError(
+                        'Populated mask offsets ({})\n\t'
+                        'do not agree with discovered jpeg offsets ({})\n\t'
+                        'with mask subheader length {}'.format(jpeg_delim, mask_offsets, additional_offset))
+
+        else:
+            if len(jpeg_delimiters) != len(block_bounds):
+                raise ValueError(
+                    'Found different number of jpeg delimiters ({}) than blocks ({}) in image segment {}'.format(
+                        len(jpeg_delimiters), len(block_bounds), image_segment_index))
+            mask_offsets = [entry[0] for entry in jpeg_delimiters]
+
+        # create a memmap, and extract all of our jpeg data into it as appropriate
+        fi, path_name = mkstemp(suffix='.sarpy_cache', text=False)
+        self._delete_temp_files.append(path_name)
+        mem_map = numpy.memmap(
+            path_name, dtype=raw_dtype, mode='w+', offset=0,
+            shape=_get_shape(image_header.NROWS, image_header.NCOLS, raw_bands, band_dimension=2))
+        next_jpeg_block = 0
+        for mask_offset, block_bound in zip(mask_offsets, block_bounds):
+            if mask_offset == exclude_value:
+                continue  # just skip it, it's masked out
+            jpeg_delim = jpeg_delimiters[next_jpeg_block]
+            img = PIL_Image.open(BytesIO(the_bytes[jpeg_delim[0]+additional_offset:jpeg_delim[1]+additional_offset]))
+            # handle block padding situation
+            row_start, row_end = block_bound[0], min(block_bound[1], image_header.NROWS)
+            col_start, col_end = block_bound[2], min(block_bound[3], image_header.NCOLS)
+            mem_map[row_start: row_end, col_start:col_end] = numpy.asarray(img)[0:row_end - row_start,
+                                                             0:col_end - col_start]
+            next_jpeg_block += 1
+
+        mem_map.flush()  # write all the data to the file
+        del mem_map  # clean up the memmap
+        os.close(fi)
+
+        return NumpyMemmapSegment(
+            path_name, 0, raw_dtype, raw_shape,
+            formatted_dtype, formatted_shape,
+            format_function=self._get_format_function(
+                image_segment_index, raw_dtype, complex_order, lut, 2),
+            mode='r',
+            close_file=False)
+
+    def _handle_no_compression(self, image_segment_index: int) -> DataSegment:
+        # NB: Natural order inside the block is (bands, rows, columns)
+        image_header = self.get_image_header(image_segment_index)
+        if image_header.IMODE not in ['B', 'R', 'P'] or image_header.IC not in ['NC', 'NM']:
+            raise ValueError(
+                'Requires IMODE in `(B, R, P)` and IC in `(NC, NM)`,\n\t'
+                'got `{}` and `{}` at image segment index {}'.format(
+                    image_header.IMODE, image_header.IC, image_segment_index))
+
+        if image_header.IMODE == 'B':
+            # order inside the block is (bands, rows, columns)
+            raw_band_dimension = 0
+        elif image_header.IMODE == 'R':
+            # order inside the block is (rows, bands, columns)
+            raw_band_dimension = 1
+        elif image_header.IMODE == 'P':
+            # order inside the block is (rows, columns, bands)
+            raw_band_dimension = 2
+        else:
+            raise ValueError('Unhandled IMODE `{}`'.format(image_header.IMODE))
+
+        # get bytes offset to this image segment (relative to start of file)
+        offset = self.nitf_details.img_segment_offsets[image_segment_index]
+        raw_bands = len(image_header.Bands)
+        raw_dtype, formatted_dtype, formatted_bands, complex_order, lut = self._get_dtypes(image_segment_index)
+        can_use_memmap = self.can_use_memmap()
+
+        block_bounds = self._construct_block_bounds(image_segment_index)
+        assert isinstance(block_bounds, list)
+
+        bytes_per_pixel = raw_bands*raw_dtype.itemsize
+        block_size = int(image_header.NPPBH*image_header.NPPBV*bytes_per_pixel)
+
+        raw_shape = _get_shape(image_header.NROWS, image_header.NCOLS, raw_bands, band_dimension=raw_band_dimension)
+        formatted_shape = _get_shape(image_header.NROWS, image_header.NCOLS, formatted_bands, band_dimension=2)
+
+        # get mask definition details
+        mask_offsets, exclude_value, additional_offset = self._get_mask_details(image_segment_index)
+
+        block_offsets = mask_offsets if mask_offsets is not None else \
+            numpy.arange(len(block_bounds), dtype='int64')*block_size
+
+        if not (isinstance(block_offsets, numpy.ndarray) and mask_offsets.ndim == 1):
+            raise ValueError('Got unexpected mask offsets `{}`'.format(block_offsets))
+
+        if len(block_bounds) != len(block_offsets):
+            raise ValueError('Got mismatch between block definition and block offsets definition')
+
+        data_segments = []
+        child_arrangement = []
+        for block_index, (block_definition, block_offset) in enumerate(zip(block_bounds, block_offsets)):
+            if block_offset == exclude_value:
+                continue  # just skip this, since it's masked out
+
+            b_rows = block_definition[1] - block_definition[0]
+            b_cols = block_definition[3] - block_definition[2]
+            b_raw_shape = _get_shape(b_rows, b_cols, raw_bands, band_dimension=raw_band_dimension)
+            b_form_shape = _get_shape(b_rows, b_cols, formatted_bands, band_dimension=2)
+            total_offset = offset + additional_offset + block_offset
+            if can_use_memmap:
+                child_segment = NumpyMemmapSegment(
+                    self.file_object, total_offset, raw_dtype, b_raw_shape,
+                    formatted_dtype, b_form_shape,
+                    format_function=self._get_format_function(
+                        image_segment_index, raw_dtype, complex_order, lut, raw_band_dimension))
+            else:
+                child_segment = FileReadDataSegment(
+                    self.file_object, total_offset, raw_dtype, b_raw_shape,
+                    formatted_dtype, b_form_shape,
+                    format_function=self._get_format_function(
+                        image_segment_index, raw_dtype, complex_order, lut, raw_band_dimension),
+                    close_file=False)
+            # handle block padding situation
+            row_start, row_end = block_definition[0], min(block_definition[1], image_header.NROWS)
+            col_start, col_end = block_definition[2], min(block_definition[3], image_header.NCOLS)
+
+            child_def = _get_subscript_def(
+                row_start, row_end, col_start, col_end, raw_bands, raw_band_dimension)
+            child_arrangement.append(child_def)
+            if row_end == block_definition[1] and col_end == block_definition[3]:
+                data_segments.append(child_segment)
+            else:
+                subset_def = _get_subscript_def(
+                    0, row_end - row_start, 0, col_end - col_start, raw_bands, raw_band_dimension)
+                data_segments.append(
+                    SubsetSegment(child_segment, subset_def, 'raw', close_parent=True))
+        transpose_axes = None
+        if raw_bands > 1:
+            if raw_band_dimension == 0:
+                transpose_axes = (1, 2, 0)
+            elif raw_band_dimension == 1:
+                transpose_axes = (0, 2, 1)
+        return BlockAggregateSegment(
+            data_segments, child_arrangement, 'raw', 0, raw_shape,
+            formatted_dtype, formatted_shape, transpose_axes=transpose_axes, close_children=True)
+
+    def _handle_imode_s_jpeg(self, image_segment_index: int) -> DataSegment:
+        # TODO: handle IMODE S, JPEG data
+        raise NotImplementedError
+
+    def _handle_imode_s_no_compression(self, image_segment_index: int) -> DataSegment:
+        image_header = self.get_image_header(image_segment_index)
+        if image_header.IMODE != 'S' or image_header.IC in ['NC', 'NM']:
+            raise ValueError(
+                'Requires IMODE = `S` and IC in `(NC, NM)`, got `{}` and `{}` at image segment index {}'.format(
+                    image_header.IMODE, image_header.IC, image_segment_index))
+
+        # get bytes offset to this image segment (relative to start of file)
+        offset = self.nitf_details.img_segment_offsets[image_segment_index]
+        raw_bands = len(image_header.Bands)
+        raw_dtype, formatted_dtype, formatted_bands, complex_order, lut = self._get_dtypes(image_segment_index)
+        can_use_memmap = self.can_use_memmap()
+
+        block_bounds = self._construct_block_bounds(image_segment_index)
+        assert isinstance(block_bounds, list)
+
+        formatted_shape = _get_shape(image_header.NROWS, image_header.NCOLS, formatted_bands, band_dimension=2)
+
+        # get mask definition details
+        mask_offsets, exclude_value, additional_offset = self._get_mask_details(image_segment_index)
+
+        bytes_per_pixel = raw_dtype.itemsize  # one band at a time
+        block_size = int(image_header.NPPBH*image_header.NPPBV*bytes_per_pixel)
+        if mask_offsets is not None:
+            block_offsets = mask_offsets
+        else:
+            block_offsets = numpy.zeros((raw_bands, len(block_bounds)), dtype='int64')
+            for i in range(raw_bands):
+                block_offsets[i, :] = i*(block_size*len(block_bounds)) + numpy.arange(len(block_bounds), dtype='int64')*block_size
+
+        if not (isinstance(block_offsets, numpy.ndarray) and block_offsets.ndim == 2):
+            raise ValueError('Got unexpected block offsets `{}`'.format(block_offsets))
+
+        if len(block_bounds) != block_offsets.shape[1]:
+            raise ValueError('Got mismatch between block definition and block offsets definition')
+
+        band_segments = []
+        for band_number in range(raw_bands):
+            band_raw_shape = _get_shape(image_header.NROWS, image_header.NCOLS, 1, band_dimension=2)
+            data_segments = []
+            child_arrangement = []
+            for block_index, (block_definition, block_offset) in enumerate(block_bounds, block_offsets[band_number, :]):
+                if block_offset == exclude_value:
+                    continue  # just skip this, since it's masked out
+
+                b_rows = block_definition[1] - block_definition[0]
+                b_cols = block_definition[3] - block_definition[2]
+                b_raw_shape = _get_shape(b_rows, b_cols, 1, band_dimension=2)
+                total_offset = offset + additional_offset + block_offset
+                if can_use_memmap:
+                    child_segment = NumpyMemmapSegment(
+                        self.file_object, total_offset, raw_dtype, b_raw_shape,
+                        raw_dtype, b_raw_shape)
+                else:
+                    child_segment = FileReadDataSegment(
+                        self.file_object, total_offset, raw_dtype, b_raw_shape,
+                        raw_dtype, b_raw_shape, close_file=False)
+                # handle block padding situation
+                row_start, row_end = block_definition[0], min(block_definition[1], image_header.NROWS)
+                col_start, col_end = block_definition[2], min(block_definition[3], image_header.NCOLS)
+
+                child_def = _get_subscript_def(
+                    row_start, row_end, col_start, col_end, 1, 2)
+                child_arrangement.append(child_def)
+                if row_end == block_definition[1] and col_end == block_definition[3]:
+                    data_segments.append(child_segment)
+                else:
+                    subset_def = _get_subscript_def(
+                        0, row_end - row_start, 0, col_end - col_start, 1, 2)
+                    data_segments.append(
+                        SubsetSegment(child_segment, subset_def, 'raw', close_parent=True))
+            band_segments.append(BlockAggregateSegment(
+                data_segments, child_arrangement, 'raw', 0, band_raw_shape,
+                raw_dtype, band_raw_shape, close_children=True))
+        return BandAggregateSegment(
+            band_segments, 2, formatted_dtype=formatted_dtype, formatted_shape=formatted_shape,
+            format_function=self._get_format_function(
+                            image_segment_index, raw_dtype, complex_order, lut, 2))
+
+    def _create_data_segment_from_imode_b(self, image_segment_index: int) -> DataSegment:
         image_header = self.get_image_header(image_segment_index)
         if image_header.IMODE != 'B':
             raise ValueError(
@@ -1618,18 +1650,14 @@ class NITFReader(BaseReader):
                 'Unsupported IC `{}` at image segment index {}'.format(
                     image_header.IC, image_segment_index))
 
-        if image_header.IC == 'NC':
-            return self._handle_imode_b_no_compression_no_mask(image_segment_index)
-        elif image_header.IC in ['I1', 'C3', 'C5']:
-            return self._handle_imode_b_jpeg_no_mask(image_segment_index)
+        if image_header.IC in ['NC', 'NM']:
+            return self._handle_no_compression(image_segment_index)
+        elif image_header.IC in ['I1', 'C3', 'C5', 'M3', 'M5']:
+            return self._handle_jpeg(image_segment_index)
         elif image_header.IC == 'C8':
-            return self._handle_imode_b_jpeg2k_no_mask(image_segment_index)
-        elif image_header.IC == 'NM':
-            return self._handle_imode_b_no_compression_with_mask(image_segment_index)
-        elif image_header.IC in ['M3', 'M5']:
-            return self._handle_imode_b_jpeg_with_mask(image_segment_index)
+            return self._handle_jpeg2k_no_mask(image_segment_index)
         elif image_header.IC == 'C8':
-            return self._handle_imode_b_jpeg2k_with_mask(image_segment_index)
+            return self._handle_jpeg2k_with_mask(image_segment_index)
         else:
             raise ValueError('Got unhandled IC `{}`'.format(image_header.IC))
 
@@ -1645,21 +1673,12 @@ class NITFReader(BaseReader):
                 'IMODE is `P` and the IC is `{}` at image segment index {}'.format(
                     image_header.IC, image_segment_index))
 
-        # TODO: finish this mode
-
-    def _create_data_segment_from_imode_s(self, image_segment_index: int) -> DataSegment:
-        image_header = self.get_image_header(image_segment_index)
-        if image_header.IMODE != 'S':
-            raise ValueError(
-                'Requires IMODE = `S`, got `{}` at image segment index {}'.format(
-                    image_header.IMODE, image_segment_index))
-        if image_header.IC not in ['NC', 'NM', 'C3', 'M3', 'C5', 'M5']:
-            raise ValueError(
-                'IMODE is `S` and the IC is `{}` at image segment index {}'.format(
-                    image_header.IC, image_segment_index))
-
-        # there should certainly be multiple blocks and multiple bands here...
-        # TODO: finish this mode
+        if image_header.IC in ['NC', 'NM']:
+            return self._handle_no_compression(image_segment_index)
+        elif image_header.IC in ['C3', 'C5', 'M3', 'M5']:
+            return self._handle_jpeg(image_segment_index)
+        else:
+            raise ValueError('Got unhandled IC `{}`'.format(image_header.IC))
 
     def _create_data_segment_from_imode_r(self, image_segment_index: int) -> DataSegment:
         image_header = self.get_image_header(image_segment_index)
@@ -1671,7 +1690,64 @@ class NITFReader(BaseReader):
             raise ValueError(
                 'IMODE is `R` and the image is compressed at image segment index {}'.format(
                     image_segment_index))
-        # TODO: finish this mode
+
+        if image_header.IC in ['NC', 'NM']:
+            return self._handle_no_compression(image_segment_index)
+        else:
+            raise ValueError('Got unhandled IC `{}`'.format(image_header.IC))
+
+    def _create_data_segment_from_imode_s(self, image_segment_index: int) -> DataSegment:
+        image_header = self.get_image_header(image_segment_index)
+        if image_header.IMODE != 'S':
+            raise ValueError(
+                'Requires IMODE = `S`, got `{}` at image segment index {}'.format(
+                    image_header.IMODE, image_segment_index))
+        if image_header.IC not in ['NC', 'NM', 'C3', 'M3', 'C5', 'M5']:
+            raise ValueError(
+                'IMODE is `S` and the IC is `{}` at image segment index {}'.format(
+                    image_header.IC, image_segment_index))
+        if len(image_header.Bands) < 2:
+            raise ValueError('IMODE S is only valid with multiple bands.')
+        if image_header.NBPC == 1 and image_header.NBPR == 1:
+            raise ValueError('IMODE S is only valid with multiple blocks.')
+
+        if image_header.IC in ['NC', 'NM']:
+            return self._handle_imode_s_no_compression(image_segment_index)
+        elif image_header.IC in ['C3', 'C5', 'M3', 'M5']:
+            return self._handle_imode_s_jpeg(image_segment_index)
+        else:
+            raise ValueError('Got unhandled IC `{}`'.format(image_header.IC))
+
+    def create_data_segment_for_image_segment(self, image_segment_index: int) -> DataSegment:
+        """
+        Creates the data segment for the given image segment.
+
+        Regardless of IMODE and other particulars, bands will be in the
+        final output dimension.
+
+        Parameters
+        ----------
+        image_segment_index : int
+
+        Returns
+        -------
+        DataSegment
+        """
+
+        image_header = self.get_image_header(image_segment_index)
+
+        if image_header.IMODE == 'B':
+            return self._create_data_segment_from_imode_b(image_segment_index)
+        elif image_header.IMODE == 'P':
+            return self._create_data_segment_from_imode_p(image_segment_index)
+        elif image_header.IMODE == 'S':
+            return self._create_data_segment_from_imode_s(image_segment_index)
+        elif image_header.IMODE == 'R':
+            return self._create_data_segment_from_imode_r(image_segment_index)
+        else:
+            raise ValueError(
+                'Got unsupported IMODE `{}` at image segment index `{}`'.format(
+                    image_header.IMODE, image_segment_index))
 
     def _find_image_segment_collections(self) -> Tuple[Tuple[int, ...]]:
         """
@@ -1750,7 +1826,7 @@ class NITFReader(BaseReader):
                 out.append(current_chunk)
         return tuple(tuple(entry) for entry in out)
 
-    def _get_collection_coordinate_limits(self, block: List[int]) -> numpy.ndarray:
+    def _get_collection_element_coordinate_limits(self, collection_index: int) -> numpy.ndarray:
         """
         For the given image segment collection, as defined in the
         `_image_segment_collections` property value, get the relative coordinate
@@ -1758,14 +1834,16 @@ class NITFReader(BaseReader):
 
         Parameters
         ----------
-        block : List[int]
-            The image segment indices.
+        collection_index : int
+            The index into the `image_segment_collection` list.
 
         Returns
         -------
         block_definition: numpy.ndarray
             of the form `[[start_row, end_row, start_column, end_column]]`.
         """
+
+        block = self.image_segment_collections[collection_index]
 
         block_definition = numpy.empty((len(block), 4), dtype='int64')
         previous_indices = numpy.zeros((4, ), dtype='int64')
@@ -1785,7 +1863,7 @@ class NITFReader(BaseReader):
         block_definition[:, 2:4:1] -= min_col
         return block_definition
 
-    def _create_data_segment_for_block(self, collection_index: int) -> DataSegment:
+    def _create_data_segment_for_collection_element(self, collection_index: int) -> DataSegment:
         """
         Creates the data segment overarching the given segment collection.
 
@@ -1798,917 +1876,74 @@ class NITFReader(BaseReader):
         DataSegment
         """
 
-        # TODO: finish this...
-        pass
-
-
-#########
-# TODO: outdated
-def _validate_lookup(lookup_table):
-    # type: (numpy.ndarray) -> None
-    if not isinstance(lookup_table, numpy.ndarray):
-        raise ValueError('requires a numpy.ndarray, got {}'.format(type(lookup_table)))
-    if lookup_table.dtype.name != 'uint8':
-        raise ValueError('requires a numpy.ndarray of uint8 dtype, got {}'.format(lookup_table.dtype))
-
-
-def single_lut_conversion(lookup_table):
-    """
-    This constructs the function to convert data using a single lookup table.
-
-    Parameters
-    ----------
-    lookup_table : numpy.ndarray
-
-    Returns
-    -------
-    callable
-    """
-
-    _validate_lookup(lookup_table)
-
-    def converter(data):
-        if not isinstance(data, numpy.ndarray):
-            raise ValueError('requires a numpy.ndarray, got {}'.format(type(data)))
-
-        if data.dtype.name not in ['uint8', 'uint16']:
-            raise ValueError('requires a numpy.ndarray of uint8 or uint16 dtype, '
-                             'got {}'.format(data.dtype.name))
-
-        if len(data.shape) == 3 and data.shape[2] != 1:
-            raise ValueError('Requires a three-dimensional numpy.ndarray, '
-                             'with single band in the last dimension. Got shape {}'.format(data.shape))
-        temp = numpy.reshape(data, (-1, ))
-        out = lookup_table[temp]
-        if lookup_table.ndim == 2:
-            return numpy.reshape(out, (data.shape[0], data.shape[1], lookup_table.shape[1]))
-        else:
-            return numpy.reshape(out, (data.shape[0], data.shape[1], 1))
-    return converter
-
-
-class NITFReaderOld(BaseReader):
-    """
-    A reader object for NITF 2.10 container files
-    """
-
-    __slots__ = ('_nitf_details', '_cached_files', '_symmetry')
-
-    def __init__(self, nitf_details, reader_type="OTHER", symmetry=(False, False, False)):
-        """
-
-        Parameters
-        ----------
-        nitf_details : NITFDetails|BinaryIO|str
-            The NITFDetails object or path to a nitf file.
-        reader_type : str
-            What type of reader is this, options are "SICD", "SIDD", "CPHD", or "OTHER"
-        symmetry : tuple
-        """
-
-        self._symmetry = symmetry
-        self._cached_files = []
-        if isinstance(nitf_details, str) or is_file_like(nitf_details):
-            nitf_details = NITFDetails(nitf_details)
-        if not isinstance(nitf_details, NITFDetails):
-            raise TypeError('The input argument for NITFReader must be a NITFDetails object.')
-        self._nitf_details = nitf_details
-
-        # determine image segmentation from image headers
-        segments = self._find_segments()
-        # construct the chippers
-        chippers = []
-        for i, segment in enumerate(segments):
-            this_chip = self._construct_chipper(segment, i)
-            if isinstance(this_chip, list):
-                chippers.extend(this_chip)
+        def get_transpose(formatted_ndim: int) -> Optional[Tuple[int, ...]]:
+            if self._transpose_axes is None:
+                return None
+            elif formatted_ndim > 2:
+                return self._transpose_axes + (2,)
             else:
-                chippers.append(this_chip)
-        super(NITFReaderOld, self).__init__(tuple(chippers), reader_type=reader_type)
+                return self._transpose_axes
 
-    @property
-    def nitf_details(self):
+        block = self.image_segment_collections[collection_index]
+
+        if len(block) == 1:
+            child_segment = self.create_data_segment_for_image_segment(block[0])
+            if self._reverse_axes is None and self._transpose_axes is None:
+                return child_segment
+            else:
+                return ReorientationSegment(
+                    child_segment,
+                    reverse_axes=self._reverse_axes,
+                    transpose_axes=get_transpose(child_segment.formatted_ndim),
+                    close_parent=True)
+
+        block_definition = self._get_collection_element_coordinate_limits(self, collection_index)
+        total_rows = int(numpy.max(block_definition[:, 1]))
+        total_columns = int(numpy.max(block_definition[:, 3]))
+
+        child_segments = []
+        child_arrangement = []
+        bands = None
+        dtype = None
+        for img_index, block_def in zip(block, block_definition):
+            child_segment = self.create_data_segment_for_image_segment(img_index)
+            this_bands = 1 if child_segment.formatted_ndim == 2 else \
+                    child_segment.formatted_shape[2]
+            if bands is None:
+                bands = this_bands
+            elif bands != this_bands:
+                raise ValueError('Incompatible band counts in segment collection {}'.format(collection_index))
+
+            this_dtype = child_segment.formatted_dtype
+            if dtype is None:
+                dtype = this_dtype
+            elif dtype != this_dtype:
+                raise ValueError('Incompatible data types in segment collection {}'.format(collection_index))
+
+            child_segments.append(child_segment)
+            child_arrangement.append(
+                _get_subscript_def(
+                    int(block_def[0]), int(block_def[1]), int(block_def[2]), int(block_def[3]), bands, 2))
+        transpose = get_transpose(child_segments[0].formatted_ndim)
+        raw_shape = (total_rows, total_columns) if bands == 1 else (total_rows, total_columns, bands)
+        formatted_shape = raw_shape if transpose is None else (raw_shape[1], raw_shape[0]) + raw_shape[:2]
+        return BlockAggregateSegment(
+            child_segments, child_arrangement, 'raw', 0, raw_shape, dtype, formatted_shape,
+            reverse_axes=self._reverse_axes, transpose_axes=transpose, close_children=True)
+
+    def _get_data_segments(self) -> List[DataSegment]:
         """
-        NITFDetails: The NITF details object.
-        """
-
-        return self._nitf_details
-
-    @property
-    def file_name(self):
-        return self._nitf_details.file_name
-
-    @property
-    def file_object(self):
-        """
-        BinaryIO: the binary file like object from which we are reading
-        """
-
-        return self._nitf_details.file_object
-
-    def _compliance_check(self, index):
-        """
-        Check that the image segment at `index` can be supported.
-
-        Parameters
-        ----------
-        index : int
+        Gets a data segment for each of these image segment collection.
 
         Returns
         -------
-        bool
+        List[DataSegment]
         """
 
-        img_header = self.nitf_details.img_headers[index]
-
-        if img_header.NBPP not in (8, 16, 32, 64):
-            # numpy basically only supports traditional typing
-            logger.error(
-                'Image segment at index {} has bits per pixel per band {},\n\t'
-                'only 8, 16, and 32 are supported.'.format(index, img_header.NBPP))
-            return False
-
-        if img_header.is_masked and img_header.is_compressed:
-            logger.error(
-                'Image segment at index {} is both masked and compressed.\n\t'
-                'This is not currently supported.'.format(index))
-            return False
-
-        if img_header.IC in ['C0', 'C1', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'I1']:
-            if PIL_Image is None:
-                logger.error(
-                    'Image segment at index {} has IC value {},\n\t'
-                    'and PIL cannot be imported.\n\t'
-                    'Currently, compressed image segments require PIL.'.format(
-                        index, img_header.IC))
-                return False
-        return True
-
-    def _extract_chipper_params(self, index):
-        """
-        Gets the basic chipper parameters for the given image segment.
-
-        Parameters
-        ----------
-        index : int
-
-        Returns
-        -------
-        tuple
-            out the form (native_dtype, output_dtype, native_bands, output_bands, transform_data)
-        """
-
-        img_header = self.nitf_details.img_headers[index]
-        nbpp = img_header.NBPP  # previously verified to be one of 8, 16, 32, 64
-        bpp = int(nbpp/8)  # bytes per pixel per band
-        pvtype = img_header.PVTYPE
-        if img_header.ICAT.strip() in ['SAR', 'SARIQ'] and ((len(img_header.Bands) % 2) == 0):
-            cont = True
-            for i in range(0, len(img_header.Bands), 2):
-                cont &= (img_header.Bands[i].ISUBCAT == 'I' and
-                         img_header.Bands[i+1].ISUBCAT == 'Q')
-            if cont:
-                native_bands = len(img_header.Bands)
-                output_bands = int(native_bands/2)
-                if pvtype == 'SI':
-                    return numpy.dtype('>i{}'.format(bpp)), numpy.complex64, native_bands, output_bands, 'COMPLEX'
-                elif pvtype == 'R':
-                    return numpy.dtype('>f{}'.format(bpp)), numpy.complex64, native_bands, output_bands, 'COMPLEX'
-            del cont
-        if img_header.IREP.strip() == 'MONO' and img_header.Bands[0].LUTD is not None:
-            if not (pvtype == 'INT' and bpp not in [1, 2]):
-                raise ValueError(
-                    'Got IREP = {} with a LUT, but PVTYPE = {} and '
-                    'NBPP = {}'.format(img_header.IREP, pvtype, nbpp))
-            lut = img_header.Bands[0].LUTD
-            if lut.ndim == 1:
-                return numpy.dtype('>u{}'.format(bpp)), numpy.dtype('>u1'), 1, 1, single_lut_conversion(lut)
-            else:
-                return numpy.dtype('>u{}'.format(bpp)), numpy.dtype('>u1'), 1, lut.shape[0], single_lut_conversion(numpy.transpose(lut))
-        if img_header.IREP.strip() == 'RGB/LUT':
-            lut = img_header.Bands[0].LUTD
-            return numpy.dtype('>u1'), numpy.dtype('>u1'), 1, 3, single_lut_conversion(numpy.transpose(lut))
-
-        if pvtype == 'INT':
-            return numpy.dtype('>u{}'.format(bpp)), numpy.dtype('>u{}'.format(bpp)), \
-                   len(img_header.Bands), len(img_header.Bands), None
-        elif pvtype == 'SI':
-            return numpy.dtype('>i{}'.format(bpp)), numpy.dtype('>i{}'.format(bpp)), \
-                   len(img_header.Bands), len(img_header.Bands), None
-        elif pvtype == 'R':
-            return numpy.dtype('>f{}'.format(bpp)), numpy.dtype('>f{}'.format(bpp)), \
-                   len(img_header.Bands), len(img_header.Bands), None
-        elif pvtype == 'C':
-            if bpp not in [8, 16]:
-                raise ValueError(
-                    'Got PVTYPE = C and NBPP = {} (not 64 or 128), which is unsupported.'.format(nbpp))
-            bands = len(img_header.Bands)
-            return (
-                numpy.dtype('>c{}'.format(bpp)),
-                numpy.complex64,
-                bands,
-                bands,
-                'COMPLEX')
-
-    @staticmethod
-    def _construct_block_bounds(img_header, row_block_size, column_block_size):
-        bounds = []
-        block_row_start = 0
-        for row_block in range(img_header.NBPC):
-            block_row_end = block_row_start + row_block_size
-            block_col_start = 0
-            for column_block in range(img_header.NBPR):
-                block_col_end = block_col_start + column_block_size
-                bounds.append((block_row_start, block_row_end, block_col_start, block_col_end))
-                block_col_start = block_col_end
-            block_row_start = block_row_end
-        return bounds
-
-    @staticmethod
-    def _get_block_sizes(img_header, this_rows, this_cols):
-        # column (horizontal) block details
-        column_block_size = this_cols
-        if img_header.NBPR != 1:
-            column_block_size = img_header.NPPBH
-        # row (vertical) block details
-        row_block_size = this_rows
-        if img_header.NBPC != 1:
-            row_block_size = img_header.NPPBV
-        return row_block_size, column_block_size
-
-    def _create_band_interleaved_by_pixel_chipper(
-            self, img_header, data_offset, this_rows, this_cols, raw_dtype, raw_bands,
-            output_dtype, output_bands, transform_data, limit_to_raw_bands):
-
-        if img_header.NBPR == 1 and img_header.NBPC == 1:
-            # it's one single block
-            return BIPChipper(
-                self.file_object, raw_dtype, (this_rows, this_cols), raw_bands, output_bands, output_dtype,
-                symmetry=self._symmetry, transform_data=transform_data,
-                data_offset=data_offset, limit_to_raw_bands=limit_to_raw_bands)
-
-        if img_header.is_masked:
-            # update the offset to skip the mask subheader
-            data_offset += img_header.mask_subheader.IMDATOFF
-            if img_header.mask_subheader.BMR is not None:
-                mask_offsets = img_header.mask_subheader.BMR
-            elif img_header.mask_subheader.TMR is not None:
-                mask_offsets = img_header.mask_subheader.TMR
-                logger.warning(
-                    'image segment contains a transparency mask - \n\t'
-                    'the transparency value is not currently used.')
-            else:
-                logger.warning(
-                    'image segment is masked, but contains neither \n\t'
-                    'transparency mask nor block mask? This is unexpected.')
-                mask_offsets = None
-        else:
-            mask_offsets = None
-        exclude_value = 0xFFFFFFFF  # only used if there is a mask...
-
-        # column (horizontal) block details
-        column_block_size = this_cols
-        if img_header.NBPR != 1:
-            column_block_size = img_header.NPPBH
-
-        # row (vertical) block details
-        row_block_size = this_rows
-        if img_header.NBPC != 1:
-            row_block_size = img_header.NPPBV
-
-        # iterate over our blocks and determine bounds and create chippers
-        bounds = []
-        chippers = []
-        # NB: NBPP previously verified to be one of 8, 16, 32, 64
-        bytes_per_pixel = int(img_header.NBPP*raw_bands/8)
-
-        # outer loop over rows inner loop over columns
-        current_offset = 0
-        block_row_end = 0
-        block_offset = int(img_header.NPPBH*img_header.NPPBV*bytes_per_pixel)
-        enumerated_block = 0
-        for vblock in range(img_header.NBPC):
-            # define the current row block start/end
-            block_row_start = block_row_end
-            block_row_end += row_block_size
-            block_row_end = min(this_rows, block_row_end)
-            block_col_end = 0
-            for hblock in range(img_header.NBPR):
-                # verify whether to include this block, or not
-                if mask_offsets is not None:
-                    expected_offset = mask_offsets[0][enumerated_block]
-                    if expected_offset == exclude_value:
-                        # this is a missing block
-                        # advance the block enumeration details and skip
-                        block_col_end += column_block_size
-                        block_col_end = min(this_cols, block_col_end)
-                        enumerated_block += 1
-                        continue
-                    if expected_offset < current_offset:
-                        raise ValueError(
-                            'expected offset {}, current offset {}, for block {} = ({}, {})'.format(
-                                expected_offset, current_offset, enumerated_block, vblock, hblock))
-                    elif expected_offset > current_offset:
-                        current_offset = expected_offset
-
-                # define the current column block
-                block_col_start = block_col_end
-                block_col_end += column_block_size
-                block_col_end = min(this_cols, block_col_end)
-                # store our bounds and offset
-                bounds.append((block_row_start, block_row_end, block_col_start, block_col_end))
-                # create chipper
-                chip_rows = block_row_end - block_row_start
-                chip_cols = column_block_size
-                if block_col_end == block_col_start + column_block_size:
-                    chippers.append(
-                        BIPChipper(
-                            self.file_object, raw_dtype, (chip_rows, chip_cols),
-                            raw_bands, output_bands, output_dtype,
-                            symmetry=self._symmetry, transform_data=transform_data,
-                            data_offset=int(current_offset+data_offset), limit_to_raw_bands=limit_to_raw_bands))
-                else:
-                    c_row_start, c_row_end = 0, chip_rows
-                    c_col_start, c_col_end = 0, block_col_end - block_col_start
-                    if self._symmetry[1]:
-                        c_col_start = column_block_size - c_col_end
-                        c_col_end = column_block_size - c_col_start
-                    if self._symmetry[2]:
-                        c_row_start, c_row_end, c_col_start, c_col_end = \
-                            c_col_start, c_col_end, c_row_start, c_row_end
-
-                    p_chipper = BIPChipper(
-                        self.file_object, raw_dtype, (chip_rows, chip_cols),
-                        raw_bands, output_bands, output_dtype,
-                        symmetry=self._symmetry, transform_data=transform_data,
-                        data_offset=int(current_offset+data_offset), limit_to_raw_bands=limit_to_raw_bands)
-                    chippers.append(SubsetChipper(p_chipper, (c_row_start, c_row_end), (c_col_start, c_col_end)))
-
-                # update the block and offset
-                enumerated_block += 1
-                current_offset += block_offset  # NB: this may contain pad pixels
-
-        bounds = numpy.array(bounds, dtype=numpy.int64)
-        total_rows = bounds[-1, 1]
-        total_cols = bounds[-1, 3]
-        if total_rows != this_rows or total_cols != this_cols:
-            raise ValueError('Got unexpected chipper construction')
-        if self._symmetry[0]:
-            t_bounds = bounds.copy()
-            bounds[:, 0] = total_rows - t_bounds[:, 1]
-            bounds[:, 1] = total_rows - t_bounds[:, 0]
-        if self._symmetry[1]:
-            t_bounds = bounds.copy()
-            bounds[:, 2] = total_cols - t_bounds[:, 3]
-            bounds[:, 3] = total_cols - t_bounds[:, 2]
-        if self._symmetry[2]:
-            t_bounds = bounds.copy()
-            bounds[:, :2] = t_bounds[:, 2:]
-            bounds[:, 2:] = t_bounds[:, :2]
-        return AggregateChipper(bounds, output_dtype, chippers, output_bands=output_bands)
-
-    def _create_band_sequential_chipper(
-            self, img_header, data_offset, this_rows, this_cols, raw_dtype, raw_bands,
-            output_dtype, output_bands, transform_data, limit_to_raw_bands):
-
-        if img_header.NBPR == 1 and img_header.NBPC == 1:
-            # it's one single block
-            chippers = []
-            current_offset = 0
-            block_offset = int(this_rows*this_cols*img_header.NBPP)
-
-            for i in range(raw_bands):
-                chippers.append(BIPChipper(
-                    self.file_object, raw_dtype, (this_rows, this_cols), 1, 1, raw_dtype,
-                    symmetry=self._symmetry, transform_data=None,
-                    data_offset=data_offset+current_offset, limit_to_raw_bands=None))
-                current_offset += block_offset
-            return BSQChipper(
-                chippers, output_dtype, transform_data=transform_data,
-                limit_to_raw_bands=limit_to_raw_bands)
-
-        if img_header.is_masked:
-            # update the offset to skip the mask subheader
-            data_offset += img_header.mask_subheader.IMDATOFF
-            if img_header.mask_subheader.BMR is not None:
-                mask_offsets = img_header.mask_subheader.BMR
-            elif img_header.mask_subheader.TMR is not None:
-                mask_offsets = img_header.mask_subheader.TMR
-                logger.warning(
-                    'image segment contains a transparency mask - \n\t'
-                    'the transparency value is not currently used.')
-            else:
-                logger.warning(
-                    'image segment is masked, but contains neither \n\t'
-                    'transparency mask nor block mask? This is unexpected.')
-                mask_offsets = None
-        else:
-            mask_offsets = None
-        exclude_value = 0xFFFFFFFF  # only used if there is a mask...
-
-        row_block_size, column_block_size = self._get_block_sizes(img_header, this_rows, this_cols)
-        block_offset = int(row_block_size*column_block_size*img_header.NBPP/8)  # verified to be integer already
-        num_blocks = img_header.NBPC*img_header.NBPR
-        bip_chippers = [[] for _ in range(num_blocks)]
-
-        if mask_offsets is None:
-            offsets = block_offset*numpy.arange(raw_bands*num_blocks, dtype=numpy.uint64)
-            offsets = numpy.reshape(offsets, (raw_bands, num_blocks))
-        else:
-            offsets = None
-
-        # construct bounds for the chippers
-        bounds = self._construct_block_bounds(img_header, row_block_size, column_block_size)
-
-        for band_number in range(raw_bands):
-            for block_number in range(num_blocks):
-                if mask_offsets is not None:
-                    this_offset = mask_offsets[band_number, block_number]
-                    if this_offset == exclude_value:
-                        continue  # skip this block
-                else:
-                    this_offset = offsets[band_number, block_number]
-                block_bounds = bounds[block_number]
-                block_rows = int(block_bounds[1] - block_bounds[0])
-                block_cols = int(block_bounds[3] - block_bounds[2])
-                bip_chippers[block_number].append(
-                    BIPChipper(
-                        self.file_object, raw_dtype, (block_rows, block_cols), 1, 1, raw_dtype,
-                        symmetry=self._symmetry, transform_data=None, data_offset=int(data_offset+this_offset),
-                        limit_to_raw_bands=None))
-
-        bsq_chippers = []
-        bsq_bounds = []
-        for i, entry in enumerate(bip_chippers):
-            if len(entry) == 0:
-                continue  # it was masked
-            elif len(entry) == raw_bands:
-                bsq_chippers.append(
-                    BSQChipper(
-                        entry, output_dtype, transform_data=transform_data, limit_to_raw_bands=limit_to_raw_bands))
-                bsq_bounds.append(bounds[i])
-            else:
-                raise ValueError(
-                    'Failed by partially constructing {} of {} '
-                    'chippers for block {}'.format(len(entry), raw_bands, i))
-        bsq_bounds = numpy.array(bsq_bounds, dtype='int64')
-        return AggregateChipper(bsq_bounds, output_dtype, bsq_chippers, output_bands=output_bands)
-
-    def _create_band_interleaved_by_block_chipper(
-            self, img_header, data_offset, this_rows, this_cols, raw_dtype, raw_bands,
-            output_dtype, output_bands, transform_data, limit_to_raw_bands):
-
-        if img_header.NBPR == 1 and img_header.NBPC == 1:
-            # it's one single block
-            chippers = []
-            current_offset = 0
-            block_offset = int(this_rows*this_cols*img_header.NBPP)
-
-            for i in range(raw_bands):
-                chippers.append(BIPChipper(
-                    self.file_object, raw_dtype, (this_rows, this_cols), 1, 1, raw_dtype,
-                    symmetry=self._symmetry, transform_data=None,
-                    data_offset=data_offset+current_offset, limit_to_raw_bands=None))
-                current_offset += block_offset
-            return BSQChipper(
-                chippers, output_dtype, transform_data=transform_data, limit_to_raw_bands=limit_to_raw_bands)
-
-        if img_header.is_masked:
-            # update the offset to skip the mask subheader
-            data_offset += img_header.mask_subheader.IMDATOFF
-            if img_header.mask_subheader.BMR is not None:
-                mask_offsets = img_header.mask_subheader.BMR
-            elif img_header.mask_subheader.TMR is not None:
-                mask_offsets = img_header.mask_subheader.TMR
-                logger.warning(
-                    'image segment contains a transparency mask - \n\t'
-                    'the transparency value is not currently used.')
-            else:
-                logger.warning(
-                    'image segment is masked, but contains neither \n\t'
-                    'transparency mask nor block mask? This is unexpected.')
-                mask_offsets = None
-        else:
-            mask_offsets = None
-        exclude_value = 0xFFFFFFFF  # only used if there is a mask...
-
-        row_block_size, column_block_size = self._get_block_sizes(img_header, this_rows, this_cols)
-        band_offset = int(row_block_size*column_block_size*img_header.NBPP/8)  # verified to be integer already
-
-        num_blocks = img_header.NBPC*img_header.NBPR
-        bsq_chippers = [None for _ in range(num_blocks)]  # type: List[Union[None, BSQChipper]]
-
-        # construct bounds for the chippers
-        bounds = self._construct_block_bounds(img_header, row_block_size, column_block_size)
-
-        for block_number in range(num_blocks):
-            if mask_offsets is not None:
-                this_offset = mask_offsets[0, block_number]
-                if this_offset == exclude_value:
-                    continue  # skip this block
-
-            bip_chippers = []
-            for band_number in range(raw_bands):
-                block_bounds = bounds[block_number]
-                block_rows = int(block_bounds[1] - block_bounds[0])
-                block_cols = int(block_bounds[3] - block_bounds[2])
-                this_offset = band_number*band_offset
-                bip_chippers.append(
-                    BIPChipper(
-                        self.file_object, raw_dtype, (block_rows, block_cols), 1, 1, raw_dtype,
-                        symmetry=self._symmetry, transform_data=None, data_offset=data_offset+this_offset,
-                        limit_to_raw_bands=None))
-            bsq_chippers[block_number] = BSQChipper(
-                bip_chippers, output_dtype, transform_data=transform_data, limit_to_raw_bands=limit_to_raw_bands)
-
-        populated_chippers = []
-        populated_bounds = []
-        for i, entry in enumerate(bsq_chippers):
-            if entry is None:
-                continue
-            else:
-                populated_chippers.append(entry)
-                populated_bounds.append(bounds[i])
-        populated_bounds = numpy.array(populated_bounds, dtype='int64')
-        return AggregateChipper(populated_bounds, output_dtype, populated_chippers, output_bands=output_bands)
-
-    def _create_band_interleaved_by_row_chipper(
-            self, img_header, data_offset, this_rows, this_cols, raw_dtype, raw_bands,
-            output_dtype, output_bands, transform_data, limit_to_raw_bands):
-
-        if img_header.NBPR == 1 and img_header.NBPC == 1:
-            # it's one single block
-            return BIRChipper(
-                self.file_object, raw_dtype, (this_rows, this_cols), raw_bands, output_bands, output_dtype,
-                symmetry=self._symmetry, transform_data=transform_data,
-                data_offset=data_offset, limit_to_raw_bands=limit_to_raw_bands)
-
-        if img_header.is_masked:
-            # update the offset to skip the mask subheader
-            data_offset += img_header.mask_subheader.IMDATOFF
-            if img_header.mask_subheader.BMR is not None:
-                mask_offsets = img_header.mask_subheader.BMR
-            elif img_header.mask_subheader.TMR is not None:
-                mask_offsets = img_header.mask_subheader.TMR
-                logger.warning(
-                    'image segment contains a transparency mask - \n\t'
-                    'the transparency value is not currently used.')
-            else:
-                logger.warning(
-                    'image segment is masked, but contains neither \n\t'
-                    'transparency mask nor block mask? This is unexpected.')
-                mask_offsets = None
-        else:
-            mask_offsets = None
-        exclude_value = 0xFFFFFFFF  # only used if there is a mask...
-
-        # column (horizontal) block details
-        column_block_size = this_cols
-        if img_header.NBPR != 1:
-            column_block_size = img_header.NPPBH
-
-        # row (vertical) block details
-        row_block_size = this_rows
-        if img_header.NBPC != 1:
-            row_block_size = img_header.NPPBV
-
-        # iterate over our blocks and determine bounds and create chippers
-        bounds = []
-        chippers = []
-        # NB: NBPP previously verified to be one of 8, 16, 32, 64
-        bytes_per_pixel = int(img_header.NBPP*raw_bands/8)
-
-        # outer loop over rows inner loop over columns
-        current_offset = 0
-        block_row_end = 0
-        block_offset = int(img_header.NPPBH*img_header.NPPBV*bytes_per_pixel)
-        enumerated_block = 0
-        for vblock in range(img_header.NBPC):
-            # define the current row block start/end
-            block_row_start = block_row_end
-            block_row_end += row_block_size
-            block_row_end = min(this_rows, block_row_end)
-            block_col_end = 0
-            for hblock in range(img_header.NBPR):
-                # verify whether to include this block, or not
-                if mask_offsets is not None:
-                    expected_offset = mask_offsets[0][enumerated_block]
-                    if expected_offset == exclude_value:
-                        # this is a missing block
-                        # advance the block enumeration details and skip
-                        block_col_end += column_block_size
-                        block_col_end = min(this_cols, block_col_end)
-                        enumerated_block += 1
-                        continue
-                    if expected_offset < current_offset:
-                        raise ValueError(
-                            'In the masked image, the expected offset is {} and the current offset is {},\n'
-                            'for block {} = ({}, {})'.format(
-                                expected_offset, current_offset, enumerated_block, vblock, hblock))
-                    if expected_offset > current_offset:
-                        # don't read masked pixels...
-                        current_offset = expected_offset
-
-                # define the current column block
-                block_col_start = block_col_end
-                block_col_end += column_block_size
-                block_col_end = min(this_cols, block_col_end)
-                # store our bounds and offset
-                bounds.append((block_row_start, block_row_end, block_col_start, block_col_end))
-                # create chipper
-                chip_rows = block_row_end - block_row_start
-                chip_cols = column_block_size
-                if block_col_end == block_col_start + column_block_size:
-                    chippers.append(
-                        BIRChipper(
-                            self.file_object, raw_dtype, (chip_rows, chip_cols),
-                            raw_bands, output_bands, output_dtype,
-                            symmetry=self._symmetry, transform_data=transform_data,
-                            data_offset=int(current_offset+data_offset), limit_to_raw_bands=limit_to_raw_bands))
-                else:
-                    c_row_start, c_row_end = 0, chip_rows
-                    c_col_start, c_col_end = 0, block_col_end - block_col_start
-                    if self._symmetry[1]:
-                        c_col_start = column_block_size - c_col_end
-                        c_col_end = column_block_size - c_col_start
-                    if self._symmetry[2]:
-                        c_row_start, c_row_end, c_col_start, c_col_end = \
-                            c_col_start, c_col_end, c_row_start, c_row_end
-
-                    p_chipper = BIRChipper(
-                        self.file_object, raw_dtype, (chip_rows, chip_cols),
-                        raw_bands, output_bands, output_dtype,
-                        symmetry=self._symmetry, transform_data=transform_data,
-                        data_offset=int(current_offset+data_offset), limit_to_raw_bands=limit_to_raw_bands)
-                    chippers.append(SubsetChipper(p_chipper, (c_row_start, c_row_end), (c_col_start, c_col_end)))
-
-                # update the block and offset
-                enumerated_block += 1
-                current_offset += block_offset  # NB: this may contain pad pixels
-
-        bounds = numpy.array(bounds, dtype=numpy.int64)
-        total_rows = bounds[-1, 1]
-        total_cols = bounds[-1, 3]
-        if total_rows != this_rows or total_cols != this_cols:
-            raise ValueError('Got unexpected chipper construction')
-        if self._symmetry[0]:
-            t_bounds = bounds.copy()
-            bounds[:, 0] = total_rows - t_bounds[:, 1]
-            bounds[:, 1] = total_rows - t_bounds[:, 0]
-        if self._symmetry[1]:
-            t_bounds = bounds.copy()
-            bounds[:, 2] = total_cols - t_bounds[:, 3]
-            bounds[:, 3] = total_cols - t_bounds[:, 2]
-        if self._symmetry[2]:
-            t_bounds = bounds.copy()
-            bounds[:, :2] = t_bounds[:, 2:]
-            bounds[:, 2:] = t_bounds[:, :2]
-        return AggregateChipper(bounds, output_dtype, chippers, output_bands=output_bands)
-
-    def _define_chipper(self, index, raw_dtype=None, raw_bands=None, transform_data=None,
-                        output_bands=None, output_dtype=None, limit_to_raw_bands=None):
-        """
-        Gets the chipper for the given image segment.
-
-        Parameters
-        ----------
-        index : int
-            The index of the image segment.
-        raw_dtype : None|str|numpy.dtype|numpy.number
-            The underlying data type of the image segment.
-        raw_bands : None|int
-            The number of bands of the image segment.
-        transform_data : None|str|callable
-            The transform_data parameter for the image segment chipper.
-        output_bands : None|int
-            The number of output bands from the chipper, after transform_data application.
-        output_dtype : None|str|numpy.dtype|numpy.number
-            The output data type from the chipper.
-        limit_to_raw_bands : None|int|list|tuple|numpy.ndarray
-            The parameter for limiting bands for the chipper.
-
-        Returns
-        -------
-        BIPChipper|AggregateChipper
-        """
-
-        def handle_compressed():
-            if PIL is None:
-                raise ValueError('handling image segments with compression require PIL.')
-
-            # extract the image and dump out to a flat file
-            image_offset = self.nitf_details.img_segment_offsets[index]
-            image_size = self.nitf_details.nitf_header.ImageSegments.item_sizes[index]
-            our_memmap = MemMap(self.file_object, image_size, image_offset)
-            img = PIL.Image.open(our_memmap)  # this is a lazy operation
-            # dump the extracted image data out to a temp file
-            fi, path_name = mkstemp(suffix='.sarpy_cache', text=False)
-            logger.warning(
-                'Naively trying to use PIL to decompress image segment index {} of {}\n\t'
-                'to flat file {}.\n\t'
-                'The created cache file should be safely deleted,\n\t'
-                'with the possible exception of fatal execution error.\n\t'
-                'This is likely to not work unless IMODE ({} here) is `P` and\n\t'
-                'the image is a single block.'.format(self.file_name, index, path_name, img_header.IMODE))
-            data = numpy.asarray(img)  # create our numpy array from the PIL Image
-            if data.shape[:2] != (this_rows, this_cols):
-                raise ValueError(
-                    'Naively decompressed data of shape {}, but expected ({}, {}, {}). '
-                    'This is potentially due to image blocks.'.format(data.shape, this_rows, this_cols, raw_bands))
-            mem_map = numpy.memmap(path_name, dtype=data.dtype, mode='w+', offset=0, shape=data.shape)
-            mem_map[:] = data
-            # clean up this memmap and file overhead
-            del mem_map
-            os.close(fi)
-            self._cached_files.append(path_name)
-
-            return BIPChipper(
-                path_name, raw_dtype, (this_rows, this_cols), raw_bands, output_bands, output_dtype,
-                symmetry=self._symmetry, transform_data=transform_data, data_offset=0,
-                limit_to_raw_bands=limit_to_raw_bands)
-
-        # verify that this image segment is viable
-        if not self._compliance_check(index):
-            raise ValueError(
-                'It is not viable to construct a chipper for the image segment at '
-                'index {}'.format(index))
-
-        # define fundamental chipper parameters
-        img_header = self.nitf_details.img_headers[index]
-        this_raw_dtype, this_output_dtype, this_raw_bands, this_output_bands, \
-            this_transform_data = self._extract_chipper_params(index)
-
-        data_offset = self.nitf_details.img_segment_offsets[index]
-        # determine basic facts
-        this_rows = img_header.NROWS
-        this_cols = img_header.NCOLS
-
-        if raw_dtype is None:
-            raw_dtype = this_raw_dtype
-        if output_dtype is None:
-            output_dtype = this_output_dtype
-        if raw_bands is None:
-            raw_bands = this_raw_bands
-        if output_bands is None:
-            output_bands = this_output_bands
-        if transform_data is None:
-            transform_data = this_transform_data
-        # define the chipper
-        if img_header.IC in ['NC', 'NM']:
-            if img_header.IMODE == 'P':
-                return self._create_band_interleaved_by_pixel_chipper(
-                    img_header, data_offset, this_rows, this_cols, raw_dtype, raw_bands,
-                    output_dtype, output_bands, transform_data, limit_to_raw_bands)
-            elif img_header.IMODE == 'B':
-                return self._create_band_interleaved_by_block_chipper(
-                    img_header, data_offset, this_rows, this_cols, raw_dtype, raw_bands,
-                    output_dtype, output_bands, transform_data, limit_to_raw_bands)
-            elif img_header.IMODE == 'S':
-                return self._create_band_sequential_chipper(
-                    img_header, data_offset, this_rows, this_cols, raw_dtype, raw_bands,
-                    output_dtype, output_bands, transform_data, limit_to_raw_bands)
-            elif img_header.IMODE == 'R':
-                return self._create_band_interleaved_by_row_chipper(
-                    img_header, data_offset, this_rows, this_cols, raw_dtype, raw_bands,
-                    output_dtype, output_bands, transform_data, limit_to_raw_bands)
-            else:
-                raise ValueError('Unsupported IMODE {}'.format(img_header.IMODE))
-        elif img_header.IC in ['M1', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8']:
-            raise ValueError('Compressed and masked image segments not currently supported.')
-        elif img_header.IC in ['C0', 'C1', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'I1']:
-            return handle_compressed()
-        else:
-            raise ValueError('Got unhandled IC code {}'.format(img_header.IC))
-
-    def _get_chipper_partitioning(self, segment, rows, cols):
-        """
-        Construct the chipper partitioning for the given composite image.
-
-        Parameters
-        ----------
-        segment : List[int]
-            The list of NITF image segments indices which are pieced together
-            into a single image.
-        rows : int
-            The number of rows in composite image.
-        cols : int
-            The number of cols in the composite image.
-
-        Returns
-        -------
-        numpy.ndarray
-            The chipper partitioning for bounds, of the form
-            `[row start, row end, column start, column end]`.
-        """
-
-        if len(segment) == 1:
-            # nothing to really be done
-            return numpy.array([0, rows, 0, cols], dtype=numpy.int64)
-
-        bounds = []
-        p_row_start, p_row_end, p_col_start, p_col_end = None, None, None, None
-        for i, index in enumerate(segment):
-            # get this image subheader
-            img_header = self.nitf_details.img_headers[index]
-
-            # get the bytes offset for this nitf image segment
-            this_rows, this_cols = img_header.NROWS, img_header.NCOLS
-            if this_rows > rows or this_cols > cols:
-                raise ValueError(
-                    'NITF image segment at index {} has size ({}, {}), and cannot be part of an image of size '
-                    '({}, {})'.format(index, this_rows, this_cols, rows, cols))
-
-            # determine where this image segment fits in the overall image
-            if i == 0:
-                # establish the beginning
-                cur_row_start, cur_row_end = 0, this_rows
-                cur_col_start, cur_col_end = 0, this_cols
-            elif p_col_end < cols:
-                if this_rows != (p_row_end - p_row_start):
-                    raise ValueError(
-                        'Cannot stack a NITF image of size ({}, {}) next to a NITF image of size '
-                        '({}, {})'.format(this_rows, this_cols, p_row_end-p_col_end, p_col_end-p_col_start))
-                cur_row_start, cur_row_end = p_row_start, p_row_end
-                cur_col_start, cur_col_end = p_col_end, p_col_end + this_cols
-                if cur_col_end > cols:
-                    raise ValueError('Failed at horizontal NITF image segment assembly.')
-            elif p_col_end == cols:
-                # start a new vertical section
-                cur_row_start, cur_row_end = p_row_end, p_row_end + this_rows
-                cur_col_start, cur_col_end = 0, this_cols
-                if cur_row_end > rows:
-                    raise ValueError('Failed at vertical NITF image segment assembly.')
-            else:
-                raise ValueError('Got unexpected situation in NITF image assembly.')
-            bounds.append((cur_row_start, cur_row_end, cur_col_start, cur_col_end))
-            p_row_start, p_row_end, p_col_start, p_col_end = cur_row_start, cur_row_end, cur_col_start, cur_col_end
-        return numpy.array(bounds, dtype=numpy.int64)
-
-    def _find_segments(self):
-        """
-        Determine the image segment collections.
-
-        Returns
-        -------
-        List[List[int]]
-        """
-
-        # the default implementation is just to allow every viable segment
-        segments = []
-        for i, img_segment in enumerate(self.nitf_details.img_headers):
-            if self._compliance_check(i):
-                segments.append([i, ])
-        return segments
-
-    def _construct_chipper(self, segment, index):
-        """
-        Construct the appropriate chipper given the list of image
-        segment indices.
-
-        Parameters
-        ----------
-        segment : List[int]
-            The list of NITF image segments indices which are pieced together
-            into a single image.
-        index : int
-            The index of the composite image, in the composite image collection.
-            For a SICD, there will only be one composite image, but there may be
-            more for other NITF uses.
-
-        Returns
-        -------
-        sarpy.io.general.base.BaseChipper|List[sarpy.io.general.base.BaseChipper]
-        """
-
-        # this default behavior should be overridden for SICD/SIDD
-        return self._define_chipper(segment[0])
-
-    def __del__(self):
-        """
-        Clean up any cached files.
-
-        Returns
-        -------
-        None
-        """
-
-        if not hasattr(self, '_cached_files'):
-            return
-
-        del self._chipper
-        if callable(gc.collect):
-            gc.collect()
-
-        for fil in self._cached_files:
-            if os.path.exists(fil):
-                # noinspection PyBroadException
-                try:
-                    os.remove(fil)
-                    logger.info('Deleted cached file {}'.format(fil))
-                except Exception:
-                    logger.error(
-                        'Error in attempt to delete cached file {}.\n\t'
-                        'Manually delete this file'.format(fil), exc_info=True)
+        out = []
+        for index in range(len(self.image_segment_collections)):
+            out.append(self._create_data_segment_for_collection_element(index))
+        return out
 
 
 #####
@@ -3168,7 +2403,7 @@ def interpolate_corner_points_string(entry, rows, cols, icp):
 
 
 #########
-# TODO: outdated
+# TODO: update NITf writer...
 class NITFWriter(BaseWriter):
     __slots__ = (
         '_file_name', '_security_tags', '_nitf_header', '_nitf_header_written',

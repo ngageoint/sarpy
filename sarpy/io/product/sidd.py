@@ -1,5 +1,5 @@
 """
-Module for reading and writing SIDD files - should support SIDD version 1.0 and above.
+Module for reading and writing SIDD files.
 """
 
 __classification__ = "UNCLASSIFIED"
@@ -16,12 +16,13 @@ import numpy
 
 from sarpy.io.xml.base import parse_xml_from_string
 from sarpy.io.general.utils import is_file_like
-from sarpy.io.general.base import AggregateChipper, SarpyIOError
+from sarpy.io.general.base import SarpyIOError
 from sarpy.io.general.nitf import NITFDetails, NITFReader, NITFWriter, ImageDetails, DESDetails, \
     image_segmentation, get_npp_block, interpolate_corner_points_string
 from sarpy.io.general.nitf_elements.des import DataExtensionHeader, XMLDESSubheader
 from sarpy.io.general.nitf_elements.security import NITFSecurityTags
-from sarpy.io.general.nitf_elements.image import ImageSegmentHeader, ImageBands, ImageBand
+from sarpy.io.general.nitf_elements.image import ImageSegmentHeader, \
+    ImageSegmentHeader0, ImageBands, ImageBand
 
 from sarpy.io.product.base import SIDDTypeReader
 from sarpy.io.product.sidd2_elements.SIDD import SIDDType
@@ -201,83 +202,32 @@ class SIDDReader(NITFReader, SIDDTypeReader):
                 'valid sidd metadata.')
 
         self._nitf_details = nitf_details
-        SIDDTypeReader.__init__(self, self.nitf_details.sidd_meta, self.nitf_details.sicd_meta)
+        SIDDTypeReader.__init__(self, None, self.nitf_details.sidd_meta, self.nitf_details.sicd_meta)
         NITFReader.__init__(self, nitf_details, reader_type="SIDD")
+        self._check_sizes()
 
     @property
-    def nitf_details(self):
-        # type: () -> SIDDDetails
+    def nitf_details(self) -> SIDDDetails:
         """
         SIDDDetails: The SIDD NITF details object.
         """
 
         return self._nitf_details
 
-    def _find_segments(self):
-        # determine image segmentation from image headers
-        segments = [[] for _ in self._sidd_meta]
-        for i, img_header in enumerate(self.nitf_details.img_headers):
-            # skip anything but SAR for now (i.e. legend)
-            if img_header.ICAT != 'SAR':
-                continue
-
-            iid1 = img_header.IID1  # required to be of the form SIDD######
-            _check_iid_format(iid1, i)
-            element = int(iid1[4:7])
-            if element > len(self._sidd_meta):
-                raise ValueError('Got image segment id {}, but there are only {} '
-                                 'sidd elements'.format(iid1, len(self._sidd_meta)))
-            segments[element - 1].append(i)
-        # Ensure that all segments are populated
-        for i, entry in enumerate(segments):
-            if len(entry) < 1:
-                raise ValueError('Did not find any image segments for SIDD {}'.format(i))
-        return segments
-
-    def _check_img_details(self, segment):
-        raw_dtype, output_dtype, raw_bands, output_bands, transform_data = self._extract_chipper_params(segment[0])
-        for this_index in segment[1:]:
-            this_raw_dtype, this_output_dtype, this_raw_bands, this_output_bands, \
-                _ = self._extract_chipper_params(this_index)
-            if this_raw_dtype.name != raw_dtype.name:
-                raise ValueError(
-                    'Segments at index {} and {} have incompatible data types '
-                    '{} and {}'.format(segment[0], this_index, raw_dtype, this_raw_dtype))
-            if this_output_dtype.name != output_dtype.name:
-                raise ValueError(
-                    'Segments at index {} and {} have incompatible output data types '
-                    '{} and {}'.format(segment[0], this_index, output_dtype, this_output_dtype))
-            if this_raw_bands != raw_bands:
-                raise ValueError(
-                    'Segments at index {} and {} have incompatible input bands '
-                    '{} and {}'.format(segment[0], this_index, raw_bands, this_raw_bands))
-            if this_output_bands != output_bands:
-                raise ValueError(
-                    'Segments at index {} and {} have incompatible output bands '
-                    '{} and {}'.format(segment[0], this_index, output_bands, this_output_bands))
-        return raw_dtype, output_dtype, raw_bands, output_bands, transform_data
-
-    def _construct_chipper(self, segment, index):
-        # get the image size
-        sidd = self.sidd_meta[index]
-        rows = sidd.Measurement.PixelFootprint.Row
-        cols = sidd.Measurement.PixelFootprint.Col
-
-        # extract the basic elements for the chippers
-        raw_dtype, output_dtype, raw_bands, output_bands, transform_data = self._check_img_details(segment)
-        if len(segment) == 1:
-            return self._define_chipper(
-                segment[0], raw_dtype=raw_dtype, raw_bands=raw_bands, transform_data=transform_data,
-                output_dtype=output_dtype, output_bands=output_bands)
-        else:
-            # get the bounds definition
-            bounds = self._get_chipper_partitioning(segment, rows, cols)
-            # define the chippers
-            chippers = [
-                self._define_chipper(img_index, raw_dtype=raw_dtype, raw_bands=raw_bands, transform_data=transform_data,
-                                     output_dtype=output_dtype, output_bands=output_bands) for img_index in segment]
-            # define the aggregate chipper
-            return AggregateChipper(bounds, output_dtype, chippers, output_bands=output_bands)
+    def _check_image_header_for_compliance(
+            self,
+            index: int,
+            img_header: Union[ImageSegmentHeader, ImageSegmentHeader0]) -> bool:
+        out = True
+        # skip anything but SAR for now (i.e. legend)
+        if img_header.ICAT != 'SAR':
+            logger.info('Image segment at index {} has ICAT != SAR'.format(index))
+            out = False
+        if not img_header.IID1.startswith('SIDD'):
+            logger.info('Image segment at index {} has IID1 {}'.format(
+                index, img_header.IID1))
+            out = False
+        return out & NITFReader._check_image_header_for_compliance(self, index, img_header)
 
 
 ########
@@ -473,6 +423,7 @@ def extract_clsy(the_sidd: Union[SIDDType, SIDDType1]) -> str:
         return owner[:2]
 
 
+# TODO: revamp the SIDD writer
 class SIDDWriter(NITFWriter):
     """
     Writer class for a SIDD file - a NITF file containing data derived from complex radar data and

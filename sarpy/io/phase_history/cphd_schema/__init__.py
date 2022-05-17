@@ -44,7 +44,7 @@ def check_urn(urn_string: str) -> str:
             'Expected a urn input of string type, got type {}'.format(type(urn_string)))
 
     the_match = re.match(r'^\d.\d.\d$', urn_string)
-    if the_match is None:
+    if the_match is not None:
         urn_string = 'urn:CPHD:{}'.format(urn_string)
 
     the_match = re.match(r'^urn:CPHD:\d.\d.\d$', urn_string)

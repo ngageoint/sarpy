@@ -15,7 +15,6 @@ from sarpy.io.product.sidd1_elements.SIDD import SIDDType as SIDDType1
 from sarpy.io.product.sidd2_elements.SIDD import SIDDType as SIDDType2
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 
-# TODO: use _check_sizes()?
 
 class SIDDTypeReader(BaseReader):
     def __init__(self,
@@ -59,7 +58,7 @@ class SIDDTypeReader(BaseReader):
         elif isinstance(sicd_meta, SICDType):
             self._sicd_meta = (sicd_meta, )
         else:
-            temp_list = [] # type: List[SICDType]
+            temp_list = []  # type: List[SICDType]
             for el in sicd_meta:
                 if not isinstance(el, SICDType):
                     raise TypeError(
@@ -74,6 +73,11 @@ class SIDDTypeReader(BaseReader):
     def _check_sizes(self) -> None:
         data_sizes = self.get_data_size_as_tuple()
         sidds = self.get_sidds_as_tuple()
+        if len(data_sizes) != len(sidds):
+            raise ValueError(
+                'Got mismatched number of data segments ({}) and sidds ({})'.format(
+                    len(data_sizes), len(sidds)))
+
         agree = True
         msg = ''
         for i, (data_size, sidd) in enumerate(zip(data_sizes, sidds)):
