@@ -1,5 +1,6 @@
 """
-Module for reading and writing CPHD files - should support reading CPHD version 0.3 and 1.0 and writing version 1.0.
+Module for reading and writing CPHD files. Support reading CPHD version 0.3 and 1.0
+and writing version 1.0.
 """
 
 __classification__ = "UNCLASSIFIED"
@@ -22,8 +23,10 @@ from sarpy.io.general.slice_parsing import verify_subscript, verify_slice
 from sarpy.io.phase_history.base import CPHDTypeReader
 from sarpy.io.phase_history.cphd1_elements.utils import binary_format_string_to_dtype
 # noinspection PyProtectedMember
-from sarpy.io.phase_history.cphd1_elements.CPHD import CPHDType as CPHDType1_0, CPHDHeader as CPHDHeader1_0, _CPHD_SECTION_TERMINATOR
-from sarpy.io.phase_history.cphd0_3_elements.CPHD import CPHDType as CPHDType0_3, CPHDHeader as CPHDHeader0_3
+from sarpy.io.phase_history.cphd1_elements.CPHD import CPHDType as CPHDType1_0, \
+    CPHDHeader as CPHDHeader1_0, _CPHD_SECTION_TERMINATOR
+from sarpy.io.phase_history.cphd0_3_elements.CPHD import CPHDType as CPHDType0_3, \
+    CPHDHeader as CPHDHeader0_3
 
 logger = logging.getLogger(__name__)
 

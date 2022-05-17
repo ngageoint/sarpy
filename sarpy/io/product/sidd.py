@@ -9,7 +9,7 @@ __author__ = "Thomas McCullough"
 import logging
 from functools import reduce
 import re
-from typing import List, Union, BinaryIO
+from typing import List, Tuple, Sequence, Union, BinaryIO, Optional
 from datetime import datetime
 
 import numpy
@@ -38,37 +38,6 @@ logger = logging.getLogger(__name__)
 _class_priority = {'U': 0, 'R': 1, 'C': 2, 'S': 3, 'T': 4}
 
 
-########
-# base expected functionality for a module with an implemented Reader
-
-def is_a(file_name):
-    """
-    Tests whether a given file_name corresponds to a SIDD file.
-    Returns a reader instance, if so.
-
-    Parameters
-    ----------
-    file_name : str
-        the file_name to check
-
-    Returns
-    -------
-    SIDDReader|None
-        `SIDDReader` instance if SIDD file, `None` otherwise
-    """
-
-    try:
-        nitf_details = SIDDDetails(file_name)
-        if nitf_details.is_sidd:
-            logger.info('File {} is determined to be a SIDD (NITF format) file.'.format(file_name))
-            return SIDDReader(nitf_details)
-        else:
-            return None
-    except SarpyIOError:
-        # we don't want to catch parsing errors, for now
-        return None
-
-
 #########
 # Helper object for initially parses NITF header - specifically looking for SICD elements
 
@@ -82,7 +51,7 @@ class SIDDDetails(NITFDetails):
         '_is_sidd', '_sidd_meta', '_sicd_meta',
         'img_segment_rows', 'img_segment_columns')
 
-    def __init__(self, file_object):
+    def __init__(self, file_object: Union[str, BinaryIO]):
         """
 
         Parameters
@@ -95,7 +64,8 @@ class SIDDDetails(NITFDetails):
         self._is_sidd = False
         self._sidd_meta = None
         self._sicd_meta = None
-        super(SIDDDetails, self).__init__(file_object)
+        NITFDetails.__init__(self, file_object)
+
         if self._nitf_header.ImageSegments.subhead_sizes.size == 0:
             raise SarpyIOError('There are no image segments defined.')
         if self._nitf_header.GraphicsSegments.item_sizes.size > 0:
@@ -104,10 +74,13 @@ class SIDDDetails(NITFDetails):
             raise SarpyIOError(
                 'A SIDD file requires at least one data extension, containing the '
                 'SIDD xml structure.')
+
         # define the sidd and sicd metadata
         self._find_sidd()
         if not self.is_sidd:
             raise SarpyIOError('Could not find SIDD xml data extensions.')
+
+        # TODO: what is this for?
         # populate the image details
         self.img_segment_rows = numpy.zeros(self.img_segment_offsets.shape, dtype=numpy.int64)
         self.img_segment_columns = numpy.zeros(self.img_segment_offsets.shape, dtype=numpy.int64)
@@ -116,7 +89,7 @@ class SIDDDetails(NITFDetails):
             self.img_segment_columns[i] = im_header.NCOLS
 
     @property
-    def is_sidd(self):
+    def is_sidd(self) -> bool:
         """
         bool: whether file name corresponds to a SIDD file, or not.
         """
@@ -124,22 +97,22 @@ class SIDDDetails(NITFDetails):
         return self._is_sidd
 
     @property
-    def sidd_meta(self):
+    def sidd_meta(self) -> Union[SIDDType, SIDDType1, List[SIDDType], List[SIDDType1]]:
         """
-        None|List[sarpy.io.product.sidd2_elements.SIDD.SIDDType]: the sidd meta-data structure(s).
+        None|SIDDType|SIDDType1|List[SIDDType]|List[SIDDType1]: the sidd meta-data structure(s).
         """
 
         return self._sidd_meta
 
     @property
-    def sicd_meta(self):
+    def sicd_meta(self) -> Optional[List[SICDType]]:
         """
-        None|List[sarpy.io.complex.sicd_elements.SICD.SICDType]: the sicd meta-data structure(s).
+        None|List[SICDType]: the sicd meta-data structure(s).
         """
 
         return self._sicd_meta
 
-    def _find_sidd(self):
+    def _find_sidd(self) -> None:
         self._is_sidd = False
         if self.des_subheader_offsets is None:
             return
@@ -197,7 +170,7 @@ class SIDDDetails(NITFDetails):
 #######
 #  The actual reading implementation
 
-def _check_iid_format(iid1, i):
+def _check_iid_format(iid1: str, i: int) -> None:
     if not (iid1[:4] == 'SIDD' and iid1[4:].isnumeric()):
         raise ValueError('Got poorly formatted image segment id {} at position {}'.format(iid1, i))
 
@@ -307,10 +280,42 @@ class SIDDReader(NITFReader, SIDDTypeReader):
             return AggregateChipper(bounds, output_dtype, chippers, output_bands=output_bands)
 
 
+########
+# base expected functionality for a module with an implemented Reader
+
+def is_a(file_name: Union[str, BinaryIO]) -> Optional[SIDDReader]:
+    """
+    Tests whether a given file_name corresponds to a SIDD file.
+    Returns a reader instance, if so.
+
+    Parameters
+    ----------
+    file_name : str
+        the file_name to check
+
+    Returns
+    -------
+    SIDDReader|None
+        `SIDDReader` instance if SIDD file, `None` otherwise
+    """
+
+    try:
+        nitf_details = SIDDDetails(file_name)
+        if nitf_details.is_sidd:
+            logger.info('File {} is determined to be a SIDD (NITF format) file.'.format(file_name))
+            return SIDDReader(nitf_details)
+        else:
+            return None
+    except SarpyIOError:
+        # we don't want to catch parsing errors, for now
+        return None
+
+
 #########
 # The writer implementation
 
-def validate_sidd_for_writing(sidd_meta):
+def validate_sidd_for_writing(
+        sidd_meta: Union[SIDDType, SIDDType1, List[SIDDType], List[SIDDType1]]) -> Union[Tuple[SIDDType, ...], Tuple[SIDDType1, ...]]:
     """
     Helper method which ensures the provided SIDD structure is appropriate.
 
@@ -320,10 +325,10 @@ def validate_sidd_for_writing(sidd_meta):
 
     Returns
     -------
-    Tuple[Union[SIDDType, SIDDType1]]
+    Tuple[SIDDType, ...]|Tuple[SIDDType1, ...]
     """
 
-    def inspect_sidd(the_sidd):
+    def inspect_sidd(the_sidd: Union[SIDDType, SIDDType1]) -> None:
         # we must have the image size
         if the_sidd.Measurement is None:
             raise ValueError('The sidd_meta has un-populated Measurement, '
@@ -386,7 +391,7 @@ def validate_sidd_for_writing(sidd_meta):
                         'of such instances, got {}'.format(type(sidd_meta)))
 
 
-def validate_sicd_for_writing(sicd_meta):
+def validate_sicd_for_writing(sicd_meta: Union[SICDType, Sequence[SICDType]]) -> Optional[Tuple[SICDType, ...]]:
     """
     Helper method which ensures the provided SICD structure is appropriate.
 
@@ -416,7 +421,7 @@ def validate_sicd_for_writing(sicd_meta):
                         'of such instances, got {}'.format(type(sicd_meta)))
 
 
-def extract_clas(the_sidd):
+def extract_clas(the_sidd: Union[SIDDType, SIDDType1]) -> str:
     """
     Extract the classification string from a SIDD as appropriate for NITF Security
     tags CLAS attribute.
@@ -438,7 +443,7 @@ def extract_clas(the_sidd):
         return class_str[:1]
 
 
-def extract_clsy(the_sidd):
+def extract_clsy(the_sidd: Union[SIDDType, SIDDType1]) -> str:
     """
     Extract the ownerProducer string from a SIDD as appropriate for NITF Security
     tags CLSY attribute.

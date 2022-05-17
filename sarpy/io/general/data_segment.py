@@ -176,8 +176,13 @@ class DataSegment(object):
     read or written as an array. This is generally designed for images, but is
     general enough to support other usage.
 
-    New in version 1.3.0.
+    **New in version 1.3.0.**
+
+    .. warning::
+        The format function instance will be modified in place. Do not use the
+        same format function instance across multiple data segments.
     """
+
     _allowed_modes = ('r', 'w')
 
     __slots__ = (
@@ -210,6 +215,7 @@ class DataSegment(object):
             The transpose operation to perform to the raw data, after applying
             any axis reversal, and before applying any format function
         format_function : None|FormatFunction
+            Note that the format function instance
         mode : str
         """
 

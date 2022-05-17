@@ -274,7 +274,10 @@ class MaskSubheader(NITFElement):
         # type: () -> Union[None, numpy.ndarray]
         """
         None|numpy.ndarray: The block mask records array. This will be None if
-        and only if `BMRLNTH=0`
+        and only if `BMRLNTH=0`. Each entry records the offset in bytes from
+        the beginning of the blocked image data to the first byte of the respective
+        block. If the block is not recorded/transmitted (i.e. present), then the
+        offset value is defaulted to `0xFFFFFFFF`.
         """
 
         return self._BMR
@@ -305,7 +308,10 @@ class MaskSubheader(NITFElement):
         # type: () -> Union[None, numpy.ndarray]
         """
         None|numpy.ndarray: The transparent mask records array. This will be None if
-        and only if `TMRLNTH=0`
+        and only if `TMRLNTH=0`. Each entry records the offset in bytes from
+        the beginning of the blocked image data to the first byte of the respective
+        block (if this block contains pad pixels), or the default value `0xFFFFFFFF`
+        to indicate that this block does not contain pad pixels.
         """
 
         return self._TMR

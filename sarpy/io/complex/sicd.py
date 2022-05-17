@@ -10,7 +10,7 @@ import re
 import logging
 import os
 from datetime import datetime
-from typing import BinaryIO
+from typing import BinaryIO, Union, Optional
 
 import numpy
 
@@ -33,35 +33,6 @@ from sarpy.io.general.nitf_elements.image import ImageSegmentHeader, ImageBands,
 logger = logging.getLogger(__name__)
 
 
-########
-# base expected functionality for a module with an implemented Reader
-
-def is_a(file_name):
-    """
-    Tests whether a given file_name corresponds to a SICD file, and returns
-    a reader instance, if so.
-
-    Parameters
-    ----------
-    file_name : str
-        the file_name to check
-
-    Returns
-    -------
-    SICDReader|None
-    """
-
-    try:
-        nitf_details = SICDDetails(file_name)
-        if nitf_details.is_sicd:
-            logger.info('File {} is determined to be a SICD (NITF format) file.'.format(file_name))
-            return SICDReader(nitf_details)
-        else:
-            return None
-    except SarpyIOError:
-        return None
-
-
 #########
 # Helper object for initially parses NITF header - specifically looking for SICD elements
 
@@ -74,7 +45,7 @@ class SICDDetails(NITFDetails):
         '_des_index', '_des_header', '_is_sicd', '_sicd_meta',
         'img_segment_rows', 'img_segment_columns')
 
-    def __init__(self, file_object):
+    def __init__(self, file_object: Union[str, BinaryIO]):
         """
 
         Parameters
@@ -88,18 +59,23 @@ class SICDDetails(NITFDetails):
         self._img_headers = None
         self._is_sicd = False
         self._sicd_meta = None
-        super(SICDDetails, self).__init__(file_object)
+        NITFDetails.__init__(self, file_object)
+
         if self._nitf_header.ImageSegments.subhead_sizes.size == 0:
             raise SarpyIOError('There are no image segments defined.')
         if self._nitf_header.GraphicsSegments.item_sizes.size > 0:
             raise SarpyIOError('A SICD file does not allow for graphics segments.')
         if self._nitf_header.DataExtensions.subhead_sizes.size == 0:
-            raise SarpyIOError('A SICD file requires at least one data extension, containing the '
-                          'SICD xml structure.')
+            raise SarpyIOError(
+                'A SICD file requires at least one data extension, containing the '
+                'SICD xml structure.')
+
         # define the sicd metadata
         self._find_sicd()
         if not self.is_sicd:
             raise SarpyIOError('Could not find the SICD XML des.')
+
+        # TODO: what is this used for?
         # populate the image details
         self.img_segment_rows = numpy.zeros(self.img_segment_offsets.shape, dtype=numpy.int64)
         self.img_segment_columns = numpy.zeros(self.img_segment_offsets.shape, dtype=numpy.int64)
@@ -108,7 +84,7 @@ class SICDDetails(NITFDetails):
             self.img_segment_columns[i] = im_header.NCOLS
 
     @property
-    def is_sicd(self):
+    def is_sicd(self) -> bool:
         """
         bool: whether file name corresponds to a SICD file, or not.
         """
@@ -116,26 +92,26 @@ class SICDDetails(NITFDetails):
         return self._is_sicd
 
     @property
-    def sicd_meta(self):
+    def sicd_meta(self) -> SICDType:
         """
-        sarpy.io.complex.sicd_elements.SICD.SICDType: the sicd meta-data structure.
+        SICDType: the sicd meta-data structure.
         """
 
         return self._sicd_meta
 
     @property
-    def des_header(self):
+    def des_header(self) -> Optional[DataExtensionHeader]:
         """
         The DES subheader object associated with the SICD.
 
         Returns
         -------
-        None|sarpy.io.general.nitf_elements.des.DataExtensionHeader
+        DataExtensionHeader
         """
 
         return self._des_header
 
-    def _find_sicd(self):
+    def _find_sicd(self) -> None:
         self._is_sicd = False
         self._sicd_meta = None
         if self.des_subheader_offsets is None:
@@ -204,85 +180,6 @@ class SICDDetails(NITFDetails):
         except Exception as e:
             pass
         # TODO: account for the reference frequency offset situation
-
-    def is_des_well_formed(self):
-        """
-        Returns whether the data extension subheader well-formed. Returns `None`
-        if the DataExtensionHeader or the UserHeader section of it was not successfully
-        parsed. Currently just checks the `DESSHSI` field for the required value.
-
-        Returns
-        -------
-        bool|None
-        """
-
-        if not self._is_sicd or self.des_header is None or \
-                not isinstance(self.des_header, DataExtensionHeader):
-            return None
-
-        sicd_des = self._des_header.UserHeader
-        if not isinstance(sicd_des, XMLDESSubheader):
-            return None
-        return sicd_des.DESSHSI.strip() == get_specification_identifier()
-
-    def repair_des_header(self):
-        """
-        Determines whether the data extension subheader is well-formed, and tries
-        to repair it if not. Currently just sets the `DESSHSI` field to the
-        required value.
-
-        Returns `0` if wellformedness could not be evaluated, `1` if no change was
-        required, `2` if the subheader was replaced, and `3` if the replacement effort
-        failed (details logged at error level).
-
-        Returns
-        -------
-        int
-        """
-
-        stat = self.is_des_well_formed()
-        if stat is None:
-            return 0
-        elif stat:
-            return 1
-
-        sicd_des = self._des_header.UserHeader
-        sicd_des.DESSHSI = get_specification_identifier()
-        stat = self.rewrite_des_header()
-        return 2 if stat else 3
-
-    def rewrite_des_header(self):
-        """
-        Rewrites the DES subheader associated with the SICD from the current
-        value in `des_header` property. This allows minor modifications to the
-        security tags or user header information.
-
-        Returns
-        -------
-        bool
-            True is the modification was successful and False otherwise. Note that
-            no errors, in particular io errors from write permission issues,
-            are caught.
-        """
-
-        if not self._is_sicd:
-            return False
-
-        des_bytes = self.des_header.to_bytes()
-        des_size = self._nitf_header.DataExtensions.subhead_sizes[self._des_index]
-        if len(des_bytes) != des_size:
-            logger.error(
-                "The size of the current des header {} bytes,\n\t"
-                "does not match the previous {} bytes.\n\t"
-                "They cannot be trivially replaced.".format(des_bytes, des_size))
-            return False
-        des_loc = self.des_subheader_offsets[self._des_index]
-        if not os.path.exists(self._file_name):
-            raise ValueError('Operation not allowed.')
-        with open(self._file_name, 'r+b') as fi:
-            fi.seek(des_loc, os.SEEK_SET)
-            fi.write(des_bytes)
-        return True
 
 
 #######
@@ -456,10 +353,39 @@ class SICDReader(NITFReader, SICDTypeReader):
             return AggregateChipper(bounds, 'complex64', chippers, output_bands=1)
 
 
+########
+# base expected functionality for a module with an implemented Reader
+
+def is_a(file_name: Union[str, BinaryIO]) -> Optional[SICDReader]:
+    """
+    Tests whether a given file_name corresponds to a SICD file, and returns
+    a reader instance, if so.
+
+    Parameters
+    ----------
+    file_name : str
+        the file_name to check
+
+    Returns
+    -------
+    SICDReader|None
+    """
+
+    try:
+        nitf_details = SICDDetails(file_name)
+        if nitf_details.is_sicd:
+            logger.info('File {} is determined to be a SICD (NITF format) file.'.format(file_name))
+            return SICDReader(nitf_details)
+        else:
+            return None
+    except SarpyIOError:
+        return None
+
+
 #######
 #  The actual writing implementation
 
-def validate_sicd_for_writing(sicd_meta):
+def validate_sicd_for_writing(sicd_meta: SICDType) -> SICDType:
     """
     Helper method which ensures the provided SICD structure provides enough
     information to support file writing, as well as ensures a few basic items
@@ -571,7 +497,7 @@ def complex_to_int(data):
     return out
 
 
-def extract_clas(sicd):
+def extract_clas(sicd: SICDType) -> str:
     """
     Extract the classification string from a SICD as appropriate for NITF Security
     tags CLAS attribute.
