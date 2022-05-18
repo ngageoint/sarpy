@@ -1295,6 +1295,14 @@ class NITFReader(BaseReader):
 
         return raw_dtype, formatted_dtype, formatted_bands, complex_order, lut
 
+    def _get_transpose(self, formatted_bands: int) -> Optional[Tuple[int, ...]]:
+        if self._transpose_axes is None:
+            return None
+        elif formatted_bands > 1:
+            return self._transpose_axes + (2,)
+        else:
+            return self._transpose_axes
+
     # noinspection PyMethodMayBeStatic, PyUnusedLocal
     def get_format_function(
             self,
@@ -1507,14 +1515,6 @@ class NITFReader(BaseReader):
         block_definition[:, 2:4:1] -= min_col
         return block_definition
 
-    def _get_transpose(self, formatted_bands: int) -> Optional[Tuple[int, ...]]:
-        if self._transpose_axes is None:
-            return None
-        elif formatted_bands > 1:
-            return self._transpose_axes + (2,)
-        else:
-            return self._transpose_axes
-
     def _handle_jpeg2k_no_mask(self, image_segment_index: int, apply_format: bool) -> DataSegment:
         # NOTE: it appears that the PIL to numpy array conversion will rearrange
         # bands to be in the final dimension, regardless of storage particulars?
@@ -1705,7 +1705,7 @@ class NITFReader(BaseReader):
                     'than populated blocks ({}) in masked image segment {}'.format(
                         len(jpeg_delimiters), len(anticipated_jpeg_indices), image_segment_index))
             for jpeg_delim, mask_index in zip(jpeg_delimiters, anticipated_jpeg_indices):
-                if mask_offsets[mask_index] != jpeg_delim[0]:
+                if anticipated_jpeg_indices[mask_index] != jpeg_delim[0]:
                     raise ValueError(
                         'Populated mask offsets ({})\n\t'
                         'do not agree with discovered jpeg offsets ({})\n\t'
@@ -1724,6 +1724,9 @@ class NITFReader(BaseReader):
         mem_map = numpy.memmap(
             path_name, dtype=raw_dtype, mode='w+', offset=0,
             shape=_get_shape(image_header.NROWS, image_header.NCOLS, raw_bands, band_dimension=2))
+        if image_header.is_masked:
+            mem_map.fill(0)  # TODO: missing value?
+
         next_jpeg_block = 0
         for mask_offset, block_bound in zip(mask_offsets, block_bounds):
             if mask_offset == exclude_value:
@@ -1810,6 +1813,14 @@ class NITFReader(BaseReader):
 
         if len(block_bounds) != len(block_offsets):
             raise ValueError('Got mismatch between block definition and block offsets definition')
+
+        final_block_ending = numpy.max(block_offsets[block_offsets != exclude_value]) + block_size + additional_offset
+        populated_ending = self.nitf_details.img_segment_sizes[image_segment_index]
+        if final_block_ending != populated_ending:
+            raise ValueError(
+                'Got mismatch between anticipated size {} and populated size {}\n\t'
+                'for image segment {}'.format(
+                    final_block_ending, populated_ending, image_segment_index))
 
         # determine output particulars
         if apply_format:
@@ -1907,10 +1918,114 @@ class NITFReader(BaseReader):
             close_children=True)
 
     def _handle_imode_s_jpeg(self, image_segment_index: int, apply_format: bool) -> DataSegment:
-        # TODO: handle IMODE S, JPEG data
-        # TODO: verify that we don't need to account for mask definition length
+        image_header = self.get_image_header(image_segment_index)
+        if image_header.IMODE != 'S' or image_header.IC not in ['C3', 'C5', 'M3', 'M5']:
+            raise ValueError(
+                'Requires IMODE = `S` and IC in `(C3, C5, M3, M5)`,\n\t'
+                'got `{}` and `{}` at image segment index {}'.format(
+                    image_header.IMODE, image_header.IC, image_segment_index))
+        if PIL_Image is None:
+            raise ValueError('Image segment {} is compressed, which requires PIL'.format(image_segment_index))
 
-        raise NotImplementedError
+        # get bytes offset to this image segment (relative to start of file)
+        offset = self.nitf_details.img_segment_offsets[image_segment_index]
+        image_segment_size = self.nitf_details.img_segment_sizes[image_segment_index]
+        raw_bands = len(image_header.Bands)
+        raw_dtype, formatted_dtype, formatted_bands, complex_order, lut = self._get_dtypes(image_segment_index)
+        # Establish block pixel bounds
+        block_bounds = self._construct_block_bounds(image_segment_index)
+        assert isinstance(block_bounds, list)
+
+        # get mask definition details
+        mask_offsets, exclude_value, additional_offset = self._get_mask_details(image_segment_index)
+        # NB: if defined, mask_offsets is a 2-d array here
+
+        # jpeg compression, read everything (skipping mask) and find the jpeg delimiters
+        the_bytes = self._read_file_data(offset+additional_offset, image_segment_size-additional_offset)
+        jpeg_delimiters = find_jpeg_delimiters(the_bytes)
+
+        # validate our discovered delimiters and the mask offsets
+        if mask_offsets is not None:
+            if not (isinstance(mask_offsets, numpy.ndarray) and mask_offsets.ndim == 2):
+                raise ValueError('Got unexpected mask offsets `{}`'.format(mask_offsets))
+
+            if len(block_bounds) != mask_offsets.shape[1]:
+                raise ValueError('Got mismatch between block definition and mask offsets definition')
+
+            # TODO: verify that we don't need to account for mask definition length
+            anticipated_jpeg_indices = [index for index, entry in enumerate(mask_offsets.ravel())
+                                        if entry != exclude_value]
+            if len(jpeg_delimiters) != len(anticipated_jpeg_indices):
+                raise ValueError(
+                    'Found different number of jpeg delimiters ({})\n\t'
+                    'than populated blocks ({}) in masked image segment {}'.format(
+                        len(jpeg_delimiters), len(anticipated_jpeg_indices), image_segment_index))
+            for jpeg_delim, mask_index in zip(jpeg_delimiters, anticipated_jpeg_indices):
+                if anticipated_jpeg_indices[mask_index] != jpeg_delim[0]:
+                    raise ValueError(
+                        'Populated mask offsets ({})\n\t'
+                        'do not agree with discovered jpeg offsets ({})\n\t'
+                        'with mask subheader length {}'.format(jpeg_delim, mask_offsets, additional_offset))
+
+        else:
+            if len(jpeg_delimiters) != len(block_bounds)*raw_bands:
+                raise ValueError(
+                    'Found different number of jpeg delimiters ({}) than blocks, bands ({}, {}) in image segment {}'.format(
+                        len(jpeg_delimiters), len(block_bounds), raw_bands, image_segment_index))
+            mask_offsets = numpy.reshape(
+                numpy.array([entry[0] for entry in jpeg_delimiters], dtype='int64'),
+                (raw_bands, len(block_bounds)))
+
+        # create a memmap, and extract all of our jpeg data into it as appropriate
+        raw_shape = _get_shape(image_header.NROWS, image_header.NCOLS, raw_bands, band_dimension=2)
+        fi, path_name = mkstemp(suffix='.sarpy_cache', text=False)
+        self._delete_temp_files.append(path_name)
+        mem_map = numpy.memmap(
+            path_name, dtype=raw_dtype, mode='w+', offset=0,
+            shape=raw_shape)
+        if image_header.is_masked:
+            mem_map.fill(0)  # TODO: missing value?
+
+        next_jpeg_block = 0
+        for band_number in range(raw_bands):
+            for mask_offset, block_bound in zip(mask_offsets, block_bounds):
+                if mask_offset == exclude_value:
+                    continue  # just skip it, it's masked out
+                jpeg_delim = jpeg_delimiters[next_jpeg_block]
+                img = PIL_Image.open(BytesIO(the_bytes[jpeg_delim[0]:jpeg_delim[1]]))
+                # handle block padding situation
+                row_start, row_end = block_bound[0], min(block_bound[1], image_header.NROWS)
+                col_start, col_end = block_bound[2], min(block_bound[3], image_header.NCOLS)
+                mem_map[row_start: row_end, col_start:col_end, band_number] = \
+                    numpy.asarray(img)[0:row_end - row_start, 0:col_end - col_start]
+                next_jpeg_block += 1
+
+        mem_map.flush()  # write all the data to the file
+        del mem_map  # clean up the memmap
+        os.close(fi)
+
+        if apply_format:
+            format_function = self.get_format_function(
+                raw_dtype, complex_order, lut, 2,
+                image_segment_index=image_segment_index)
+            reverse_axes = self._reverse_axes
+            if self._transpose_axes is None:
+                formatted_shape = _get_shape(image_header.NROWS, image_header.NCOLS, formatted_bands, band_dimension=2)
+            else:
+                formatted_shape = _get_shape(image_header.NCOLS, image_header.NROWS, formatted_bands, band_dimension=2)
+            transpose_axes = self._get_transpose(formatted_bands)
+        else:
+            format_function = None
+            reverse_axes = None
+            transpose_axes = None
+            formatted_dtype = raw_dtype
+            formatted_shape = raw_shape
+
+        return NumpyMemmapSegment(
+            path_name, 0, raw_dtype, raw_shape,
+            formatted_dtype, formatted_shape,
+            reverse_axes=reverse_axes, transpose_axes=transpose_axes,
+            format_function=format_function, mode='r', close_file=False)
 
     def _handle_imode_s_no_compression(self, image_segment_index: int, apply_format: bool) -> DataSegment:
         image_header = self.get_image_header(image_segment_index)
@@ -1946,6 +2061,16 @@ class NITFReader(BaseReader):
 
         if len(block_bounds) != block_offsets.shape[1]:
             raise ValueError('Got mismatch between block definition and block offsets definition')
+
+        block_offsets_flat = block_offsets.ravel()
+        final_block_ending = numpy.max(block_offsets_flat[block_offsets_flat != exclude_value]) + block_size + additional_offset
+        populated_ending = self.nitf_details.img_segment_sizes[image_segment_index]
+        if final_block_ending != populated_ending:
+            raise ValueError(
+                'Got mismatch between anticipated size {} and populated size {}\n\t'
+                'for image segment {}'.format(
+                    final_block_ending, populated_ending, image_segment_index))
+
 
         band_segments = []
         for band_number in range(raw_bands):
@@ -2193,6 +2318,34 @@ class NITFReader(BaseReader):
         for index in range(len(self.image_segment_collections)):
             out.append(self._create_data_segment_for_collection_element(index))
         return out
+
+
+########
+# base expected functionality for a module with an implemented Reader
+
+def is_a(file_name: Union[str, BinaryIO]) -> Union[None, NITFReader]:
+    """
+    Tests whether a given file_name corresponds to a nitf file. Returns a
+    nitf reader instance, if so.
+
+    Parameters
+    ----------
+    file_name : str|BinaryIO
+        the file_name to check
+
+    Returns
+    -------
+    None|NITFReader
+        `NITFReader` instance if nitf file, `None` otherwise
+    """
+
+    try:
+        nitf_details = NITFDetails(file_name)
+        logger.info('File {} is determined to be a nitf file.'.format(file_name))
+        return NITFReader(nitf_details)
+    except SarpyIOError:
+        # we don't want to catch parsing errors, for now
+        return None
 
 
 #####
@@ -3291,31 +3444,3 @@ class MemMap(object):
 
     def close(self):
         self._file_obj.close()
-
-
-########
-# base expected functionality for a module with an implemented Reader
-
-def is_a(file_name: Union[str, BinaryIO]) -> Union[None, NITFReader]:
-    """
-    Tests whether a given file_name corresponds to a nitf file. Returns a
-    nitf reader instance, if so.
-
-    Parameters
-    ----------
-    file_name : str|BinaryIO
-        the file_name to check
-
-    Returns
-    -------
-    None|NITFReader
-        `NITFReader` instance if nitf file, `None` otherwise
-    """
-
-    try:
-        nitf_details = NITFDetails(file_name)
-        logger.info('File {} is determined to be a nitf file.'.format(file_name))
-        return NITFReader(nitf_details)
-    except SarpyIOError:
-        # we don't want to catch parsing errors, for now
-        return None

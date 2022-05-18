@@ -175,10 +175,9 @@ def _check_iid_format(iid1: str) -> bool:
         return False
 
 
-# TODO: verify NITF reading compliance here
 class SIDDReader(NITFReader, SIDDTypeReader):
     """
-    A reader object for a SIDD file (NITF container with SICD contents)
+    A reader object for a SIDD file (NITF container with SIDD contents)
     """
 
     def __init__(self, nitf_details):
