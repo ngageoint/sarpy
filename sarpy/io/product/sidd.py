@@ -1,5 +1,5 @@
 """
-Module for reading and writing SIDD files.
+Module for reading and writing SIDD files
 """
 
 __classification__ = "UNCLASSIFIED"
@@ -30,7 +30,6 @@ from sarpy.io.product.sidd1_elements.SIDD import SIDDType as SIDDType1
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd import extract_clas as extract_clas_sicd
 
-# TODO: revamp this for 1.3.0
 
 logger = logging.getLogger(__name__)
 
@@ -171,11 +170,12 @@ class SIDDDetails(NITFDetails):
 #######
 #  The actual reading implementation
 
-def _check_iid_format(iid1: str, i: int) -> None:
+def _check_iid_format(iid1: str) -> bool:
     if not (iid1[:4] == 'SIDD' and iid1[4:].isnumeric()):
-        raise ValueError('Got poorly formatted image segment id {} at position {}'.format(iid1, i))
+        return False
 
 
+# TODO: verify NITF reading compliance here
 class SIDDReader(NITFReader, SIDDTypeReader):
     """
     A reader object for a SIDD file (NITF container with SICD contents)
@@ -214,20 +214,47 @@ class SIDDReader(NITFReader, SIDDTypeReader):
 
         return self._nitf_details
 
-    def _check_image_header_for_compliance(
+    def _check_image_segment_for_compliance(
             self,
             index: int,
             img_header: Union[ImageSegmentHeader, ImageSegmentHeader0]) -> bool:
+
+        out = NITFReader._check_image_segment_for_compliance(self, index, img_header)
+        if not out:
+            return out
+
         out = True
         # skip anything but SAR for now (i.e. legend)
         if img_header.ICAT != 'SAR':
             logger.info('Image segment at index {} has ICAT != SAR'.format(index))
             out = False
-        if not img_header.IID1.startswith('SIDD'):
-            logger.info('Image segment at index {} has IID1 {}'.format(
-                index, img_header.IID1))
+        if not _check_iid_format(img_header.IID1):
+            logger.info('Image segment at index {} has IID1 {}'.format(index, img_header.IID1))
             out = False
-        return out & NITFReader._check_image_header_for_compliance(self, index, img_header)
+        return out
+
+    def find_image_segment_collections(self) -> Tuple[Tuple[int, ...]]:
+        segments = [[] for _ in self._sidd_meta]  # the number of segments that we should have
+
+        for i, img_header in enumerate(self.nitf_details.img_headers):
+            if i in self.unsupported_segments:
+                continue  # skip these...
+
+            iid1 = img_header.IID1  # required to be of the form SIDD######
+            if not _check_iid_format(iid1):
+                raise ValueError('Got unhandled image segment at index {}'.format(i))
+            element = int(iid1[4:7])
+            if element > len(self._sidd_meta):
+                raise ValueError(
+                    'Got image segment iid1 {}, but there are only {} sidd elements'.format(
+                        iid1, len(self._sidd_meta)))
+            segments[element - 1].append(i)
+        # Ensure that all segments are populated with something...
+        for i, entry in enumerate(segments):
+            if len(entry) < 1:
+                raise ValueError('Did not find any image segments for SIDD {}'.format(i))
+        # noinspection PyTypeChecker
+        return tuple(tuple(entry) for entry in segments)
 
 
 ########

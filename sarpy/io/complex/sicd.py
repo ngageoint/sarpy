@@ -1,15 +1,15 @@
 """
-Module for reading SICD files - should support SICD version 0.3 and above.
+Module for reading and writing SICD files
 """
 
 __classification__ = "UNCLASSIFIED"
-__author__ = ("Thomas McCullough", "Wade Schwartzkopf")
+__author__ = "Thomas McCullough"
 
 
 import re
 import logging
 from datetime import datetime
-from typing import BinaryIO, Union, Optional
+from typing import BinaryIO, Union, Optional, Dict, Tuple
 
 import numpy
 
@@ -27,11 +27,11 @@ from sarpy.io.complex.sicd_elements.ImageCreation import ImageCreationType
 from sarpy.io.general.nitf import NITFDetails
 from sarpy.io.general.nitf_elements.des import DataExtensionHeader, XMLDESSubheader
 from sarpy.io.general.nitf_elements.security import NITFSecurityTags
-from sarpy.io.general.nitf_elements.image import ImageSegmentHeader, ImageBands, ImageBand
+from sarpy.io.general.nitf_elements.image import ImageSegmentHeader, \
+    ImageSegmentHeader0, ImageBands, ImageBand
 
 from sarpy.io.xml.base import parse_xml_from_string
 
-# TODO: revamp this for 1.3.0
 logger = logging.getLogger(__name__)
 
 
@@ -186,51 +186,7 @@ class SICDDetails(NITFDetails):
 #######
 #  The actual reading implementation
 
-def _validate_lookup(lookup_table):
-    # type: (numpy.ndarray) -> None
-    if not isinstance(lookup_table, numpy.ndarray):
-        raise ValueError('requires a numpy.ndarray, got {}'.format(type(lookup_table)))
-    if lookup_table.dtype.name != 'float64':
-        raise ValueError('requires a numpy.ndarray of float64 dtype, got {}'.format(lookup_table.dtype))
-    if lookup_table.shape != (256, ):
-        raise ValueError('Requires a one-dimensional numpy.ndarray with 256 elements, '
-                         'got shape {}'.format(lookup_table.shape))
-
-
-def amp_phase_to_complex(lookup_table):
-    """
-    This constructs the function to convert from AMP8I_PHS8I format data to complex64 data.
-
-    Parameters
-    ----------
-    lookup_table : numpy.ndarray
-
-    Returns
-    -------
-    callable
-    """
-
-    _validate_lookup(lookup_table)
-
-    def converter(data):
-        if not isinstance(data, numpy.ndarray):
-            raise ValueError('requires a numpy.ndarray, got {}'.format(type(data)))
-
-        if data.dtype.name != 'uint8':
-            raise ValueError('requires a numpy.ndarray of uint8 dtype, got {}'.format(data.dtype.name))
-
-        if len(data.shape) != 3:
-            raise ValueError('Requires a three-dimensional numpy.ndarray (with band '
-                             'in the last dimension), got shape {}'.format(data.shape))
-
-        out = numpy.zeros((data.shape[0], data.shape[1], int(data.shape[2]/2)), dtype=numpy.complex64)
-        amp = lookup_table[data[:, :, 0::2]]
-        theta = data[:, :, 1::2]*(2*numpy.pi/256)
-        out.real = amp*numpy.cos(theta)
-        out.imag = amp*numpy.sin(theta)
-        return out
-    return converter
-
+# TODO: verify SICD reading compliance
 
 class SICDReader(NITFReader, SICDTypeReader):
     """
@@ -261,8 +217,7 @@ class SICDReader(NITFReader, SICDTypeReader):
         self._check_sizes()
 
     @property
-    def nitf_details(self):
-        # type: () -> SICDDetails
+    def nitf_details(self) -> SICDDetails:
         """
         SICDDetails: The SICD NITF details object.
         """
@@ -270,7 +225,7 @@ class SICDReader(NITFReader, SICDTypeReader):
         # noinspection PyTypeChecker
         return self._nitf_details
 
-    def get_nitf_dict(self):
+    def get_nitf_dict(self) -> Dict:
         """
         Populate a dictionary with the pertinent NITF header information. This
         is for use in more faithful preservation of NITF header information
@@ -313,13 +268,14 @@ class SICDReader(NITFReader, SICDTypeReader):
 
         self._sicd_meta.NITF = {}
 
-    def _get_format_function(
+    def get_format_function(
             self,
-            image_segment_index: int,
             raw_dtype: numpy.dtype,
             complex_order: Optional[str],
             lut: Optional[numpy.ndarray],
-            band_dimension: int) -> Optional[FormatFunction]:
+            band_dimension: int,
+            image_segment_index: Optional[int] = None,
+            **kwargs) -> Optional[FormatFunction]:
         if complex_order is not None and complex_order != 'IQ':
             if complex_order != 'MP' or raw_dtype.name != 'uint8' or band_dimension != 2:
                 raise ValueError('Got unsupported SICD band type definition')
@@ -328,8 +284,53 @@ class SICDReader(NITFReader, SICDTypeReader):
                 complex_order,
                 band_dimension=band_dimension,
                 amplitude_scaling=self.sicd_meta.ImageData.AmpTable)
-        return NITFReader._get_format_function(
-            self, image_segment_index, raw_dtype, complex_order, lut, band_dimension)
+        return NITFReader.get_format_function(
+            self, raw_dtype, complex_order, lut, band_dimension, image_segment_index, **kwargs)
+
+    def _check_image_segment_for_compliance(
+            self,
+            index: int,
+            img_header: Union[ImageSegmentHeader, ImageSegmentHeader0]) -> bool:
+        out = NITFReader._check_image_segment_for_compliance(self, index, img_header)
+        if not out:
+            return out
+
+        raw_dtype, formatted_dtype, formatted_bands, complex_order, lut = self._get_dtypes(index)
+        if complex_order is None or complex_order not in ['IQ', 'MP']:
+            logger.error(
+                'Image segment at index {} is not of appropriate type for a SICD Image Segment'.format(index))
+            return False
+        if formatted_bands != 1:
+            logger.error(
+                'Image segment at index {} has multiple complex bands'.format(index))
+            return False
+
+        raw_name = raw_dtype.name
+        pixel_type = self.sicd_meta.ImageData.PixelType
+        if pixel_type == 'RE32F_IM32F':
+            if complex_order != 'IQ' or raw_name != 'float32':
+                logger.error(
+                    'Image segment at index {} required to be compatible\n\t'
+                    'with PIXEL_TYPE {}'.format(index, pixel_type))
+                return False
+        elif pixel_type == 'RE16I_IM16I':
+            if complex_order != 'IQ' or raw_name != 'int16':
+                logger.error(
+                    'Image segment at index {} required to be compatible\n\t'
+                    'with PIXEL_TYPE {}'.format(index, pixel_type))
+                return False
+        elif pixel_type == 'AMP8I_PHS8I':
+            if complex_order != 'MP' or raw_name != 'uint8':
+                logger.error(
+                    'Image segment at index {} required to be compatible\n\t'
+                    'with PIXEL_TYPE {}'.format(index, pixel_type))
+                return False
+        else:
+            raise ValueError('Unhandled PIXEL_TYPE {}'.format(pixel_type))
+        return True
+
+    def find_image_segment_collections(self) -> Tuple[Tuple[int, ...]]:
+        return (tuple(index for index in range(len(self.nitf_details.img_headers)) if index not in self.unsupported_segments), )
 
 
 ########
@@ -418,6 +419,17 @@ def _validate_input(data):
 
     new_shape = (data.shape[0], data.shape[1], 2)
     return new_shape
+
+
+def _validate_lookup(lookup_table):
+    # type: (numpy.ndarray) -> None
+    if not isinstance(lookup_table, numpy.ndarray):
+        raise ValueError('requires a numpy.ndarray, got {}'.format(type(lookup_table)))
+    if lookup_table.dtype.name != 'float64':
+        raise ValueError('requires a numpy.ndarray of float64 dtype, got {}'.format(lookup_table.dtype))
+    if lookup_table.shape != (256, ):
+        raise ValueError('Requires a one-dimensional numpy.ndarray with 256 elements, '
+                         'got shape {}'.format(lookup_table.shape))
 
 
 def complex_to_amp_phase(lookup_table):
