@@ -12,6 +12,8 @@ import os
 import warnings
 import struct
 import io
+import mmap
+
 
 import numpy
 
@@ -279,3 +281,68 @@ def calculate_md5(the_path: str, chunk_size: int=1024*1024) -> str:
         for chunk in iter(lambda: fi.read(chunk_size), b''):
             md5_hash.update(chunk)
     return md5_hash.hexdigest()
+
+
+#######
+# Flexible memmap object for extracting compressed image data from mid-file
+
+class MemMap(object):
+    """
+    Spoofing necessary memory map functionality to permit READ ONLY opening of a
+    file containing compressed image data somewheer mid-file for use in the PIL
+    interface. This is just a thin wrapper around the built-in Python memmap
+    class which accommodates arbitrary offset (versus limited to allocation
+    granularity).
+
+    **The bare minimum of functionality is implemented to permit the intended use.**
+    """
+
+    __slots__ = ('_mem_map', '_file_obj', '_offset_shift')
+
+    def __init__(self, file_obj, length, offset):
+        """
+
+        Parameters
+        ----------
+        file_obj : str|BinaryIO
+        length : int
+        offset : int
+        """
+
+        # length and offset validation
+        length = int(length)
+        offset = int(offset)
+        if length < 0 or offset < 0:
+            raise ValueError(
+                'length ({}) and offset ({}) must be non-negative integers'.format(length, offset))
+        # determine offset and length accommodating allocation block size limitation
+        self._offset_shift = (offset % mmap.ALLOCATIONGRANULARITY)
+        offset = offset - self._offset_shift
+        length = length + self._offset_shift
+        # establish the mem map
+        if isinstance(file_obj, str):
+            self._file_obj = open(file_obj, 'rb')
+        else:
+            self._file_obj = file_obj
+        self._mem_map = mmap.mmap(self._file_obj.fileno(), length, access=mmap.ACCESS_READ, offset=offset)
+
+    def read(self, n):
+        return self._mem_map.read(n)
+
+    def tell(self):
+        return self._mem_map.tell() - self._offset_shift
+
+    def seek(self, pos, whence=0):
+        whence = int(whence)
+        pos = int(pos)
+        if whence == 0:
+            self._mem_map.seek(pos+self._offset_shift, 0)
+        else:
+            self._mem_map.seek(pos, whence)
+
+    @property
+    def closed(self):
+        return self._file_obj.closed
+
+    def close(self):
+        self._file_obj.close()

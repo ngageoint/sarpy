@@ -2,7 +2,7 @@
 The basic definitions for file-like reading and writing. This is generally
 centered on image-like file efforts, and array-like interaction with image data.
 
-**This module completely updated in version 1.3.0.**
+This module completely revamped in version 1.3.0 for data segment usage.
 """
 
 __classification__ = "UNCLASSIFIED"
@@ -76,11 +76,12 @@ class BaseReader(object):
         '_data_segment', '_reader_type', '_closed', '_close_segments',
         '_delete_temp_files')
 
-    def __init__(self,
-                 data_segment: Union[None, DataSegment, Sequence[DataSegment]],
-                 reader_type: str='OTHER',
-                 close_segments: bool=True,
-                 delete_files: Union[None, str, Sequence[str]]=None):
+    def __init__(
+            self,
+            data_segment: Union[None, DataSegment, Sequence[DataSegment]],
+            reader_type: str = 'OTHER',
+            close_segments: bool = True,
+            delete_files: Optional[Union[str, Sequence[str]]] = None):
         """
 
         Parameters
@@ -91,7 +92,7 @@ class BaseReader(object):
         reader_type : str
         close_segments : bool
             Call segment.close() for each data segment on reader.close()?
-        delete_files : None|Sequence[str]
+        delete_files : None|str|Sequence[str]
             Any temp files which should be cleaned up on reader.close()?
             This will occur after closing segments.
         """
@@ -166,7 +167,9 @@ class BaseReader(object):
 
         return self._data_segment
 
-    def _set_data_segment(self, data_segment: Union[DataSegment, Sequence[DataSegment]]) -> None:
+    def _set_data_segment(
+            self,
+            data_segment: Union[DataSegment, Sequence[DataSegment]]) -> None:
         """
         Sets the data segment collection. This can only be performed once.
 
@@ -214,7 +217,7 @@ class BaseReader(object):
         else:
             return len(self.data_segment)
 
-    def get_data_segment_as_tuple(self):
+    def get_data_segment_as_tuple(self) -> Tuple[DataSegment, ...]:
         """
         Get the data segment collection as a tuple, to avoid the need for redundant
         checking issues.
@@ -281,10 +284,11 @@ class BaseReader(object):
 
         return self._delete_temp_files
 
-    def read_chip(self,
-             *ranges: Sequence[Union[None, int, Tuple[int, ...], slice]],
-             index: int=0,
-             squeeze: bool=True) -> numpy.ndarray:
+    def read_chip(
+            self,
+            *ranges: Sequence[Union[None, int, Tuple[int, ...], slice]],
+            index: int = 0,
+            squeeze: bool = True) -> numpy.ndarray:
         """
         This is identical to :meth:`read`, and presented for backwards compatibility.
 
@@ -305,10 +309,11 @@ class BaseReader(object):
 
         return self.__call__(*ranges, index=index, raw=False, squeeze=squeeze)
 
-    def read(self,
-             *ranges: Sequence[Union[None, int, Tuple[int, ...], slice]],
-             index: int=0,
-             squeeze: bool=True) -> numpy.ndarray:
+    def read(
+            self,
+            *ranges: Sequence[Union[None, int, Tuple[int, ...], slice]],
+            index: int = 0,
+            squeeze: bool = True) -> numpy.ndarray:
         """
         Read formatted data from the given data segment. Note this is an alias to the
         :meth:`__call__` called as
@@ -334,10 +339,11 @@ class BaseReader(object):
 
         return self.__call__(*ranges, index=index, raw=False, squeeze=squeeze)
 
-    def read_raw(self,
-                 *ranges: Sequence[Union[None, int, Tuple[int, ...], slice]],
-                 index: int=0,
-                 squeeze: bool=True) -> numpy.ndarray:
+    def read_raw(
+            self,
+            *ranges: Sequence[Union[None, int, Tuple[int, ...], slice]],
+            index: int = 0,
+            squeeze: bool = True) -> numpy.ndarray:
         """
         Read raw data from the given data segment. Note this is an alias to the
         :meth:`__call__` called as
@@ -362,11 +368,12 @@ class BaseReader(object):
         """
         return self.__call__(*ranges, index=index, raw=True, squeeze=squeeze)
 
-    def __call__(self,
-                 *ranges: Sequence[Union[None, int, slice]],
-                 index: int=0,
-                 raw: bool=False,
-                 squeeze: bool=True) -> numpy.ndarray:
+    def __call__(
+            self,
+            *ranges: Sequence[Union[None, int, slice]],
+            index: int = 0,
+            raw: bool = False,
+            squeeze: bool = True) -> numpy.ndarray:
         if len(ranges) == 0:
             subscript = None
         else:
@@ -402,7 +409,7 @@ class BaseReader(object):
                 return self.__call__(subscript[:-1], index=subscript[-1], raw=False, squeeze=True)
         return self.__call__(subscript, index=0, raw=False, squeeze=True)
 
-    def close(self):
+    def close(self) -> None:
         """
         This should perform any necessary clean-up operations, like closing
         open file handles, deleting any temp files, etc.
@@ -443,18 +450,19 @@ class FlatReader(BaseReader):
     """
     Class for passing a numpy array straight through as a reader.
 
-    **Changed in version 1.3.0**
+    Changed in version 1.3.0
     """
 
-    def __init__(self,
-                 underlying_array: numpy.ndarray,
-                 reader_type: str='OTHER',
-                 formatted_dtype: Union[None, str, numpy.dtype] = None,
-                 formatted_shape: Union[None, Tuple[int, ...]] = None,
-                 reverse_axes: Union[None, int, Sequence[int]] = None,
-                 transpose_axes: Union[None, Tuple[int, ...]] = None,
-                 format_function: Union[None, FormatFunction] = None,
-                 close_segments: bool=True):
+    def __init__(
+            self,
+            underlying_array: numpy.ndarray,
+            reader_type: str = 'OTHER',
+            formatted_dtype: Optional[Union[str, numpy.dtype]] = None,
+            formatted_shape: Optional[Tuple[int, ...]] = None,
+            reverse_axes: Optional[Union[int, Sequence[int]]] = None,
+            transpose_axes: Optional[Tuple[int, ...]] = None,
+            format_function: Optional[FormatFunction] = None,
+            close_segments: bool = True):
         """
 
         Parameters
@@ -485,10 +493,11 @@ class AggregateReader(BaseReader):
 
     __slots__ = ('_readers', '_index_mapping', '_close_readers')
 
-    def __init__(self,
-                 readers: Sequence[BaseReader],
-                 reader_type: str="OTHER",
-                 close_readers: bool=False):
+    def __init__(
+            self,
+            readers: Sequence[BaseReader],
+            reader_type: str = "OTHER",
+            close_readers: bool = False):
         """
 
         Parameters
@@ -510,7 +519,7 @@ class AggregateReader(BaseReader):
             self, data_segment=data_segments, reader_type=reader_type, close_segments=False)
 
     @staticmethod
-    def _validate_readers(readers: Sequence[BaseReader]):
+    def _validate_readers(readers: Sequence[BaseReader]) -> Tuple[BaseReader]:
         """
         Validate the input reader/file collection.
 
@@ -551,21 +560,20 @@ class AggregateReader(BaseReader):
         segments = []
         for i, reader in enumerate(self._readers):
             for j, segment in enumerate(reader.get_data_segment_as_tuple()):
-                segment.append(segment)
+                segments.append(segment)
                 index_mapping.append((i, j))
         self._index_mapping = tuple(index_mapping)
         return segments
 
     @property
-    def index_mapping(self):
-        # type: () -> Tuple[Tuple[int, int]]
+    def index_mapping(self) -> Tuple[Tuple[int, int]]:
         """
         Tuple[Tuple[int, int]]: The index mapping of the form (reader index, segment index in reader).
         """
 
         return self._index_mapping
 
-    def close(self):
+    def close(self) -> None:
         """
         This should perform any necessary clean-up operations, like closing
         open file handles, deleting any temp files, etc.
@@ -586,14 +594,16 @@ class AggregateReader(BaseReader):
 
 class BaseWriter(object):
     """
-    Abstract writer definition, using array-like data writing.
+    Writer definition, using array-like data writing.
 
-    **Changed in version 1.3.0**
+    Introduced in version 1.3.0
     """
 
     __slots__ = ('_data_segment', '_closed')
 
-    def __init__(self, data_segment: Union[DataSegment, Sequence[DataSegment]]):
+    def __init__(
+            self,
+            data_segment: Union[DataSegment, Sequence[DataSegment]]):
 
         if isinstance(data_segment, DataSegment):
             data_segment = [data_segment, ]
@@ -652,11 +662,12 @@ class BaseWriter(object):
 
         return tuple(entry.raw_shape for entry in self.data_segment)
 
-    def write_chip(self,
-              data: numpy.ndarray,
-              start_indices: Union[None, int, Tuple[int, ...]] = None,
-              subscript: Union[None, Tuple[slice, ...]] = None,
-              index: int=0) -> None:
+    def write_chip(
+            self,
+            data: numpy.ndarray,
+            start_indices: Optional[Union[int, Tuple[int, ...]]] = None,
+            subscript: Optional[Tuple[slice, ...]] = None,
+            index: int = 0) -> None:
         """
         This is identical to :meth:`write`, and presented for backwards compatibility.
 
@@ -674,11 +685,12 @@ class BaseWriter(object):
 
         self.__call__(data, start_indices=start_indices, subscript=subscript, index=index, raw=False)
 
-    def write(self,
-              data: numpy.ndarray,
-              start_indices: Union[None, int, Tuple[int, ...]]=None,
-              subscript: Union[None, Tuple[slice, ...]]=None,
-              index: int=0) -> None:
+    def write(
+            self,
+            data: numpy.ndarray,
+            start_indices: Optional[Union[int, Tuple[int, ...]]] = None,
+            subscript: Optional[Tuple[slice, ...]] = None,
+            index: int = 0) -> None:
         """
         Write the data to the appropriate data segment. This is an alias to
         :code:`writer(data, start_indices=start_indices, subscript=subscript, index=index, raw=False)`.
@@ -706,11 +718,12 @@ class BaseWriter(object):
 
         self.__call__(data, start_indices=start_indices, subscript=subscript, index=index, raw=False)
 
-    def write_raw(self,
-              data: numpy.ndarray,
-              start_indices: Union[None, int, Tuple[int, ...]]=None,
-              subscript: Union[None, Tuple[slice, ...]]=None,
-              index: int=0) -> None:
+    def write_raw(
+            self,
+            data: numpy.ndarray,
+            start_indices: Optional[Union[int, Tuple[int, ...]]] = None,
+            subscript: Optional[Tuple[slice, ...]] = None,
+            index: int = 0) -> None:
         """
         Write the raw data to the file(s). This is an alias to
         :code:`writer(data, start_indices=start_indices, subscript=subscript, index=index, raw=True)`.
@@ -735,12 +748,13 @@ class BaseWriter(object):
 
         self.__call__(data, start_indices=start_indices, subscript=subscript, index=index, raw=False)
 
-    def __call__(self,
-                 data: numpy.ndarray,
-                 start_indices: Union[None, int, Tuple[int, ...]]=None,
-                 subscript: Union[None, Tuple[slice, ...]]=None,
-                 index: int=0,
-                 raw: bool=False) -> None:
+    def __call__(
+            self,
+            data: numpy.ndarray,
+            start_indices: Optional[Union[int, Tuple[int, ...]]] = None,
+            subscript: Optional[Tuple[slice, ...]] = None,
+            index: int = 0,
+            raw: bool = False) -> None:
         """
         Write the data to the given data segment.
 
@@ -769,7 +783,7 @@ class BaseWriter(object):
                     'and to write the data in raw (i.e. unformatted) form.')
             return ds.write(data, start_indices=start_indices, subscript=subscript)
 
-    def close(self):
+    def close(self) -> None:
         """
         Completes any necessary final steps.
         """

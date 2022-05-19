@@ -10,7 +10,7 @@ __author__ = "Thomas McCullough"
 import logging
 import os
 import struct
-from typing import Union, BinaryIO
+from typing import Union, BinaryIO, Optional
 from datetime import datetime
 from tempfile import mkstemp
 import zlib
@@ -19,9 +19,9 @@ import gc
 import numpy
 from scipy.constants import speed_of_light
 
-from sarpy.io.general.base import BaseReader, BIPChipper, BSQChipper, \
-    is_file_like, SarpyIOError
+from sarpy.io.general.base import BaseReader, SarpyIOError
 from sarpy.io.general.nitf import MemMap
+from sarpy.io.general.utils import is_file_like
 from sarpy.geometry.geocoords import geodetic_to_ecf, wgs_84_norm, ned_to_ecf
 
 from sarpy.io.complex.base import SICDTypeReader
@@ -42,7 +42,7 @@ from sarpy.io.complex.sicd_elements.ImageFormation import ImageFormationType, \
 from sarpy.io.complex.sicd_elements.Radiometric import RadiometricType, \
     NoiseLevelType_
 
-# TODO: revamp this for 1.3.0
+# TODO: revamp for 1.3.0...
 
 try:
     import PIL
@@ -54,35 +54,6 @@ logger = logging.getLogger(__name__)
 _requires_array_text = 'Requires numpy.ndarray, got `{}`'
 _requires_3darray_text = 'Requires a three-dimensional numpy.ndarray\n\t' \
                          '(with band in the last dimension), got shape {}'
-
-########
-# base expected functionality for a module with an implemented Reader
-
-def is_a(file_name):
-    """
-    Tests whether a given file_name corresponds to a Cosmo Skymed file. Returns a reader instance, if so.
-
-    Parameters
-    ----------
-    file_name : str|BinaryIO
-        the file_name to check
-
-    Returns
-    -------
-    CSKReader|None
-        `CSKReader` instance if Cosmo Skymed file, `None` otherwise
-    """
-
-    if is_file_like(file_name):
-        return None
-
-    try:
-        gff_details = GFFDetails(file_name)
-        logger.info('File {} is determined to be a GFF version {} file.'.format(
-            file_name, gff_details.version))
-        return GFFReader(gff_details)
-    except SarpyIOError:
-        return None
 
 
 ####################
@@ -1667,6 +1638,7 @@ class _GFFInterpreter2(_GFFInterpreter):
         if band_order == 'sequential':
             raise ValueError(
                 'GFF with sequential bands and jpeg or jpeg 2000 compression currently unsupported.')
+        # TODO: change this to simply read the data, and present BytesIO?
         our_memmap = MemMap(self.header.file_object.name, self.header.image_header.size, self.header.image_offset)
         img = PIL.Image.open(our_memmap)  # this is a lazy operation
         # dump the extracted image data out to a temp file
@@ -2136,3 +2108,33 @@ class GFFReader(BaseReader, SICDTypeReader):
             del self._gff_details
         except Exception:
             pass
+
+
+########
+# base expected functionality for a module with an implemented Reader
+
+def is_a(file_name: str) -> Optional[GFFReader]:
+    """
+    Tests whether a given file_name corresponds to a Cosmo Skymed file. Returns a reader instance, if so.
+
+    Parameters
+    ----------
+    file_name : str|BinaryIO
+        the file_name to check
+
+    Returns
+    -------
+    CSKReader|None
+        `CSKReader` instance if Cosmo Skymed file, `None` otherwise
+    """
+
+    if is_file_like(file_name):
+        return None
+
+    try:
+        gff_details = GFFDetails(file_name)
+        logger.info('File {} is determined to be a GFF version {} file.'.format(
+            file_name, gff_details.version))
+        return GFFReader(gff_details)
+    except SarpyIOError:
+        return None

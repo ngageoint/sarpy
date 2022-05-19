@@ -1,7 +1,7 @@
 """
 Stateful functions for use in format operations for data segments.
 
-This module is new in version 1.3.0.
+This module introduced in version 1.3.0.
 """
 
 __classification__ = "UNCLASSIFIED"
@@ -21,7 +21,10 @@ logger = logging.getLogger(__name__)
 #######
 # slice helper functions
 
-def reformat_slice(sl_in: slice, limit_in: int, mirror: bool) -> slice:
+def reformat_slice(
+        sl_in: slice,
+        limit_in: int,
+        mirror: bool) -> slice:
     """
     Reformat the slice, with optional reverse operation.
 
@@ -102,34 +105,32 @@ def reformat_slice(sl_in: slice, limit_in: int, mirror: bool) -> slice:
 class FormatFunction(object):
     """
     Stateful function for data orientation and formatting operations associated
-    with reading data. This allows mapping from raw data and formatted data,
-    and possibly mapping from formatted data back to raw data if the reverse
-    process is implemented.
+    with reading data. *This is specifically intended for use in conjunction
+    with `DataSegment`.*
 
-    Assuming that :code:`instance = FormatFunction()`, convert from raw data
-    to formatted data using :code:`formatted_data = instance(raw_data)`. Note
-    that this requires that `raw_data` has full shape (no squeezed dimensions).
+    This allows mapping from raw data to formatted data, for reading data from
+    a file and converting it to the form of intended use.
 
-    Assuming that `instance.has_inverse` is `True`, convert from formatted data
-    to raw data (i.e format in the form inside the file) using
-    :code:`raw_data = instance.inverse(formatted_data)`. Note that this requires
-    that `formatted_data` has full shape (no squeezed dimensions).
+    If the reverse process is implemented, it enables converting from formatted
+    data to raw data, for taking common use data and converting it to the raw
+    form, for writing data to a file.
 
-    New in version 1.3.0.
+    Introduced in version 1.3.0.
     """
 
-    has_inverse=False
+    has_inverse = False
     """
     Indicates whether this format function has the inverse call implemented.
     """
 
     __slots__ = ('_raw_shape', '_formatted_shape', '_reverse_axes', '_transpose_axes', '_reverse_transpose_axes')
 
-    def __init__(self,
-                 raw_shape : Optional[Tuple[int, ...]]=None,
-                 formatted_shape : Optional[Tuple[int, ...]]=None,
-                 reverse_axes: Optional[Tuple[int, ...]]=None,
-                 transpose_axes:Optional[Tuple[int, ...]]=None):
+    def __init__(
+            self,
+            raw_shape: Optional[Tuple[int, ...]] = None,
+            formatted_shape: Optional[Tuple[int, ...]] = None,
+            reverse_axes: Optional[Tuple[int, ...]] = None,
+            transpose_axes: Optional[Tuple[int, ...]] = None):
         """
 
         Parameters
@@ -162,7 +163,7 @@ class FormatFunction(object):
         if self._raw_shape is not None:
             if value is None or value != self._raw_shape:
                 raise ValueError('raw_shape is read only once set')
-            return # nothing to be done
+            return  # nothing to be done
         self._raw_shape = value
 
     @property
@@ -183,7 +184,7 @@ class FormatFunction(object):
         if self._formatted_shape is not None:
             if value is None or value != self._formatted_shape:
                 raise ValueError('formatted_shape is read only once set')
-            return # nothing to be done
+            return  # nothing to be done
         self._formatted_shape = value
 
     @property
@@ -206,7 +207,7 @@ class FormatFunction(object):
         if self._reverse_axes is not None:
             if value is None or value != self._reverse_axes:
                 raise ValueError('reverse_axes is read only once set')
-            return # nothing to be done
+            return  # nothing to be done
         self._reverse_axes = value
 
     @property
@@ -228,7 +229,7 @@ class FormatFunction(object):
 
         self._transpose_axes = value
         # inverts the transpose axes mapping
-        self._reverse_transpose_axes = tuple([value.find(i) for i in range(len(value))])
+        self._reverse_transpose_axes = tuple([value.index(i) for i in range(len(value))])
 
     def _get_populated_transpose_axes(self) -> Tuple[int, ...]:
         trans_axes = tuple(range(len(self.raw_shape))) if self.transpose_axes is None else \
@@ -239,7 +240,10 @@ class FormatFunction(object):
         if self.raw_shape is None or self.formatted_shape is None:
             raise ValueError('raw_shape and formatted_shape must both be set.')
 
-    def _reverse_and_transpose(self, array: numpy.ndarray, inverse=False) -> numpy.ndarray:
+    def _reverse_and_transpose(
+            self,
+            array: numpy.ndarray,
+            inverse=False) -> numpy.ndarray:
         """
         Performs the reverse and transpose operations. This applies to data in raw
         format.
@@ -276,10 +280,11 @@ class FormatFunction(object):
                 array = numpy.transpose(array, axes=self.transpose_axes)
         return array
 
-    def __call__(self,
-                 array: numpy.ndarray,
-                 subscript: Tuple[slice, ...],
-                 squeeze=True) -> numpy.ndarray:
+    def __call__(
+            self,
+            array: numpy.ndarray,
+            subscript: Tuple[slice, ...],
+            squeeze=True) -> numpy.ndarray:
         """
         Performs the reformatting operation. The output data will have
         dimensions of size 1 squeezed by this operation, it should not generally
@@ -307,7 +312,10 @@ class FormatFunction(object):
         else:
             return array
 
-    def inverse(self, array: numpy.ndarray, subscript: Tuple[slice, ...]) -> numpy.ndarray:
+    def inverse(
+            self,
+            array: numpy.ndarray,
+            subscript: Tuple[slice, ...]) -> numpy.ndarray:
         """
         Inverse operation which takes in formatted data, and returns
         corresponding raw data.
@@ -353,7 +361,9 @@ class FormatFunction(object):
 
         raise NotImplementedError
 
-    def transform_formatted_slice(self, subscript : Tuple[slice, ...]) -> Tuple[slice, ...]:
+    def transform_formatted_slice(
+            self,
+            subscript: Tuple[slice, ...]) -> Tuple[slice, ...]:
         """
         Transform from the subscript definition in formatted coordinates to
         subscript definition with respect to raw coordinates.
@@ -374,7 +384,9 @@ class FormatFunction(object):
 
         raise NotImplementedError
 
-    def transform_raw_slice(self, subscript : Tuple[slice, ...]) -> Tuple[slice, ...]:
+    def transform_raw_slice(
+            self,
+            subscript: Tuple[slice, ...]) -> Tuple[slice, ...]:
         """
         Transform from the subscript definition in raw coordinates to
         subscript definition with respect to formatted coordinates.
@@ -395,9 +407,10 @@ class FormatFunction(object):
 
         raise NotImplementedError
 
-    def _forward_functional_step(self,
-                                 array: numpy.ndarray,
-                                 subscript: Tuple[slice, ...]) -> numpy.ndarray:
+    def _forward_functional_step(
+            self,
+            array: numpy.ndarray,
+            subscript: Tuple[slice, ...]) -> numpy.ndarray:
         """
         Performs the functional operation. This should perform on raw data following
         the reorientation operations provided by :func:`_reverse_and_transpose`.
@@ -416,9 +429,11 @@ class FormatFunction(object):
 
         raise NotImplementedError
 
-    def _reverse_functional_step(self,
-                                 array: numpy.ndarray,
-                                 subscript: Tuple[slice, ...]) -> numpy.ndarray:
+    # noinspection PyTypeChecker
+    def _reverse_functional_step(
+            self,
+            array: numpy.ndarray,
+            subscript: Tuple[slice, ...]) -> numpy.ndarray:
         """
         Performs the reverse functional operation. This should perform on formatted data,
         followed by the reorientation operations provided by :func:`_reverse_and_transpose`.
@@ -446,9 +461,9 @@ class IdentityFunction(FormatFunction):
     A format function allowing only reversing and transposing operations, the
     actual functional step is simply the identity function.
 
-    New in version 1.3.0.
+    Introduced in version 1.3.0.
     """
-    has_inverse=True
+    has_inverse = True
 
     def validate_shapes(self) -> None:
         self._verify_shapes_set()
@@ -467,7 +482,9 @@ class IdentityFunction(FormatFunction):
                 'got formatted_shape `{}`'.format(
                     self.raw_shape, self.transpose_axes, expected_formatted_shape, self.formatted_shape))
 
-    def transform_formatted_slice(self, subscript : Tuple[slice, ...]) -> Tuple[slice, ...]:
+    def transform_formatted_slice(
+            self,
+            subscript: Tuple[slice, ...]) -> Tuple[slice, ...]:
         if len(subscript) != self.formatted_ndim:
             raise ValueError('The length of subscript and formatted_shape must match')
 
@@ -486,7 +503,9 @@ class IdentityFunction(FormatFunction):
             out.append(reformat_slice(subscript[index], shape_limit, rev))
         return tuple(out)
 
-    def transform_raw_slice(self, subscript : Tuple[slice, ...]) -> Tuple[slice, ...]:
+    def transform_raw_slice(
+            self,
+            subscript: Tuple[slice, ...]) -> Tuple[slice, ...]:
         if len(subscript) != self.raw_ndim:
             raise ValueError('The length of subscript and raw_shape must match')
 
@@ -505,11 +524,17 @@ class IdentityFunction(FormatFunction):
             out.append(reformat_slice(subscript[index], shape_limit, rev))
         return tuple(out)
 
-    def _forward_functional_step(self, array: numpy.ndarray, subscript: Tuple[slice, ...]) -> numpy.ndarray:
+    def _forward_functional_step(
+            self,
+            array: numpy.ndarray,
+            subscript: Tuple[slice, ...]) -> numpy.ndarray:
         # the only operations are reordering/reversing, performed by _reverse_and_transpose
         return array
 
-    def _reverse_functional_step(self, array: numpy.ndarray, subscript: Tuple[slice, ...]) -> numpy.ndarray:
+    def _reverse_functional_step(
+            self,
+            array: numpy.ndarray,
+            subscript: Tuple[slice, ...]) -> numpy.ndarray:
         return array
 
 
@@ -520,25 +545,26 @@ class ComplexFormatFunction(FormatFunction):
     fixed dimensionality and the real/imaginary pairs fall 
     along a given dimension.
 
-    New in version 1.3.0.
+    Introduced in version 1.3.0.
     """
-    has_inverse=True
-    _allowed_ordering= ('IQ', 'QI', 'MP', 'PM')
+    has_inverse = True
+    _allowed_ordering = ('IQ', 'QI', 'MP', 'PM')
 
     __slots__ = (
         '_band_dimension', '_order', '_raw_dtype', '_magnitude_lookup_table',
         '_amplitude_scaling')
 
-    def __init__(self,
-                 raw_dtype: Union[str, numpy.dtype],
-                 order: str,
-                 raw_shape : Optional[Tuple[int, ...]]=None,
-                 formatted_shape : Optional[Tuple[int, ...]]=None,
-                 reverse_axes: Optional[Tuple[int, ...]]=None,
-                 transpose_axes:Optional[Tuple[int, ...]]=None,
-                 band_dimension: int=-1,
-                 magnitude_lookup_table: Optional[numpy.ndarray] = None,
-                 amplitude_scaling: Optional[numpy.ndarray] = None):
+    def __init__(
+            self,
+            raw_dtype: Union[str, numpy.dtype],
+            order: str,
+            raw_shape: Optional[Tuple[int, ...]] = None,
+            formatted_shape: Optional[Tuple[int, ...]] = None,
+            reverse_axes: Optional[Tuple[int, ...]] = None,
+            transpose_axes: Optional[Tuple[int, ...]] = None,
+            band_dimension: int = -1,
+            magnitude_lookup_table: Optional[numpy.ndarray] = None,
+            amplitude_scaling: Optional[numpy.ndarray] = None):
         """
 
         Parameters
@@ -602,7 +628,7 @@ class ComplexFormatFunction(FormatFunction):
         if self._band_dimension is not None:
             if value != self._band_dimension:
                 raise ValueError('band_dimension is read only once set')
-            return # nothing to be done
+            return  # nothing to be done
         self._band_dimension = value
 
     @property
@@ -651,7 +677,9 @@ class ComplexFormatFunction(FormatFunction):
 
         return self._magnitude_lookup_table
 
-    def set_magnitude_lookup(self, lookup_table: Optional[numpy.ndarray]) -> None:
+    def set_magnitude_lookup(
+            self,
+            lookup_table: Optional[numpy.ndarray]) -> None:
         if lookup_table is None:
             self._magnitude_lookup_table = None
             return
@@ -688,7 +716,9 @@ class ComplexFormatFunction(FormatFunction):
 
         return self._amplitude_scaling
 
-    def set_amplitude_scaling(self, array: Optional[numpy.ndarray]) -> None:
+    def set_amplitude_scaling(
+            self,
+            array: Optional[numpy.ndarray]) -> None:
         if array is None:
             self._amplitude_scaling = None
             return
@@ -766,7 +796,9 @@ class ComplexFormatFunction(FormatFunction):
                     self.raw_shape, self.transpose_axes, self.band_dimension, arranged_shape, self.formatted_shape))
         self._validate_amplitude_scaling()
 
-    def transform_formatted_slice(self, subscript : Tuple[slice, ...]) -> Tuple[slice, ...]:
+    def transform_formatted_slice(
+            self,
+            subscript: Tuple[slice, ...]) -> Tuple[slice, ...]:
         if len(subscript) != len(self.formatted_shape):
             raise ValueError('The length of subscript and formatted_shape must match')
 
@@ -811,7 +843,9 @@ class ComplexFormatFunction(FormatFunction):
                 out.append(reformat_slice(use_subscript[index], shape_limit, rev))
         return tuple(out)
 
-    def transform_raw_slice(self, subscript : Tuple[slice, ...]) -> Tuple[slice, ...]:
+    def transform_raw_slice(
+            self,
+            subscript: Tuple[slice, ...]) -> Tuple[slice, ...]:
         if len(subscript) != self.raw_ndim:
             raise ValueError('The length of subscript and raw_shape must match')
 
@@ -834,7 +868,10 @@ class ComplexFormatFunction(FormatFunction):
                 out.append(reformat_slice(subscript[index], shape_limit, rev))
         return tuple(out)
 
-    def _forward_functional_step(self, data: numpy.ndarray, subscript: Tuple[slice, ...]) -> numpy.ndarray:
+    def _forward_functional_step(
+            self,
+            data: numpy.ndarray,
+            subscript: Tuple[slice, ...]) -> numpy.ndarray:
         if data.ndim != self.raw_ndim:
             raise ValueError('Expected raw data of dimension {}'.format(self.raw_ndim))
         if (data.shape[self.band_dimension] % 2) != 0:
@@ -883,7 +920,10 @@ class ComplexFormatFunction(FormatFunction):
 
         return out
 
-    def _reverse_functional_step(self, data: numpy.ndarray, subscript: Tuple[slice, ...]) -> numpy.ndarray:
+    def _reverse_functional_step(
+            self,
+            data: numpy.ndarray,
+            subscript: Tuple[slice, ...]) -> numpy.ndarray:
         if data.ndim != self.formatted_ndim:
             raise ValueError('Expected formatted data of dimension {}'.format(self.raw_ndim))
 
@@ -892,8 +932,8 @@ class ComplexFormatFunction(FormatFunction):
         else:
             band_dim_size = data.shape[self.band_dimension]
             out_shape = data.shape[:self.band_dimension] + \
-                        (2*band_dim_size, ) + \
-                        data.shape[self.band_dimension + 1:]
+                (2*band_dim_size, ) + \
+                data.shape[self.band_dimension + 1:]
 
         # NB: subscript is in formatted coordinates, but we have verified that
         #   transpose_axes is None and band_dimension is the final dimension
@@ -922,7 +962,8 @@ class ComplexFormatFunction(FormatFunction):
         elif self.order in ['MP', 'PM']:
             magnitude = numpy.abs(data)
             if self.magnitude_lookup_table is not None:
-                magnitude = numpy.digitize(magnitude.ravel(), self.magnitude_lookup_table, right=False).reshape(data.shape)
+                magnitude = numpy.digitize(
+                    magnitude.ravel(), self.magnitude_lookup_table, right=False).reshape(data.shape)
 
             theta = numpy.arctan2(data.imag, data.real)
             theta[theta < 0] += 2*numpy.pi
@@ -948,18 +989,20 @@ class SingleLUTFormatFunction(FormatFunction):
     In the case of a 2-d LUT, and effort to slice on the final dimension
     (from the LUT) is not supported.
 
-    New in version 1.3.0.
+    Introduced in version 1.3.0.
     """
-    has_inverse=False
+
+    has_inverse = False
 
     __slots__ = ('_lookup_table', )
 
-    def __init__(self,
-                 lookup_table: numpy.ndarray,
-                 raw_shape : Optional[Tuple[int, ...]]=None,
-                 formatted_shape : Optional[Tuple[int, ...]]=None,
-                 reverse_axes: Optional[Tuple[int, ...]]=None,
-                 transpose_axes:Optional[Tuple[int, ...]]=None):
+    def __init__(
+            self,
+            lookup_table: numpy.ndarray,
+            raw_shape: Optional[Tuple[int, ...]] = None,
+            formatted_shape: Optional[Tuple[int, ...]] = None,
+            reverse_axes: Optional[Tuple[int, ...]] = None,
+            transpose_axes: Optional[Tuple[int, ...]] = None):
         """
 
         Parameters
@@ -999,11 +1042,13 @@ class SingleLUTFormatFunction(FormatFunction):
 
         if arranged_shape != self.formatted_shape:
             raise ValueError(
-                'Input_shape `{}`, transpose_axes `{}` and lookup table yields expected output shape `{}`\n\t'
-                    'got formatted_shape `{}`'.format(
+                'Input_shape `{}`, transpose_axes `{}` and lookup table\n\t'
+                'yields expected output shape `{}` got formatted_shape `{}`'.format(
                     self.raw_shape, self.transpose_axes, arranged_shape, self.formatted_shape))
 
-    def transform_formatted_slice(self, subscript : Tuple[slice, ...]) -> Tuple[slice, ...]:
+    def transform_formatted_slice(
+            self,
+            subscript: Tuple[slice, ...]) -> Tuple[slice, ...]:
         if len(subscript) != self.formatted_ndim:
             raise ValueError('The length of subscript and formatted_shape must match')
 
@@ -1023,7 +1068,9 @@ class SingleLUTFormatFunction(FormatFunction):
             out.append(reformat_slice(subscript[index], shape_limit, rev))
         return tuple(out)
 
-    def transform_raw_slice(self, subscript : Tuple[slice, ...]) -> Tuple[slice, ...]:
+    def transform_raw_slice(
+            self,
+            subscript: Tuple[slice, ...]) -> Tuple[slice, ...]:
         if len(subscript) != self.raw_ndim:
             raise ValueError('The length of subscript and raw_shape must match')
 
@@ -1046,7 +1093,10 @@ class SingleLUTFormatFunction(FormatFunction):
             out.append(slice(0, lim, 1))
         return tuple(out)
 
-    def _forward_functional_step(self, array: numpy.ndarray, subscript: Tuple[slice, ...]) -> numpy.ndarray:
+    def _forward_functional_step(
+            self,
+            array: numpy.ndarray,
+            subscript: Tuple[slice, ...]) -> numpy.ndarray:
         if not isinstance(array, numpy.ndarray):
             raise ValueError('requires a numpy.ndarray, got {}'.format(type(array)))
 
@@ -1064,15 +1114,17 @@ class SingleLUTFormatFunction(FormatFunction):
             out_shape = array.shape
         return numpy.reshape(out, out_shape)
 
-    def __call__(self,
-                 array: numpy.ndarray,
-                 subscript: Tuple[slice, ...],
-                 squeeze=True) -> numpy.ndarray:
+    def __call__(
+            self,
+            array: numpy.ndarray,
+            subscript: Tuple[slice, ...],
+            squeeze=True) -> numpy.ndarray:
         array = self._reverse_and_transpose(array, inverse=False)
         array = self._forward_functional_step(array, subscript)
         if self.raw_ndim < self.formatted_ndim:
             # apply slice in the band (final dimension)
-            array= array.take(indices=numpy.arange(self.formatted_shape[-1])[subscript[-1]], axis=-1)
+            array = array.take(
+                indices=numpy.arange(self.formatted_shape[-1])[subscript[-1]], axis=-1)
             # ensure shape is as expected - any squeeze handled consistently
             out_shape = get_subscript_result_size(subscript, self.formatted_shape)
             array = numpy.reshape(array, out_shape)
@@ -1083,10 +1135,28 @@ class SingleLUTFormatFunction(FormatFunction):
 
 
 if __name__ == '__main__':
-    class testing(object):
-        __slots__ = ('poo', )
 
-        def __init__(self):
-            print(self.poo)
+    # TODO: formulate this simple testing into unit tests...
 
-    testing()
+    # check the reverse_axes and transpose_axes functionality
+    t_data = numpy.reshape(numpy.arange(6, dtype='int32'), (3, 2))
+
+    # check just reverse axes
+    # for axis in [0, 1]:
+    #     func_rev = IdentityFunction(raw_shape=(3, 2), formatted_shape=(3, 2), reverse_axes=(axis, ), transpose_axes=None)
+    #     out_data = func_rev(t_data, None)
+    #     test_data = numpy.flip(t_data, axis=axis)
+    #     print(f'Reverse axis {axis} Success? {numpy.all(test_data == out_data)}')
+
+    # check just transpose axes
+    # func_transpose = IdentityFunction(raw_shape=(3, 2), formatted_shape=(2, 3), transpose_axes=(1, 0))
+    # out_data = func_transpose(t_data, None)
+    # test_data = numpy.transpose(t_data, (1, 0))
+    # print(f'transpose axes success? {numpy.all(test_data == out_data)}')
+
+    # check both together
+    for axis in ((0, ), (1, ), (0, 1)):
+        func = IdentityFunction(raw_shape=(3, 2), formatted_shape=(2, 3), reverse_axes=axis, transpose_axes=(1, 0))
+        out_data = func(t_data, None)
+        test_data = numpy.transpose(numpy.flip(t_data, axis=axis), (1, 0))
+        print(f'combined axis {axis} success? {numpy.all(test_data == out_data)}')
