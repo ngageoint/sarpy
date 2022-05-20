@@ -8,11 +8,6 @@ This module completely revamped in version 1.3.0 for data segment usage.
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
-# TODO: handle some other kind of writing here?
-#   We should be able to write a file in memory...
-#   I'll work through the NITF situation, and then decide
-
-
 import os
 import logging
 from typing import Union, List, Tuple, Sequence, Optional, Callable

@@ -44,8 +44,7 @@ class SICDDetails(NITFDetails):
     SICD are stored in NITF 2.1 files.
     """
     __slots__ = (
-        '_des_index', '_des_header', '_is_sicd', '_sicd_meta',
-        'img_segment_rows', 'img_segment_columns')
+        '_des_index', '_des_header', '_is_sicd', '_sicd_meta')
 
     def __init__(self, file_object: Union[str, BinaryIO]):
         """
@@ -76,14 +75,6 @@ class SICDDetails(NITFDetails):
         self._find_sicd()
         if not self.is_sicd:
             raise SarpyIOError('Could not find the SICD XML des.')
-
-        # TODO: what is this used for?
-        # populate the image details
-        self.img_segment_rows = numpy.zeros(self.img_segment_offsets.shape, dtype=numpy.int64)
-        self.img_segment_columns = numpy.zeros(self.img_segment_offsets.shape, dtype=numpy.int64)
-        for i, im_header in enumerate(self.img_headers):
-            self.img_segment_rows[i] = im_header.NROWS
-            self.img_segment_columns[i] = im_header.NCOLS
 
     @property
     def is_sicd(self) -> bool:

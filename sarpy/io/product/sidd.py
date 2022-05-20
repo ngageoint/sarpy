@@ -52,8 +52,7 @@ class SIDDDetails(NITFDetails):
     """
 
     __slots__ = (
-        '_is_sidd', '_sidd_meta', '_sicd_meta',
-        'img_segment_rows', 'img_segment_columns')
+        '_is_sidd', '_sidd_meta', '_sicd_meta')
 
     def __init__(self, file_object: Union[str, BinaryIO]):
         """
@@ -83,14 +82,6 @@ class SIDDDetails(NITFDetails):
         self._find_sidd()
         if not self.is_sidd:
             raise SarpyIOError('Could not find SIDD xml data extensions.')
-
-        # TODO: what is this for?
-        # populate the image details
-        self.img_segment_rows = numpy.zeros(self.img_segment_offsets.shape, dtype=numpy.int64)
-        self.img_segment_columns = numpy.zeros(self.img_segment_offsets.shape, dtype=numpy.int64)
-        for i, im_header in enumerate(self.img_headers):
-            self.img_segment_rows[i] = im_header.NROWS
-            self.img_segment_columns[i] = im_header.NCOLS
 
     @property
     def is_sidd(self) -> bool:
