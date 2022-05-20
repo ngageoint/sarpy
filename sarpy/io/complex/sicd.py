@@ -9,26 +9,27 @@ __author__ = "Thomas McCullough"
 import re
 import logging
 from datetime import datetime
-from typing import BinaryIO, Union, Optional, Dict, Tuple
+from typing import BinaryIO, Union, Optional, Dict, Tuple, Sequence
 
 import numpy
 
 from sarpy.__about__ import __title__, __version__
-from sarpy.io.general.base import SarpyIOError
-from sarpy.io.general.format_function import FormatFunction, ComplexFormatFunction
-from sarpy.io.general.nitf import NITFReader, NITFWriter, ImageDetails, DESDetails, \
-    image_segmentation, get_npp_block, interpolate_corner_points_string
-from sarpy.io.general.utils import is_file_like
-
 from sarpy.io.complex.base import SICDTypeReader
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd_elements.ImageCreation import ImageCreationType
 
-from sarpy.io.general.nitf import NITFDetails
+from sarpy.io.general.base import SarpyIOError
+from sarpy.io.general.format_function import FormatFunction, ComplexFormatFunction
+from sarpy.io.general.nitf import NITFDetails, NITFReader, NITFWriter, \
+    interpolate_corner_points_string, default_image_segmentation, \
+    ImageSubheaderManager, TextSubheaderManager, DESSubheaderManager, \
+    RESSubheaderManager, NITFWritingDetails
+from sarpy.io.general.nitf_elements.nitf_head import NITFHeader
 from sarpy.io.general.nitf_elements.des import DataExtensionHeader, XMLDESSubheader
 from sarpy.io.general.nitf_elements.security import NITFSecurityTags
 from sarpy.io.general.nitf_elements.image import ImageSegmentHeader, \
     ImageSegmentHeader0, ImageBands, ImageBand
+from sarpy.io.general.utils import is_file_like
 
 from sarpy.io.xml.base import parse_xml_from_string
 
@@ -185,8 +186,6 @@ class SICDDetails(NITFDetails):
 
 #######
 #  The actual reading implementation
-
-# TODO: verify SICD reading compliance
 
 class SICDReader(NITFReader, SICDTypeReader):
     """
@@ -408,86 +407,6 @@ def validate_sicd_for_writing(sicd_meta: SICDType) -> SICDType:
     return sicd_meta
 
 
-def _validate_input(data):
-    # type: (numpy.ndarray) -> tuple
-    if not isinstance(data, numpy.ndarray):
-        raise ValueError('Requires a numpy.ndarray, got {}'.format(type(data)))
-    if data.dtype.name not in ('complex64', 'complex128'):
-        raise ValueError('Requires a numpy.ndarray of complex dtype, got {}'.format(data.dtype.name))
-    if len(data.shape) != 2:
-        raise ValueError('Requires a two-dimensional numpy.ndarray, got {}'.format(data.shape))
-
-    new_shape = (data.shape[0], data.shape[1], 2)
-    return new_shape
-
-
-def _validate_lookup(lookup_table):
-    # type: (numpy.ndarray) -> None
-    if not isinstance(lookup_table, numpy.ndarray):
-        raise ValueError('requires a numpy.ndarray, got {}'.format(type(lookup_table)))
-    if lookup_table.dtype.name != 'float64':
-        raise ValueError('requires a numpy.ndarray of float64 dtype, got {}'.format(lookup_table.dtype))
-    if lookup_table.shape != (256, ):
-        raise ValueError('Requires a one-dimensional numpy.ndarray with 256 elements, '
-                         'got shape {}'.format(lookup_table.shape))
-
-
-def complex_to_amp_phase(lookup_table):
-    """
-    This constructs the function to convert from complex64 or 128 to AMP8I_PHS8I format data.
-
-    Parameters
-    ----------
-    lookup_table : numpy.ndarray
-
-    Returns
-    -------
-    callable
-    """
-
-    _validate_lookup(lookup_table)
-
-    def converter(data):
-        new_shape = _validate_input(data)
-        out = numpy.zeros(new_shape, dtype=numpy.uint8)
-        # NB: for numpy before 1.10, digitize requires 1-d
-        out[:, :, 0] = numpy.digitize(numpy.abs(data).ravel(), lookup_table, right=False).reshape(data.shape)
-        out[:, :, 1] = numpy.arctan2(data.real, data.imag)*(256/(2*numpy.pi))
-        # truncation takes care of properly rolling negative to positive
-        return out
-
-    return converter
-
-
-def complex_to_int(data):
-    """
-    This converts from complex64 or 128 data to int16 data.
-
-    Parameters
-    ----------
-    data : numpy.ndarray
-
-    Returns
-    -------
-    numpy.ndarray
-    """
-
-    new_shape = _validate_input(data)
-
-    if data.dtype.name == 'complex128':
-        view_dtype = numpy.float64
-    else:
-        view_dtype = numpy.float32
-
-    i16_info = numpy.iinfo(numpy.int16)  # for getting max/min type values
-    data_view = data.view(dtype=view_dtype).reshape(new_shape)
-    out = numpy.zeros(new_shape, dtype=numpy.int16)
-    out[:] = numpy.round(numpy.clip(data_view, i16_info.min, i16_info.max))
-    # this is nonsense without the clip - gets cast to int64 and then truncated.
-    # should we round? Without it, it will be the floor, I believe.
-    return out
-
-
 def extract_clas(sicd: SICDType) -> str:
     """
     Extract the classification string from a SICD as appropriate for NITF Security
@@ -517,117 +436,181 @@ def extract_clas(sicd: SICDType) -> str:
     elif 'FOUO' in c_str.upper() or 'RESTRICTED' in c_str.upper():
         return 'R'
     else:
-        logger.critical(
+        logger.error(
             'Unclear how to extract CLAS for classification string {}.\n\t'
             'Should be set appropriately.'.format(c_str))
         return 'U'
 
 
-# TODO: revamp SICD writer
-class SICDWriter(NITFWriter):
+def create_security_tags_from_sicd(sicd_meta: SICDType) -> NITFSecurityTags:
+    def get_basic_args():
+        out = {}
+        sec_tags = sicd_meta.NITF.get('Security', {})
+        # noinspection PyProtectedMember
+        for fld in NITFSecurityTags._ordering:
+            if fld in sec_tags:
+                out[fld] = sec_tags[fld]
+        return out
+
+    def get_clas():
+        if 'CLAS' in args:
+            return
+        args['CLAS'] = extract_clas(sicd_meta)
+
+    def get_code(in_str):
+        if 'CODE' in args:
+            return
+
+        # TODO: this is pretty terrible
+        code = re.search('(?<=/)[^/].*', in_str)
+        if code is not None:
+            args['CODE'] = code.group()
+
+    def get_clsy():
+        if args.get('CLSY', '').strip() == '':
+            args['CLSY'] = 'US'
+
+    args = get_basic_args()
+    if sicd_meta.CollectionInfo is not None:
+        get_clas()
+        get_code(sicd_meta.CollectionInfo.Classification)
+        get_clsy()
+
+    return NITFSecurityTags(**args)
+
+
+class SICDWritingDetails(NITFWritingDetails):
     """
-    Writer class for a SICD file - a NITF file containing complex radar data and 
-    SICD data extension. 
+    Manager for all the NITF subheader information associated with the SICD.
 
-    **Changed in version 1.3.0** for writing changes.
+    Introduced in version 1.3.0.
     """
 
-    __slots__ = ('_sicd_meta', '_check_older_version', '_required_version')
+    __slots__ = (
+        '_sicd_meta', '_security_tags', '_image_segment_collection',
+        '_row_limit', '_check_older_version', '_required_version')
 
-    def __init__(self, file_name, sicd_meta, check_older_version=False, check_existence=True):
+    def __init__(
+            self,
+            sicd_meta: SICDType,
+            row_limit: Optional[int] = None,
+            additional_des: Optional[Sequence[DESSubheaderManager]] = None,
+            text_managers: Optional[Tuple[TextSubheaderManager, ...]] = None,
+            res_managers: Optional[Tuple[RESSubheaderManager, ...]] = None,
+            check_older_version: bool=False):
         """
 
         Parameters
         ----------
-        file_name : str
-        sicd_meta : sarpy.io.complex.sicd_elements.SICD.SICDType
+        sicd_meta : SICDType
+        row_limit : None|int
+            Desired row limit for the sicd image segments. Non-positive values
+            or values > 99999 will be ignored.
+        additional_des : None|Sequence[DESSubheaderManager]
+        text_managers: Optional[Tuple[TextSubheaderManager, ...]]
+        res_managers: Optional[Tuple[RESSubheaderManager, ...]]
         check_older_version : bool
             Try to create an older version sicd, for compliance
-        check_existence : bool
-            Should we check if the given file already exists, and raises an exception if so?
         """
 
-        self._check_older_version = check_older_version
-        self._sicd_meta = validate_sicd_for_writing(sicd_meta)
-        self._required_version = self._sicd_meta.requires_version_number()
+        self._image_segment_collection = None
+        self._check_older_version = bool(check_older_version)
         self._security_tags = None
-        self._nitf_header = None
-        self._img_groups = None
-        self._img_details = None
-        self._des_details = None
-        self._shapes = ((self.sicd_meta.ImageData.NumRows, self.sicd_meta.ImageData.NumCols), )
-        super(SICDWriter, self).__init__(file_name, check_existence=check_existence)
+        self._sicd_meta = None
+        self._set_sicd_meta(sicd_meta)
+        self._required_version = self.sicd_meta.requires_version_number()
+        self._create_security_tags()
+        self._row_limit = None
+        self._set_row_limit(row_limit)
+
+        header = self._create_header()
+        image_managers = self._create_image_segments()
+        des_managers = self._create_des_segments(additional_des)
+
+        # NB: graphics not permitted in sicd
+        NITFWritingDetails.__init__(
+            self, header, image_managers=image_managers, text_managers=text_managers,
+            des_managers=des_managers, res_managers=res_managers)
 
     @property
-    def sicd_meta(self):
+    def sicd_meta(self) -> SICDType:
         """
-        sarpy.io.complex.sicd_elements.SICD.SICDType: The sicd metadata
+        SICDType: The sicd metadata
         """
 
         return self._sicd_meta
 
-    def default_security_tags(self):
+    def _set_sicd_meta(self, value):
+        if self._sicd_meta is not None:
+            raise ValueError('sicd_meta is read only')
+        self._sicd_meta = validate_sicd_for_writing(value)
+
+    @property
+    def requires_version(self) -> Tuple[int, int, int]:
         """
-        Returns a NITF security tags object with `CLAS` and `CODE`
-        attributes set from the SICD.CollectionInfo.Classification value.
+        Tuple[int, int, int]: What is the required (at minimum) sicd version?
+        """
 
-        It is expected that output from this will be modified as appropriate
-        and used to set ONLY specific security tags in `data_extension_header` or
-        elements of `image_segment_headers`.
+        return self._required_version
 
-        If simultaneous modification of all security tags attributes for the entire
-        SICD is the goal, then directly modify the value(s) using `security_tags`.
+    @property
+    def row_limit(self) -> int:
+        return self._row_limit
+
+    def _set_row_limit(self, value):
+        if value is not None:
+            if not isinstance(value, int):
+                raise TypeError('row_bounds must be an integer')
+            if value < 1:
+                value = None
+
+        if value is None or value > 99999:
+            value = 99999
+
+        im_seg_limit = 10**10 - 2  # allowable image segment size
+        row_memory_size = self.sicd_meta.ImageData.NumCols*self.sicd_meta.ImageData.get_pixel_size()
+
+        memory_limit = int(numpy.floor(im_seg_limit/row_memory_size))
+        self._row_limit = min(value, memory_limit)
+
+    @property
+    def image_segment_collection(self) -> Tuple[Tuple[int, ...], ...]:
+        """
+        Tuple[Tuple[int, ...], ...]: The image segment collection
+        """
+
+        return self._image_segment_collection
+
+    @property
+    def security_tags(self) -> NITFSecurityTags:
+        """
+        NITFSecurityTags: The default NITF security tags for use.
+        """
+
+        return self._security_tags
+
+    def _create_security_tags(self) -> None:
+        """
+        Creates a NITF security tags object with `CLAS` and `CODE` attributes in
+        the sicd_meta.NITF property and/or extracted from the
+        SICD.CollectionInfo.Classification value.
 
         Returns
         -------
-        sarpy.io.general.nitf_elements.security.NITFSecurityTags
+        None
         """
 
-        def get_basic_args():
-            out = {}
-            sec_tags = self._sicd_meta.NITF.get('Security', {})
-            # noinspection PyProtectedMember
-            for fld in NITFSecurityTags._ordering:
-                if fld in sec_tags:
-                    out[fld] = sec_tags[fld]
-            return out
+        self._security_tags = create_security_tags_from_sicd(self.sicd_meta)
 
-        def get_clas():
-            if 'CLAS' in args:
-                return
-            args['CLAS'] = extract_clas(self.sicd_meta)
-
-        def get_code(in_str):
-            if 'CODE' in args:
-                return
-
-            code = re.search('(?<=/)[^/].*', in_str)
-            if code is not None:
-                args['CODE'] = code.group()
-
-        def get_clsy():
-            if args.get('CLSY', '').strip() == '':
-                args['CLSY'] = 'US'
-
-        args = get_basic_args()
-        if self._sicd_meta.CollectionInfo is not None:
-            get_clas()
-            get_code(self._sicd_meta.CollectionInfo.Classification)
-            get_clsy()
-        return NITFSecurityTags(**args)
-
-    def _create_security_tags(self):
-        self._security_tags = self.default_security_tags()
-
-    def _get_ftitle(self):  # type: () -> str
-        ftitle = self._sicd_meta.NITF.get('FTITLE', None)
+    def _get_ftitle(self) -> str:
+        ftitle = self.sicd_meta.NITF.get('FTITLE', None)
         if ftitle is None:
-            ftitle = self._sicd_meta.NITF.get('SUGGESTED_NAME', None)
+            ftitle = self.sicd_meta.NITF.get('SUGGESTED_NAME', None)
         if ftitle is None:
-            ftitle = self._sicd_meta.get_suggested_name(1)
-        if ftitle is None and self._sicd_meta.CollectionInfo is not None and \
-                self._sicd_meta.CollectionInfo.CoreName is not None:
-            ftitle = 'SICD: {}'.format(self._sicd_meta.CollectionInfo.CoreName)
+            ftitle = self.sicd_meta.get_suggested_name(1)
+        if ftitle is None and self.sicd_meta.CollectionInfo is not None and \
+                self.sicd_meta.CollectionInfo.CoreName is not None:
+            ftitle = 'SICD: {}'.format(self.sicd_meta.CollectionInfo.CoreName)
         if ftitle is None:
             ftitle = 'SICD: Unknown'
         if self._check_older_version and self._required_version < (1, 2, 0) and \
@@ -638,12 +621,18 @@ class SICDWriter(NITFWriter):
     def _get_fdt(self):
         return re.sub(r'[^0-9]', '', str(self.sicd_meta.ImageCreation.DateTime.astype('datetime64[s]')))
 
-    def _get_ostaid(self):
-        ostaid = self._sicd_meta.NITF.get('OSTAID', 'Unknown')
+    def _get_idatim(self) -> str:
+        idatim = ' '
+        if self.sicd_meta.Timeline is not None and self.sicd_meta.Timeline.CollectStart is not None:
+            idatim = re.sub(r'[^0-9]', '', str(self.sicd_meta.Timeline.CollectStart.astype('datetime64[s]')))
+        return idatim
+
+    def _get_ostaid(self) -> str:
+        ostaid = self.sicd_meta.NITF.get('OSTAID', 'Unknown')
         return ostaid
 
-    def _get_isorce(self):
-        isorce = self._sicd_meta.NITF.get('ISORCE', None)
+    def _get_isorce(self) -> str:
+        isorce = self.sicd_meta.NITF.get('ISORCE', None)
         if isorce is None and \
                 self.sicd_meta.CollectionInfo is not None and \
                 self.sicd_meta.CollectionInfo.CollectorName is not None:
@@ -652,76 +641,69 @@ class SICDWriter(NITFWriter):
             isorce = 'SICD: Unknown Collector'
         return isorce
 
-    def _get_iid2(self):
-        iid2 = self._sicd_meta.NITF.get('IID2', self._get_ftitle())
+    def _get_iid2(self) -> str:
+        iid2 = self.sicd_meta.NITF.get('IID2', self._get_ftitle())
         if self._check_older_version and self._required_version < (1, 2, 0) and \
                 not iid2.startswith('SICD:'):
             iid2 = 'SICD:' + iid2
         return iid2
 
-    def _image_parameters(self):
+    def _create_header(self) -> NITFHeader:
         """
-        Get the image parameters.
+        Create the main NITF header.
 
         Returns
         -------
-        (int, numpy.dtype, Union[bool, callable], str, tuple, tuple)
-            pixel_size - the size of each pixel in bytes.
-            dtype - the data type.
-            transform_data - the transform_data parameters
-            pv_type - the pixel type string.
-            isubcat - the image subcategory.
-            im_segments - Segmentation of the form `((row start, row end, column start, column end))`
+        NITFHeader
         """
 
+        # NB: CLEVEL and FL will be corrected...
+        return NITFHeader(
+            Security=self.security_tags, CLEVEL=3, OSTAID=self._get_ostaid(),
+            FDT=self._get_fdt(), FTITLE=self._get_ftitle(), FL=0)
+
+    def _create_image_segments(self) -> Tuple[ImageSubheaderManager, ...]:
+        # TODO: create a dictionary of keyword arguments for the Image segment subheader...
+
+        image_managers = []
+        basic_args = {
+            'IREP': 'NODISPLY',
+            'ICAT': 'SAR',
+            'IID2': self._get_iid2(),
+            'IDATIM': self._get_idatim(),
+            'ISORCE': self._get_isorce()
+        }
         pixel_type = self.sicd_meta.ImageData.PixelType  # required to be defined
         # NB: SICDs are required to be stored as big-endian, so the endian-ness
         #   of the memmap must be explicit
         if pixel_type == 'RE32F_IM32F':
-            pv_type, isubcat = 'R', ('I', 'Q')
-            pixel_size = 8
-            dtype = numpy.dtype('>f4')
-            transform_data = 'COMPLEX'
+            basic_args['PVTYPE'] = 'R'
+            basic_args['NBPP'] = 32
+            basic_args['ABPP'] = 32
+            isubcat = ('I', 'Q')
         elif pixel_type == 'RE16I_IM16I':
-            pv_type, isubcat = 'SI', ('I', 'Q')
-            pixel_size = 4
-            dtype = numpy.dtype('>i2')
-            transform_data = complex_to_int
+            basic_args['PVTYPE'] = 'SI'
+            basic_args['NBPP'] = 16
+            basic_args['ABPP'] = 16
+            isubcat = ('I', 'Q')
         elif pixel_type == 'AMP8I_PHS8I':
-            pv_type, isubcat = 'INT', ('M', 'P')
-            pixel_size = 2
-            dtype = numpy.dtype('>u1')
-            transform_data = complex_to_amp_phase(self.sicd_meta.ImageData.AmpTable)
+            basic_args['PVTYPE'] = 'INT'
+            basic_args['NBPP'] = 8
+            basic_args['ABPP'] = 8
+            isubcat = ('M', 'P')
         else:
             raise ValueError('Got unhandled pixel_type {}'.format(pixel_type))
-        image_segment_limits = image_segmentation(
-            self.sicd_meta.ImageData.NumRows, self.sicd_meta.ImageData.NumCols, pixel_size)
-        return pixel_size, dtype, transform_data, pv_type, isubcat, image_segment_limits
 
-    def _create_image_segment_details(self):
-        super(SICDWriter, self)._create_image_segment_details()
-
-        pixel_size, dtype, transform_data, pv_type, isubcat, image_segment_limits = self._image_parameters()
-        img_groups = tuple(range(len(image_segment_limits)))
-        self._img_groups = (img_groups, )
-
-        iid2 = self._get_iid2()
-        idatim = ' '
-        if self.sicd_meta.Timeline is not None and self.sicd_meta.Timeline.CollectStart is not None:
-            idatim = re.sub(r'[^0-9]', '', str(self.sicd_meta.Timeline.CollectStart.astype('datetime64[s]')))
-
-        isource = self._get_isorce()
-
-        icp, rows, cols = None, None, None
+        rows = self.sicd_meta.ImageData.NumRows
+        cols = self.sicd_meta.ImageData.NumCols
+        icp = None
         if self.sicd_meta.GeoData is not None and self.sicd_meta.GeoData.ImageCorners is not None:
             # noinspection PyTypeChecker
             icp = self.sicd_meta.GeoData.ImageCorners.get_array(dtype=numpy.float64)
-            rows = self.sicd_meta.ImageData.NumRows
-            cols = self.sicd_meta.ImageData.NumCols
-        abpp = 4*pixel_size
-        bands = [ImageBand(ISUBCAT=entry) for entry in isubcat]
 
-        img_details = []
+        image_segment_limits = default_image_segmentation(rows, cols, self.row_limit)
+
+        self._image_segment_collection = (tuple(range(len(image_segment_limits))), )
 
         for i, entry in enumerate(image_segment_limits):
             if i == 0:
@@ -735,34 +717,24 @@ class SICDWriter(NITFWriter):
             this_cols = entry[3]-entry[2]
             subhead = ImageSegmentHeader(
                 IID1='SICD{0:03d}'.format(0 if len(image_segment_limits) == 1 else i+1),
-                IDATIM=idatim,
-                IID2=iid2,
-                ISORCE=isource,
-                IREP='NODISPLY',
-                ICAT='SAR',
                 NROWS=this_rows,
                 NCOLS=this_cols,
-                PVTYPE=pv_type,
-                ABPP=abpp,
                 IGEOLO=interpolate_corner_points_string(numpy.array(entry, dtype=numpy.int64), rows, cols, icp),
+                NPPBH=0 if this_cols > 8192 else this_cols,
+                NPPBV=0 if this_rows > 8192 else this_rows,
                 NBPC=1,
-                NPPBH=get_npp_block(this_cols),
                 NBPR=1,
-                NPPBV=get_npp_block(this_rows),
-                NBPP=abpp,
                 IDLVL=i+1,
                 IALVL=i,
                 ILOC=iloc,
-                Bands=ImageBands(values=bands),
-                Security=self._security_tags)
-            img_details.append(ImageDetails(2, dtype, transform_data, entry, subhead))
+                Bands=ImageBands(values=[ImageBand(ISUBCAT=entry) for entry in isubcat]),
+                Security=self._security_tags,
+                **basic_args)
+            image_managers.append(ImageSubheaderManager(subhead))
+        return tuple(image_managers)
 
-        self._img_details = tuple(img_details)
-
-    def _create_data_extension_details(self):
-        super(SICDWriter, self)._create_data_extension_details()
+    def _create_sicd_des(self) -> DESSubheaderManager:
         uh_args = self.sicd_meta.get_des_details(self._check_older_version)
-
         desshdt = str(self.sicd_meta.ImageCreation.DateTime.astype('datetime64[s]'))
         if desshdt[-1] != 'Z':
             desshdt += 'Z'
@@ -780,12 +752,83 @@ class SICDWriter(NITFWriter):
         uh_args['DESSHLPG'] = desshlpg
 
         subhead = DataExtensionHeader(
-            Security=self._security_tags,
+            Security=self.security_tags,
             UserHeader=XMLDESSubheader(**uh_args))
+        return DESSubheaderManager(
+            subhead, self.sicd_meta.to_xml_bytes(tag='SICD', urn=uh_args['DESSHTN']))
 
-        self._des_details = (
-            DESDetails(subhead, self.sicd_meta.to_xml_bytes(tag='SICD', urn=uh_args['DESSHTN'])), )
+    def _create_des_segments(
+            self,
+            additional_des: Optional[Sequence[DESSubheaderManager]]) -> Tuple[DESSubheaderManager, ...]:
+
+        if additional_des is not None:
+            des_managers = list(additional_des)
+        else:
+            des_managers = []
+        des_managers.append(self._create_sicd_des())
+        return tuple(des_managers)
 
 
-if __name__ == '__main__':
-    poo = SICDReader('test')
+class SICDWriter(NITFWriter):
+    """
+    Writer class for a SICD file - a NITF file containing complex radar data and
+    SICD data extension.
+
+    **Changed in version 1.3.0** to reflect NITFWriter changes.
+    """
+
+    def __init__(
+            self,
+            file_name: str,
+            sicd_meta: Optional[SICDType] = None,
+            sicd_writing_details: Optional[SICDWritingDetails] = None,
+            check_older_version: bool = False,
+            check_existence: bool = True):
+
+        if sicd_meta is None and sicd_writing_details is None:
+            raise ValueError('One of sicd_meta or sicd_writing_details must be provided.')
+        if sicd_writing_details is None:
+            sicd_writing_details = SICDWritingDetails(sicd_meta, check_older_version=check_older_version)
+        NITFWriter.__init__(
+            self, file_name, sicd_writing_details,
+            sicd_writing_details.image_segment_collection, check_existence=check_existence)
+
+    @property
+    def nitf_writing_details(self) -> SICDWritingDetails:
+        """
+        SICDWritingDetails: The SICD/NITF subheader details.
+        """
+
+        # noinspection PyTypeChecker
+        return self._nitf_writing_details
+
+    @nitf_writing_details.setter
+    def nitf_writing_details(self, value):
+        if self._nitf_writing_details is not None:
+            raise ValueError('nitf_writing_details is read-only')
+        if not isinstance(value, SICDWritingDetails):
+            raise TypeError('nitf_writing_details must be of type {}'.format(SICDWritingDetails))
+        self._nitf_writing_details = value
+
+    @property
+    def sicd_meta(self) -> SICDType:
+        return self.nitf_writing_details.sicd_meta
+
+    def get_format_function(
+            self,
+            raw_dtype: numpy.dtype,
+            complex_order: Optional[str],
+            lut: Optional[numpy.ndarray],
+            band_dimension: int,
+            image_segment_index: Optional[int] = None,
+            **kwargs) -> Optional[FormatFunction]:
+        if complex_order is not None and complex_order != 'IQ':
+            if complex_order != 'MP' or raw_dtype.name != 'uint8' or band_dimension != 2:
+                raise ValueError('Got unsupported SICD band type definition')
+            return ComplexFormatFunction(
+                raw_dtype,
+                complex_order,
+                band_dimension=band_dimension,
+                amplitude_scaling=self.sicd_meta.ImageData.AmpTable)
+        return NITFWriter.get_format_function(
+            self, raw_dtype, complex_order, lut, band_dimension, image_segment_index, **kwargs)

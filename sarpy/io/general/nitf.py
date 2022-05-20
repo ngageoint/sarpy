@@ -8,13 +8,9 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
-# TODO: update NITF writing paradigm
-
-
 import logging
 import os
 from typing import Union, List, Tuple, BinaryIO, Sequence, Optional
-import re
 from tempfile import mkstemp
 from collections import OrderedDict
 import struct
@@ -22,7 +18,7 @@ from io import BytesIO
 
 import numpy
 
-from sarpy.io.general.base import SarpyIOError, BaseReader, BaseWriter  #, BIPWriter
+from sarpy.io.general.base import SarpyIOError, BaseReader, BaseWriter
 from sarpy.io.general.format_function import FormatFunction, ComplexFormatFunction, \
     SingleLUTFormatFunction
 from sarpy.io.general.data_segment import DataSegment, BandAggregateSegment, \
@@ -30,13 +26,13 @@ from sarpy.io.general.data_segment import DataSegment, BandAggregateSegment, \
 
 # noinspection PyProtectedMember
 from sarpy.io.general.nitf_elements.nitf_head import NITFHeader, NITFHeader0, \
-    ImageSegmentsType, DataExtensionsType, _ItemArrayHeaders
+    ImageSegmentsType, GraphicsSegmentsType, TextSegmentsType, \
+    DataExtensionsType, ReservedExtensionsType, _ItemArrayHeaders
 from sarpy.io.general.nitf_elements.text import TextSegmentHeader, TextSegmentHeader0
 from sarpy.io.general.nitf_elements.graphics import GraphicsSegmentHeader
 from sarpy.io.general.nitf_elements.symbol import SymbolSegmentHeader
 from sarpy.io.general.nitf_elements.label import LabelSegmentHeader
 from sarpy.io.general.nitf_elements.res import ReservedExtensionHeader, ReservedExtensionHeader0
-from sarpy.io.general.nitf_elements.security import NITFSecurityTags
 from sarpy.io.general.nitf_elements.image import ImageSegmentHeader, ImageSegmentHeader0, MaskSubheader
 from sarpy.io.general.nitf_elements.des import DataExtensionHeader, DataExtensionHeader0
 from sarpy.io.general.utils import is_file_like, is_nitf, is_real_file
@@ -1197,7 +1193,7 @@ class NITFReader(BaseReader):
     A reader implementation based around array-type image data fetching for
     NITF 2.0 or 2.1 files.
 
-    Significantly revised in version 1.3.0 to accommodate the new data segment
+    **Significantly revised in version 1.3.0** to accommodate the new data segment
     paradigm. General NITF support is improved from previous version, but there
     remain unsupported edge cases.
     """
@@ -1424,6 +1420,7 @@ class NITFReader(BaseReader):
 
     def _construct_block_bounds(self, image_segment_index: int) -> List[Tuple[int, int, int, int]]:
         image_header = self.get_image_header(image_segment_index)
+        # noinspection PyTypeChecker
         return _construct_block_bounds(image_header)
 
     def _get_mask_details(
@@ -1568,6 +1565,7 @@ class NITFReader(BaseReader):
 
         image_headers = [self.nitf_details.img_headers[image_ind]
                          for image_ind in self.image_segment_collections[collection_index]]
+        # noinspection PyTypeChecker
         return _get_collection_element_coordinate_limits(image_headers, return_clevel=False)
 
     def _handle_jpeg2k_no_mask(self, image_segment_index: int, apply_format: bool) -> DataSegment:
@@ -1787,6 +1785,7 @@ class NITFReader(BaseReader):
             if mask_offset == exclude_value:
                 continue  # just skip it, it's masked out
             jpeg_delim = jpeg_delimiters[next_jpeg_block]
+            # noinspection PyUnresolvedReferences
             img = PIL_Image.open(BytesIO(the_bytes[jpeg_delim[0]:jpeg_delim[1]]))
             # handle block padding situation
             row_start, row_end = block_bound[0], min(block_bound[1], image_header.NROWS)
@@ -1863,6 +1862,7 @@ class NITFReader(BaseReader):
         block_offsets = mask_offsets if mask_offsets is not None else \
             numpy.arange(len(block_bounds), dtype='int64')*block_size
 
+        # noinspection PyUnresolvedReferences
         if not (isinstance(block_offsets, numpy.ndarray) and mask_offsets.ndim == 1):
             raise ValueError('Got unexpected mask offsets `{}`'.format(block_offsets))
 
@@ -2047,6 +2047,7 @@ class NITFReader(BaseReader):
                 if mask_offset == exclude_value:
                     continue  # just skip it, it's masked out
                 jpeg_delim = jpeg_delimiters[next_jpeg_block]
+                # noinspection PyUnresolvedReferences
                 img = PIL_Image.open(BytesIO(the_bytes[jpeg_delim[0]:jpeg_delim[1]]))
                 # handle block padding situation
                 row_start, row_end = block_bound[0], min(block_bound[1], image_header.NROWS)
@@ -2418,10 +2419,101 @@ def is_a(file_name: Union[str, BinaryIO]) -> Optional[NITFReader]:
 #####
 # NITF writing elements
 
+def interpolate_corner_points_string(
+        entry: numpy.ndarray,
+        rows: int,
+        cols: int,
+        icp: numpy.ndarray):
+    """
+    Interpolate the corner points for the given subsection from
+    the given corner points. This supplies entries for the NITF headers.
+    Parameters
+    ----------
+    entry : numpy.ndarray
+        The corner pints of the form `(row_start, row_stop, col_start, col_stop)`
+    rows : int
+        The number of rows in the parent image.
+    cols : int
+        The number of cols in the parent image.
+    icp : numpy.ndarray
+        The parent image corner points in geodetic coordinates.
+
+    Returns
+    -------
+    str
+        suitable for IGEOLO entry.
+    """
+
+    if icp is None:
+        return ''
+
+    if icp.shape[1] == 2:
+        icp_new = numpy.zeros((icp.shape[0], 3), dtype=numpy.float64)
+        icp_new[:, :2] = icp
+        icp = icp_new
+    icp_ecf = geodetic_to_ecf(icp)
+
+    const = 1. / (rows * cols)
+    pattern = entry[numpy.array([(0, 2), (1, 2), (1, 3), (0, 3)], dtype=numpy.int64)]
+    out = []
+    for row, col in pattern:
+        pt_array = const * numpy.sum(icp_ecf *
+                                     (numpy.array([rows - row, row, row, rows - row]) *
+                                      numpy.array([cols - col, cols - col, col, col]))[:, numpy.newaxis], axis=0)
+
+        pt = LatLonType.from_array(ecf_to_geodetic(pt_array)[:2])
+        dms = pt.dms_format(frac_secs=False)
+        out.append('{0:02d}{1:02d}{2:02d}{3:s}'.format(*dms[0]) + '{0:03d}{1:02d}{2:02d}{3:s}'.format(*dms[1]))
+    return ''.join(out)
+
+
+def default_image_segmentation(rows: int, cols: int, row_limit: int) -> Tuple[Tuple[int, ...], ...]:
+    """
+    Determine the appropriate segmentation for the image. This is driven
+    by the SICD/SIDD standard, and not the only generally feasible segmentation
+    scheme for other NITF file types.
+
+    Parameters
+    ----------
+    rows : int
+    cols : int
+    row_limit : int
+        It is assumed that this follows the NITF guidelines
+
+    Returns
+    -------
+    Tuple[Tuple[int, ...], ...]
+        Of the form `((row start, row end, column start, column end))`
+    """
+
+    im_segments = []
+    row_offset = 0
+    while row_offset < rows:
+        next_rows = min(rows, row_offset + row_limit)
+        im_segments.append((row_offset, next_rows, 0, cols))
+        row_offset = next_rows
+    return tuple(im_segments)
+
+
+def get_npp_block(value):
+    """
+    Determine the number of pixels per block value.
+    Parameters
+    ----------
+    value : int
+    Returns
+    -------
+    int
+    """
+
+    return 0 if value > 8192 else value
+
 class SubheaderManager(object):
     """
     Simple manager object for a NITF subheader, and it's associated information
     in the NITF writing process.
+
+    Introduced in version 1.3.0.
     """
 
     __slots__ = (
@@ -2429,23 +2521,31 @@ class SubheaderManager(object):
         '_item_bytes', '_item_offset', '_item_size',
         '_subheader_written', '_item_written')
 
-    _item_bytes_optional = True
-    _subheader_type = None
+    item_bytes_required = True
+    """
+    Are you required to provide the item bytes?
+    """
+
+    subheader_type = None
+    """
+    What is the type for the subheader?
+    """
 
     def __init__(self, subheader, item_bytes: Optional[bytes] = None):
-        if not isinstance(subheader, self._subheader_type):
+        if not isinstance(subheader, self.subheader_type):
             raise TypeError(
                 'subheader must be of type {} for class {}'.format(
-                    self._subheader_type, self.__class__))
+                    self.subheader_type, self.__class__))
         self._subheader = None
         self._subheader_offset = None
         self._item_offset = None
         self._subheader_written = False
         self._item_written = False
+        self._item_bytes = None
         self._item_size = None
 
         if item_bytes is None:
-            if not self._item_bytes_optional:
+            if self.item_bytes_required:
                 raise ValueError(
                     'item_bytes is required by class {}.'.format(
                         self.__class__))
@@ -2454,7 +2554,6 @@ class SubheaderManager(object):
             raise ValueError(
                 'item_bytes must be an instance of bytes for class {}'.format(
                     self.__class__))
-        self.item_size = len(item_bytes)
         if self._item_bytes is not None:
             self.item_size = len(item_bytes)
 
@@ -2480,7 +2579,15 @@ class SubheaderManager(object):
             logger.warning("subheader_offset is read only after being initially defined.")
             return
         self._subheader_offset = int(value)
-        self._item_offset = self._subheader_offset + self._subheader.get_bytes_length()
+        self._item_offset = self._subheader_offset + self.subheader_size
+
+    @property
+    def subheader_size(self) -> int:
+        """
+        int: The subheader size
+        """
+
+        return self._subheader.get_bytes_length()
 
     @property
     def item_offset(self) -> Optional[int]:
@@ -2538,6 +2645,11 @@ class SubheaderManager(object):
 
     @property
     def item_bytes(self) -> Optional[bytes]:
+        """
+        None|bytes: The item bytes. Note that this is either provided on
+        initialization, or should never be set.
+        """
+
         return self._item_bytes
 
     @property
@@ -2558,6 +2670,23 @@ class SubheaderManager(object):
         self._item_written = value
 
     def write_subheader(self, file_object: BinaryIO) -> None:
+        """
+        Write the subheader, at its specified offset, to the file.
+
+        Parameters
+        ----------
+        file_object : BinaryIO
+
+        Returns
+        -------
+        None
+
+        Raises
+        ------
+        ValueError
+            If the subheader_offset is not populated.
+        """
+
         if self.subheader_written:
             return
 
@@ -2569,6 +2698,24 @@ class SubheaderManager(object):
         self.subheader_written = True
 
     def write_item(self, file_object: BinaryIO) -> None:
+        """
+        Write the item bytes (if populated), at its specified offset, to the
+        file.
+
+        Parameters
+        ----------
+        file_object : BinaryIO
+
+        Returns
+        -------
+        None
+
+        Raises
+        ------
+        ValueError
+            If the item_offset of item_bytes are not populated.
+        """
+
         if self.item_written:
             return
 
@@ -2586,8 +2733,8 @@ class SubheaderManager(object):
 
 
 class ImageSubheaderManager(SubheaderManager):
-    _item_bytes_optional = True
-    _subheader_type = ImageSegmentHeader
+    item_bytes_required = False
+    subheader_type = ImageSegmentHeader
 
     @property
     def subheader(self) -> ImageSegmentHeader:
@@ -2646,8 +2793,8 @@ class ImageSubheaderManager(SubheaderManager):
 
 
 class GraphicsSubheaderManager(SubheaderManager):
-    _item_bytes_optional = False
-    _subheader_type = GraphicsSegmentHeader
+    item_bytes_required = True
+    subheader_type = GraphicsSegmentHeader
 
     @property
     def subheader(self) -> GraphicsSegmentHeader:
@@ -2655,8 +2802,8 @@ class GraphicsSubheaderManager(SubheaderManager):
 
 
 class TextSubheaderManager(SubheaderManager):
-    _item_bytes_optional = False
-    _subheader_type = TextSegmentHeader
+    item_bytes_required = True
+    subheader_type = TextSegmentHeader
 
     @property
     def subheader(self) -> TextSegmentHeader:
@@ -2664,8 +2811,8 @@ class TextSubheaderManager(SubheaderManager):
 
 
 class DESSubheaderManager(SubheaderManager):
-    _item_bytes_optional = False
-    _subheader_type = DataExtensionHeader
+    item_bytes_required = True
+    subheader_type = DataExtensionHeader
 
     @property
     def subheader(self) -> DataExtensionHeader:
@@ -2673,62 +2820,44 @@ class DESSubheaderManager(SubheaderManager):
 
 
 class RESSubheaderManager(SubheaderManager):
-    _item_bytes_optional = False
-    _subheader_type = DataExtensionHeader
+    item_bytes_required = True
+    subheader_type = DataExtensionHeader
 
     @property
     def subheader(self) -> ReservedExtensionHeader:
         return self._subheader
 
 
-#############
-# An array based (for only uncompressed images) nitf 2.1 writer
+class NITFWritingDetails(object):
+    """
+    Manager for all the NITF subheader information.
 
-# TODO: calculate CLEVEL crapola...
-
-class NITFWriter(BaseWriter):
+    Introduced in version 1.3.0.
+    """
     __slots__ = (
-        '_file_name','_image_segment_collections', '_collections_clevel',
-        '_image_segment_data_segments', '_header', '_image_managers',
-        '_graphics_managers', '_text_managers', '_des_managers', '_res_managers')
+        '_header', '_image_managers', '_graphics_managers', '_text_managers',
+        '_des_managers', '_res_managers')
 
     def __init__(
             self,
-            file_name: str,
             header: NITFHeader,
-            image_managers: Tuple[ImageSubheaderManager, ...],
-            image_segment_collections: Tuple[Tuple[int, ...]],
+            image_managers: Optional[Tuple[ImageSubheaderManager, ...]] = None,
             graphics_managers: Optional[Tuple[GraphicsSubheaderManager, ...]] = None,
             text_managers: Optional[Tuple[TextSubheaderManager, ...]] = None,
             des_managers: Optional[Tuple[DESSubheaderManager, ...]] = None,
-            res_managers: Optional[Tuple[RESSubheaderManager, ...]] = None,
-            check_existence: bool = True):
+            res_managers: Optional[Tuple[RESSubheaderManager, ...]] = None):
         """
 
         Parameters
         ----------
-        file_name : str
         header : NITFHeader
-        image_managers : Tuple[ImageSubheaderManager, ...]
-        image_segment_collections: Tuple[Tuple[int, ...]]
-            The collections of image segments that are actually written as part
-            of a larger whole.
+        image_managers : Optional[Tuple[ImageSubheaderManager, ...]]
         graphics_managers: Optional[Tuple[GraphicsSubheaderManager, ...]]
         text_managers: Optional[Tuple[TextSubheaderManager, ...]]
         des_managers: Optional[Tuple[DESSubheaderManager, ...]]
         res_managers: Optional[Tuple[RESSubheaderManager, ...]]
-        check_existence : bool
-            Should we check if the given file already exists?
-
-        Raises
-        ------
-        SarpyIOError
-            If the given `file_name` already exists
         """
 
-        self._image_segment_collections = None
-        self._image_segment_data_segments = {}
-        self._collections_clevel = {}
         self._header = None
         self._image_managers = None
         self._graphics_managers = None
@@ -2736,38 +2865,12 @@ class NITFWriter(BaseWriter):
         self._des_managers = None
         self._res_managers = None
 
-        if check_existence and os.path.exists(file_name):
-            raise SarpyIOError(
-                'Given file {} already exists,\n\t'
-                'and a new NITF file cannot be created here.'.format(file_name))
-        self._file_name = file_name
-
-        # TODO: validate the managers
-        self._header = header
+        self.header = header
         self.image_managers = image_managers
         self.graphics_managers = graphics_managers
         self.text_managers = text_managers
         self.des_managers = des_managers
         self.res_managers = res_managers
-        self._set_image_segment_collections(image_segment_collections)
-
-        # (re)create the file
-        with open(self._file_name, 'wb') as fi:
-            fi.write(b'')
-
-        self._verify_image_segments()
-        self.verify_collection_compliance()
-        # set the first image offset from header
-        self.image_managers[0].subheader_offset = self.header.get_bytes_length()
-        # construct all the data segments
-        data_segments = self.get_data_segments()
-        # set the offsets for the other elements, given that the images are all set
-        self._set_other_offsets()
-        # all the offsets are now set
-        BaseWriter.__init__(self, data_segments)
-        self._write_all_subheaders()
-        # this writes everything except the image data,
-        # which will be written via data segments
 
     @property
     def header(self) -> NITFHeader:
@@ -2782,13 +2885,17 @@ class NITFWriter(BaseWriter):
         self._header = value
 
     @property
-    def image_managers(self) -> Tuple[ImageSubheaderManager, ...]:
+    def image_managers(self) -> Optional[Tuple[ImageSubheaderManager, ...]]:
         return self._image_managers
 
     @image_managers.setter
     def image_managers(self, value):
         if self._image_managers is not None:
             raise ValueError('image_managers is read-only')
+        if value is None:
+            self._image_managers = None
+            return
+
         if not isinstance(value, tuple):
             raise TypeError('image_managers must be a tuple')
         for entry in value:
@@ -2797,13 +2904,17 @@ class NITFWriter(BaseWriter):
         self._image_managers = value
 
     @property
-    def graphics_managers(self) -> Tuple[GraphicsSubheaderManager, ...]:
+    def graphics_managers(self) -> Optional[Tuple[GraphicsSubheaderManager, ...]]:
         return self._graphics_managers
 
     @graphics_managers.setter
     def graphics_managers(self, value):
         if self._graphics_managers is not None:
             raise ValueError('graphics_managers is read-only')
+        if value is None:
+            self._graphics_managers = None
+            return
+
         if not isinstance(value, tuple):
             raise TypeError('graphics_managers must be a tuple')
         for entry in value:
@@ -2812,13 +2923,17 @@ class NITFWriter(BaseWriter):
         self._graphics_managers = value
 
     @property
-    def text_managers(self) -> Tuple[TextSubheaderManager, ...]:
+    def text_managers(self) -> Optional[Tuple[TextSubheaderManager, ...]]:
         return self._text_managers
 
     @text_managers.setter
     def text_managers(self, value):
         if self._text_managers is not None:
             raise ValueError('text_managers is read-only')
+        if value is None:
+            self._text_managers = None
+            return
+
         if not isinstance(value, tuple):
             raise TypeError('text_managers must be a tuple')
         for entry in value:
@@ -2827,13 +2942,17 @@ class NITFWriter(BaseWriter):
         self._text_managers = value
 
     @property
-    def des_managers(self) -> Tuple[DESSubheaderManager, ...]:
+    def des_managers(self) -> Optional[Tuple[DESSubheaderManager, ...]]:
         return self._des_managers
 
     @des_managers.setter
     def des_managers(self, value):
         if self._des_managers is not None:
             raise ValueError('des_managers is read-only')
+        if value is None:
+            self._des_managers = None
+            return
+
         if not isinstance(value, tuple):
             raise TypeError('des_managers must be a tuple')
         for entry in value:
@@ -2842,19 +2961,412 @@ class NITFWriter(BaseWriter):
         self._des_managers = value
 
     @property
-    def res_managers(self) -> Tuple[RESSubheaderManager, ...]:
+    def res_managers(self) -> Optional[Tuple[RESSubheaderManager, ...]]:
         return self._res_managers
 
     @res_managers.setter
     def res_managers(self, value):
         if self._res_managers is not None:
             raise ValueError('res_managers is read-only')
+        if value is None:
+            self._res_managers = None
+            return
+
         if not isinstance(value, tuple):
             raise TypeError('res_managers must be a tuple')
         for entry in value:
             if not isinstance(entry, RESSubheaderManager):
                 raise TypeError('res_managers entries must be of type {}'.format(RESSubheaderManager))
         self._res_managers = value
+
+    def _get_sizes(
+            self,
+            managers: Optional[Sequence],
+            name: str) -> Tuple[Optional[numpy.ndarray], Optional[numpy.ndarray]]:
+        if managers is None:
+            return None, None
+
+        subhead_sizes = numpy.zeros((len(managers), ), dtype='int64')
+        item_sizes = numpy.zeros((len(managers), ), dtype='int64')
+        for i, entry in enumerate(managers):
+            subhead_sizes[i] = entry.subheader_size
+            item_size = entry.item_size
+            if item_size is None:
+                raise ValueError('item_size for {} at index {} is unset'.format(name, item_size))
+            item_sizes[i] = entry.item_size
+        return subhead_sizes, item_sizes
+
+    def get_image_sizes(self) -> ImageSegmentsType:
+        """
+        Gets the image sizes details for the NITF header.
+
+        Returns
+        -------
+        ImageSegmentsType
+        """
+
+        subhead_sizes, item_sizes = self._get_sizes(self.image_managers, 'Image')
+        return ImageSegmentsType(subhead_sizes=subhead_sizes, item_sizes=item_sizes)
+
+    def get_graphics_sizes(self) -> GraphicsSegmentsType:
+        """
+        Gets the graphics sizes details for the NITF header.
+
+        Returns
+        -------
+        ImageSegmentsType
+        """
+
+        subhead_sizes, item_sizes = self._get_sizes(self.graphics_managers, 'Graphics')
+        return GraphicsSegmentsType(subhead_sizes=subhead_sizes, item_sizes=item_sizes)
+
+    def get_text_sizes(self) -> TextSegmentsType:
+        """
+        Gets the text sizes details for the NITF header.
+
+        Returns
+        -------
+        TextSegmentsType
+        """
+
+        subhead_sizes, item_sizes = self._get_sizes(self.text_managers, 'Text')
+        return TextSegmentsType(subhead_sizes=subhead_sizes, item_sizes=item_sizes)
+
+    def get_des_sizes(self) -> DataExtensionsType:
+        """
+        Gets the image sizes details for the NITF header.
+
+        Returns
+        -------
+        ImageSegmentsType
+        """
+
+        subhead_sizes, item_sizes = self._get_sizes(self.des_managers, 'DES')
+        return DataExtensionsType(subhead_sizes=subhead_sizes, item_sizes=item_sizes)
+
+    def get_res_sizes(self) -> ReservedExtensionsType:
+        """
+        Gets the image sizes details for the NITF header.
+
+        Returns
+        -------
+        ImageSegmentsType
+        """
+
+        subhead_sizes, item_sizes = self._get_sizes(self.res_managers, 'RES')
+        return ReservedExtensionsType(subhead_sizes=subhead_sizes, item_sizes=item_sizes)
+
+    def set_first_image_offset(self) -> None:
+        """
+        Sets the first image offset from the header length.
+
+        Returns
+        -------
+        None
+        """
+
+        if self.image_managers is None:
+            return
+        self.image_managers[0].subheader_offset = self.header.get_bytes_length()
+
+    def verify_image_bytes_all_set(self) -> bool:
+        """
+        Verify that the image bytes data is set for every image manager. That is,
+        we are going to directly write a NITF file.
+
+        Returns
+        -------
+        bool
+        """
+
+        if self.image_managers is None:
+            return True
+
+        out = True
+        for entry in self.image_managers:
+            out &= (entry.item_bytes is not None)
+        return out
+
+    def verify_no_image_bytes_set(self) -> bool:
+        """
+        Verify that the image bytes data is **NOT** set for every image manager.
+        That is, we are going to write a NITF file using array-like image data
+        operations.
+
+        Returns
+        -------
+        bool
+        """
+
+        if self.image_managers is None:
+            return True
+
+        out = True
+        for entry in self.image_managers:
+            out &= (entry.item_bytes is None)
+        return out
+
+    def verify_all_sizes(self) -> None:
+        """
+        This verifies that all the item_size values are set and populates the
+        size information in the nitf header.
+
+        Returns
+        -------
+        None
+        """
+
+        self.header.ImageSegments = self.get_image_sizes()
+        self.header.GraphicsSegments = self.get_graphics_sizes()
+        self.header.TextSegments = self.get_text_sizes()
+        self.header.DataExtensions = self.get_des_sizes()
+        self.header.ReservedExtensions = self.get_res_sizes()
+
+    def verify_all_offsets(self) -> None:
+        """
+        This sets and/or verifies all offsets. This requires that item_size has
+        been populated for every subheader manager.
+
+        Returns
+        -------
+        None
+        """
+
+
+        last_offset = self.header.get_bytes_length()
+
+        if self.image_managers is not None:
+            for index, entry in enumerate(self.image_managers):
+                if entry.subheader_offset is None:
+                    entry.subheader_offset = last_offset
+                elif entry.subheader_offset != last_offset:
+                    raise ValueError(
+                        'image manager at index {} has subheader offset which does not agree\n\t'
+                        'with the end of the previous element'.format(index))
+                last_offset = entry.end_of_item
+                if last_offset is None:
+                    raise ValueError(
+                        'image manager at index {} has end_of_item (i.e item_size) unpopulated.'.format(index))
+
+        if self.graphics_managers is not None:
+            for index, entry in enumerate(self.graphics_managers):
+                if entry.subheader_offset is None:
+                    entry.subheader_offset = last_offset
+                elif entry.subheader_offset != last_offset:
+                    raise ValueError(
+                        'graphics manager at index {} has subheader offset which does not agree\n\t'
+                        'with the end of the previous element'.format(index))
+                last_offset = entry.end_of_item
+                if last_offset is None:
+                    raise ValueError(
+                        'graphics manager at index {} has end_of_item unpopulated.'.format(index))
+
+        if self.text_managers is not None:
+            for index, entry in enumerate(self.text_managers):
+                if entry.subheader_offset is None:
+                    entry.subheader_offset = last_offset
+                elif entry.subheader_offset != last_offset:
+                    raise ValueError(
+                        'text manager at index {} has subheader offset which does not agree\n\t'
+                        'with the end of the previous element'.format(index))
+                last_offset = entry.end_of_item
+                if last_offset is None:
+                    raise ValueError(
+                        'text manager at index {} has end_of_item unpopulated.'.format(index))
+
+        if self.des_managers is not None:
+            for index, entry in enumerate(self.des_managers):
+                if entry.subheader_offset is None:
+                    entry.subheader_offset = last_offset
+                elif entry.subheader_offset != last_offset:
+                    raise ValueError(
+                        'des manager at index {} has subheader offset which does not agree\n\t'
+                        'with the end of the previous element'.format(index))
+                last_offset = entry.end_of_item
+                if last_offset is None:
+                    raise ValueError(
+                        'des manager at index {} has end_of_item unpopulated.'.format(index))
+
+        if self.res_managers is not None:
+            for index, entry in enumerate(self.res_managers):
+                if entry.subheader_offset is None:
+                    entry.subheader_offset = last_offset
+                elif entry.subheader_offset != last_offset:
+                    raise ValueError(
+                        'res manager at index {} has subheader offset which does not agree\n\t'
+                        'with the end of the previous element'.format(index))
+                last_offset = entry.end_of_item
+                if last_offset is None:
+                    raise ValueError(
+                        'res manager at index {} has end_of_item unpopulated.'.format(index))
+        self.header.FL = last_offset
+
+    def set_header_clevel(self, collections_clevel: Optional[int] = None) -> None:
+        """
+        Sets the appropriate CLEVEL. This requires that header.FL (file size) has
+        been previously populated correctly (using :meth:`verify_all_offsets`).
+
+        Parameters
+        ----------
+        collections_clevel : None|int
+            The CLEVEL contribution from the common coordinate system(s) size
+
+        Returns
+        -------
+        None
+        """
+
+        file_size = self.header.FL
+        if file_size < 50 * (1024 ** 2):
+            mem_clevel = 3
+        elif file_size < (1024 ** 3):
+            mem_clevel = 5
+        elif file_size < 2 * (1024 ** 3):
+            mem_clevel = 6
+        elif file_size < 10 * (1024 ** 3):
+            mem_clevel = 7
+        else:
+            mem_clevel = 9
+
+        self.header.CLEVEL = mem_clevel if collections_clevel is None else \
+            max(mem_clevel, collections_clevel)
+
+    def write_all_populated_items(self, file_object: BinaryIO) -> None:
+        """
+        Write everything populated (i.e. with the possible exception of image data)
+        to the file-like object. This assumes that The header will start at the
+        beginning (position 0) of the file-like object.
+
+        Parameters
+        ----------
+        file_object : BinaryIO
+
+        Returns
+        -------
+        None
+        """
+
+        first_pos = file_object.tell()
+        file_object.seek(0, os.SEEK_SET)
+        file_object.write(self.header.to_bytes())
+
+
+        if self.image_managers is not None:
+            for entry in self.image_managers:
+                entry.write_subheader(file_object)
+                if entry.item_bytes is not None:
+                    entry.write_item(file_object)
+
+        if self.graphics_managers is not None:
+            for entry in self.graphics_managers:
+                entry.write_subheader(file_object)
+                entry.write_item(file_object)
+
+        if self.text_managers is not None:
+            for entry in self.text_managers:
+                entry.write_subheader(file_object)
+                entry.write_item(file_object)
+
+        if self.des_managers is not None:
+            for entry in self.des_managers:
+                entry.write_subheader(file_object)
+                entry.write_item(file_object)
+
+        if self.res_managers is not None:
+            for entry in self.res_managers:
+                entry.write_subheader(file_object)
+                entry.write_item(file_object)
+        file_object.seek(first_pos, os.SEEK_SET)
+
+
+#############
+# An array based (for only uncompressed images) nitf 2.1 writer
+
+class NITFWriter(BaseWriter):
+    __slots__ = (
+        '_file_name','_image_segment_collections', '_collections_clevel',
+        '_image_segment_data_segments', '_nitf_writing_details')
+
+    def __init__(
+            self,
+            file_name: str,
+            writing_details: NITFWritingDetails,
+            image_segment_collections: Tuple[Tuple[int, ...]],
+            check_existence: bool = True):
+        """
+
+        Parameters
+        ----------
+        file_name : str
+        writing_details : NITFWritingDetails
+        image_segment_collections: Tuple[Tuple[int, ...]]
+            The collections of image segments that are actually written as part
+            of a larger whole.
+        check_existence : bool
+            Should we check if the given file already exists?
+
+        Raises
+        ------
+        SarpyIOError
+            If the given `file_name` already exists
+        """
+
+        self._nitf_writing_details = None
+        self._image_segment_collections = None
+        self._image_segment_data_segments = {}
+        self._collections_clevel = {}
+
+        if check_existence and os.path.exists(file_name):
+            raise SarpyIOError(
+                'Given file {} already exists,\n\t'
+                'and a new NITF file cannot be created here.'.format(file_name))
+        self._file_name = file_name
+
+        self.nitf_writing_details = writing_details
+        if not self.nitf_writing_details.verify_no_image_bytes_set():
+            raise ValueError(
+                'Some item_bytes data is set in the image managers of the nitf_writing_details')
+        self.nitf_writing_details.set_first_image_offset()
+
+        self._set_image_segment_collections(image_segment_collections)
+
+        # (re)create the file
+        with open(self._file_name, 'wb') as fi:
+            fi.write(b'')
+
+        self._verify_image_segments()
+        self.verify_collection_compliance()
+
+        # construct all the data segments
+        data_segments = self.get_data_segments()
+
+        self.nitf_writing_details.verify_all_sizes()
+        self.nitf_writing_details.verify_all_offsets()
+
+        BaseWriter.__init__(self, data_segments)
+        self._write_all_subheaders()
+        # this writes everything except the image data,
+        # which will be written via data segments
+
+    @property
+    def nitf_writing_details(self) -> NITFWritingDetails:
+        """
+        NITFWritingDetails: The NITF subheader details.
+        """
+
+        return self._nitf_writing_details
+
+    @nitf_writing_details.setter
+    def nitf_writing_details(self, value):
+        if self._nitf_writing_details is not None:
+            raise ValueError('nitf_writing_details is read-only')
+        if not isinstance(value, NITFWritingDetails):
+            raise TypeError('nitf_writing_details must be of type {}'.format(NITFWritingDetails))
+        self._nitf_writing_details = value
+
+    @property
+    def image_managers(self) -> Tuple[ImageSubheaderManager, ...]:
+        return self.nitf_writing_details.image_managers
 
     def _set_image_size(self, image_segment_index: int, item_size: int) -> None:
         """
@@ -2890,89 +3402,12 @@ class NITFWriter(BaseWriter):
         Sets the NITF complexity level in the header.
         """
 
-        def memory_level():
-            if file_size < 50*(1024**2):
-                return 3
-            elif file_size < (1024**3):
-                return 5
-            elif file_size < 2*(int(1024)**3):
-                return 6
-            elif file_size < 10*(int(1024)**3):
-                return 7
-            else:
-                return 9
-
-        def image_level():
-            return max(self._collections_clevel.values())
-
-        file_size = self.header.FL
-        self.header.CLEVEL = max(memory_level(), image_level())
-
-    def _set_other_offsets(self):
-        last_offset = self.image_managers[-1].end_of_item
-        if last_offset is None:
-            raise ValueError('Final image end_of_item unpopulated.')
-
-        if self.graphics_managers is not None:
-            for index, entry in enumerate(self.graphics_managers):
-                entry.subheader_offset = last_offset
-                last_offset = entry.end_of_item
-                if last_offset is None:
-                    raise ValueError(
-                        'graphics manager at index {} has end_of_item unpopulated.'.format(index))
-
-        if self.text_managers is not None:
-            for index, entry in enumerate(self.text_managers):
-                entry.subheader_offset = last_offset
-                last_offset = entry.end_of_item
-                if last_offset is None:
-                    raise ValueError(
-                        'text manager at index {} has end_of_item unpopulated.'.format(index))
-
-        if self.des_managers is not None:
-            for index, entry in enumerate(self.des_managers):
-                entry.subheader_offset = last_offset
-                last_offset = entry.end_of_item
-                if last_offset is None:
-                    raise ValueError(
-                        'des manager at index {} has end_of_item unpopulated.'.format(index))
-
-        if self.res_managers is not None:
-            for index, entry in enumerate(self.res_managers):
-                entry.subheader_offset = last_offset
-                last_offset = entry.end_of_item
-                if last_offset is None:
-                    raise ValueError(
-                        'res manager at index {} has end_of_item unpopulated.'.format(index))
-        self.header.FL = last_offset
-        self._set_clevel()
+        self.nitf_writing_details.set_header_clevel(
+            collections_clevel=max(self._collections_clevel.values()))
 
     def _write_all_subheaders(self) -> None:
         with open(self.file_name, 'rb+') as fi:
-            fi.write(self.header.to_bytes())
-
-            for entry in self.image_managers:
-                entry.write_subheader(fi)
-
-            if self.graphics_managers is not None:
-                for entry in self.graphics_managers:
-                    entry.write_subheader(fi)
-                    entry.write_item(fi)
-
-            if self.text_managers is not None:
-                for entry in self.text_managers:
-                    entry.write_subheader(fi)
-                    entry.write_item(fi)
-
-            if self.des_managers is not None:
-                for entry in self.des_managers:
-                    entry.write_subheader(fi)
-                    entry.write_item(fi)
-
-            if self.res_managers is not None:
-                for entry in self.res_managers:
-                    entry.write_subheader(fi)
-                    entry.write_item(fi)
+            self.nitf_writing_details.write_all_populated_items(fi)
 
     def _set_image_segment_collections(self, value: Tuple[Tuple[int, ...], ...]):
         if not isinstance(value, tuple):
@@ -2992,7 +3427,7 @@ class NITFWriter(BaseWriter):
                 if item != last_index + 1:
                     raise ValueError('image segment collection entries must be arranged in ascending order')
                 last_index = item
-        if last_index != len(self._image_managers) - 1:
+        if last_index != len(self.image_managers) - 1:
             raise ValueError('Mismatch between the number of image segments and the collection entries')
         self._image_segment_collections = value
 
@@ -3009,8 +3444,9 @@ class NITFWriter(BaseWriter):
         ImageSegmentHeader
         """
 
-        return self._image_managers[index].subheader
+        return self.image_managers[index].subheader
 
+    # noinspection PyMethodMayBeStatic
     def _check_image_segment_for_compliance(
             self,
             index: int,
@@ -3049,7 +3485,7 @@ class NITFWriter(BaseWriter):
                 raise ValueError('Mask subheader is defined, but IC is not `NM`')
 
     def _verify_image_segments(self) -> None:
-        for index, entry in enumerate(self._image_managers):
+        for index, entry in enumerate(self.image_managers):
             if entry.item_bytes is not None:
                 raise ValueError(
                     'The item_bytes is populated for image segment {}.\n\t'
@@ -3059,6 +3495,7 @@ class NITFWriter(BaseWriter):
 
     def _construct_block_bounds(self, image_segment_index: int) -> List[Tuple[int, int, int, int]]:
         image_header = self.get_image_header(image_segment_index)
+        # noinspection PyTypeChecker
         return _construct_block_bounds(image_header)
 
     def _get_mask_details(
@@ -3175,7 +3612,7 @@ class NITFWriter(BaseWriter):
         """
 
         image_headers = [
-            self._image_managers[image_ind].subheader
+            self.image_managers[image_ind].subheader
             for image_ind in self.image_segment_collections[collection_index]]
         return _get_collection_element_coordinate_limits(image_headers, return_clevel=True)
 
@@ -3191,7 +3628,7 @@ class NITFWriter(BaseWriter):
         raw_bands = len(image_header.Bands)
 
         # get bytes offset to this image segment (relative to start of file)
-        offset = self._image_managers[image_segment_index].item_offset
+        offset = self.image_managers[image_segment_index].item_offset
         raw_dtype, formatted_dtype, formatted_bands, complex_order, lut = self._get_dtypes(image_segment_index)
 
         block_bounds = self._construct_block_bounds(image_segment_index)
@@ -3218,6 +3655,7 @@ class NITFWriter(BaseWriter):
         block_offsets = mask_offsets if mask_offsets is not None else \
             numpy.arange(len(block_bounds), dtype='int64')*block_size
 
+        # noinspection PyUnresolvedReferences
         if not (isinstance(block_offsets, numpy.ndarray) and mask_offsets.ndim == 1):
             raise ValueError('Got unexpected mask offsets `{}`'.format(block_offsets))
 
