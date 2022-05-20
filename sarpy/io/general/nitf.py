@@ -458,7 +458,8 @@ def _correctly_order_image_segment_collection(
 
 
 def _get_collection_element_coordinate_limits(
-        image_headers: Sequence[Union[ImageSegmentHeader, ImageSegmentHeader0]]) -> numpy.ndarray:
+        image_headers: Sequence[Union[ImageSegmentHeader, ImageSegmentHeader0]],
+        return_clevel: bool = False) -> Union[numpy.ndarray, Tuple[numpy.ndarray, int]]:
     """
     For the given collection of image segments, get the relative coordinate
     scheme of the form `[[start_row, end_row, start_column, end_column]]`.
@@ -469,11 +470,16 @@ def _get_collection_element_coordinate_limits(
     Parameters
     ----------
     image_headers : Sequence[ImageSegmentHeader]
+    return_clevel : bool
+        Also calculate and return the clevel for this?
 
     Returns
     -------
     block_definition: numpy.ndarray
         of the form `[[start_row, end_row, start_column, end_column]]`.
+    clevel: int
+        The CLEVEL for this common coordinate system, only returned if
+        `return_clevel=True`
     """
 
     the_indices = _correctly_order_image_segment_collection(image_headers)
@@ -498,6 +504,19 @@ def _get_collection_element_coordinate_limits(
     min_col = numpy.min(block_definition[:, 2])
     block_definition[:, 0:2:1] -= min_row
     block_definition[:, 2:4:1] -= min_col
+
+    if return_clevel:
+        dim_size = numpy.max(block_definition)
+        if dim_size <= 2048:
+            clevel = 3
+        elif dim_size <= 8192:
+            clevel = 5
+        elif dim_size <= 65536:
+            clevel = 6
+        else:
+            clevel = 7
+        return block_definition, clevel
+
     return block_definition
 
 
@@ -1549,7 +1568,7 @@ class NITFReader(BaseReader):
 
         image_headers = [self.nitf_details.img_headers[image_ind]
                          for image_ind in self.image_segment_collections[collection_index]]
-        return _get_collection_element_coordinate_limits(image_headers)
+        return _get_collection_element_coordinate_limits(image_headers, return_clevel=False)
 
     def _handle_jpeg2k_no_mask(self, image_segment_index: int, apply_format: bool) -> DataSegment:
         # NOTE: it appears that the PIL to numpy array conversion will rearrange
@@ -2538,6 +2557,33 @@ class SubheaderManager(object):
                 'it cannot be reverted to False')
         self._item_written = value
 
+    def write_subheader(self, file_object: BinaryIO) -> None:
+        if self.subheader_written:
+            return
+
+        if self.subheader_offset is None:
+            raise ValueError('Cannot write without subheader_offset')
+
+        file_object.seek(self.subheader_offset, os.SEEK_SET)
+        file_object.write(self.subheader.to_bytes())
+        self.subheader_written = True
+
+    def write_item(self, file_object: BinaryIO) -> None:
+        if self.item_written:
+            return
+
+        if self.item_offset is None:
+            raise ValueError('Cannot write without item_offset')
+
+        if self.item_bytes is None:
+            raise ValueError('Cannot write without item_bytes')
+
+        file_loc = file_object.tell()
+        file_object.seek(self.item_offset, os.SEEK_SET)
+        file_object.write(self.item_bytes)
+        file_object.seek(file_loc, os.SEEK_SET)
+        self.item_written = True
+
 
 class ImageSubheaderManager(SubheaderManager):
     _item_bytes_optional = True
@@ -2545,7 +2591,58 @@ class ImageSubheaderManager(SubheaderManager):
 
     @property
     def subheader(self) -> ImageSegmentHeader:
+        """
+        ImageSegmentHeader: The image subheader. Any image mask subheader should
+        be populated in the `mask_subheader` property. The size of this will be
+        handled independently from the image bytes.
+        """
+
         return self._subheader
+
+    @property
+    def item_size(self) -> Optional[int]:
+        """
+        int: The item size.
+        """
+
+        return self._item_size
+
+    @item_size.setter
+    def item_size(self, value):
+        if self._item_size is not None:
+            logger.warning("item_size is read only after being initially defined.")
+            return
+        if self.subheader.mask_subheader is None:
+            self._item_size = int(value)
+        else:
+            self._item_size = int(value) + self.subheader.mask_subheader.get_bytes_length()
+
+    def write_subheader(self, file_object: BinaryIO) -> None:
+        if self.subheader_written:
+            return
+
+        SubheaderManager.write_subheader(self, file_object)
+        if self.subheader.mask_subheader is not None:
+            file_object.seek(self.item_offset, os.SEEK_SET)
+            file_object.write(self.subheader.mask_subheader.to_bytes())
+
+    def write_item(self, file_object: BinaryIO) -> None:
+        if self.item_written:
+            return
+
+        if self.item_offset is None:
+            raise ValueError('Cannot write without item_offset')
+
+        if self.item_bytes is None:
+            raise ValueError('Cannot write without item_bytes')
+
+        if self.subheader.mask_subheader is None:
+            file_object.seek(self.item_offset, os.SEEK_SET)
+        else:
+            file_object.seek(
+                self.item_offset+self.subheader.mask_subheader.get_bytes_length(), os.SEEK_SET)
+        file_object.write(self.item_bytes)
+        self.item_written = True
 
 
 class GraphicsSubheaderManager(SubheaderManager):
@@ -2585,13 +2682,15 @@ class RESSubheaderManager(SubheaderManager):
 
 
 #############
-# An array based (i.e. uncompressed images) nitf 2.1 writer
+# An array based (for only uncompressed images) nitf 2.1 writer
+
+# TODO: calculate CLEVEL crapola...
 
 class NITFWriter(BaseWriter):
     __slots__ = (
-        '_file_name','_image_segment_collections', '_image_segment_data_segments',
-        '_header', '_image_managers', '_graphics_managers', '_text_managers',
-        '_des_managers', '_res_managers')
+        '_file_name','_image_segment_collections', '_collections_clevel',
+        '_image_segment_data_segments', '_header', '_image_managers',
+        '_graphics_managers', '_text_managers', '_des_managers', '_res_managers')
 
     def __init__(
             self,
@@ -2610,7 +2709,7 @@ class NITFWriter(BaseWriter):
         ----------
         file_name : str
         header : NITFHeader
-        image_managers : Optional[Tuple[ImageSubheaderManager, ...]]
+        image_managers : Tuple[ImageSubheaderManager, ...]
         image_segment_collections: Tuple[Tuple[int, ...]]
             The collections of image segments that are actually written as part
             of a larger whole.
@@ -2629,25 +2728,146 @@ class NITFWriter(BaseWriter):
 
         self._image_segment_collections = None
         self._image_segment_data_segments = {}
+        self._collections_clevel = {}
+        self._header = None
+        self._image_managers = None
+        self._graphics_managers = None
+        self._text_managers = None
+        self._des_managers = None
+        self._res_managers = None
+
         if check_existence and os.path.exists(file_name):
             raise SarpyIOError(
                 'Given file {} already exists,\n\t'
                 'and a new NITF file cannot be created here.'.format(file_name))
         self._file_name = file_name
+
+        # TODO: validate the managers
         self._header = header
-        self._image_managers = image_managers
+        self.image_managers = image_managers
+        self.graphics_managers = graphics_managers
+        self.text_managers = text_managers
+        self.des_managers = des_managers
+        self.res_managers = res_managers
         self._set_image_segment_collections(image_segment_collections)
-        self._graphics_managers = graphics_managers
-        self._text_managers = text_managers
-        self._des_managers = des_managers
-        self._res_managers = res_managers
+
+        # (re)create the file
+        with open(self._file_name, 'wb') as fi:
+            fi.write(b'')
 
         self._verify_image_segments()
-        # our supported images are assembled into collections for joint presentation
         self.verify_collection_compliance()
-
+        # set the first image offset from header
+        self.image_managers[0].subheader_offset = self.header.get_bytes_length()
+        # construct all the data segments
         data_segments = self.get_data_segments()
+        # set the offsets for the other elements, given that the images are all set
+        self._set_other_offsets()
+        # all the offsets are now set
         BaseWriter.__init__(self, data_segments)
+        self._write_all_subheaders()
+        # this writes everything except the image data,
+        # which will be written via data segments
+
+    @property
+    def header(self) -> NITFHeader:
+        return self._header
+
+    @header.setter
+    def header(self, value):
+        if self._header is not None:
+            raise ValueError('header is read-only')
+        if not isinstance(value, NITFHeader):
+            raise TypeError('header must be of type {}'.format(NITFHeader))
+        self._header = value
+
+    @property
+    def image_managers(self) -> Tuple[ImageSubheaderManager, ...]:
+        return self._image_managers
+
+    @image_managers.setter
+    def image_managers(self, value):
+        if self._image_managers is not None:
+            raise ValueError('image_managers is read-only')
+        if not isinstance(value, tuple):
+            raise TypeError('image_managers must be a tuple')
+        for entry in value:
+            if not isinstance(entry, ImageSubheaderManager):
+                raise TypeError('image_managers entries must be of type {}'.format(ImageSubheaderManager))
+        self._image_managers = value
+
+    @property
+    def graphics_managers(self) -> Tuple[GraphicsSubheaderManager, ...]:
+        return self._graphics_managers
+
+    @graphics_managers.setter
+    def graphics_managers(self, value):
+        if self._graphics_managers is not None:
+            raise ValueError('graphics_managers is read-only')
+        if not isinstance(value, tuple):
+            raise TypeError('graphics_managers must be a tuple')
+        for entry in value:
+            if not isinstance(entry, GraphicsSubheaderManager):
+                raise TypeError('graphics_managers entries must be of type {}'.format(GraphicsSubheaderManager))
+        self._graphics_managers = value
+
+    @property
+    def text_managers(self) -> Tuple[TextSubheaderManager, ...]:
+        return self._text_managers
+
+    @text_managers.setter
+    def text_managers(self, value):
+        if self._text_managers is not None:
+            raise ValueError('text_managers is read-only')
+        if not isinstance(value, tuple):
+            raise TypeError('text_managers must be a tuple')
+        for entry in value:
+            if not isinstance(entry, TextSubheaderManager):
+                raise TypeError('text_managers entries must be of type {}'.format(TextSubheaderManager))
+        self._text_managers = value
+
+    @property
+    def des_managers(self) -> Tuple[DESSubheaderManager, ...]:
+        return self._des_managers
+
+    @des_managers.setter
+    def des_managers(self, value):
+        if self._des_managers is not None:
+            raise ValueError('des_managers is read-only')
+        if not isinstance(value, tuple):
+            raise TypeError('des_managers must be a tuple')
+        for entry in value:
+            if not isinstance(entry, DESSubheaderManager):
+                raise TypeError('des_managers entries must be of type {}'.format(DESSubheaderManager))
+        self._des_managers = value
+
+    @property
+    def res_managers(self) -> Tuple[RESSubheaderManager, ...]:
+        return self._res_managers
+
+    @res_managers.setter
+    def res_managers(self, value):
+        if self._res_managers is not None:
+            raise ValueError('res_managers is read-only')
+        if not isinstance(value, tuple):
+            raise TypeError('res_managers must be a tuple')
+        for entry in value:
+            if not isinstance(entry, RESSubheaderManager):
+                raise TypeError('res_managers entries must be of type {}'.format(RESSubheaderManager))
+        self._res_managers = value
+
+    def _set_image_size(self, image_segment_index: int, item_size: int) -> None:
+        """
+        Sets the image size information. This should be without consideration
+        for the presence of an image mask, which is handled by the image
+        subheader.
+
+        Parameters
+        ----------
+        image_segment_index : int
+        item_size : int
+        """
+        self.image_managers[image_segment_index].item_size = item_size
 
     @property
     def image_segment_collections(self) -> Tuple[Tuple[int, ...]]:
@@ -2664,6 +2884,95 @@ class NITFWriter(BaseWriter):
         """
 
         return self._image_segment_collections
+
+    def _set_clevel(self) -> None:
+        """
+        Sets the NITF complexity level in the header.
+        """
+
+        def memory_level():
+            if file_size < 50*(1024**2):
+                return 3
+            elif file_size < (1024**3):
+                return 5
+            elif file_size < 2*(int(1024)**3):
+                return 6
+            elif file_size < 10*(int(1024)**3):
+                return 7
+            else:
+                return 9
+
+        def image_level():
+            return max(self._collections_clevel.values())
+
+        file_size = self.header.FL
+        self.header.CLEVEL = max(memory_level(), image_level())
+
+    def _set_other_offsets(self):
+        last_offset = self.image_managers[-1].end_of_item
+        if last_offset is None:
+            raise ValueError('Final image end_of_item unpopulated.')
+
+        if self.graphics_managers is not None:
+            for index, entry in enumerate(self.graphics_managers):
+                entry.subheader_offset = last_offset
+                last_offset = entry.end_of_item
+                if last_offset is None:
+                    raise ValueError(
+                        'graphics manager at index {} has end_of_item unpopulated.'.format(index))
+
+        if self.text_managers is not None:
+            for index, entry in enumerate(self.text_managers):
+                entry.subheader_offset = last_offset
+                last_offset = entry.end_of_item
+                if last_offset is None:
+                    raise ValueError(
+                        'text manager at index {} has end_of_item unpopulated.'.format(index))
+
+        if self.des_managers is not None:
+            for index, entry in enumerate(self.des_managers):
+                entry.subheader_offset = last_offset
+                last_offset = entry.end_of_item
+                if last_offset is None:
+                    raise ValueError(
+                        'des manager at index {} has end_of_item unpopulated.'.format(index))
+
+        if self.res_managers is not None:
+            for index, entry in enumerate(self.res_managers):
+                entry.subheader_offset = last_offset
+                last_offset = entry.end_of_item
+                if last_offset is None:
+                    raise ValueError(
+                        'res manager at index {} has end_of_item unpopulated.'.format(index))
+        self.header.FL = last_offset
+        self._set_clevel()
+
+    def _write_all_subheaders(self) -> None:
+        with open(self.file_name, 'rb+') as fi:
+            fi.write(self.header.to_bytes())
+
+            for entry in self.image_managers:
+                entry.write_subheader(fi)
+
+            if self.graphics_managers is not None:
+                for entry in self.graphics_managers:
+                    entry.write_subheader(fi)
+                    entry.write_item(fi)
+
+            if self.text_managers is not None:
+                for entry in self.text_managers:
+                    entry.write_subheader(fi)
+                    entry.write_item(fi)
+
+            if self.des_managers is not None:
+                for entry in self.des_managers:
+                    entry.write_subheader(fi)
+                    entry.write_item(fi)
+
+            if self.res_managers is not None:
+                for entry in self.res_managers:
+                    entry.write_subheader(fi)
+                    entry.write_item(fi)
 
     def _set_image_segment_collections(self, value: Tuple[Tuple[int, ...], ...]):
         if not isinstance(value, tuple):
@@ -2844,7 +3153,7 @@ class NITFWriter(BaseWriter):
         if not all_compatible:
             raise ValueError('Image segment collection incompatibilities')
 
-    def _get_collection_element_coordinate_limits(self, collection_index: int) -> numpy.ndarray:
+    def _get_collection_element_coordinate_limits(self, collection_index: int) -> Tuple[numpy.ndarray, int]:
         """
         For the given image segment collection, as defined in the
         `image_segment_collections` property value, get the relative coordinate
@@ -2862,12 +3171,13 @@ class NITFWriter(BaseWriter):
         -------
         block_definition: numpy.ndarray
             of the form `[[start_row, end_row, start_column, end_column]]`.
+        clevel: int
         """
 
         image_headers = [
             self._image_managers[image_ind].subheader
             for image_ind in self.image_segment_collections[collection_index]]
-        return _get_collection_element_coordinate_limits(image_headers)
+        return _get_collection_element_coordinate_limits(image_headers, return_clevel=True)
 
     def _handle_no_compression(self, image_segment_index: int, apply_format: bool) -> DataSegment:
         # NB: Natural order inside the block is (bands, rows, columns)
@@ -2887,8 +3197,7 @@ class NITFWriter(BaseWriter):
         block_bounds = self._construct_block_bounds(image_segment_index)
         assert isinstance(block_bounds, list)
 
-        bytes_per_pixel = raw_bands*raw_dtype.itemsize
-        block_size = int(image_header.NPPBH*image_header.NPPBV*bytes_per_pixel)
+        block_size = image_header.get_uncompressed_block_size()
 
         if image_header.IMODE == 'B':
             # order inside the block is (bands, rows, columns)
@@ -2916,7 +3225,8 @@ class NITFWriter(BaseWriter):
             raise ValueError('Got mismatch between block definition and block offsets definition')
 
         final_block_ending = numpy.max(block_offsets[block_offsets != exclude_value]) + block_size + additional_offset
-        self._image_managers[image_segment_index].item_size = final_block_ending
+        # set the image size in the manager
+        self._set_image_size(image_segment_index, final_block_ending - additional_offset)
 
         # determine output particulars
         if apply_format:
@@ -3061,7 +3371,12 @@ class NITFWriter(BaseWriter):
         DataSegment
         """
 
-        image_header = self.get_image_header(image_segment_index)
+        image_manager = self.image_managers[image_segment_index]
+        assert isinstance(image_manager, ImageSubheaderManager)
+        if image_manager.item_offset is None:
+            raise ValueError(
+                'item_offset unpopulated for image segment at index {}'.format(image_segment_index))
+        image_header = image_manager.subheader
 
         if image_header.IMODE == 'B':
             out = self._create_data_segment_from_imode_b(image_segment_index, apply_format)
@@ -3078,6 +3393,11 @@ class NITFWriter(BaseWriter):
                 'Data segment for image segment index {} has already been created.'.format(
                     image_segment_index))
 
+        if image_manager.end_of_item is None:
+            raise ValueError(
+                'item_size unpopulated for image segment at index {}'.format(image_segment_index))
+        if image_segment_index < len(self.image_managers) - 1:
+            self.image_managers[image_segment_index + 1].subheader_offset = image_manager.end_of_item
         self._image_segment_data_segments[image_segment_index] = out
         return out
 
@@ -3099,7 +3419,9 @@ class NITFWriter(BaseWriter):
         if len(block) == 1:
             return self.create_data_segment_for_image_segment(block[0], True)
 
-        block_definition = self._get_collection_element_coordinate_limits(collection_index)
+        block_definition, clevel = self._get_collection_element_coordinate_limits(collection_index)
+        self._collections_clevel[collection_index] = clevel
+
         total_rows = int(numpy.max(block_definition[:, 1]))
         total_columns = int(numpy.max(block_definition[:, 3]))
 
@@ -3146,1038 +3468,3 @@ class NITFWriter(BaseWriter):
     def close(self) -> None:
         self._image_segment_data_segments = None
         BaseWriter.close(self)
-
-
-
-###############
-# old things...
-
-class ImageDetails(object):
-    """
-    Helper class for managing the details about a given NITF segment.
-    """
-
-    __slots__ = (
-        '_bands', '_dtype', '_transform_data', '_parent_index_range',
-        '_subheader', '_subheader_offset', '_item_offset',
-        '_subheader_written', '_pixels_written')
-
-    def __init__(self, bands, dtype, transform_data, parent_index_range, subheader):
-        """
-
-        Parameters
-        ----------
-        bands : int
-            The number of bands.
-        dtype : str|numpy.dtype|numpy.number
-            The dtype for the associated chipper.
-        transform_data : bool|callable
-            The transform_data for the associated chipper.
-        parent_index_range : Tuple[int]
-            Indicates `(start row, end row, start column, end column)` relative to
-            the parent image.
-        subheader : ImageSegmentHeader
-            The image subheader.
-        """
-
-        self._subheader_offset = None
-        self._item_offset = None
-        self._pixels_written = 0
-        self._subheader_written = False
-
-        self._bands = int(bands)
-        if self._bands <= 0:
-            raise ValueError('bands must be positive.')
-        self._dtype = dtype
-        self._transform_data = transform_data
-
-        if len(parent_index_range) != 4:
-            raise ValueError('parent_index_range must have length 4.')
-        self._parent_index_range = (
-            int(parent_index_range[0]), int(parent_index_range[1]),
-            int(parent_index_range[2]), int(parent_index_range[3]))
-
-        if self._parent_index_range[0] < 0 or self._parent_index_range[1] <= self._parent_index_range[0]:
-            raise ValueError(
-                'Invalid parent row start/end ({}, {})'.format(self._parent_index_range[0],
-                                                               self._parent_index_range[1]))
-        if self._parent_index_range[2] < 0 or self._parent_index_range[3] <= self._parent_index_range[2]:
-            raise ValueError(
-                'Invalid parent row start/end ({}, {})'.format(self._parent_index_range[2],
-                                                               self._parent_index_range[3]))
-        if not isinstance(subheader, ImageSegmentHeader):
-            raise TypeError(
-                'subheader must be an instance of ImageSegmentHeader, got '
-                'type {}'.format(type(subheader)))
-        self._subheader = subheader
-
-    @property
-    def subheader(self):
-        """
-        ImageSegmentHeader: The image segment subheader.
-        """
-
-        return self._subheader
-
-    @property
-    def rows(self):
-        """
-        int: The number of rows.
-        """
-
-        return self._parent_index_range[1] - self._parent_index_range[0]
-
-    @property
-    def cols(self):
-        """
-        int: The number of columns.
-        """
-
-        return self._parent_index_range[3] - self._parent_index_range[2]
-
-    @property
-    def subheader_offset(self):
-        """
-        int: The subheader offset.
-        """
-
-        return self._subheader_offset
-
-    @subheader_offset.setter
-    def subheader_offset(self, value):
-        if self._subheader_offset is not None:
-            logger.warning("subheader_offset is read only after being initially defined.")
-            return
-        self._subheader_offset = int(value)
-        self._item_offset = self._subheader_offset + self._subheader.get_bytes_length()
-
-    @property
-    def item_offset(self):
-        """
-        int: The image offset.
-        """
-
-        return self._item_offset
-
-    @property
-    def end_of_item(self):
-        """
-        int: The position of the end of the image.
-        """
-
-        return self.item_offset + self.image_size
-
-    @property
-    def total_pixels(self):
-        """
-        int: The total number of pixels.
-        """
-
-        return self.rows*self.cols
-
-    @property
-    def image_size(self):
-        """
-        int: The size of the image in bytes.
-        """
-
-        return int(self.total_pixels*self.subheader.NBPP*len(self.subheader.Bands)/8)
-
-    @property
-    def pixels_written(self):
-        """
-        int: The number of pixels written
-        """
-
-        return self._pixels_written
-
-    @property
-    def subheader_written(self):
-        """
-        bool: The status of writing the subheader.
-        """
-
-        return self._subheader_written
-
-    @subheader_written.setter
-    def subheader_written(self, value):
-        if self._subheader_written:
-            return
-        elif value:
-            self._subheader_written = True
-
-    @property
-    def image_written(self):
-        """
-        bool: The status of whether the image segment is fully written. This
-        naively checks assuming that no pixels have been written redundantly.
-        """
-
-        return self._pixels_written >= self.total_pixels
-
-    def count_written(self, index_tuple):
-        """
-        Count the overlap that we have written in a given step.
-
-        Parameters
-        ----------
-        index_tuple : Tuple[int]
-            Tuple of the form `(row start, row end, column start, column end)`
-
-        Returns
-        -------
-        None
-        """
-
-        new_pixels = (index_tuple[1] - index_tuple[0])*(index_tuple[3] - index_tuple[2])
-        self._pixels_written += new_pixels
-        if self._pixels_written > self.total_pixels:
-            logger.error(
-                'A total of {} pixels have been written,\n\t'
-                'for an image that should only have {} pixels.'.format(
-                self._pixels_written, self.total_pixels))
-
-    def get_overlap(self, index_range):
-        """
-        Determines overlap for the given image segment.
-
-        Parameters
-        ----------
-        index_range : Tuple[int]
-            Indicates `(start row, end row, start column, end column)` for prospective incoming data.
-
-        Returns
-        -------
-        Union[Tuple[None], Tuple[Tuple[int]]
-            `(None, None)` if there is no overlap. Otherwise, tuple of the form
-            `((start row, end row, start column, end column),
-                (parent start row, parent end row, parent start column, parent end column))`
-            indicating the overlap portion with respect to this image, and the parent image.
-        """
-
-        def element_overlap(this_start, this_end, parent_start, parent_end):
-            st, ed = None, None
-            if this_start <= parent_start <= this_end:
-                st = parent_start
-                ed = min(int(this_end), parent_end)
-            elif parent_start <= this_start <= parent_end:
-                st = int(this_start)
-                ed = min(int(this_end), parent_end)
-            return st, ed
-
-        # do the rows overlap?
-        row_s, row_e = element_overlap(index_range[0], index_range[1],
-                                       self._parent_index_range[0], self._parent_index_range[1])
-        if row_s is None:
-            return None, None
-
-        # do the columns overlap?
-        col_s, col_e = element_overlap(index_range[2], index_range[3],
-                                       self._parent_index_range[2], self._parent_index_range[3])
-        if col_s is None:
-            return None, None
-
-        return (row_s-self._parent_index_range[0], row_e-self._parent_index_range[0],
-                col_s-self._parent_index_range[2], col_e-self._parent_index_range[2]), \
-               (row_s, row_e, col_s, col_e)
-
-    def create_writer(self, file_name):
-        """
-        Creates the BIP writer for this image segment.
-
-        Parameters
-        ----------
-        file_name : str
-            The parent file name.
-
-        Returns
-        -------
-        BIPWriter
-        """
-
-        if self._item_offset is None:
-            raise ValueError('The image segment subheader_offset must be defined '
-                             'before a writer can be defined.')
-        return BIPWriter(
-            file_name, (self.rows, self.cols), self._dtype, self._bands,
-            self._transform_data, data_offset=self.item_offset)
-
-
-class DESDetails(object):
-    """
-    Helper class for managing the details about a given NITF Data Extension Segment.
-    """
-
-    __slots__ = (
-        '_subheader', '_subheader_offset', '_item_offset', '_des_bytes',
-        '_subheader_written', '_des_written')
-
-    def __init__(self, subheader, des_bytes):
-        """
-
-        Parameters
-        ----------
-        subheader : DataExtensionHeader
-            The data extension subheader.
-        """
-        self._subheader_offset = None
-        self._item_offset = None
-        self._subheader_written = False
-        self._des_written = False
-
-        if not isinstance(subheader, DataExtensionHeader):
-            raise TypeError(
-                'subheader must be an instance of DataExtensionHeader, got '
-                'type {}'.format(type(subheader)))
-        self._subheader = subheader
-
-        if not isinstance(des_bytes, bytes):
-            raise TypeError('des_bytes must be an instance of bytes, got '
-                            'type {}'.format(type(des_bytes)))
-        self._des_bytes = des_bytes
-
-    @property
-    def subheader(self):
-        """
-        DataExtensionHeader: The data extension subheader.
-        """
-
-        return self._subheader
-
-    @property
-    def des_bytes(self):
-        """
-        bytes: The data extension bytes.
-        """
-
-        return self._des_bytes
-
-    @property
-    def subheader_offset(self):
-        """
-        int: The subheader offset.
-        """
-
-        return self._subheader_offset
-
-    @subheader_offset.setter
-    def subheader_offset(self, value):
-        if self._subheader_offset is not None:
-            logger.warning("subheader_offset is read only after being initially defined.")
-            return
-        self._subheader_offset = int(value)
-        self._item_offset = self._subheader_offset + self._subheader.get_bytes_length()
-
-    @property
-    def item_offset(self):
-        """
-        int: The image offset.
-        """
-
-        return self._item_offset
-
-    @property
-    def end_of_item(self):
-        """
-        int: The position of the end of the data extension.
-        """
-
-        return self.item_offset + len(self._des_bytes)
-
-    @property
-    def subheader_written(self):
-        """
-        bool: The status of writing the subheader.
-        """
-
-        return self._subheader_written
-
-    @subheader_written.setter
-    def subheader_written(self, value):
-        if self._subheader_written:
-            return
-        elif value:
-            self._subheader_written = True
-
-    @property
-    def des_written(self):
-        """
-        bool: The status of writing the subheader.
-        """
-
-        return self._des_written
-
-    @des_written.setter
-    def des_written(self, value):
-        if self._des_written:
-            return
-        elif value:
-            self._des_written = True
-
-
-def get_npp_block(value):
-    """
-    Determine the number of pixels per block value.
-
-    Parameters
-    ----------
-    value : int
-
-    Returns
-    -------
-    int
-    """
-
-    return 0 if value > 8192 else value
-
-
-def image_segmentation(rows, cols, pixel_size):
-    """
-    Determine the appropriate segmentation for the image. This is driven
-    by the SICD/SIDD standard, and not the only generally feasible segmentation
-    scheme for other NITF file types.
-
-    Parameters
-    ----------
-    rows : int
-    cols : int
-    pixel_size : int
-
-    Returns
-    -------
-    tuple
-        Of the form `((row start, row end, column start, column end))`
-    """
-
-    im_seg_limit = 10**10 - 2  # as big as can be stored in 10 digits
-    im_segments = []
-    row_offset = 0
-    while row_offset < rows:
-        # determine row count, given row_offset and column size
-        # how many bytes per row for this column section
-        row_memory_size = cols*pixel_size
-        # how many rows can we use?
-        row_count = min(99999, rows - row_offset, int(im_seg_limit / row_memory_size))
-        im_segments.append((row_offset, row_offset + row_count, 0, cols))
-        row_offset += row_count  # move the next row offset
-    return tuple(im_segments)
-
-
-def interpolate_corner_points_string(entry, rows, cols, icp):
-    """
-    Interpolate the corner points for the given subsection from
-    the given corner points. This supplies entries for the NITF headers.
-
-    Parameters
-    ----------
-    entry : numpy.ndarray
-        The corner pints of the form `(row_start, row_stop, col_start, col_stop)`
-    rows : int
-        The number of rows in the parent image.
-    cols : int
-        The number of cols in the parent image.
-    icp : the parent image corner points in geodetic coordinates.
-
-    Returns
-    -------
-    str
-    """
-
-    if icp is None:
-        return ''
-
-    if icp.shape[1] == 2:
-        icp_new = numpy.zeros((icp.shape[0], 3), dtype=numpy.float64)
-        icp_new[:, :2] = icp
-        icp = icp_new
-    icp_ecf = geodetic_to_ecf(icp)
-
-    const = 1. / (rows * cols)
-    pattern = entry[numpy.array([(0, 2), (1, 2), (1, 3), (0, 3)], dtype=numpy.int64)]
-    out = []
-    for row, col in pattern:
-        pt_array = const * numpy.sum(icp_ecf *
-                                     (numpy.array([rows - row, row, row, rows - row]) *
-                                      numpy.array([cols - col, cols - col, col, col]))[:, numpy.newaxis], axis=0)
-
-        pt = LatLonType.from_array(ecf_to_geodetic(pt_array)[:2])
-        dms = pt.dms_format(frac_secs=False)
-        out.append('{0:02d}{1:02d}{2:02d}{3:s}'.format(*dms[0]) + '{0:03d}{1:02d}{2:02d}{3:s}'.format(*dms[1]))
-    return ''.join(out)
-
-
-#########
-# TODO: update NITf writer...
-class NITFWriter(BaseWriter):
-    __slots__ = (
-        '_file_name', '_security_tags', '_nitf_header', '_nitf_header_written',
-        '_img_groups', '_shapes', '_img_details', '_writing_chippers', '_des_details',
-        '_closed')
-
-    def __init__(self, file_name, check_existence=True):
-        """
-
-        Parameters
-        ----------
-        file_name : str
-        check_existence : bool
-            Should we check if the given file already exists, and raises an exception if so?
-        """
-
-        if check_existence and os.path.exists(file_name):
-            raise SarpyIOError('Given file {} already exists, and a new NITF file cannot be created here.'.format(file_name))
-
-        self._writing_chippers = None
-        self._nitf_header_written = False
-        self._closed = False
-        super(NITFWriter, self).__init__(file_name)
-        self._create_security_tags()
-        self._create_image_segment_details()
-        self._create_data_extension_details()
-        self._create_nitf_header()
-
-    @property
-    def nitf_header_written(self):  # type: () -> bool
-        """
-        bool: The status of whether of not we have written the NITF header.
-        """
-
-        return self._nitf_header_written
-
-    @property
-    def security_tags(self):  # type: () -> NITFSecurityTags
-        """
-        NITFSecurityTags: The NITF security tags, which will be constructed initially using
-        the :func:`default_security_tags` method. This object will be populated **by reference**
-        upon construction as the `SecurityTags` property for `nitf_header`, each entry of
-        `image_segment_headers`, and `data_extension_header`.
-
-        .. Note:: required edits should be made before adding any data via :func:`write_chip`.
-        """
-
-        return self._security_tags
-
-    @property
-    def nitf_header(self):  # type: () -> NITFHeader
-        """
-        NITFHeader: The NITF header object. The `SecurityTags` property is populated
-        using `security_tags` **by reference** upon construction.
-
-        .. Note:: required edits should be made before adding any data via :func:`write_chip`.
-        """
-
-        return self._nitf_header
-
-    @property
-    def image_details(self):  # type: () -> Tuple[ImageDetails]
-        """
-        Tuple[ImageDetails]: The individual image segment details.
-        """
-
-        return self._img_details
-
-    @property
-    def des_details(self):  # type: () -> Tuple[DESDetails]
-        """
-        Tuple[DESDetails]: The individual data extension details.
-        """
-
-        return self._des_details
-
-    def _set_offsets(self):
-        """
-        Sets the offsets for the ImageDetail and DESDetail objects.
-
-        Returns
-        -------
-        None
-        """
-
-        if self.nitf_header is None:
-            raise ValueError("The _set_offsets method must be called AFTER the "
-                             "_create_nitf_header, _create_image_segment_headers, "
-                             "and _create_data_extension_headers methods.")
-        if self._img_details is not None and \
-                (self.nitf_header.ImageSegments.subhead_sizes.size != len(self._img_details)):
-            raise ValueError('The length of _img_details and the defined ImageSegments '
-                             'in the NITF header do not match.')
-        elif self._img_details is None and \
-                self.nitf_header.ImageSegments.subhead_sizes.size != 0:
-            raise ValueError('There are no _img_details defined, while there are ImageSegments '
-                             'defined in the NITF header.')
-
-        if self._des_details is not None and \
-                (self.nitf_header.DataExtensions.subhead_sizes.size != len(self._des_details)):
-            raise ValueError('The length of _des_details and the defined DataExtensions '
-                             'in the NITF header do not match.')
-        elif self._des_details is None and \
-                self.nitf_header.DataExtensions.subhead_sizes.size != 0:
-            raise ValueError('There are no _des_details defined, while there are DataExtensions '
-                             'defined in the NITF header.')
-
-        offset = self.nitf_header.get_bytes_length()
-
-        # set the offsets for the image details
-        if self._img_details is not None:
-            for details in self._img_details:
-                details.subheader_offset = offset
-                offset = details.end_of_item
-
-        # set the offsets for the data extensions
-        if self._des_details is not None:
-            for details in self._des_details:
-                details.subheader_offset = offset
-                offset = details.end_of_item
-
-        # set the file size in the nitf header
-        self.nitf_header.FL = offset
-        self.nitf_header.CLEVEL = self._get_clevel(offset)
-
-    def _write_file_header(self):
-        """
-        Write the file header.
-
-        Returns
-        -------
-        None
-        """
-
-        if self._nitf_header_written:
-            return
-
-        logger.info('Writing NITF header.')
-        with open(self._file_name, mode='r+b') as fi:
-            fi.write(self.nitf_header.to_bytes())
-            self._nitf_header_written = True
-
-    def prepare_for_writing(self):
-        """
-        The NITF file header makes specific reference of the locations/sizes of
-        various components, specifically the image segment subheader lengths and
-        the data extension subheader and item lengths. These items must be locked
-        down BEFORE we can allocate the required file writing specifics from the OS.
-
-        Any desired header modifications (i.e. security tags or any other issues) must be
-        finalized, before the final steps to actually begin writing data. Calling
-        this method prepares the final versions of the headers, and prepares for actual file
-        writing. Any modifications to any header information made AFTER calling this method
-        will not be reflected in the produced NITF file.
-
-        .. Note:: This will be implicitly called at first attempted chip writing
-            if it has not be explicitly called before.
-
-        Returns
-        -------
-        None
-        """
-
-        if self._nitf_header_written:
-            return
-
-        # set the offsets for the images and data extensions,
-        #   and the file size in the NITF header
-        self._set_offsets()
-        self._write_file_header()
-
-        logger.info(
-            'Setting up the image segments in virtual memory.\n\t'
-            'This may require a large physical memory allocation, and be time consuming.')
-        self._writing_chippers = tuple(
-            details.create_writer(self._file_name) for details in self.image_details)
-
-    def _write_image_header(self, index):
-        """
-        Write the image subheader at `index`, if necessary.
-
-        Parameters
-        ----------
-        index : int
-
-        Returns
-        -------
-        None
-        """
-
-        details = self.image_details[index]
-
-        if details.subheader_written:
-            return
-
-        if details.subheader_offset is None:
-            raise ValueError('DESDetails.subheader_offset must be defined for index {}.'.format(index))
-
-        logger.info(
-            'Writing image segment {} header.\n\t'
-            'Depending on OS details, this may require a\n\t'
-            'large physical memory allocation, and be time consuming.'.format(index))
-        with open(self._file_name, mode='r+b') as fi:
-            fi.seek(details.subheader_offset, os.SEEK_SET)
-            fi.write(details.subheader.to_bytes())
-            details.subheader_written = True
-
-    def _write_des_header(self, index):
-        """
-        Write the des subheader at `index`, if necessary.
-
-        Parameters
-        ----------
-        index : int
-
-        Returns
-        -------
-        None
-        """
-
-        details = self.des_details[index]
-
-        if details.subheader_written:
-            return
-
-        if details.subheader_offset is None:
-            raise ValueError('DESDetails.subheader_offset must be defined for index {}.'.format(index))
-
-        logger.info(
-            'Writing data extension {} header.'.format(index))
-        with open(self._file_name, mode='r+b') as fi:
-            fi.seek(details.subheader_offset, os.SEEK_SET)
-            fi.write(details.subheader.to_bytes())
-            details.subheader_written = True
-
-    def _write_des_bytes(self, index):
-        """
-        Write the des bytes at `index`, if necessary.
-
-        Parameters
-        ----------
-        index : int
-
-        Returns
-        -------
-        None
-        """
-
-        details = self.des_details[index]
-        assert isinstance(details, DESDetails)
-
-        if details.des_written:
-            return
-
-        if not details.subheader_written:
-            self._write_des_header(index)
-
-        logger.info(
-            'Writing data extension {}.'.format(index))
-        with open(self._file_name, mode='r+b') as fi:
-            fi.seek(details.item_offset, os.SEEK_SET)
-            fi.write(details.des_bytes)
-            details.des_written = True
-
-    def _get_ftitle(self):
-        """
-        Define the FTITLE for the NITF header.
-
-        Returns
-        -------
-        str
-        """
-
-        raise NotImplementedError
-
-    def _get_fdt(self):
-        """
-        Gets the NITF header FDT field value.
-
-        Returns
-        -------
-        str
-        """
-
-        return re.sub(r'[^0-9]', '', str(numpy.datetime64('now', 's')))
-
-    def _get_ostaid(self):
-        """
-        Gets the NITF header OSTAID field value.
-
-        Returns
-        -------
-        str
-        """
-
-        return 'Unknown'
-
-    def _get_clevel(self, file_size):
-        """
-        Gets the NITF complexity level of the file. This is likely always
-        dominated by the memory constraint.
-
-        Parameters
-        ----------
-        file_size : int
-            The file size in bytes
-
-        Returns
-        -------
-        int
-        """
-
-        def memory_level():
-            if file_size < 50*(1024**2):
-                return 3
-            elif file_size < (1024**3):
-                return 5
-            elif file_size < 2*(int(1024)**3):
-                return 6
-            elif file_size < 10*(int(1024)**3):
-                return 7
-            else:
-                return 9
-
-        def index_level(ind):
-            if ind <= 2048:
-                return 3
-            elif ind <= 8192:
-                return 5
-            elif ind <= 65536:
-                return 6
-            else:
-                return 7
-
-        row_max = max(entry[0] for entry in self._shapes)
-        col_max = max(entry[1] for entry in self._shapes)
-
-        return max(memory_level(), index_level(row_max), index_level(col_max))
-
-    def write_chip(self, data, start_indices=(0, 0), index=0):
-        """
-        Write the data to the file(s). This is an alias to :code:`writer(data, start_indices)`.
-
-        Parameters
-        ----------
-        data : numpy.ndarray
-            the complex data
-        start_indices : tuple[int, int]
-            the starting index for the data.
-        index : int
-            the chipper index to which to write
-
-        Returns
-        -------
-        None
-        """
-
-        self.__call__(data, start_indices=start_indices, index=index)
-
-    def __call__(self, data, start_indices=(0, 0), index=0):
-        """
-        Write the data to the file(s).
-
-        Parameters
-        ----------
-        data : numpy.ndarray
-            the complex data
-        start_indices : Tuple[int, int]
-            the starting index for the data.
-        index : int
-            the main image index to which to write - parent group of NITF image segments.
-
-        Returns
-        -------
-        None
-        """
-
-        if index >= len(self._img_groups):
-            raise IndexError('There are only {} image groups, got index {}'.format(len(self._img_groups), index))
-
-        self.prepare_for_writing()  # no effect if already called
-
-        # validate the index and data arguments
-        start_indices = (int(start_indices[0]), int(start_indices[1]))
-        shape = self._shapes[index]
-
-        if (start_indices[0] < 0) or (start_indices[1] < 0):
-            raise ValueError('start_indices must have positive entries. Got {}'.format(start_indices))
-        if (start_indices[0] >= shape[0]) or \
-                (start_indices[1] >= shape[1]):
-            raise ValueError(
-                'start_indices must be bounded from above by {}. Got {}'.format(shape, start_indices))
-
-        index_range = (start_indices[0], start_indices[0] + data.shape[0],
-                       start_indices[1], start_indices[1] + data.shape[1])
-        if (index_range[1] > shape[0]) or (index_range[3] > shape[1]):
-            raise ValueError(
-                'Got start_indices = {} and data of shape {}. '
-                'This is incompatible with total data shape {}.'.format(start_indices, data.shape, shape))
-
-        # iterate over the image segments for this group, and write as appropriate
-        for img_index in self._img_groups[index]:
-            details = self._img_details[img_index]
-
-            this_inds, overall_inds = details.get_overlap(index_range)
-            if overall_inds is None:
-                # there is no overlap here, so skip
-                continue
-
-            self._write_image_header(img_index)  # no effect if already called
-            # what are the relevant indices into data?
-            data_indices = (overall_inds[0] - start_indices[0], overall_inds[1] - start_indices[0],
-                            overall_inds[2] - start_indices[1], overall_inds[3] - start_indices[1])
-            # write the data
-            self._writing_chippers[img_index](data[data_indices[0]:data_indices[1], data_indices[2]: data_indices[3]],
-                                              (this_inds[0], this_inds[2]))
-            # count the written pixels
-            details.count_written(this_inds)
-
-    def close(self):
-        """
-        Completes any necessary final steps.
-
-        Returns
-        -------
-        None
-        """
-
-        if self._closed:
-            return
-
-        # set this status first, in the event of some kind of error
-        self._closed = True
-        # ensure that all images are fully written
-        msg = None
-        if self.image_details is not None:
-            for i, img_details in enumerate(self.image_details):
-                if not img_details.image_written:
-                    msg_part = "Image segment {} has only written {} of {} pixels".format(
-                        i, img_details.pixels_written, img_details.total_pixels)
-                    msg = msg_part if msg is None else msg + '\n\t' + msg_part
-                    logger.critical(msg_part)
-        # ensure that all data extensions are fully written
-        if self.des_details is not None:
-            for i, des_detail in enumerate(self.des_details):
-                if not des_detail.des_written:
-                    self._write_des_bytes(i)
-        # close all the chippers
-        if self._writing_chippers is not None:
-            for entry in self._writing_chippers:
-                entry.close()
-        if msg is not None:
-            raise SarpyIOError(
-                'The NITF file {} image data is not fully written, and the file is potentially corrupt.\n{}'.format(self._file_name, msg))
-
-    # require specific implementations
-    def _create_security_tags(self):
-        """
-        Creates the main NITF security tags object with `CLAS` and `CODE`
-        attributes set sensibly.
-
-        It is expected that output from this will be modified as appropriate
-        and used to set ONLY specific security tags in `data_extension_headers` or
-        elements of `image_segment_headers`.
-
-        If simultaneous modification of all security tags attributes for the entire
-        NITF is the goal, then directly modify the value(s) using `security_tags`.
-
-        Returns
-        -------
-        None
-        """
-
-        # self._security_tags = <something>
-        raise NotImplementedError
-
-    def _create_image_segment_details(self):
-        """
-        Create the image segment headers.
-
-        Returns
-        -------
-        None
-        """
-
-        if self._security_tags is None:
-            raise ValueError(
-                "This NITF has no previously defined security tags, so this method "
-                "is being called before the _create_secrity_tags method.")
-
-        # _img_groups, _shapes should be defined here or previously.
-        # self._img_details = <something>
-
-    def _create_data_extension_details(self):
-        """
-        Create the data extension headers.
-
-        Returns
-        -------
-        None
-        """
-
-        if self._security_tags is None:
-            raise ValueError(
-                "This NITF has no previously defined security tags, so this method "
-                "is being called before the _create_secrity_tags method.")
-
-        # self._des_details = <something>
-
-    def _get_nitf_image_segments(self):
-        """
-        Get the ImageSegments component for the NITF header.
-
-        Returns
-        -------
-        ImageSegmentsType
-        """
-
-        if self._img_details is None:
-            return ImageSegmentsType(subhead_sizes=None, item_sizes=None)
-        else:
-            im_sizes = numpy.zeros((len(self._img_details), ), dtype=numpy.int64)
-            subhead_sizes = numpy.zeros((len(self._img_details), ), dtype=numpy.int64)
-            for i, details in enumerate(self._img_details):
-                subhead_sizes[i] = details.subheader.get_bytes_length()
-                im_sizes[i] = details.image_size
-            return ImageSegmentsType(subhead_sizes=subhead_sizes, item_sizes=im_sizes)
-
-    def _get_nitf_data_extensions(self):
-        """
-        Get the DataEXtensions component for the NITF header.
-
-        Returns
-        -------
-        DataExtensionsType
-        """
-
-        if self._des_details is None:
-            return DataExtensionsType(subhead_sizes=None, item_sizes=None)
-        else:
-            des_sizes = numpy.zeros((len(self._des_details), ), dtype=numpy.int64)
-            subhead_sizes = numpy.zeros((len(self._des_details), ), dtype=numpy.int64)
-            for i, details in enumerate(self._des_details):
-                subhead_sizes[i] = details.subheader.get_bytes_length()
-                des_sizes[i] = len(details.des_bytes)
-            return DataExtensionsType(subhead_sizes=subhead_sizes, item_sizes=des_sizes)
-
-    def _create_nitf_header(self):
-        """
-        Create the main NITF header.
-
-        Returns
-        -------
-        None
-        """
-
-        if self._img_details is None:
-            logger.warning(
-                "This NITF has no previously defined image segments,\n\t"
-                "or the _create_nitf_header method has been called\n\t"
-                "BEFORE the _create_image_segment_headers method.")
-        if self._des_details is None:
-            logger.warning(
-                "This NITF has no previously defined data extensions,\n\t"
-                "or the _create_nitf_header method has been called\n\t"
-                "BEFORE the _create_data_extension_headers method.")
-
-        # NB: CLEVEL and FL will be corrected in prepare_for_writing method
-        self._nitf_header = NITFHeader(
-            Security=self.security_tags, CLEVEL=3, OSTAID=self._get_ostaid(),
-            FDT=self._get_fdt(), FTITLE=self._get_ftitle(), FL=0,
-            ImageSegments=self._get_nitf_image_segments(),
-            DataExtensions=self._get_nitf_data_extensions())
