@@ -478,8 +478,8 @@ class SICDWritingDetails(NITFWritingDetails):
     """
 
     __slots__ = (
-        '_sicd_meta', '_security_tags', '_image_segment_collection',
-        '_row_limit', '_check_older_version', '_required_version')
+        '_sicd_meta', '_security_tags', '_row_limit', '_check_older_version',
+        '_required_version')
 
     def __init__(
             self,
@@ -504,7 +504,6 @@ class SICDWritingDetails(NITFWritingDetails):
             Try to create an older version sicd, for compliance
         """
 
-        self._image_segment_collection = None
         self._check_older_version = bool(check_older_version)
         self._security_tags = None
         self._sicd_meta = None
@@ -515,13 +514,19 @@ class SICDWritingDetails(NITFWritingDetails):
         self._set_row_limit(row_limit)
 
         header = self._create_header()
-        image_managers = self._create_image_segments()
+        image_managers, image_segment_collections, image_segment_coordinates = self._create_image_segments()
         des_managers = self._create_des_segments(additional_des)
 
         # NB: graphics not permitted in sicd
         NITFWritingDetails.__init__(
-            self, header, image_managers=image_managers, text_managers=text_managers,
-            des_managers=des_managers, res_managers=res_managers)
+            self,
+            header,
+            image_managers=image_managers,
+            image_segment_collections=image_segment_collections,
+            image_segment_coordinates=image_segment_coordinates,
+            text_managers=text_managers,
+            des_managers=des_managers,
+            res_managers=res_managers)
 
     @property
     def sicd_meta(self) -> SICDType:
@@ -563,14 +568,6 @@ class SICDWritingDetails(NITFWritingDetails):
 
         memory_limit = int(numpy.floor(im_seg_limit/row_memory_size))
         self._row_limit = min(value, memory_limit)
-
-    @property
-    def image_segment_collection(self) -> Tuple[Tuple[int, ...], ...]:
-        """
-        Tuple[Tuple[int, ...], ...]: The image segment collection
-        """
-
-        return self._image_segment_collection
 
     @property
     def security_tags(self) -> NITFSecurityTags:
@@ -653,12 +650,13 @@ class SICDWritingDetails(NITFWritingDetails):
             Security=self.security_tags, CLEVEL=3, OSTAID=self._get_ostaid(),
             FDT=self._get_fdt(), FTITLE=self._get_ftitle(), FL=0)
 
-    def _create_image_segments(self) -> Tuple[ImageSubheaderManager, ...]:
+    def _create_image_segments(self) -> Tuple[Tuple[ImageSubheaderManager, ...], Tuple[Tuple[int, ...], ...], Tuple[Tuple[Tuple[int, ...], ...]]]:
         # TODO: create a dictionary of keyword arguments for the Image segment subheader...
 
         image_managers = []
         basic_args = {
             'IREP': 'NODISPLY',
+            'IC': 'NC',
             'ICAT': 'SAR',
             'IID2': self._get_iid2(),
             'IDATIM': self._get_idatim(),
@@ -694,7 +692,8 @@ class SICDWritingDetails(NITFWritingDetails):
 
         image_segment_limits = default_image_segmentation(rows, cols, self.row_limit)
 
-        self._image_segment_collection = (tuple(range(len(image_segment_limits))), )
+        image_segment_collection = (tuple(range(len(image_segment_limits))), )
+        image_segment_coordinates = (image_segment_limits, )
 
         for i, entry in enumerate(image_segment_limits):
             if i == 0:
@@ -722,7 +721,7 @@ class SICDWritingDetails(NITFWritingDetails):
                 Security=self._security_tags,
                 **basic_args)
             image_managers.append(ImageSubheaderManager(subhead))
-        return tuple(image_managers)
+        return tuple(image_managers), image_segment_collection, image_segment_coordinates
 
     def _create_sicd_des(self) -> DESSubheaderManager:
         uh_args = self.sicd_meta.get_des_details(self._check_older_version)
@@ -781,8 +780,7 @@ class SICDWriter(NITFWriter):
         if sicd_writing_details is None:
             sicd_writing_details = SICDWritingDetails(sicd_meta, check_older_version=check_older_version)
         NITFWriter.__init__(
-            self, file_name, sicd_writing_details,
-            sicd_writing_details.image_segment_collection, check_existence=check_existence)
+            self, file_name, sicd_writing_details, check_existence=check_existence)
 
     @property
     def nitf_writing_details(self) -> SICDWritingDetails:

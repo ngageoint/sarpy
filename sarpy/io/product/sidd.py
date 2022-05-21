@@ -484,7 +484,7 @@ class SIDDWritingDetails(NITFWritingDetails):
     __slots__ = (
         '_sidd_meta', '_sicd_meta', '_security_tags',
         '_sidd_security_tags', '_sicd_security_tags',
-        '_image_segment_collection', '_row_limit')
+        '_row_limit')
 
     def __init__(
             self,
@@ -510,8 +510,6 @@ class SIDDWritingDetails(NITFWritingDetails):
         res_managers: Optional[Tuple[RESSubheaderManager, ...]]
         """
 
-        self._image_segment_collection = None
-
         self._sidd_meta = None
         self._sidd_security_tags = None
         self._set_sidd_meta(sidd_meta)
@@ -527,11 +525,18 @@ class SIDDWritingDetails(NITFWritingDetails):
         self._set_row_limit(row_limit)
 
         header = self._create_header()
-        image_managers = self._create_image_segments()
+        image_managers, image_segment_collection, image_segment_coordinates = self._create_image_segments()
         des_managers = self._create_des_segments(additional_des)
         NITFWritingDetails.__init__(
-            self, header, image_managers=image_managers, graphics_managers=graphics_managers,
-            text_managers=text_managers, des_managers=des_managers, res_managers=res_managers)
+            self,
+            header,
+            image_managers=image_managers,
+            image_segment_collections=image_segment_collection,
+            image_segment_coordinates=image_segment_coordinates,
+            graphics_managers=graphics_managers,
+            text_managers=text_managers,
+            des_managers=des_managers,
+            res_managers=res_managers)
 
     @property
     def sidd_meta(self) -> Union[Tuple[SIDDType, ...], Tuple[SIDDType1, ...]]:
@@ -598,14 +603,6 @@ class SIDDWritingDetails(NITFWritingDetails):
             memory_limit = int(numpy.floor(im_seg_limit/row_memory_size))
             row_limit.append(min(value, memory_limit))
         self._row_limit = tuple(row_limit)
-
-    @property
-    def image_segment_collection(self) -> Tuple[Tuple[int, ...], ...]:
-        """
-        Tuple[Tuple[int, ...], ...]: The image segment collection
-        """
-
-        return self._image_segment_collection
 
     def _create_security_tags(self):
         def class_priority(cls1, cls2):
@@ -718,12 +715,17 @@ class SIDDWritingDetails(NITFWritingDetails):
     def _create_image_segment_for_sidd(
             self,
             sidd_index: int,
-            starting_index: int) -> Tuple[List[ImageSubheaderManager], Tuple[int, ...]]:
+            starting_index: int) -> Tuple[List[ImageSubheaderManager], Tuple[int, ...], Tuple[Tuple[int, ...], ...]]:
 
         image_managers = []
         sidd = self.sidd_meta[sidd_index]
+
+        if sidd.Compression is not None:
+            raise ValueError('Compression not currently supported.')
+
         basic_args = {
             'ICAT': 'SAR',
+            'IC': 'NC',
             'IID2' : self._get_iid2(sidd_index),
             'ISORCE': self._get_isorce(sidd_index),
             'IDATIM': self._get_fdt(sidd_index)
@@ -786,19 +788,20 @@ class SIDDWritingDetails(NITFWritingDetails):
             image_managers.append(ImageSubheaderManager(subhead))
             image_segment_indices.append(total_image_count)
             total_image_count += 1
-        return image_managers, tuple(image_segment_indices)
+        return image_managers, tuple(image_segment_indices), image_segment_limits
 
-    def _create_image_segments(self) -> Tuple[ImageSubheaderManager, ...]:
+    def _create_image_segments(self) -> Tuple[Tuple[ImageSubheaderManager, ...], Tuple[Tuple[int, ...], ...], Tuple[Tuple[Tuple[int, ...], ...]]]:
         image_managers = []
         image_segment_collection = []
+        image_segment_coordinates = []
         starting_index = 0
         for i in range(len(self.sidd_meta)):
-            t_managers, t_indices = self._create_image_segment_for_sidd(i, starting_index)
+            t_managers, t_indices, t_limit = self._create_image_segment_for_sidd(i, starting_index)
             image_managers.extend(t_managers)
             image_segment_collection.append(t_indices)
+            image_segment_coordinates.append(t_limit)
             starting_index = t_indices[-1] + 1
-        self._image_segment_collection = tuple(image_segment_collection)
-        return tuple(image_managers)
+        return tuple(image_managers), tuple(image_segment_collection), tuple(image_segment_coordinates)
 
     def _create_des_segment_for_sidd(self, sidd_index: int) -> DESSubheaderManager:
         sidd = self.sidd_meta[sidd_index]
@@ -894,8 +897,7 @@ class SICDWriter(NITFWriter):
         if sidd_writing_details is None:
             sidd_writing_details = SIDDWritingDetails(sidd_meta, sicd_meta=sicd_meta)
         NITFWriter.__init__(
-            self, file_name, sidd_writing_details,
-            sidd_writing_details.image_segment_collection, check_existence=check_existence)
+            self, file_name, sidd_writing_details, check_existence=check_existence)
 
     @property
     def nitf_writing_details(self) -> SIDDWritingDetails:
