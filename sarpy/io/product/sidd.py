@@ -913,4 +913,3 @@ class SICDWriter(NITFWriter):
         if not isinstance(value, SIDDWritingDetails):
             raise TypeError('nitf_writing_details must be of type {}'.format(SIDDWritingDetails))
         self._nitf_writing_details = value
-
