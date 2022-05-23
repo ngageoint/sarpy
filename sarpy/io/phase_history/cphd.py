@@ -14,9 +14,10 @@ from collections import OrderedDict
 
 import numpy
 
-from sarpy.io.general.utils import is_file_like
+from sarpy.io.general.utils import is_file_like, is_real_file
 from sarpy.io.general.base import BaseReader, BaseWriter, SarpyIOError
-from sarpy.io.general.data_segment import DataSegment, NumpyMemmapSegment
+from sarpy.io.general.data_segment import DataSegment, NumpyArraySegment, \
+    NumpyMemmapSegment
 from sarpy.io.general.format_function import ComplexFormatFunction
 from sarpy.io.general.slice_parsing import verify_subscript, verify_slice
 
@@ -246,6 +247,10 @@ def _validate_cphd_details(cphd_details: Union[str, CPHDDetails],
         raise ValueError('This CPHD file is required to be version {}, '
                          'got {}'.format(version, cphd_details.cphd_version))
     return cphd_details
+
+
+##########
+# Reading
 
 
 class CPHDReader(CPHDTypeReader):
@@ -830,6 +835,295 @@ class CPHDReader0_3(CPHDReader):
         return BaseReader.__call__(*ranges, index=index, raw=raw, squeeze=squeeze)
 
 
+def is_a(file_name: str) -> Optional[CPHDReader]:
+    """
+    Tests whether a given file_name corresponds to a CPHD file. Returns a reader instance, if so.
+
+    Parameters
+    ----------
+    file_name : str
+        the file_name to check
+
+    Returns
+    -------
+    CPHDReader|None
+        Appropriate `CPHDTypeReader` instance if CPHD file, `None` otherwise
+    """
+
+    try:
+        cphd_details = CPHDDetails(file_name)
+        logger.info('File {} is determined to be a CPHD version {} file.'.format(file_name, cphd_details.cphd_version))
+        return CPHDReader(cphd_details)
+    except SarpyIOError:
+        # we don't want to catch parsing errors, for now?
+        return None
+
+
+###########
+# Writing
+
+class ElementDetails(object):
+    __slots__ = (
+        '_item_offset', '_item_bytes', '_item_written')
+
+    def __init__(self, item_offset: int, item_bytes: Optional[bytes] = None):
+        self._item_offset = None
+        self._item_bytes = None
+        self._item_written = False
+
+        self.item_offset = item_offset
+        self.item_bytes = item_bytes
+
+    @property
+    def item_offset(self) -> Optional[int]:
+        """
+        int: The item offset.
+        """
+
+        return self._item_offset
+
+    @item_offset.setter
+    def item_offset(self, value) -> None:
+        value = int(value)
+        if self._item_offset is not None and self._item_offset != value:
+            raise ValueError("item_offset is read only after being initially defined.")
+        self._item_offset = value
+
+    @property
+    def item_bytes(self) -> Optional[bytes]:
+        """
+        None|bytes: The item bytes.
+        """
+
+        return self._item_bytes
+
+    @item_bytes.setter
+    def item_bytes(self, value: bytes) -> None:
+        if self._item_bytes is not None:
+            raise ValueError("item_bytes is read only after being initially defined.")
+        if value is None:
+            self._item_bytes = None
+            return
+
+        if not isinstance(value, bytes):
+            raise TypeError('item_bytes must be of type bytes')
+        self._item_bytes = value
+
+    @property
+    def item_written(self) -> bool:
+        """
+        bool: Has the item been written?
+        """
+
+        return self._item_written
+
+    @item_written.setter
+    def item_written(self, value):
+        value = bool(value)
+        if self._item_written and not value:
+            raise ValueError(
+                'item_written has already been set to True,\n\t'
+                'it cannot be reverted to False')
+        self._item_written = value
+
+    def write_item(self, file_object: BinaryIO) -> None:
+        """
+        Write the item bytes (if populated), at its specified offset, to the
+        file. This requires that the subheader has previously be written. If
+        writing occurs, the file location will be advanced to the end of the item
+        location.
+
+        Parameters
+        ----------
+        file_object : BinaryIO
+
+        Returns
+        -------
+        None
+        """
+
+        if self.item_written:
+            return
+
+        if self.item_offset is None:
+            return  # nothing to be done
+
+        if self.item_bytes is None:
+            return  # nothing to be done
+
+        file_object.seek(self.item_offset, os.SEEK_SET)
+        file_object.write(self.item_bytes)
+        self.item_written = True
+
+
+class CPHDWritingDetails(object):
+    __slots__ = (
+        '_header', '_header_written', '_meta',
+        '_channel_map', '_support_map',
+        '_pvp_details', '_support_details', '_signal_details')
+
+    def __init__(self, meta: CPHDType1_0):
+
+        self._header = None
+        self._header_written = False
+        self._meta = None
+        self._channel_map = {}
+        self._support_map = {}
+        self._pvp_details = None
+        self._support_details = None
+        self._signal_details = None
+
+        self.meta = meta
+        self._header = self.meta.make_file_header()
+
+        # initialize the information for the pvp, support, and signal details
+        self._populate_pvp_details()
+        self._populate_support_details()
+        self._populate_signal_details()
+
+    @property
+    def header(self) -> CPHDHeader1_0:
+        return self._header
+
+    @property
+    def meta(self) -> CPHDType1_0:
+        """
+        CPHDType1_0: The metadata
+        """
+
+        return self._meta
+
+    @meta.setter
+    def meta(self, value):
+        if self._meta is not None:
+            raise ValueError('meta is read only once initialized.')
+        if not isinstance(value, CPHDType1_0):
+            raise TypeError('meta must be of type {}'.format(CPHDType1_0))
+        self._meta = value
+
+    def _populate_pvp_details(self) -> None:
+        if self._pvp_details is not None:
+            raise ValueError('pvp_details can not be initialized again')
+        pvp_details = []
+        for i, entry in enumerate(self.meta.Data.Channels):
+            self._channel_map[entry.Identifier] = i
+            offset = self.header.PVP_BLOCK_BYTE_OFFSET + entry.PVPArrayByteOffset
+            pvp_details.append(ElementDetails(offset))
+        self._pvp_details = tuple(pvp_details)
+
+    def _populate_support_details(self) -> None:
+        if self._support_details is not None:
+            raise ValueError('support_details can not be initialized again')
+
+        if self.meta.Data.SupportArrays is None:
+            self._signal_details = None
+
+        support_details = []
+        for i, entry in enumerate(self.meta.Data.SupportArrays):
+            self._support_map[entry.Identifier] = i
+            offset = self.header.SUPPORT_BLOCK_BYTE_OFFSET + entry.ArrayByteOffset
+            support_details.append(ElementDetails(offset))
+        self._support_details = tuple(support_details)
+
+    def _populate_signal_details(self) -> None:
+        if self._signal_details is not None:
+            raise ValueError('signal_details can not be initialized again')
+
+        signal_details = []
+        for i, entry in enumerate(self.meta.Data.Channels):
+            offset = self.header.SIGNAL_BLOCK_BYTE_OFFSET + entry.SignalArrayByteOffset
+            signal_details.append(ElementDetails(offset))
+        self._signal_details = tuple(signal_details)
+
+    @property
+    def pvp_details(self) -> Optional[Tuple[ElementDetails, ...]]:
+        return self._pvp_details
+
+    @property
+    def support_details(self) -> Optional[Tuple[ElementDetails, ...]]:
+        return self._support_details
+
+    @property
+    def signal_details(self) -> Optional[Tuple[ElementDetails, ...]]:
+        return self._signal_details
+
+    @property
+    def channel_map(self) -> Dict[str, int]:
+        return self._channel_map
+
+    @property
+    def support_map(self) -> Optional[Dict[str, int]]:
+        return self._support_map
+
+    def _write_items(self, details: Optional[Sequence[ElementDetails]], file_object: BinaryIO) -> None:
+        if details is None:
+            return
+        for index, entry in enumerate(details):
+            entry.write_item(file_object)
+
+    def _verify_item_written(self, details: Optional[Sequence[ElementDetails]], name: str) -> None:
+        if details is None:
+            return
+
+        for index, entry in enumerate(details):
+            if not entry.item_written:
+                logger.error('{} data at index {} not written'.format(name, index))
+
+    def write_header(self, file_object: BinaryIO, overwrite: bool = False) -> None:
+        """
+        Write the header.The file object will be advanced to the end of the
+        block, if writing occurs.
+
+        Parameters
+        ----------
+        file_object : BinaryIO
+        overwrite : bool
+            Overwrite, if previously written?
+
+        Returns
+        -------
+        None
+        """
+
+        if self._header_written and not overwrite:
+            return
+
+        file_object.write(self.header.to_string().encode())
+        file_object.write(_CPHD_SECTION_TERMINATOR)
+        # write xml
+        file_object.seek(self.header.XML_BLOCK_BYTE_OFFSET, os.SEEK_SET)
+        file_object.write(self.meta.to_xml_bytes())
+        file_object.write(_CPHD_SECTION_TERMINATOR)
+        self._header_written = True
+
+    def write_all_populated_items(self, file_object: BinaryIO) -> None:
+        """
+        Write everything populated. This assumes that the header will start at the
+        beginning (position 0) of the file-like object.
+
+        Parameters
+        ----------
+        file_object : BinaryIO
+
+        Returns
+        -------
+        None
+        """
+
+        self.write_header(file_object, overwrite=False)
+        self._write_items(self.pvp_details, file_object)
+        self._write_items(self.support_details, file_object)
+        self._write_items(self.signal_details, file_object)
+
+    def verify_all_written(self) -> None:
+        if not self._header_written:
+            logger.error('header not written')
+
+        self._verify_item_written(self.pvp_details, 'pvp')
+        self._verify_item_written(self.support_details, 'support')
+        self._verify_item_written(self.signal_details, 'signal')
+
+
 class CPHDWriter1_0(BaseWriter):
     """
     The CPHD version 1.0 writer.
@@ -838,52 +1132,84 @@ class CPHDWriter1_0(BaseWriter):
     """
 
     __slots__ = (
-        '_file_name', '_file_object', '_cphd_meta', '_cphd_header',
+        '_file_name', '_file_object', '_in_memory', '_writing_details',
         '_pvp_memmaps', '_support_memmaps', '_signal_data_segments',
-        '_can_write_regular_data', '_channel_map', '_support_map',
-        '_writing_state', '_closed')
+        '_can_write_regular_data')
 
     def __init__(self,
-                 file_name: str,
-                 cphd_meta: CPHDType1_0,
+                 file_object: Union[str, BinaryIO],
+                 meta: Optional[CPHDType1_0] = None,
+                 writing_details: Optional[CPHDWritingDetails] = None,
                  check_existence: bool=True):
         """
 
         Parameters
         ----------
-        file_name : str
-        cphd_meta : CPHDType1_0
+        file_object : str|BinaryIO
+        meta : None|CPHDType1_0
+        writing_details : None|CPHDWritingDetails
         check_existence : bool
             Should we check if the given file already exists, and raises an exception if so?
         """
 
-        if check_existence and os.path.exists(file_name):
-            raise SarpyIOError(
-                'File {} already exists, and a new CPHD file can not be created '
-                'at this location'.format(file_name))
-        self._file_object = open(self._file_name, "wb")
+        self._writing_details = None
+
+        if isinstance(file_object, str):
+            if check_existence and os.path.exists(file_object):
+                raise SarpyIOError(
+                    'Given file {} already exists, and a new NITF file cannot be created here.'.format(file_object))
+            file_object = open(file_object, 'wb')
+
+        if not is_file_like(file_object):
+            raise ValueError('file_object requires a file path or BinaryIO object')
+
+        self._file_object = file_object
+        if is_real_file(file_object):
+            self._file_name = file_object.name
+            self._in_memory = False
+        else:
+            self._file_name = None
+            self._in_memory = True
+
+        if meta is None and writing_details is None:
+            raise ValueError('One of meta or writing_details must be provided.')
+        if writing_details is None:
+            writing_details = CPHDWritingDetails(meta)
+        self.writing_details = writing_details
 
         self._pvp_memmaps = None  # type: Optional[Dict[str, numpy.ndarray]]
         self._support_memmaps = None  # type: Optional[Dict[str, numpy.ndarray]]
         self._signal_data_segments = None  # type: Optional[Dict[str, DataSegment]]
         self._can_write_regular_data = None  # type: Optional[Dict[str, bool]]
-        self._channel_map = None  # type: Optional[Dict[str, int]]
-        self._support_map = None  # type: Optional[Dict[str, int]]
-        self._writing_state = {'header': False, 'pvp': {}, 'support': {}}
         self._closed = False
-        self._cphd_meta = cphd_meta
-        self._cphd_header = cphd_meta.make_file_header()
 
-        data_segment = self._prepare_for_writing()
+        data_segment = self._initialize_data()
+        # data_segment = self._prepare_for_writing()
         BaseWriter.__init__(self, data_segment)
 
     @property
-    def cphd_meta(self) -> CPHDType1_0:
+    def writing_details(self) -> CPHDWritingDetails:
+        return self._writing_details
+
+    @writing_details.setter
+    def writing_details(self, value):
+        if self._writing_details is not None:
+            raise ValueError('writing_details is read-only')
+        if not isinstance(value, CPHDWritingDetails):
+            raise TypeError('writing_details must be of type {}'.format(CPHDWritingDetails))
+        self._writing_details = value
+
+    @property
+    def file_name(self) -> Optional[str]:
+        return self._file_name
+
+    @property
+    def meta(self) -> CPHDType1_0:
         """
-        CPHDType1_0: The cphd metadata
+        CPHDType1_0: The metadata
         """
 
-        return self._cphd_meta
+        return self.writing_details.meta
 
     @staticmethod
     def _verify_dtype(
@@ -935,14 +1261,14 @@ class CPHDWriter1_0(BaseWriter):
         """
 
         if isinstance(index, str):
-            if index in self._channel_map:
-                return self._channel_map[index]
+            if index in self.writing_details.channel_map:
+                return self.writing_details.channel_map[index]
             else:
                 raise KeyError(_missing_channel_identifier_text.format(index))
         else:
             int_index = int(index)
-            if not (0 <= int_index < self.cphd_meta.Data.NumCPHDChannels):
-                raise ValueError(_index_range_text.format(self.cphd_meta.Data.NumCPHDChannels))
+            if not (0 <= int_index < self.meta.Data.NumCPHDChannels):
+                raise ValueError(_index_range_text.format(self.meta.Data.NumCPHDChannels))
             return int_index
 
     def _validate_channel_key(self, index: Union[int, str]) -> str:
@@ -959,15 +1285,15 @@ class CPHDWriter1_0(BaseWriter):
         """
 
         if isinstance(index, str):
-            if index in self._channel_map:
+            if index in self.writing_details.channel_map:
                 return index
             else:
                 raise KeyError(_missing_channel_identifier_text.format(index))
         else:
             int_index = int(index)
-            if not (0 <= int_index < self.cphd_meta.Data.NumCPHDChannels):
-                raise ValueError(_index_range_text.format(self.cphd_meta.Data.NumCPHDChannels))
-            return self.cphd_meta.Data.Channels[int_index].Identifier
+            if not (0 <= int_index < self.meta.Data.NumCPHDChannels):
+                raise ValueError(_index_range_text.format(self.meta.Data.NumCPHDChannels))
+            return self.meta.Data.Channels[int_index].Identifier
 
     def _validate_support_index(self, index: Union[int, str]) -> int:
         """
@@ -983,14 +1309,14 @@ class CPHDWriter1_0(BaseWriter):
         """
 
         if isinstance(index, str):
-            if index in self._support_map:
-                return self._support_map[index]
+            if index in self.writing_details.support_map:
+                return self.writing_details.support_map[index]
             else:
                 raise KeyError('Cannot find support array for identifier {}'.format(index))
         else:
             int_index = int(index)
-            if not (0 <= int_index < len(self.cphd_meta.Data.SupportArrays)):
-                raise ValueError(_index_range_text.format(len(self.cphd_meta.Data.SupportArrays)))
+            if not (0 <= int_index < len(self.meta.Data.SupportArrays)):
+                raise ValueError(_index_range_text.format(len(self.meta.Data.SupportArrays)))
             return int_index
 
     def _validate_support_key(self, index: Union[int, str]) -> str:
@@ -1007,100 +1333,71 @@ class CPHDWriter1_0(BaseWriter):
         """
 
         if isinstance(index, str):
-            if index in self._support_map:
+            if index in self.writing_details.support_map:
                 return index
             else:
                 raise KeyError('Cannot find support array for identifier {}'.format(index))
         else:
             int_index = int(index)
-            if not (0 <= int_index < len(self.cphd_meta.Data.SupportArrays)):
-                raise ValueError(_index_range_text.format(len(self.cphd_meta.Data.SupportArrays)))
-            return self.cphd_meta.Data.SupportArrays[int_index].Identifier
+            if not (0 <= int_index < len(self.meta.Data.SupportArrays)):
+                raise ValueError(_index_range_text.format(len(self.meta.Data.SupportArrays)))
+            return self.meta.Data.SupportArrays[int_index].Identifier
 
-    def _initialize_writing(self) -> List[DataSegment]:
-        """
-        Initializes the counters/state variables for writing progress checks.
-        Expected to be called only by _prepare_for_writing().
-
-        Returns
-        -------
-        List[DataSegment]
-        """
-
+    def _initialize_data(self) -> List[DataSegment]:
         self._pvp_memmaps = {}
-
         # setup the PVP memmaps
-        pvp_dtype = self.cphd_meta.PVP.get_vector_dtype()
-        for i, entry in enumerate(self.cphd_meta.Data.Channels):
-            self._channel_map[entry.Identifier] = i
+        pvp_dtype = self.meta.PVP.get_vector_dtype()
+        for i, entry in enumerate(self.meta.Data.Channels):
             # create the pvp mem map
-            offset = self._cphd_header.PVP_BLOCK_BYTE_OFFSET + entry.PVPArrayByteOffset
+            offset = self.writing_details.pvp_details[i].item_offset
             shape = (entry.NumVectors, )
-            self._pvp_memmaps[entry.Identifier] = numpy.memmap(
-                self._file_name, dtype=pvp_dtype, mode='r+', offset=offset, shape=shape)
-            # create the pvp writing state variable
-            self._writing_state['pvp'][entry.Identifier] = 0
+            if self._in_memory:
+                self._pvp_memmaps[entry.Identifier] = numpy.empty(shape, dtype=pvp_dtype)
+            else:
+                self._pvp_memmaps[entry.Identifier] = numpy.memmap(
+                    self._file_name, dtype=pvp_dtype, mode='r+', offset=offset, shape=shape)
 
         self._support_memmaps = {}
-        self._support_map = {}
-        if self.cphd_meta.Data.SupportArrays is not None:
-            for i, entry in enumerate(self.cphd_meta.Data.SupportArrays):
-                self._support_map[entry.Identifier] = i
+        if self.meta.Data.SupportArrays is not None:
+            for i, entry in enumerate(self.meta.Data.SupportArrays):
                 # extract the support array metadata details
-                details = self.cphd_meta.SupportArray.find_support_array(entry.Identifier)
-                # determine array byte offset
-                offset = self._cphd_header.SUPPORT_BLOCK_BYTE_OFFSET + entry.ArrayByteOffset
+                details = self.meta.SupportArray.find_support_array(entry.Identifier)
+                offset = self.writing_details.support_details[i].item_offset
                 # determine numpy dtype and depth of array
                 dtype, depth = details.get_numpy_format()
                 # set up the numpy memory map
                 shape = (entry.NumRows, entry.NumCols) if depth == 1 else (entry.NumRows, entry.NumCols, depth)
-                self._support_memmaps[entry.Identifier] = numpy.memmap(
-                    self._file_name, dtype=dtype, mode='r+', offset=offset, shape=shape)
-                self._writing_state['support'][entry.Identifier] = 0
+                if self._in_memory:
+                    self._support_memmaps[entry.Identifier] = numpy.empty(shape, dtype=dtype)
+                else:
+                    self._support_memmaps[entry.Identifier] = numpy.memmap(
+                        self._file_name, dtype=dtype, mode='r+', offset=offset, shape=shape)
 
         # setup the signal data_segment (this is used for formatting issues)
-        no_amp_sf = (self.cphd_meta.PVP.AmpSF is None)
+        no_amp_sf = (self.meta.PVP.AmpSF is None)
         self._signal_data_segments = {}
-        self._channel_map = {}
         self._can_write_regular_data = {}
         signal_data_segments = []
-        signal_dtype = binary_format_string_to_dtype(self.cphd_meta.Data.SignalArrayFormat)
-        for i, entry in enumerate(self.cphd_meta.Data.Channels):
+        signal_dtype = binary_format_string_to_dtype(self.meta.Data.SignalArrayFormat)
+        for i, entry in enumerate(self.meta.Data.Channels):
             self._can_write_regular_data[entry.Identifier] = no_amp_sf
             raw_shape = (entry.NumVectors, entry.NumSamples, 2)
             format_function = ComplexFormatFunction(signal_dtype, order='IQ')
-
-            offset = self._cphd_header.SIGNAL_BLOCK_BYTE_OFFSET + entry.SignalArrayByteOffset
-            data_segment = NumpyMemmapSegment(
-                self._file_object, offset, signal_dtype, raw_shape,
-                formatted_dtype='complex64', formatted_shape=raw_shape[:2],
-                format_function=format_function, mode='w', close_file=False)
+            offset = self.writing_details.signal_details[i].item_offset
+            if self._in_memory:
+                underlying_array = numpy.full(raw_shape, 0, dtype=signal_dtype)
+                data_segment = NumpyArraySegment(
+                    underlying_array, 'complex64', formatted_shape=raw_shape[:2],
+                    format_function=format_function, mode='w')
+            else:
+                data_segment = NumpyMemmapSegment(
+                    self._file_object, offset, signal_dtype, raw_shape,
+                    formatted_dtype='complex64', formatted_shape=raw_shape[:2],
+                    format_function=format_function, mode='w', close_file=False)
             signal_data_segments.append(data_segment)
 
             self._signal_data_segments[entry.Identifier] = data_segment
-            # create the signal writing state variable
-            self._writing_state['signal'][entry.Identifier] = 0
         return signal_data_segments
-
-    def _prepare_for_writing(self) -> Optional[List[DataSegment]]:
-        """
-        Prepare all elements for writing.
-        """
-
-        if self._writing_state['header']:
-            logger.warning('The header for CPHD file {} has already been written. Exiting.'.format(self._file_name))
-            return
-
-        # write header
-        self._file_object.write(self._cphd_header.to_string().encode())
-        self._file_object.write(_CPHD_SECTION_TERMINATOR)
-        # write cphd xml
-        self._file_object.seek(self._cphd_header.XML_BLOCK_BYTE_OFFSET, os.SEEK_SET)
-        self._file_object.write(self.cphd_meta.to_xml_bytes())
-        self._file_object.write(_CPHD_SECTION_TERMINATOR)
-        self._writing_state['header'] = True
-
-        return self._initialize_writing()
 
     def write_support_array(self,
                             identifier: Union[int, str],
@@ -1114,18 +1411,24 @@ class CPHDWriter1_0(BaseWriter):
         data : numpy.ndarray
         """
 
+        self._validate_closed()
+
         int_index = self._validate_support_index(identifier)
         identifier = self._validate_support_key(identifier)
-        entry = self.cphd_meta.Data.SupportArrays[int_index]
+        entry = self.meta.Data.SupportArrays[int_index]
 
         if data.shape != (entry.NumRows, entry.NumCols):
             raise ValueError('Support data shape is not compatible with provided')
 
-        total_pixels = entry.NumRows*entry.NumCols
         # write the data
         self._support_memmaps[identifier][:] = data
-        # update the count of written data
-        self._writing_state['support'][identifier] += total_pixels
+        # mark it as written
+        details = self.writing_details.support_details[int_index]
+        if self._in_memory:
+            # TODO: we can likely delete the memmap now?
+            details.item_bytes = self._support_memmaps[identifier].tobytes()
+        else:
+            details.item_written = True
 
     def write_pvp_array(self,
                         identifier: Union[int, str],
@@ -1139,12 +1442,14 @@ class CPHDWriter1_0(BaseWriter):
         data : numpy.ndarray
         """
 
+        self._validate_closed()
+
         def validate_dtype():
             self._verify_dtype(data.dtype, self._pvp_memmaps[identifier].dtype, 'PVP channel {}'.format(identifier))
 
         int_index = self._validate_channel_index(identifier)
         identifier = self._validate_channel_key(identifier)
-        entry = self.cphd_meta.Data.Channels[int_index]
+        entry = self.meta.Data.Channels[int_index]
         validate_dtype()
 
         if data.ndim != 1:
@@ -1152,14 +1457,21 @@ class CPHDWriter1_0(BaseWriter):
         if data.shape[0] != entry.NumVectors:
             raise ValueError('Provided data must have size determined by NumVectors')
 
-        if self.cphd_meta.PVP.AmpSF is not None:
+        if self.meta.PVP.AmpSF is not None:
             amp_sf = numpy.copy(data['AmpSF'][:])
             # noinspection PyUnresolvedReferences
             self._signal_data_segments[identifier].format_function.set_amplitude_scaling(amp_sf)
             self._can_write_regular_data[identifier] = True
 
+        # write the data
         self._pvp_memmaps[identifier][:] = data
-        self._writing_state['pvp'][identifier] += data.shape[0]
+        # mark it as written
+        details = self.writing_details.pvp_details[int_index]
+        if self._in_memory:
+            # TODO: we can likely delete the memmap now?
+            details.item_bytes = self._pvp_memmaps[identifier].tobytes()
+        else:
+            details.item_written = True
 
     def write_support_block(self, support_block: Dict[Union[int, str], numpy.ndarray]) -> None:
         """
@@ -1171,8 +1483,8 @@ class CPHDWriter1_0(BaseWriter):
             Dictionary of `numpy.ndarray` containing the support arrays.
         """
 
-        expected_support_ids = {s.Identifier for s in self.cphd_meta.Data.SupportArrays}
-        assert expected_support_ids == set(support_block), 'support_block keys do not match those in cphd_meta'
+        expected_support_ids = {s.Identifier for s in self.meta.Data.SupportArrays}
+        assert expected_support_ids == set(support_block), 'support_block keys do not match those in meta'
         for identifier, array in support_block.items():
             self.write_support_array(identifier, array)
 
@@ -1186,8 +1498,8 @@ class CPHDWriter1_0(BaseWriter):
             Dictionary of `numpy.ndarray` containing the PVP arrays.
         """
 
-        expected_channels = {c.Identifier for c in self.cphd_meta.Data.Channels}
-        assert expected_channels == set(pvp_block), 'pvp_block keys do not match those in cphd_meta'
+        expected_channels = {c.Identifier for c in self.meta.Data.Channels}
+        assert expected_channels == set(pvp_block), 'pvp_block keys do not match those in meta'
         for identifier, array in pvp_block.items():
             self.write_pvp_array(identifier, array)
 
@@ -1201,8 +1513,8 @@ class CPHDWriter1_0(BaseWriter):
             Dictionary of `numpy.ndarray` containing the signal arrays in complex64 format.
         """
 
-        expected_channels = {c.Identifier for c in self.cphd_meta.Data.Channels}
-        assert expected_channels == set(signal_block), 'signal_block keys do not match those in cphd_meta'
+        expected_channels = {c.Identifier for c in self.meta.Data.Channels}
+        assert expected_channels == set(signal_block), 'signal_block keys do not match those in meta'
         for identifier, array in signal_block.items():
             self.write(array, index=identifier)
 
@@ -1217,8 +1529,8 @@ class CPHDWriter1_0(BaseWriter):
             (i.e. file storage format) signal arrays.
         """
 
-        expected_channels = {c.Identifier for c in self.cphd_meta.Data.Channels}
-        assert expected_channels == set(signal_block), 'signal_block keys do not match those in cphd_meta'
+        expected_channels = {c.Identifier for c in self.meta.Data.Channels}
+        assert expected_channels == set(signal_block), 'signal_block keys do not match those in meta'
         for identifier, array in signal_block.items():
             self.write_raw(array, index=identifier)
 
@@ -1233,11 +1545,11 @@ class CPHDWriter1_0(BaseWriter):
         ----------
         pvp_block: Dict[str, numpy.ndarray]
             Dictionary of `numpy.ndarray` containing the PVP arrays.
-            Keys must be consistent with `self.cphd_meta`
+            Keys must be consistent with `self.meta`
         signal_block: Dict[str, numpy.ndarray]
             Dictionary of `numpy.ndarray` containing the complex64 formatted signal
             arrays.
-            Keys must be consistent with `self.cphd_meta`
+            Keys must be consistent with `self.meta`
         support_block: None|Dict[str, numpy.ndarray]
             Dictionary of `numpy.ndarray` containing the support arrays.
         """
@@ -1258,11 +1570,11 @@ class CPHDWriter1_0(BaseWriter):
         ----------
         pvp_block: Dict[str, numpy.ndarray]
             Dictionary of `numpy.ndarray` containing the PVP arrays.
-            Keys must be consistent with `self.cphd_meta`
+            Keys must be consistent with `self.meta`
         signal_block: Dict[str, numpy.ndarray]
             Dictionary of `numpy.ndarray` containing the raw formatted
             (i.e. file storage format) signal arrays.
-            Keys must be consistent with `self.cphd_meta`
+            Keys must be consistent with `self.meta`
         support_block: None|Dict[str, numpy.ndarray]
             Dictionary of `numpy.ndarray` containing the support arrays.
         """
@@ -1304,89 +1616,41 @@ class CPHDWriter1_0(BaseWriter):
         identifier = self._validate_channel_key(index)
         if not raw and not self._can_write_regular_data[identifier]:
             raise ValueError(
-                'The channel `{}` has an AmpSF whihc has not been determined,\n\t'
+                'The channel `{}` has an AmpSF which has not been determined,\n\t'
                 'but the corresponding PVP block has not yet been written'.format(identifier))
 
         BaseWriter.__call__(self, data, start_indices=start_indices, subscript=subscript, index=int_index, raw=raw)
 
-    def _check_fully_written(self) -> bool:
-        """
-        Verifies that the file is fully written, and logs messages describing any
-        unwritten elements at error level. This is expected only to be called by
-        the close() method.
+    def flush(self, force: bool = False) -> None:
+        self._validate_closed()
 
-        Returns
-        -------
-        bool
-            The status of the file writing completeness.
-        """
+        BaseWriter.flush(self, force=force)
 
-        if self._closed:
-            return True
+        try:
+            if self._in_memory:
+                if self.data_segment is not None:
+                    for index, entry in enumerate(self.data_segment):
+                        details = self.writing_details.signal_details[index]
+                        if details.item_written:
+                            continue
+                        if details.item_bytes is not None:
+                            continue
+                        if force or entry.check_fully_written(warn=force):
+                            details.item_bytes = entry.get_raw_bytes(warn=False)
 
-        if self.cphd_meta is None:
-            return True # incomplete initialization or some other inherent problem
-
-        status = True
-        pvp_message = ''
-        support_message = ''
-
-        for entry in self.cphd_meta.Data.Channels:
-            pvp_rows = entry.NumVectors
-            if self._writing_state['pvp'][entry.Identifier] < pvp_rows:
-                status = False
-                pvp_message += 'identifier {}, {} of {} vectors written\n'.format(
-                    entry.Identifier, self._writing_state['pvp'][entry.Identifier], pvp_rows)
-
-        if self.cphd_meta.Data.SupportArrays is not None:
-            for entry in self.cphd_meta.Data.SupportArrays:
-                support_pixels = entry.NumRows*entry.NumCols
-                if self._writing_state['support'][entry.Identifier] < support_pixels:
-                    status = False
-                    support_message += 'identifier {}, {} of {} pixels written\n'.format(
-                        entry.Identifier, self._writing_state['support'][entry.Identifier], support_pixels)
-
-        if not status:
-            logger.error('CPHD file {} is not completely written, and the result may be corrupt.', self._file_name)
-            if pvp_message != '':
-                logger.error('PVP block(s) incompletely written\n{}', pvp_message)
-            if support_message != '':
-                logger.error('Support block(s) incompletely written\n{}',support_message)
-        return status
+            self.writing_details.write_all_populated_items(self._file_object)
+        except AttributeError:
+            return
 
     def close(self):
         if self._closed:
             return
 
-        fully_written = self._check_fully_written()
-        BaseWriter.close(self)
-
-        if hasattr(self, '_file_object') and hasattr(self._file_object, 'close'):
-            self._file_object.close()
+        BaseWriter.close(self)  # NB: flush called here
+        try:
+            if self.writing_details is not None:
+                self.writing_details.verify_all_written()
+        except AttributeError:
+            pass
+        self._writing_details = None
         self._file_object = None
-        if not fully_written:
-            raise SarpyIOError('CPHD file {} is not fully written'.format(self._file_name))
-
-
-def is_a(file_name: str) -> Optional[CPHDReader]:
-    """
-    Tests whether a given file_name corresponds to a CPHD file. Returns a reader instance, if so.
-
-    Parameters
-    ----------
-    file_name : str
-        the file_name to check
-
-    Returns
-    -------
-    CPHDReader|None
-        Appropriate `CPHDTypeReader` instance if CPHD file, `None` otherwise
-    """
-
-    try:
-        cphd_details = CPHDDetails(file_name)
-        logger.info('File {} is determined to be a CPHD version {} file.'.format(file_name, cphd_details.cphd_version))
-        return CPHDReader(cphd_details)
-    except SarpyIOError:
-        # we don't want to catch parsing errors, for now?
-        return None

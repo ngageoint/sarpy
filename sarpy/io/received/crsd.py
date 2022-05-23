@@ -14,14 +14,13 @@ from collections import OrderedDict
 import numpy
 
 from sarpy.io.general.utils import is_file_like
-from sarpy.io.general.base import BaseReader, BaseWriter, SarpyIOError
+from sarpy.io.general.base import BaseReader, SarpyIOError
 from sarpy.io.general.data_segment import DataSegment, NumpyMemmapSegment
 from sarpy.io.general.format_function import ComplexFormatFunction
 from sarpy.io.general.slice_parsing import verify_subscript, verify_slice
 
-from sarpy.io.phase_history.cphd1_elements.utils import binary_format_string_to_dtype
-# noinspection PyProtectedMember
-from sarpy.io.received.crsd1_elements.CRSD import CRSDType, CRSDHeader, _CRSD_SECTION_TERMINATOR
+from sarpy.io.phase_history.cphd import CPHDWritingDetails, CPHDWriter1_0
+from sarpy.io.received.crsd1_elements.CRSD import CRSDType, CRSDHeader
 from sarpy.io.received.base import CRSDTypeReader
 
 logger = logging.getLogger(__name__)
@@ -653,542 +652,6 @@ class CRSDReader1_0(CRSDReader):
         return BaseReader.__call__(*ranges, index=index, raw=raw, squeeze=squeeze)
 
 
-
-class CRSDWriter1_0(BaseWriter):
-    """
-    The CRSD version 1.0 writer.
-
-    **Updated in version 1.3.0** for writing changes.
-    """
-
-    __slots__ = (
-        '_file_name', '_file_object', '_crsd_meta', '_crsd_header',
-        '_pvp_memmaps', '_support_memmaps', '_signal_data_segments',
-        '_can_write_regular_data', '_channel_map', '_support_map',
-        '_writing_state', '_closed')
-
-    def __init__(self, file_name, crsd_meta, check_existence=True):
-        """
-
-        Parameters
-        ----------
-        file_name : str
-        crsd_meta : CRSDType
-        check_existence : bool
-            Should we check if the given file already exists, and raises an exception if so?
-        """
-
-        if check_existence and os.path.exists(file_name):
-            raise SarpyIOError(
-                'File {} already exists, and a new CRSD file can not be created '
-                'at this location'.format(file_name))
-        self._file_object = open(self._file_name, "wb")
-
-        self._pvp_memmaps = None  # type: Optional[Dict[str, numpy.ndarray]]
-        self._support_memmaps = None  # type: Optional[Dict[str, numpy.ndarray]]
-        self._signal_data_segments = None  # type: Optional[Dict[str, DataSegment]]
-        self._can_write_regular_data = None  # type: Optional[Dict[str, bool]]
-        self._channel_map = None  # type: Optional[Dict[str, int]]
-        self._support_map = None  # type: Optional[Dict[str, int]]
-        self._writing_state = {'header': False, 'pvp': {}, 'support': {}}
-        self._closed = False
-        self._crsd_meta = crsd_meta
-        self._crsd_header = crsd_meta.make_file_header()
-
-        data_segment = self._prepare_for_writing()
-        BaseWriter.__init__(self, data_segment)
-
-    @property
-    def crsd_meta(self) -> CRSDType:
-        """
-        CRSDType: The crsd metadata
-        """
-
-        return self._crsd_meta
-
-    @staticmethod
-    def _verify_dtype(
-            obs_dtype: numpy.dtype,
-            exp_dtype: numpy.dtype,
-            purpose: str):
-        """
-        This is a helper function for comparing two structured array dtypes.
-
-        Parameters
-        ----------
-        obs_dtype : numpy.dtype
-        exp_dtype : numpy.dtype
-        purpose : str
-        """
-
-        if obs_dtype.fields is None or exp_dtype.fields is None:
-            raise ValueError('structure array dtype required.')
-
-        observed_dtype = sorted(
-            [(field, dtype_info) for field, dtype_info in obs_dtype.fields.items()],
-            key=lambda x: x[1][1])
-        expected_dtype = sorted(
-            [(field, dtype_info) for field, dtype_info in exp_dtype.fields.items()],
-            key=lambda x: x[1][1])
-        if len(observed_dtype) != len(expected_dtype):
-            raise ValueError('Observed dtype for {} does not match the expected dtype.'.format(purpose))
-        for obs_entry, exp_entry in zip(observed_dtype, expected_dtype):
-            if obs_entry[1][1] != exp_entry[1][1]:
-                raise ValueError(
-                    'Observed dtype for {} does not match the expected dtype\nobserved {}\nexpected {}.'.format(
-                        purpose, observed_dtype, expected_dtype))
-            if obs_entry[0] != exp_entry[0]:
-                logger.warning(
-                    'Got mismatched field names (observed {}, expected {}) for {}.'.format(
-                        obs_entry[0], exp_entry[0], purpose))
-
-    def _validate_channel_index(self, index: Union[int, str]) -> int:
-        """
-        Get corresponding integer index for CRSD channel.
-
-        Parameters
-        ----------
-        index : int|str
-
-        Returns
-        -------
-        int
-        """
-
-        if isinstance(index, str):
-            if index in self._channel_map:
-                return self._channel_map[index]
-            else:
-                raise KeyError(_missing_channel_identifier_text.format(index))
-        else:
-            int_index = int(index)
-            if not (0 <= int_index < self.crsd_meta.Data.NumCRSDChannels):
-                raise ValueError(_index_range_text.format(self.crsd_meta.Data.NumCRSDChannels))
-            return int_index
-
-    def _validate_channel_key(self, index: Union[int, str]) -> str:
-        """
-        Gets the corresponding identifier for the CRSD channel.
-
-        Parameters
-        ----------
-        index : int|str
-
-        Returns
-        -------
-        str
-        """
-
-        if isinstance(index, str):
-            if index in self._channel_map:
-                return index
-            else:
-                raise KeyError(_missing_channel_identifier_text.format(index))
-        else:
-            int_index = int(index)
-            if not (0 <= int_index < self.crsd_meta.Data.NumCRSDChannels):
-                raise ValueError(_index_range_text.format(self.crsd_meta.Data.NumCRSDChannels))
-            return self.crsd_meta.Data.Channels[int_index].Identifier
-
-    def _validate_support_index(self, index: Union[int, str]) -> int:
-        """
-        Get corresponding integer index for support array.
-
-        Parameters
-        ----------
-        index : int|str
-
-        Returns
-        -------
-        int
-        """
-
-        if isinstance(index, str):
-            if index in self._support_map:
-                return self._support_map[index]
-            else:
-                raise KeyError('Cannot find support array for identifier {}'.format(index))
-        else:
-            int_index = int(index)
-            if not (0 <= int_index < len(self.crsd_meta.Data.SupportArrays)):
-                raise ValueError(_index_range_text.format(len(self.crsd_meta.Data.SupportArrays)))
-            return int_index
-
-    def _validate_support_key(self, index: Union[int, str]) -> str:
-        """
-        Gets the corresponding identifier for the support array.
-
-        Parameters
-        ----------
-        index : int|str
-
-        Returns
-        -------
-        str
-        """
-
-        if isinstance(index, str):
-            if index in self._support_map:
-                return index
-            else:
-                raise KeyError('Cannot find support array for identifier {}'.format(index))
-        else:
-            int_index = int(index)
-            if not (0 <= int_index < len(self.crsd_meta.Data.SupportArrays)):
-                raise ValueError(_index_range_text.format(len(self.crsd_meta.Data.SupportArrays)))
-            return self.crsd_meta.Data.SupportArrays[int_index].Identifier
-
-    def _initialize_writing(self) -> List[DataSegment]:
-        """
-        Initializes the counters/state variables for writing progress checks.
-        Expected to be called only by _prepare_for_writing().
-
-        Returns
-        -------
-        List[DataSegment]
-        """
-
-        self._pvp_memmaps = {}
-
-        # setup the PVP memmaps
-        pvp_dtype = self.crsd_meta.PVP.get_vector_dtype()
-        for i, entry in enumerate(self.crsd_meta.Data.Channels):
-            self._channel_map[entry.Identifier] = i
-            # create the pvp mem map
-            offset = self._crsd_header.PVP_BLOCK_BYTE_OFFSET + entry.PVPArrayByteOffset
-            shape = (entry.NumVectors, )
-            self._pvp_memmaps[entry.Identifier] = numpy.memmap(
-                self._file_name, dtype=pvp_dtype, mode='r+', offset=offset, shape=shape)
-            # create the pvp writing state variable
-            self._writing_state['pvp'][entry.Identifier] = 0
-
-        self._support_memmaps = {}
-        self._support_map = {}
-        if self.crsd_meta.Data.SupportArrays is not None:
-            for i, entry in enumerate(self.crsd_meta.Data.SupportArrays):
-                self._support_map[entry.Identifier] = i
-                # extract the support array metadata details
-                details = self.crsd_meta.SupportArray.find_support_array(entry.Identifier)
-                # determine array byte offset
-                offset = self._crsd_header.SUPPORT_BLOCK_BYTE_OFFSET + entry.ArrayByteOffset
-                # determine numpy dtype and depth of array
-                dtype, depth = details.get_numpy_format()
-                # set up the numpy memory map
-                shape = (entry.NumRows, entry.NumCols) if depth == 1 else (entry.NumRows, entry.NumCols, depth)
-                self._support_memmaps[entry.Identifier] = numpy.memmap(
-                    self._file_name, dtype=dtype, mode='r+', offset=offset, shape=shape)
-                self._writing_state['support'][entry.Identifier] = 0
-
-        # setup the signal data_segment (this is used for formatting issues)
-        no_amp_sf = (self.crsd_meta.PVP.AmpSF is None)
-        self._signal_data_segments = {}
-        self._channel_map = {}
-        self._can_write_regular_data = {}
-        signal_data_segments = []
-        signal_dtype = binary_format_string_to_dtype(self.crsd_meta.Data.SignalArrayFormat)
-        for i, entry in enumerate(self.crsd_meta.Data.Channels):
-            self._can_write_regular_data[entry.Identifier] = no_amp_sf
-            raw_shape = (entry.NumVectors, entry.NumSamples, 2)
-            format_function = ComplexFormatFunction(signal_dtype, order='IQ')
-
-            offset = self._crsd_header.SIGNAL_BLOCK_BYTE_OFFSET + entry.SignalArrayByteOffset
-            data_segment = NumpyMemmapSegment(
-                self._file_object, offset, signal_dtype, raw_shape,
-                formatted_dtype='complex64', formatted_shape=raw_shape[:2],
-                format_function=format_function, mode='w', close_file=False)
-            signal_data_segments.append(data_segment)
-
-            self._signal_data_segments[entry.Identifier] = data_segment
-            # create the signal writing state variable
-            self._writing_state['signal'][entry.Identifier] = 0
-        return signal_data_segments
-
-    def _prepare_for_writing(self) -> Optional[List[DataSegment]]:
-        """
-        Prepare all elements for writing.
-        """
-
-        if self._writing_state['header']:
-            logger.warning('The header for CRSD file {} has already been written. Exiting.'.format(self._file_name))
-            return
-
-        # write header
-        self._file_object.write(self._crsd_header.to_string().encode())
-        self._file_object.write(_CRSD_SECTION_TERMINATOR)
-        # write crsd xml
-        self._file_object.seek(self._crsd_header.XML_BLOCK_BYTE_OFFSET, os.SEEK_SET)
-        self._file_object.write(self.crsd_meta.to_xml_bytes())
-        self._file_object.write(_CRSD_SECTION_TERMINATOR)
-        self._writing_state['header'] = True
-
-        return self._initialize_writing()
-
-    def write_support_array(self,
-                            identifier: Union[int, str],
-                            data: numpy.ndarray) -> None:
-        """
-        Write support array data to the file.
-
-        Parameters
-        ----------
-        identifier : int|str
-        data : numpy.ndarray
-        """
-
-        int_index = self._validate_support_index(identifier)
-        identifier = self._validate_support_key(identifier)
-        entry = self.crsd_meta.Data.SupportArrays[int_index]
-
-        if data.shape != (entry.NumRows, entry.NumCols):
-            raise ValueError('Support data shape is not compatible with provided')
-
-        total_pixels = entry.NumRows * entry.NumCols
-        # write the data
-        self._support_memmaps[identifier][:] = data
-        # update the count of written data
-        self._writing_state['support'][identifier] += total_pixels
-
-    def write_pvp_array(self,
-                        identifier: Union[int, str],
-                        data: numpy.ndarray) -> None:
-        """
-        Write the PVP array data to the file.
-
-        Parameters
-        ----------
-        identifier : int|str
-        data : numpy.ndarray
-        """
-
-        def validate_dtype():
-            self._verify_dtype(data.dtype, self._pvp_memmaps[identifier].dtype, 'PVP channel {}'.format(identifier))
-
-        int_index = self._validate_channel_index(identifier)
-        identifier = self._validate_channel_key(identifier)
-        entry = self.crsd_meta.Data.Channels[int_index]
-        validate_dtype()
-
-        if data.ndim != 1:
-            raise ValueError('Provided data is required to be one dimensional')
-        if data.shape[0] != entry.NumVectors:
-            raise ValueError('Provided data must have size determined by NumVectors')
-
-        if self.crsd_meta.PVP.AmpSF is not None:
-            amp_sf = numpy.copy(data['AmpSF'][:])
-            # noinspection PyUnresolvedReferences
-            self._signal_data_segments[identifier].format_function.set_amplitude_scaling(amp_sf)
-            self._can_write_regular_data[identifier] = True
-
-        self._pvp_memmaps[identifier][:] = data
-        self._writing_state['pvp'][identifier] += data.shape[0]
-
-    def write_support_block(self, support_block: Dict[Union[int, str], numpy.ndarray]) -> None:
-        """
-        Write support block to the file.
-
-        Parameters
-        ----------
-        support_block: dict
-            Dictionary of `numpy.ndarray` containing the support arrays.
-        """
-
-        expected_support_ids = {s.Identifier for s in self.crsd_meta.Data.SupportArrays}
-        assert expected_support_ids == set(support_block), 'support_block keys do not match those in crsd_meta'
-        for identifier, array in support_block.items():
-            self.write_support_array(identifier, array)
-
-    def write_pvp_block(self, pvp_block: Dict[Union[int, str], numpy.ndarray]) -> None:
-        """
-        Write PVP block to the file.
-
-        Parameters
-        ----------
-        pvp_block: dict
-            Dictionary of `numpy.ndarray` containing the PVP arrays.
-        """
-
-        expected_channels = {c.Identifier for c in self.crsd_meta.Data.Channels}
-        assert expected_channels == set(pvp_block), 'pvp_block keys do not match those in crsd_meta'
-        for identifier, array in pvp_block.items():
-            self.write_pvp_array(identifier, array)
-
-    def write_signal_block(self, signal_block: Dict[Union[int, str], numpy.ndarray]) -> None:
-        """
-        Write signal block to the file.
-
-        Parameters
-        ----------
-        signal_block: dict
-            Dictionary of `numpy.ndarray` containing the signal arrays in complex64 format.
-        """
-
-        expected_channels = {c.Identifier for c in self.crsd_meta.Data.Channels}
-        assert expected_channels == set(signal_block), 'signal_block keys do not match those in crsd_meta'
-        for identifier, array in signal_block.items():
-            self.write(array, index=identifier)
-
-    def write_signal_block_raw(self, signal_block):
-        """
-        Write signal block to the file.
-
-        Parameters
-        ----------
-        signal_block: dict
-            Dictionary of `numpy.ndarray` containing the the raw formatted
-            (i.e. file storage format) signal arrays.
-        """
-
-        expected_channels = {c.Identifier for c in self.crsd_meta.Data.Channels}
-        assert expected_channels == set(signal_block), 'signal_block keys do not match those in crsd_meta'
-        for identifier, array in signal_block.items():
-            self.write_raw(array, index=identifier)
-
-    def write_file(self,
-                   pvp_block: Dict[Union[int, str], numpy.ndarray],
-                   signal_block: Dict[Union[int, str], numpy.ndarray],
-                   support_block: Optional[Dict[Union[int, str], numpy.ndarray]]=None):
-        """
-        Write the blocks to the file.
-
-        Parameters
-        ----------
-        pvp_block: Dict[str, numpy.ndarray]
-            Dictionary of `numpy.ndarray` containing the PVP arrays.
-            Keys must be consistent with `self.crsd_meta`
-        signal_block: Dict[str, numpy.ndarray]
-            Dictionary of `numpy.ndarray` containing the complex64 formatted signal
-            arrays.
-            Keys must be consistent with `self.crsd_meta`
-        support_block: None|Dict[str, numpy.ndarray]
-            Dictionary of `numpy.ndarray` containing the support arrays.
-        """
-
-        self.write_pvp_block(pvp_block)
-        if support_block:
-            self.write_support_block(support_block)
-        self.write_signal_block(signal_block)
-
-    def write_file_raw(self,
-                   pvp_block: Dict[Union[int, str], numpy.ndarray],
-                   signal_block: Dict[Union[int, str], numpy.ndarray],
-                   support_block: Optional[Dict[Union[int, str], numpy.ndarray]]=None):
-        """
-        Write the blocks to the file.
-
-        Parameters
-        ----------
-        pvp_block: Dict[str, numpy.ndarray]
-            Dictionary of `numpy.ndarray` containing the PVP arrays.
-            Keys must be consistent with `self.crsd_meta`
-        signal_block: Dict[str, numpy.ndarray]
-            Dictionary of `numpy.ndarray` containing the raw formatted
-            (i.e. file storage format) signal arrays.
-            Keys must be consistent with `self.crsd_meta`
-        support_block: None|Dict[str, numpy.ndarray]
-            Dictionary of `numpy.ndarray` containing the support arrays.
-        """
-
-        self.write_pvp_block(pvp_block)
-        if support_block:
-            self.write_support_block(support_block)
-        self.write_signal_block_raw(signal_block)
-
-    def write_chip(self,
-              data: numpy.ndarray,
-              start_indices: Union[None, int, Tuple[int, ...]] = None,
-              subscript: Union[None, Tuple[slice, ...]] = None,
-              index: Union[int, str]=0) -> None:
-        self.__call__(data, start_indices=start_indices, subscript=subscript, index=index, raw=False)
-
-    def write(self,
-              data: numpy.ndarray,
-              start_indices: Union[None, int, Tuple[int, ...]] = None,
-              subscript: Union[None, Tuple[slice, ...]] = None,
-              index: Union[int, str]=0) -> None:
-        self.__call__(data, start_indices=start_indices, subscript=subscript, index=index, raw=False)
-
-    def write_raw(self,
-              data: numpy.ndarray,
-              start_indices: Union[None, int, Tuple[int, ...]]=None,
-              subscript: Union[None, Tuple[slice, ...]]=None,
-              index: Union[int, str]=0) -> None:
-        self.__call__(data, start_indices=start_indices, subscript=subscript, index=index, raw=False)
-
-    def __call__(self,
-                 data: numpy.ndarray,
-                 start_indices: Union[None, int, Tuple[int, ...]]=None,
-                 subscript: Union[None, Tuple[slice, ...]]=None,
-                 index: Union[int, str]=0,
-                 raw: bool=False) -> None:
-        int_index = self._validate_channel_index(index)
-
-        identifier = self._validate_channel_key(index)
-        if not raw and not self._can_write_regular_data[identifier]:
-            raise ValueError(
-                'The channel `{}` has an AmpSF whihc has not been determined,\n\t'
-                'but the corresponding PVP block has not yet been written'.format(identifier))
-
-        BaseWriter.__call__(self, data, start_indices=start_indices, subscript=subscript, index=int_index, raw=raw)
-
-    def _check_fully_written(self) -> bool:
-        """
-        Verifies that the file is fully written, and logs messages describing any
-        unwritten elements at error level. This is expected only to be called by
-        the close() method.
-
-        Returns
-        -------
-        bool
-            The status of the file writing completeness.
-        """
-
-        if self._closed:
-            return True
-
-        if self.crsd_meta is None:
-            return True # incomplete initialization or some other inherent problem
-
-        status = True
-        pvp_message = ''
-        support_message = ''
-
-        for entry in self.crsd_meta.Data.Channels:
-            pvp_rows = entry.NumVectors
-            if self._writing_state['pvp'][entry.Identifier] < pvp_rows:
-                status = False
-                pvp_message += 'identifier {}, {} of {} vectors written\n'.format(
-                    entry.Identifier, self._writing_state['pvp'][entry.Identifier], pvp_rows)
-
-        if self.crsd_meta.Data.SupportArrays is not None:
-            for entry in self.crsd_meta.Data.SupportArrays:
-                support_pixels = entry.NumRows*entry.NumCols
-                if self._writing_state['support'][entry.Identifier] < support_pixels:
-                    status = False
-                    support_message += 'identifier {}, {} of {} pixels written\n'.format(
-                        entry.Identifier, self._writing_state['support'][entry.Identifier], support_pixels)
-
-        if not status:
-            logger.error('CRSD file {} is not completely written, and the result may be corrupt.', self._file_name)
-            if pvp_message != '':
-                logger.error('PVP block(s) incompletely written\n{}', pvp_message)
-            if support_message != '':
-                logger.error('Support block(s) incompletely written\n{}',support_message)
-        return status
-
-    def close(self):
-        if self._closed:
-            return
-
-        fully_written = self._check_fully_written()
-        BaseWriter.close(self)
-
-        if hasattr(self, '_file_object') and hasattr(self._file_object, 'close'):
-            self._file_object.close()
-        self._file_object = None
-        if not fully_written:
-            raise SarpyIOError('CRSD file {} is not fully written'.format(self._file_name))
-
-
 def is_a(file_name: str) -> Optional[CRSDReader]:
     """
     Tests whether a given file_name corresponds to a CRSD file. Returns a reader instance, if so.
@@ -1212,3 +675,55 @@ def is_a(file_name: str) -> Optional[CRSDReader]:
         # we don't want to catch parsing errors, for now?
         return None
 
+
+###########
+# writer
+
+class CRSDWritingDetails(CPHDWritingDetails):
+
+    @property
+    def header(self) -> CRSDHeader:
+        return self._header
+
+    @property
+    def meta(self) -> CRSDType:
+        """
+        CPSDType: The metadata
+        """
+
+        return self._meta
+
+    @meta.setter
+    def meta(self, value):
+        if self._meta is not None:
+            raise ValueError('meta is read only once initialized.')
+        if not isinstance(value, CRSDType):
+            raise TypeError('meta must be of type {}'.format(CRSDType))
+        self._meta = value
+
+
+class CRSDWriter1_0(CPHDWriter1_0):
+
+    @property
+    def writing_details(self) -> CRSDWritingDetails:
+        return self._writing_details
+
+    @writing_details.setter
+    def writing_details(self, value):
+        if self._writing_details is not None:
+            raise ValueError('writing_details is read-only')
+        if not isinstance(value, CRSDWritingDetails):
+            raise TypeError('writing_details must be of type {}'.format(CRSDWritingDetails))
+        self._writing_details = value
+
+    @property
+    def file_name(self) -> Optional[str]:
+        return self._file_name
+
+    @property
+    def meta(self) -> CRSDType:
+        """
+        CRSDType: The metadata
+        """
+
+        return self.writing_details.meta
