@@ -279,6 +279,10 @@ class BaseReader(object):
 
         return self._delete_temp_files
 
+    def _validate_closed(self):
+        if not hasattr(self, '_closed') or self._closed:
+            raise ValueError('I/O operation of closed writer')
+
     def read_chip(
             self,
             *ranges: Sequence[Union[None, int, Tuple[int, ...], slice]],
@@ -369,6 +373,9 @@ class BaseReader(object):
             index: int = 0,
             raw: bool = False,
             squeeze: bool = True) -> numpy.ndarray:
+
+        self._validate_closed()
+
         if len(ranges) == 0:
             subscript = None
         else:
@@ -611,7 +618,7 @@ class BaseWriter(object):
                     'Requires all data segment entries to be an instance of DataSegment.\n\t'
                     'Got type {}'.format(type(entry)))
             if not entry.mode == 'w':
-                raise ValueError('Each data segment must have mode="r"')
+                raise ValueError('Each data segment must have mode="w" for writing')
 
         self._data_segment = tuple(data_segment)
         self._closed = False
@@ -656,6 +663,10 @@ class BaseWriter(object):
         """
 
         return tuple(entry.raw_shape for entry in self.data_segment)
+
+    def _validate_closed(self):
+        if not hasattr(self, '_closed') or self._closed:
+            raise ValueError('I/O operation of closed writer')
 
     def write_chip(
             self,
@@ -766,6 +777,7 @@ class BaseWriter(object):
         raw : bool
         """
 
+        self._validate_closed()
         ds = self.data_segment[index]
 
         if raw:
@@ -778,6 +790,25 @@ class BaseWriter(object):
                     'and to write the data in raw (i.e. unformatted) form.')
             return ds.write(data, start_indices=start_indices, subscript=subscript)
 
+    def flush(self, force: bool=False) -> None:
+        """
+        Try to perform any necessary steps to flush written data to the disk/buffer.
+
+        Parameters
+        ----------
+        force : bool
+            Try force flushing, even for incompletely written data.
+
+        Returns
+        -------
+        None
+        """
+
+        self._validate_closed()
+        if self._data_segment is not None:
+            for data_segment in self.data_segment:
+                data_segment.flush()
+
     def close(self) -> None:
         """
         Completes any necessary final steps.
@@ -786,12 +817,17 @@ class BaseWriter(object):
         if not hasattr(self, '_closed') or self._closed:
             return
 
-        # close all the segments
-        if self._data_segment is not None:
-            for entry in self._data_segment:
-                entry.close()
-        self._data_segment = None
-        self._closed = True
+        try:
+            self._closed = True
+            # flush the data
+            self.flush(force=True)
+            # close all the segments
+            if self._data_segment is not None:
+                for entry in self._data_segment:
+                    entry.close()
+            self._data_segment = None
+        except AttributeError:
+            return
 
     def __del__(self):
         self.close()

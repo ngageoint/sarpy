@@ -22,7 +22,8 @@ from sarpy.io.general.base import SarpyIOError, BaseReader, BaseWriter
 from sarpy.io.general.format_function import FormatFunction, ComplexFormatFunction, \
     SingleLUTFormatFunction
 from sarpy.io.general.data_segment import DataSegment, BandAggregateSegment, \
-    BlockAggregateSegment, SubsetSegment, NumpyMemmapSegment, FileReadDataSegment
+    BlockAggregateSegment, SubsetSegment, NumpyArraySegment, NumpyMemmapSegment, \
+    FileReadDataSegment
 
 # noinspection PyProtectedMember
 from sarpy.io.general.nitf_elements.nitf_head import NITFHeader, NITFHeader0, \
@@ -2495,6 +2496,17 @@ def default_image_segmentation(rows: int, cols: int, row_limit: int) -> Tuple[Tu
     return tuple(im_segments)
 
 
+def _flatten_bytes(value: Union[bytes, Sequence]) -> bytes:
+    if value is None:
+        return b''
+    elif isinstance(value, bytes):
+        return value
+    elif isinstance(value, Sequence):
+        return b''.join(_flatten_bytes(entry) for entry in value)
+    else:
+        raise TypeError('input must be a bytes object, or a sequence with bytes objects as leaves')
+
+
 class SubheaderManager(object):
     """
     Simple manager object for a NITF subheader, and it's associated information
@@ -2504,7 +2516,7 @@ class SubheaderManager(object):
     """
 
     __slots__ = (
-        '_subheader',  '_subheader_offset',
+        '_subheader',  '_subheader_offset', '_subheader_size',
         '_item_bytes', '_item_offset', '_item_size',
         '_subheader_written', '_item_written')
 
@@ -2524,6 +2536,7 @@ class SubheaderManager(object):
                 'subheader must be of type {} for class {}'.format(
                     self.subheader_type, self.__class__))
         self._subheader = subheader
+        self._subheader_size = self._subheader.get_bytes_length()
         self._subheader_offset = None
         self._item_offset = None
         self._subheader_written = False
@@ -2568,7 +2581,7 @@ class SubheaderManager(object):
         int: The subheader size
         """
 
-        return self._subheader.get_bytes_length()
+        return self._subheader_size
 
     @property
     def item_offset(self) -> Optional[int]:
@@ -2626,23 +2639,25 @@ class SubheaderManager(object):
     @property
     def item_bytes(self) -> Optional[bytes]:
         """
-        None|bytes: The item bytes. Note that this is either provided on
-        initialization, or should never be set.
+        None|bytes: The item bytes.
         """
 
         return self._item_bytes
 
     @item_bytes.setter
-    def item_bytes(self, value) -> None:
+    def item_bytes(self, value: Union[bytes, Sequence]) -> None:
         if self._item_bytes is not None:
             raise ValueError("item_bytes is read only after being initially defined.")
-        if self._item_size is not None:
-            raise ValueError('item_bytes cannot be defined after item_size has been defined.')
+        if value is None:
+            self._item_bytes = None
+            return
 
-        if not isinstance(value, bytes):
+        # TODO: verify the mask information, in the event that value is a sequence?
+        value = _flatten_bytes(value)
+        if self._item_size is not None and len(value) != self._item_size:
             raise ValueError(
-                'item_bytes must be an instance of bytes for class {}'.format(
-                    self.__class__))
+                'item_bytes input has size {},\n\t'
+                'but item_size has been defined as {}.'.format(len(value), self._item_size))
         self._item_bytes = value
         self.item_size = len(value)
 
@@ -2665,36 +2680,37 @@ class SubheaderManager(object):
 
     def write_subheader(self, file_object: BinaryIO) -> None:
         """
-        Write the subheader, at its specified offset, to the file.
+        Write the subheader, at its specified offset, to the file. If writing
+        occurs, the file location will be advanced to the end of the subheader
+        location.
 
         Parameters
         ----------
         file_object : BinaryIO
-
-        Returns
-        -------
-        None
-
-        Raises
-        ------
-        ValueError
-            If the subheader_offset is not populated.
         """
 
         if self.subheader_written:
             return
 
         if self.subheader_offset is None:
-            raise ValueError('Cannot write without subheader_offset')
+            return  # nothing to be done
+
+        the_bytes = self.subheader.to_bytes()
+        if len(the_bytes) != self._subheader_size:
+            raise ValueError(
+                'mismatch between the size of the subheader {}\n\t'
+                'and the anticipated size of the subheader {}'.format(len(the_bytes), self._subheader_size))
 
         file_object.seek(self.subheader_offset, os.SEEK_SET)
-        file_object.write(self.subheader.to_bytes())
+        file_object.write(the_bytes)
         self.subheader_written = True
 
     def write_item(self, file_object: BinaryIO) -> None:
         """
         Write the item bytes (if populated), at its specified offset, to the
-        file.
+        file. This requires that the subheader has previously be written. If
+        writing occurs, the file location will be advanced to the end of the item
+        location.
 
         Parameters
         ----------
@@ -2703,26 +2719,22 @@ class SubheaderManager(object):
         Returns
         -------
         None
-
-        Raises
-        ------
-        ValueError
-            If the item_offset of item_bytes are not populated.
         """
 
         if self.item_written:
             return
 
         if self.item_offset is None:
-            raise ValueError('Cannot write without item_offset')
+            return  # nothing to be done
 
         if self.item_bytes is None:
-            raise ValueError('Cannot write without item_bytes')
+            return  # nothing to be done
 
-        file_loc = file_object.tell()
+        if not self.subheader_written:
+            return  # nothing to be done
+
         file_object.seek(self.item_offset, os.SEEK_SET)
         file_object.write(self.item_bytes)
-        file_object.seek(file_loc, os.SEEK_SET)
         self.item_written = True
 
 
@@ -2763,19 +2775,20 @@ class ImageSubheaderManager(SubheaderManager):
             return
 
         SubheaderManager.write_subheader(self, file_object)
-        if self.subheader.mask_subheader is not None:
-            file_object.seek(self.item_offset, os.SEEK_SET)
-            file_object.write(self.subheader.mask_subheader.to_bytes())
+        file_object.write(self.subheader.mask_subheader.to_bytes())
 
     def write_item(self, file_object: BinaryIO) -> None:
         if self.item_written:
             return
 
         if self.item_offset is None:
-            raise ValueError('Cannot write without item_offset')
+            return
 
         if self.item_bytes is None:
-            raise ValueError('Cannot write without item_bytes')
+            return
+
+        if not self.subheader_written:
+            return
 
         if self.subheader.mask_subheader is None:
             file_object.seek(self.item_offset, os.SEEK_SET)
@@ -2826,12 +2839,15 @@ class NITFWritingDetails(object):
     """
     Manager for all the NITF subheader information.
 
+    Note that doing anything which modified the size of the headers after
+    initialization (i.e. adding TREs) will not be reflected
+
     Introduced in version 1.3.0.
     """
     __slots__ = (
-        '_header', '_image_managers', '_graphics_managers', '_text_managers',
-        '_des_managers', '_res_managers', '_image_segment_collections',
-        '_image_segment_coordinates', '_collections_clevel')
+        '_header', '_header_size', '_header_written', '_image_managers',
+        '_graphics_managers', '_text_managers', '_des_managers', '_res_managers',
+        '_image_segment_collections', '_image_segment_coordinates', '_collections_clevel')
 
     def __init__(
             self,
@@ -2863,6 +2879,7 @@ class NITFWritingDetails(object):
 
         self._collections_clevel = None
         self._header = None
+        self._header_written = False
         self._image_managers = None
         self._image_segment_collections = None
         self._image_segment_coordinates = None
@@ -2872,6 +2889,7 @@ class NITFWritingDetails(object):
         self._res_managers = None
 
         self.header = header
+        self._header_size = header.get_bytes_length()  # type: int
         self.image_managers = image_managers
         self.image_segment_collections = image_segment_collections
         self.image_segment_coordinates = image_segment_coordinates
@@ -2882,6 +2900,12 @@ class NITFWritingDetails(object):
 
     @property
     def header(self) -> NITFHeader:
+        """
+        NITFHeader: The main NITF header. Note that doing anything that changes
+        the size of that header (i.e. adding TREs) after initialization will
+        result in a broken state.
+        """
+
         return self._header
 
     @header.setter
@@ -3105,7 +3129,7 @@ class NITFWritingDetails(object):
 
     def _get_sizes(
             self,
-            managers: Optional[Sequence],
+            managers: Optional[Sequence[SubheaderManager]],
             name: str) -> Tuple[Optional[numpy.ndarray], Optional[numpy.ndarray]]:
         if managers is None:
             return None, None
@@ -3119,6 +3143,23 @@ class NITFWritingDetails(object):
                 raise ValueError('item_size for {} at index {} is unset'.format(name, item_size))
             item_sizes[i] = entry.item_size
         return subhead_sizes, item_sizes
+
+    def _write_items(self, managers: Optional[Sequence[SubheaderManager]], file_object: BinaryIO) -> None:
+        if managers is None:
+            return
+        for index, entry in enumerate(managers):
+            entry.write_subheader(file_object)
+            entry.write_item(file_object)
+
+    def _verify_item_written(self, managers: Optional[Sequence[SubheaderManager]], name: str) -> None:
+        if managers is None:
+            return
+
+        for index, entry in enumerate(managers):
+            if not entry.subheader_written:
+                logger.error('{} subheader at index {} not written'.format(name, index))
+            if not entry.item_written:
+                logger.error('{} data at index {} not written'.format(name, index))
 
     def _get_image_sizes(self) -> ImageSegmentsType:
         """
@@ -3191,7 +3232,7 @@ class NITFWritingDetails(object):
 
         if self.image_managers is None:
             return
-        self.image_managers[0].subheader_offset = self.header.get_bytes_length()
+        self.image_managers[0].subheader_offset = self._header_size
 
     def verify_images_have_no_compression(self) -> bool:
         """
@@ -3211,43 +3252,6 @@ class NITFWritingDetails(object):
             out &= (entry.subheader.IC in ['NC', 'NM'])
         return out
 
-    def verify_image_bytes_all_set(self) -> bool:
-        """
-        Verify that the image bytes data is set for every image manager. That is,
-        we are going to directly write a NITF file.
-
-        Returns
-        -------
-        bool
-        """
-
-        if self.image_managers is None:
-            return True
-
-        out = True
-        for entry in self.image_managers:
-            out &= (entry.item_bytes is not None)
-        return out
-
-    def verify_no_image_bytes_set(self) -> bool:
-        """
-        Verify that the image bytes data is **NOT** set for every image manager.
-        That is, we are going to write a NITF file using array-like image data
-        operations.
-
-        Returns
-        -------
-        bool
-        """
-
-        if self.image_managers is None:
-            return True
-
-        out = True
-        for entry in self.image_managers:
-            out &= (entry.item_bytes is None)
-        return out
-
     def verify_all_sizes(self) -> None:
         """
         This verifies that all the item_size values are set and populates the
@@ -3264,19 +3268,21 @@ class NITFWritingDetails(object):
         self.header.DataExtensions = self._get_des_sizes()
         self.header.ReservedExtensions = self._get_res_sizes()
 
-    def verify_all_offsets(self) -> None:
+    def verify_all_offsets(self, require: bool = False) -> bool:
         """
-        This sets and/or verifies all offsets. This requires that item_size has
-        been populated for every subheader manager.
+        This sets and/or verifies all offsets.
+
+        Parameters
+        ----------
+        require : bool
+            Require all offsets to be set?
 
         Returns
         -------
-        None
+        bool
         """
 
-
-        last_offset = self.header.get_bytes_length()
-
+        last_offset = self._header_size
         if self.image_managers is not None:
             for index, entry in enumerate(self.image_managers):
                 if entry.subheader_offset is None:
@@ -3287,8 +3293,11 @@ class NITFWritingDetails(object):
                         'with the end of the previous element'.format(index))
                 last_offset = entry.end_of_item
                 if last_offset is None:
-                    raise ValueError(
-                        'image manager at index {} has end_of_item (i.e item_size) unpopulated.'.format(index))
+                    if require:
+                        raise ValueError(
+                            'image manager at index {} has end_of_item (i.e item_size) unpopulated.'.format(index))
+                    else:
+                        return False
 
         if self.graphics_managers is not None:
             for index, entry in enumerate(self.graphics_managers):
@@ -3300,8 +3309,11 @@ class NITFWritingDetails(object):
                         'with the end of the previous element'.format(index))
                 last_offset = entry.end_of_item
                 if last_offset is None:
-                    raise ValueError(
-                        'graphics manager at index {} has end_of_item unpopulated.'.format(index))
+                    if require:
+                        raise ValueError(
+                            'graphics manager at index {} has end_of_item unpopulated.'.format(index))
+                    else:
+                        return False
 
         if self.text_managers is not None:
             for index, entry in enumerate(self.text_managers):
@@ -3313,8 +3325,11 @@ class NITFWritingDetails(object):
                         'with the end of the previous element'.format(index))
                 last_offset = entry.end_of_item
                 if last_offset is None:
-                    raise ValueError(
-                        'text manager at index {} has end_of_item unpopulated.'.format(index))
+                    if require:
+                        raise ValueError(
+                            'text manager at index {} has end_of_item unpopulated.'.format(index))
+                    else:
+                        return False
 
         if self.des_managers is not None:
             for index, entry in enumerate(self.des_managers):
@@ -3326,8 +3341,11 @@ class NITFWritingDetails(object):
                         'with the end of the previous element'.format(index))
                 last_offset = entry.end_of_item
                 if last_offset is None:
-                    raise ValueError(
-                        'des manager at index {} has end_of_item unpopulated.'.format(index))
+                    if require:
+                        raise ValueError(
+                            'des manager at index {} has end_of_item unpopulated.'.format(index))
+                    else:
+                        return False
 
         if self.res_managers is not None:
             for index, entry in enumerate(self.res_managers):
@@ -3339,9 +3357,13 @@ class NITFWritingDetails(object):
                         'with the end of the previous element'.format(index))
                 last_offset = entry.end_of_item
                 if last_offset is None:
-                    raise ValueError(
-                        'res manager at index {} has end_of_item unpopulated.'.format(index))
+                    if require:
+                        raise ValueError(
+                            'res manager at index {} has end_of_item unpopulated.'.format(index))
+                    else:
+                        return False
         self.header.FL = last_offset
+        return True
 
     def set_header_clevel(self) -> None:
         """
@@ -3368,10 +3390,36 @@ class NITFWritingDetails(object):
         self.header.CLEVEL = mem_clevel if self._collections_clevel is None else \
             max(mem_clevel, max(self._collections_clevel))
 
+    def write_header(self, file_object: BinaryIO, overwrite: bool = False) -> None:
+        """
+        Write the main NITF header.
+
+        Parameters
+        ----------
+        file_object : BinaryIO
+        overwrite : bool
+            Overwrite, if previously written?
+
+        Returns
+        -------
+        None
+        """
+
+        if self._header_written and not overwrite:
+            return
+        the_bytes = self.header.to_bytes()
+        if len(the_bytes) != self._header_size:
+            raise ValueError(
+                'The anticipated header length {}\n\t'
+                'does not match the actual header length {}'.format(self._header_size, len(the_bytes)))
+        self.set_header_clevel()
+        file_object.seek(0, os.SEEK_SET)
+        file_object.write(the_bytes)
+        self._header_written = True
+
     def write_all_populated_items(self, file_object: BinaryIO) -> None:
         """
-        Write everything populated (i.e. with the possible exception of image data)
-        to the file-like object. This assumes that The header will start at the
+        Write everything populated. This assumes that the header will start at the
         beginning (position 0) of the file-like object.
 
         Parameters
@@ -3383,37 +3431,22 @@ class NITFWritingDetails(object):
         None
         """
 
-        first_pos = file_object.tell()
-        file_object.seek(0, os.SEEK_SET)
-        file_object.write(self.header.to_bytes())
+        self.write_header(file_object, overwrite=False)
+        self._write_items(self.image_managers, file_object)
+        self._write_items(self.graphics_managers, file_object)
+        self._write_items(self.text_managers, file_object)
+        self._write_items(self.des_managers, file_object)
+        self._write_items(self.res_managers, file_object)
 
+    def verify_all_written(self) -> None:
+        if not self._header_written:
+            logger.error('NITF header not written')
 
-        if self.image_managers is not None:
-            for entry in self.image_managers:
-                entry.write_subheader(file_object)
-                if entry.item_bytes is not None:
-                    entry.write_item(file_object)
-
-        if self.graphics_managers is not None:
-            for entry in self.graphics_managers:
-                entry.write_subheader(file_object)
-                entry.write_item(file_object)
-
-        if self.text_managers is not None:
-            for entry in self.text_managers:
-                entry.write_subheader(file_object)
-                entry.write_item(file_object)
-
-        if self.des_managers is not None:
-            for entry in self.des_managers:
-                entry.write_subheader(file_object)
-                entry.write_item(file_object)
-
-        if self.res_managers is not None:
-            for entry in self.res_managers:
-                entry.write_subheader(file_object)
-                entry.write_item(file_object)
-        file_object.seek(first_pos, os.SEEK_SET)
+        self._verify_item_written(self.image_managers, 'image')
+        self._verify_item_written(self.graphics_managers, 'graphics')
+        self._verify_item_written(self.text_managers, 'text')
+        self._verify_item_written(self.des_managers, 'DES')
+        self._verify_item_written(self.res_managers, 'RES')
 
 
 #############
@@ -3421,19 +3454,19 @@ class NITFWritingDetails(object):
 
 class NITFWriter(BaseWriter):
     __slots__ = (
-        '_file_name', '_nitf_writing_details',
-        '_image_segment_data_segments')
+        '_file_object', '_file_name', '_in_memory',
+        '_nitf_writing_details', '_image_segment_data_segments')
 
     def __init__(
             self,
-            file_name: str,
+            file_object: Union[str, BinaryIO],
             writing_details: NITFWritingDetails,
             check_existence: bool = True):
         """
 
         Parameters
         ----------
-        file_name : str
+        file_object : str|BinaryIO
         writing_details : NITFWritingDetails
         check_existence : bool
             Should we check if the given file already exists?
@@ -3445,44 +3478,43 @@ class NITFWriter(BaseWriter):
         """
 
         self._nitf_writing_details = None
-        self._image_segment_data_segments = {}
+        self._image_segment_data_segments = []  # type: List[DataSegment]
 
-        if check_existence and os.path.exists(file_name):
-            raise SarpyIOError(
-                'Given file {} already exists,\n\t'
-                'and a new NITF file cannot be created here.'.format(file_name))
-        self._file_name = file_name
+        if isinstance(file_object, str):
+            if check_existence and os.path.exists(file_object):
+                raise SarpyIOError(
+                    'Given file {} already exists, and a new NITF file cannot be created here.'.format(file_object))
+            file_object = open(file_object, 'wb')
+
+        if not is_file_like(file_object):
+            raise ValueError('file_object requires a file path or BinaryIO object')
+
+        self._file_object = file_object
+        if is_real_file(file_object):
+            self._file_name = file_object.name
+            self._in_memory = False
+        else:
+            self._file_name = None
+            self._in_memory = True
 
         self.nitf_writing_details = writing_details
 
         if not self.nitf_writing_details.verify_images_have_no_compression():
             raise ValueError(
                 'Some image segments indicate compression in the image managers of the nitf_writing_details')
-        if not self.nitf_writing_details.verify_no_image_bytes_set():
-            raise ValueError(
-                'Some item_bytes data is set in the image managers of the nitf_writing_details')
 
         # set the image offset
         self.nitf_writing_details.set_first_image_offset()
 
-        # (re)create the file
-        with open(self._file_name, 'wb') as fi:
-            fi.write(b'')
-
         self._verify_image_segments()
         self.verify_collection_compliance()
 
-        # construct all the data segments
         data_segments = self.get_data_segments()
 
-        self.nitf_writing_details.verify_all_sizes()
-        self.nitf_writing_details.verify_all_offsets()
-        self.nitf_writing_details.set_header_clevel()
-
+        self.nitf_writing_details.verify_all_sizes()  # NB: while no compression supported...
+        if not self._in_memory:
+            self.nitf_writing_details.write_all_populated_items(self._file_object)
         BaseWriter.__init__(self, data_segments)
-        self._write_all_subheaders()
-        # this writes everything except the image data,
-        # which will be written via data segments
 
     @property
     def nitf_writing_details(self) -> NITFWritingDetails:
@@ -3507,14 +3539,15 @@ class NITFWriter(BaseWriter):
     def _set_image_size(self, image_segment_index: int, item_size: int) -> None:
         """
         Sets the image size information. This should be without consideration
-        for the presence of an image mask, which is handled by the image
-        subheader.
+        for the presence of an image mask, which is handled by with the image
+        subheader (if present).
 
         Parameters
         ----------
         image_segment_index : int
         item_size : int
         """
+
         self.image_managers[image_segment_index].item_size = item_size
 
     @property
@@ -3532,10 +3565,6 @@ class NITFWriter(BaseWriter):
         """
 
         return self.nitf_writing_details.image_segment_collections
-
-    def _write_all_subheaders(self) -> None:
-        with open(self.file_name, 'rb+') as fi:
-            self.nitf_writing_details.write_all_populated_items(fi)
 
     def get_image_header(self, index: int) -> ImageSegmentHeader:
         """
@@ -3719,7 +3748,8 @@ class NITFWriter(BaseWriter):
         return self.nitf_writing_details.image_segment_coordinates[collection_index]
 
     def _handle_no_compression(self, image_segment_index: int, apply_format: bool) -> DataSegment:
-        # NB: Natural order inside the block is (bands, rows, columns)
+        # NB: this should definitely set the image size in the manager.
+
         image_header = self.get_image_header(image_segment_index)
         if image_header.IMODE not in ['B', 'R', 'P'] or image_header.IC not in ['NC', 'NM']:
             raise ValueError(
@@ -3730,7 +3760,8 @@ class NITFWriter(BaseWriter):
         raw_bands = len(image_header.Bands)
 
         # get bytes offset to this image segment (relative to start of file)
-        offset = self.image_managers[image_segment_index].item_offset
+        #   this is only necessary if not in_memory processing
+        offset = 0 if self._in_memory else self.image_managers[image_segment_index].item_offset
         raw_dtype, formatted_dtype, formatted_bands, complex_order, lut = self._get_dtypes(image_segment_index)
 
         block_bounds = self._construct_block_bounds(image_segment_index)
@@ -3765,8 +3796,11 @@ class NITFWriter(BaseWriter):
             raise ValueError('Got mismatch between block definition and block offsets definition')
 
         final_block_ending = numpy.max(block_offsets[block_offsets != exclude_value]) + block_size + additional_offset
-        # set the image size in the manager
-        self._set_image_size(image_segment_index, final_block_ending - additional_offset)
+
+        # set the details in the image manager...
+        self.image_managers[image_segment_index].item_size = final_block_ending - additional_offset
+        if not self._in_memory:
+            self.image_managers[image_segment_index].item_written = True  # NB: it's written in principle by the data segment
 
         # determine output particulars
         if apply_format:
@@ -3805,11 +3839,18 @@ class NITFWriter(BaseWriter):
             # there is just a single block, no need to obfuscate behind a
             # block aggregate
 
-            return NumpyMemmapSegment(
-                self._file_name, offset, raw_dtype, raw_shape,
-                formatted_dtype, formatted_shape, reverse_axes=reverse_axes,
-                transpose_axes=transpose_axes, format_function=format_function,
-                mode='w', close_file=False)
+            if self._in_memory:
+                underlying_array = numpy.full(raw_shape, 0, dtype=raw_dtype)
+                return NumpyArraySegment(
+                    underlying_array, formatted_dtype, formatted_shape,
+                    reverse_axes=reverse_axes, transpose_axes=transpose_axes,
+                    format_function=format_function, mode='w')
+            else:
+                return NumpyMemmapSegment(
+                    self._file_name, offset, raw_dtype, raw_shape,
+                    formatted_dtype, formatted_shape, reverse_axes=reverse_axes,
+                    transpose_axes=transpose_axes, format_function=format_function,
+                    mode='w', close_file=False)
 
         data_segments = []
         child_arrangement = []
@@ -3821,12 +3862,18 @@ class NITFWriter(BaseWriter):
             b_cols = block_definition[3] - block_definition[2]
             b_raw_shape = _get_shape(b_rows, b_cols, raw_bands, band_dimension=raw_band_dimension)
             total_offset = offset + additional_offset + block_offset
-            child_segment = NumpyMemmapSegment(
-                self._file_name, total_offset, raw_dtype, b_raw_shape,
-                raw_dtype, b_raw_shape, mode='w', close_file=False)
+            if self._in_memory:
+                underlying_array = numpy.full(b_raw_shape, 0, dtype=raw_dtype)
+                child_segment = NumpyArraySegment(
+                    underlying_array, raw_dtype, b_raw_shape, mode='w')
+            else:
+                child_segment = NumpyMemmapSegment(
+                    self._file_name, total_offset, raw_dtype, b_raw_shape,
+                    raw_dtype, b_raw_shape, mode='w', close_file=False)
             # handle block padding situation
             row_start, row_end = block_definition[0], min(block_definition[1], image_header.NROWS)
             col_start, col_end = block_definition[2], min(block_definition[3], image_header.NCOLS)
+            # NB: we need not establish a subset segment for writing
             if row_end == block_definition[1] and col_end == block_definition[3]:
                 data_segments.append(child_segment)
             else:
@@ -3897,7 +3944,10 @@ class NITFWriter(BaseWriter):
         shape having bands in the final dimension (analogous to `IMODE=P`).
 
         Note that this also stores a reference to the produced data segment in
-        the `_image_segment_data_segments` dictionary.
+        the `_image_segment_data_segments` list.
+
+        This will raise an exception if not performed in the order presented in
+        the writing manager.
 
         Parameters
         ----------
@@ -3913,9 +3963,12 @@ class NITFWriter(BaseWriter):
 
         image_manager = self.image_managers[image_segment_index]
         assert isinstance(image_manager, ImageSubheaderManager)
-        if image_manager.item_offset is None:
-            raise ValueError(
-                'item_offset unpopulated for image segment at index {}'.format(image_segment_index))
+        if not self._in_memory:
+            if image_manager.item_offset is None:
+                raise ValueError(
+                    'Performing file processing and item_offset unpopulated for image segment at index {}'.format(image_segment_index))
+        if len(self._image_segment_data_segments) != image_segment_index:
+            raise ValueError('data segments must be constructed in order.')
         image_header = image_manager.subheader
 
         if image_header.IMODE == 'B':
@@ -3928,17 +3981,15 @@ class NITFWriter(BaseWriter):
             raise ValueError(
                 'Got unsupported IMODE `{}` at image segment index `{}`'.format(
                     image_header.IMODE, image_segment_index))
-        if image_segment_index in self._image_segment_data_segments:
-            logger.warning(
-                'Data segment for image segment index {} has already been created.'.format(
-                    image_segment_index))
 
-        if image_manager.end_of_item is None:
+        self._image_segment_data_segments.append(out)
+        if image_manager.end_of_item is not None:
+            if image_segment_index < len(self.image_managers) - 1:
+                self.image_managers[image_segment_index + 1].subheader_offset = image_manager.end_of_item
+        elif not self._in_memory:
             raise ValueError(
-                'item_size unpopulated for image segment at index {}'.format(image_segment_index))
-        if image_segment_index < len(self.image_managers) - 1:
-            self.image_managers[image_segment_index + 1].subheader_offset = image_manager.end_of_item
-        self._image_segment_data_segments[image_segment_index] = out
+                'file processing, and item_size unpopulated for image segment at index {}'.format(image_segment_index))
+
         return out
 
     def create_data_segment_for_collection_element(self, collection_index: int) -> DataSegment:
@@ -4004,6 +4055,38 @@ class NITFWriter(BaseWriter):
             out.append(self.create_data_segment_for_collection_element(index))
         return out
 
+    def flush(self, force: bool = False) -> None:
+        self._validate_closed()
+
+        BaseWriter.flush(self, force=force)
+
+        try:
+            if self._in_memory:
+                if self._image_segment_data_segments is not None:
+                    for index, entry in enumerate(self._image_segment_data_segments):
+                        manager = self.nitf_writing_details.image_managers[index]
+                        if manager.item_written:
+                            continue
+                        if manager.item_bytes is not None:
+                            continue
+                        if force or entry.check_fully_written(warn=force):
+                            manager.item_bytes = entry.get_raw_bytes(warn=False)
+
+            check = self.nitf_writing_details.verify_all_offsets(require=False)
+            if check:
+                self.nitf_writing_details.write_header(self._file_object, overwrite=False)
+            self.nitf_writing_details.write_all_populated_items(self._file_object)
+        except AttributeError:
+            return
+
     def close(self) -> None:
+        BaseWriter.close(self)  # NB: flush called here
+        try:
+            if self.nitf_writing_details is not None:
+                self.nitf_writing_details.verify_all_written()
+        except AttributeError:
+            pass
+
+        self.nitf_writing_details = None
         self._image_segment_data_segments = None
-        BaseWriter.close(self)
+        self._file_object = None

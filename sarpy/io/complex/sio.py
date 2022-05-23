@@ -10,7 +10,7 @@ import os
 import struct
 import logging
 import re
-from typing import Union, Dict, Tuple, Optional
+from typing import Union, Dict, Tuple, Optional, BinaryIO
 
 import numpy
 
@@ -20,9 +20,9 @@ from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd_elements.ImageData import ImageDataType, FullImageType
 
 from sarpy.io.general.base import BaseWriter, SarpyIOError
-from sarpy.io.general.data_segment import NumpyMemmapSegment
+from sarpy.io.general.data_segment import NumpyArraySegment, NumpyMemmapSegment
 from sarpy.io.general.format_function import ComplexFormatFunction
-from sarpy.io.general.utils import is_file_like
+from sarpy.io.general.utils import is_file_like, is_real_file
 from sarpy.io.xml.base import parse_xml_from_string
 
 logger = logging.getLogger(__name__)
@@ -358,6 +358,7 @@ def is_a(file_name: str) -> Optional[SIOReader]:
     except SarpyIOError:
         return None
 
+
 #######
 #  The actual writing implementation
 
@@ -366,8 +367,12 @@ class SIOWriter(BaseWriter):
     **Changed in version 1.3.0** for writing changes.
     """
 
+    _slots__ = (
+        '_file_name', '_file_object', '_in_memory',
+        '_data_offset', '_data_written')
+
     def __init__(self,
-                 file_name: str,
+                 file_object: Union[str, BinaryIO],
                  sicd_meta: SICDType,
                  user_data: Optional[Dict[str, str]]=None,
                  check_older_version: bool=False,
@@ -376,7 +381,7 @@ class SIOWriter(BaseWriter):
 
         Parameters
         ----------
-        file_name : str
+        file_object : str|BinaryIO
         sicd_meta : SICDType
         user_data : None|Dict[str, str]
         check_older_version : bool
@@ -386,15 +391,29 @@ class SIOWriter(BaseWriter):
             Should we check if the given file already exists, and raises an exception if so?
         """
 
-        if check_existence and os.path.exists(file_name):
-            raise SarpyIOError('Given file {} already exists, and a new SIO file cannot be created here.'.format(file_name))
+        self._data_written = True
+        if isinstance(file_object, str):
+            if check_existence and os.path.exists(file_object):
+                raise SarpyIOError('Given file {} already exists, and a new SIO file cannot be created here.'.format(file_object))
+            file_object = open(file_object, 'wb')
+
+        if not is_file_like(file_object):
+            raise ValueError('file_object requires a file path or BinaryIO object')
+
+        self._file_object = file_object
+        if is_real_file(file_object):
+            self._file_name = file_object.name
+            self._in_memory = False
+        else:
+            self._file_name = None
+            self._in_memory = True
 
         # choose magic number (with user data) and corresponding endian-ness
         magic_number = 0xFD7F02FF
         endian = SIODetails.ENDIAN[magic_number]
 
         # define basic image details
-        image_size = (sicd_meta.ImageData.NumRows, sicd_meta.ImageData.NumCols)
+        raw_shape = (sicd_meta.ImageData.NumRows, sicd_meta.ImageData.NumCols, 2)
         pixel_type = sicd_meta.ImageData.PixelType
         if pixel_type == 'RE32F_IM32F':
             raw_dtype = numpy.dtype('{}f4'.format(endian))
@@ -415,27 +434,64 @@ class SIOWriter(BaseWriter):
 
         # construct the sio header
         header = numpy.array(
-            [magic_number, image_size[0], image_size[1], element_type, element_size],
+            [magic_number, raw_shape[0], raw_shape[1], element_type, element_size],
             dtype='>u4')
         # construct the user data - must be {str : str}
         if user_data is None:
             user_data = {}
         uh_args = sicd_meta.get_des_details(check_older_version)
         user_data['SICDMETA'] = sicd_meta.to_xml_string(tag='SICD', urn=uh_args['DESSHTN'])
-        data_offset = 20
-        with open(file_name, 'wb') as fi:
-            fi.write(struct.pack('{}5I'.format(endian), *header))
-            # write the user data - name size, name, value size, value
-            for name in user_data:
-                name_bytes = name.encode('utf-8')
-                fi.write(struct.pack('{}I'.format(endian), len(name_bytes)))
-                fi.write(struct.pack('{}{}s'.format(endian, len(name_bytes)), name_bytes))
-                val_bytes = user_data[name].encode('utf-8')
-                fi.write(struct.pack('{}I'.format(endian), len(val_bytes)))
-                fi.write(struct.pack('{}{}s'.format(endian, len(val_bytes)), val_bytes))
-                data_offset += 4 + len(name_bytes) + 4 + len(val_bytes)
-        # initialize the numpy memmap segment
-        data_segment = NumpyMemmapSegment(
-            file_name, data_offset, raw_dtype, image_size + (2, ),
-            'complex64', image_size, format_function=format_function, mode='w', close_file=True)
+
+        # write the initial things to the buffer
+        self._file_object.seek(0, os.SEEK_SET)
+        self._file_object.write(struct.pack('{}5I'.format(endian), *header))
+        # write the user data - name size, name, value size, value
+        for name in user_data:
+            name_bytes = name.encode('utf-8')
+            self._file_object.write(struct.pack('{}I'.format(endian), len(name_bytes)))
+            self._file_object.write(struct.pack('{}{}s'.format(endian, len(name_bytes)), name_bytes))
+            val_bytes = user_data[name].encode('utf-8')
+            self._file_object.write(struct.pack('{}I'.format(endian), len(val_bytes)))
+            self._file_object.write(struct.pack('{}{}s'.format(endian, len(val_bytes)), val_bytes))
+        self._data_offset = self._file_object.tell()
+        # initialize the single data segment
+        if self._in_memory:
+            underlying_array = numpy.full(raw_shape, fill_value=0, dtype=raw_dtype)
+            data_segment = NumpyArraySegment(
+                underlying_array, 'complex64', raw_shape[:2], format_function=format_function, mode='w')
+            self._data_written = False
+        else:
+            data_segment = NumpyMemmapSegment(
+                self._file_object, self._data_offset, raw_dtype, raw_shape,
+                'complex64', raw_shape[:2], format_function=format_function, mode='w', close_file=False)
+            self._data_written = True
         BaseWriter.__init__(self, data_segment)
+
+    @property
+    def file_name(self) -> Optional[str]:
+        """
+        None|str: The file name, if feasible.
+        """
+
+        return self._file_name
+
+    def flush(self, force: bool=False) -> None:
+        BaseWriter.flush(self, force=force)
+        if self._data_written:
+            return
+
+        if force or self.data_segment[0].check_fully_written(warn=force):
+            self._file_object.seek(self._data_offset, os.SEEK_SET)
+            self._file_object.write(self.data_segment[0].get_raw_bytes(warn=False))
+
+    def close(self) -> None:
+        """
+        Completes any necessary final steps.
+        """
+
+        if not hasattr(self, '_closed') or self._closed:
+            return
+
+        self.flush(force=True)
+        BaseWriter.close(self)
+        self._file_object = None

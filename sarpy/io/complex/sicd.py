@@ -769,18 +769,31 @@ class SICDWriter(NITFWriter):
 
     def __init__(
             self,
-            file_name: str,
+            file_object: Union[str, BinaryIO],
             sicd_meta: Optional[SICDType] = None,
             sicd_writing_details: Optional[SICDWritingDetails] = None,
             check_older_version: bool = False,
             check_existence: bool = True):
+        """
+
+        Parameters
+        ----------
+        file_object : str|BinaryIO
+        sicd_meta : None|SICDType
+        sicd_writing_details : None|SICDWritingDetails
+        check_older_version : bool
+            Try to create an older version sicd, for compliance with standard
+            NGA applications like SOCET or RemoteView
+        check_existence : bool
+            Should we check if the given file already exists?
+        """
 
         if sicd_meta is None and sicd_writing_details is None:
             raise ValueError('One of sicd_meta or sicd_writing_details must be provided.')
         if sicd_writing_details is None:
             sicd_writing_details = SICDWritingDetails(sicd_meta, check_older_version=check_older_version)
         NITFWriter.__init__(
-            self, file_name, sicd_writing_details, check_existence=check_existence)
+            self, file_object, sicd_writing_details, check_existence=check_existence)
 
     @property
     def nitf_writing_details(self) -> SICDWritingDetails:

@@ -443,6 +443,10 @@ class DataSegment(object):
 
         return self.mode == 'w' and self.format_function.has_inverse
 
+    def _validate_closed(self):
+        if not hasattr(self, '_closed') or self._closed:
+            raise ValueError('I/O operation of closed data segment')
+
     def _validate_shapes(self) -> None:
         """
         Validate the raw_shape and formatted_shape values.
@@ -527,6 +531,7 @@ class DataSegment(object):
         numpy.ndarray
         """
 
+        self._validate_closed()
         if isinstance(subscript, tuple) and isinstance(subscript[-1], dict):
             kwargs = subscript[-1]
             subscript = subscript[:-1]
@@ -555,6 +560,8 @@ class DataSegment(object):
         -------
         numpy.ndarray
         """
+
+        self._validate_closed()
 
         if self.mode == 'r':
             raise ValueError('Requires mode == "r"')
@@ -634,6 +641,8 @@ class DataSegment(object):
         None
         """
 
+        self._validate_closed()
+
         if not self.can_write_regular:
             raise ValueError(
                 'Functionality requires writing,\n\t'
@@ -686,18 +695,60 @@ class DataSegment(object):
 
         raise NotImplementedError
 
-    def check_fully_written(self) -> bool:
+    def check_fully_written(self, warn: bool = False) -> bool:
         """
         Checks that all expected pixel data is fully written.
+
+        Parameters
+        ----------
+        warn : bool
+            Log warning with some details if not fully written.
 
         Returns
         -------
         bool
         """
 
-        if self.mode != 'w':
-            return True
         raise NotImplementedError
+
+    def get_raw_bytes(self, warn: bool=True) -> Union[bytes, Tuple]:
+        """
+        This returns the bytes for the underlying raw data.
+
+        .. warning::
+            A data segment is *conceptually* represented in raw data as a single
+            numpy array of appropriate shape and data type. When the data segment
+            is formed from component pieces, then the return of this function may
+            deviate significantly from the raw byte representation of such an
+            array after consideration of data order and pad pixels.
+
+        Parameters
+        ----------
+        warn : bool
+            If `True`, then a check will be performed to ensure that the data
+            has been fully written and warnings printed if the answer is no.
+
+        Returns
+        -------
+        bytes|Tuple
+            The result will be a `bytes` object, unless the data segment is
+            made up of a collection of child data segments, in which case the
+            result will be a Tuple consisting of their `get_raw_bytes` returns.
+        """
+
+        raise NotImplementedError
+
+    def flush(self) -> None:
+        """
+        Should perform, if possible, any necessary steps to flush any unwritten
+        data to the file.
+
+        Returns
+        -------
+        None
+        """
+
+        return
 
     def close(self):
         """
@@ -804,12 +855,15 @@ class ReorientationSegment(DataSegment):
             self,
             subscript: Union[None, int, slice, Tuple[slice, ...]],
             squeeze=True) -> numpy.ndarray:
+
+        self._validate_closed()
         if self.mode == 'r':
             raise ValueError('Requires mode == "r"')
+
         return self.parent.read(subscript, squeeze=squeeze)
 
-    def check_fully_written(self) -> bool:
-        return self.parent.check_fully_written()
+    def check_fully_written(self, warn: bool = False) -> bool:
+        return self.parent.check_fully_written(warn=warn)
 
     def write_raw(
             self,
@@ -846,6 +900,7 @@ class ReorientationSegment(DataSegment):
         None
         """
 
+        self._validate_closed()
         self._verify_write_raw_details(data)
 
         subscript = _infer_subscript_for_write(data, start_indices, subscript, self.raw_shape)
@@ -854,11 +909,29 @@ class ReorientationSegment(DataSegment):
         raw_subscript = self.format_function.transform_formatted_slice(subscript)
         self.parent.write(raw_data, subscript=raw_subscript, **kwargs)
 
+    def get_raw_bytes(self, warn: bool=True) -> Union[bytes, Tuple]:
+        self._validate_closed()
+        return self.parent.get_raw_bytes(warn=warn)
+
+    def flush(self) -> None:
+        self._validate_closed()
+        try:
+            self.parent.flush()
+        except AttributeError:
+            return
+
     def close(self):
-        if not (getattr(self, 'close_parent', True) is False):
-            if hasattr(self.parent, 'close'):
+        try:
+            if self._closed:
+                return
+
+            self.flush()
+            if self.close_parent:
                 self.parent.close()
-        DataSegment.close(self)
+            DataSegment.close(self)
+            self._parent = None
+        except AttributeError:
+            return
 
 
 class SubsetSegment(DataSegment):
@@ -867,12 +940,12 @@ class SubsetSegment(DataSegment):
 
     Introduced in version 1.3.0.
     """
-    _allowed_modes = ('r', )
+    _allowed_modes = ('r', 'w')
 
     __slots__ = (
         '_parent', '_formatted_subset_definition', '_raw_subset_definition',
         '_original_formatted_indices', '_original_raw_indices',
-        '_close_parent')
+        '_close_parent', '_pixels_written', '_expected_pixels_written')
 
     def __init__(
             self,
@@ -905,6 +978,11 @@ class SubsetSegment(DataSegment):
         DataSegment.__init__(
             self, parent.raw_dtype, raw_shape, parent.formatted_dtype, formatted_shape,
             mode=parent.mode)
+        self._pixels_written = 0
+        if self.mode == 'w':
+            self._expected_pixels_written = int(numpy.prod(raw_shape))
+        else:
+            self._expected_pixels_written = 0
 
     @property
     def parent(self) -> DataSegment:
@@ -1080,6 +1158,7 @@ class SubsetSegment(DataSegment):
             self,
             subscript: Union[None, int, slice, Tuple[slice, ...]],
             squeeze=True) -> numpy.ndarray:
+        self._validate_closed()
         if self.mode == 'r':
             raise ValueError('Requires mode == "r"')
 
@@ -1098,6 +1177,7 @@ class SubsetSegment(DataSegment):
             self,
             subscript: Union[int, tuple, slice, numpy.ndarray],
             squeeze=True) -> numpy.ndarray:
+        self._validate_closed()
         if self.mode == 'r':
             raise ValueError('Requires mode == "r"')
 
@@ -1112,19 +1192,97 @@ class SubsetSegment(DataSegment):
                     use_shape.append(size)
             return numpy.reshape(data, tuple(use_shape))
 
+    def check_fully_written(self, warn: bool = False) -> bool:
+        if self.mode == 'r':
+            return True
+
+        if self._pixels_written < self._expected_pixels_written:
+            if warn:
+                logger.error(
+                    'Segment expected {} pixels written, but only {} pixels were written'.format(
+                        self._expected_pixels_written, self._pixels_written))
+            return False
+        elif self._pixels_written == self._expected_pixels_written:
+            return True
+        else:
+            if warn:
+                logger.error(
+                    'Segment expected {} pixels written,\n\t'
+                    'but {} pixels were written.\n\t'
+                    'This redundancy may be an error'.format(
+                        self._expected_pixels_written, self._pixels_written))
+            return False
+
+    def _update_pixels_written(self, written: int) -> None:
+        new_pixels_written = self._pixels_written + written
+        if self._pixels_written <= self._expected_pixels_written < new_pixels_written:
+            logger.error(
+                'Segment expected {} pixels written,\n\t'
+                'but now has {} pixels written.\n\t'
+                'This redundancy may be an error'.format(
+                    self._expected_pixels_written, new_pixels_written))
+        self._pixels_written = new_pixels_written
+
     def write_raw(
             self,
             data: numpy.ndarray,
             start_indices: Union[None, int, Tuple[int, ...]] = None,
             subscript: Union[None, Tuple[slice, ...]] = None,
             **kwargs):
-        raise NotImplementedError
+        self._validate_closed()
+        self._verify_write_raw_details(data)
+        subscript = _infer_subscript_for_write(data, start_indices, subscript, self.raw_shape)
+        parent_subscript = self.get_parent_raw_subscript(subscript)
+        self.parent.write_raw(data, subscript=parent_subscript, **kwargs)
+        self._update_pixels_written(data.size)
+
+    def get_raw_bytes(self, warn: bool=True) -> Union[bytes, Tuple]:
+        """
+        This returns the bytes for the underlying raw data **of the parent segment.**
+
+        The only writing use case considered at present is for the blocks including
+        padding inside a NITF file.
+
+        Parameters
+        ----------
+        warn : bool
+            If `True`, then a check will be performed to ensure that the data
+            has been fully written.
+
+        Returns
+        -------
+        bytes|Tuple
+            The result will be a `bytes` object, unless the data segment is
+            made up of a collection of child data segments, in which case the
+            result will be a Tuple consisting of their `get_raw_bytes` returns.
+        """
+
+        self._validate_closed()
+        if warn and not self.check_fully_written(warn=True):
+            logger.error(
+                'There has been a call to `get_raw_bytes` from {},\n\t'
+                'but all pixels are not fully written'.format(self.__class__))
+        return self.parent.get_raw_bytes(warn=False)
+
+    def flush(self) -> None:
+        self._validate_closed()
+        try:
+            self.parent.flush()
+        except AttributeError:
+            return
 
     def close(self):
-        if not (getattr(self, 'close_parent', True) is False):
-            if hasattr(self.parent, 'close'):
+        try:
+            if self._closed:
+                return
+
+            self.flush()
+            if self.close_parent:
                 self.parent.close()
-        DataSegment.close(self)
+            DataSegment.close(self)
+            self._parent = None
+        except AttributeError:
+            return
 
 
 class BandAggregateSegment(DataSegment):
@@ -1298,6 +1456,7 @@ class BandAggregateSegment(DataSegment):
             self,
             subscript: Union[None, int, slice, Tuple[slice, ...]],
             squeeze=True) -> numpy.ndarray:
+        self._validate_closed()
         if self.mode == 'r':
             raise ValueError('Requires mode == "r"')
 
@@ -1315,11 +1474,14 @@ class BandAggregateSegment(DataSegment):
         else:
             return out
 
-    def check_fully_written(self) -> bool:
+    def check_fully_written(self, warn: bool = False) -> bool:
+        if self.mode == 'r':
+            return True
+
         out = True
         for i, child in enumerate(self.children):
-            done = child.check_fully_written()
-            if not done:
+            done = child.check_fully_written(warn=warn)
+            if warn and not done:
                 logger.error('Band {} of BandAggregateSegment indicates incomplete writing'.format(i))
             out &= done
         return out
@@ -1359,6 +1521,7 @@ class BandAggregateSegment(DataSegment):
         None
         """
 
+        self._validate_closed()
         self._verify_write_raw_details(data)
 
         norm_subscript = _infer_subscript_for_write(
@@ -1374,13 +1537,32 @@ class BandAggregateSegment(DataSegment):
             self.children[index].write(
                 data[band_subscript], subscript=child_subscript, **kwargs)
 
+    def get_raw_bytes(self, warn: bool=True) -> Union[bytes, Tuple]:
+        self._validate_closed()
+        return tuple(entry.get_raw_bytes(warn=warn) for entry in self.children)
+
+    def flush(self) -> None:
+        self._validate_closed()
+        try:
+            if self.children is not None:
+                for child in self.children:
+                    child.flush()
+        except AttributeError:
+            return
+
     def close(self):
-        if not (getattr(self, 'close_children', True) is False):
+        try:
+            if self._closed:
+                return
+
+            self.flush()
             if self._children is not None:
                 for entry in self._children:
-                    if hasattr(entry, 'close'):
-                        entry.close()
-        DataSegment.close(self)
+                    entry.close()
+            DataSegment.close(self)
+            self._children = None
+        except AttributeError:
+            return
 
 
 class BlockAggregateSegment(DataSegment):
@@ -1518,6 +1700,7 @@ class BlockAggregateSegment(DataSegment):
             self,
             subscript: Union[None, int, slice, Tuple[slice, ...]],
             squeeze=True) -> numpy.ndarray:
+        self._validate_closed()
         if self.mode == 'r':
             raise ValueError('Requires mode == "r"')
 
@@ -1545,11 +1728,14 @@ class BlockAggregateSegment(DataSegment):
         else:
             return out
 
-    def check_fully_written(self) -> bool:
+    def check_fully_written(self, warn: bool = False) -> bool:
+        if self.mode == 'r':
+            return True
+
         out = True
         for i, child in enumerate(self.children):
-            done = child.check_fully_written()
-            if not done:
+            done = child.check_fully_written(warn=warn)
+            if warn and not done:
                 logger.error('Block {} of BlockAggregateSegment indicates incomplete writing'.format(i))
             out &= done
         return out
@@ -1589,6 +1775,7 @@ class BlockAggregateSegment(DataSegment):
         None
         """
 
+        self._validate_closed()
         self._verify_write_raw_details(data)
 
         norm_subscript = _infer_subscript_for_write(data, start_indices, subscript, self.raw_shape)
@@ -1617,13 +1804,32 @@ class BlockAggregateSegment(DataSegment):
             if use_block:
                 child.write(data[tuple(data_subscript)], subscript=tuple(child_subscript), **kwargs)
 
+    def get_raw_bytes(self, warn: bool=True) -> Union[bytes, Tuple]:
+        self._validate_closed()
+        return tuple(entry.get_raw_bytes(warn=warn) for entry in self.children)
+
+    def flush(self) -> None:
+        self._validate_closed()
+        try:
+            if self.children is not None:
+                for child in self.children:
+                    child.flush()
+        except AttributeError:
+            return
+
     def close(self):
-        if not (getattr(self, 'close_children', True) is False):
+        try:
+            if self._closed:
+                return
+
+            self.flush()
             if self._children is not None:
                 for entry in self._children:
-                    if hasattr(entry, 'close'):
-                        entry.close()
-        DataSegment.close(self)
+                    entry.close()
+            DataSegment.close(self)
+            self._children = None
+        except AttributeError:
+            return
 
 
 ####
@@ -1711,6 +1917,7 @@ class NumpyArraySegment(DataSegment):
             self,
             subscript: Union[None, int, slice, Tuple[slice, ...]],
             squeeze=True) -> numpy.ndarray:
+        self._validate_closed()
         if self.mode == 'r':
             raise ValueError('Requires mode == "r"')
 
@@ -1722,20 +1929,25 @@ class NumpyArraySegment(DataSegment):
         else:
             return numpy.reshape(out, out_shape)
 
-    def check_fully_written(self) -> bool:
+    def check_fully_written(self, warn: bool = False) -> bool:
+        if self.mode == 'r':
+            return True
+
         if self._pixels_written < self._expected_pixels_written:
-            logger.error(
-                'Segment expected {} pixels written, but only {} pixels were written'.format(
-                    self._expected_pixels_written, self._pixels_written))
+            if warn:
+                logger.error(
+                    'Segment expected {} pixels written, but only {} pixels were written'.format(
+                        self._expected_pixels_written, self._pixels_written))
             return False
         elif self._pixels_written == self._expected_pixels_written:
             return True
         else:
-            logger.error(
-                'Segment expected {} pixels written,\n\t'
-                'but {} pixels were written.\n\t'
-                'This redundancy may be an error'.format(
-                    self._expected_pixels_written, self._pixels_written))
+            if warn:
+                logger.error(
+                    'Segment expected {} pixels written,\n\t'
+                    'but {} pixels were written.\n\t'
+                    'This redundancy may be an error'.format(
+                        self._expected_pixels_written, self._pixels_written))
             return False
 
     def _update_pixels_written(self, written: int) -> None:
@@ -1754,6 +1966,7 @@ class NumpyArraySegment(DataSegment):
             start_indices: Optional[Union[int, Tuple[int, ...]]] = None,
             subscript: Optional[Tuple[slice, ...]] = None,
             **kwargs):
+        self._validate_closed()
         self._verify_write_raw_details(data)
         subscript = _infer_subscript_for_write(data, start_indices, subscript, self.raw_shape)
         raw_data = self.format_function.inverse(data, subscript)
@@ -1761,9 +1974,32 @@ class NumpyArraySegment(DataSegment):
         self._underlying_array[raw_subscript] = raw_data
         self._update_pixels_written(raw_data.size)
 
+    def get_raw_bytes(self, warn: bool=False) -> Union[bytes, Tuple]:
+        self._validate_closed()
+        if warn and not self.check_fully_written(warn=True):
+            logger.error(
+                'There has been a call to `get_raw_bytes` from {},\n\t'
+                'but all pixels are not fully written'.format(self.__class__))
+        return self.underlying_array.tobytes()
+
+    def flush(self) -> None:
+        self._validate_closed()
+        try:
+            if self.mode == 'w' and hasattr(self._underlying_array, 'flush'):
+                self._underlying_array.flush()
+        except AttributeError:
+            return
+
     def close(self) -> None:
-        self._underlying_array = None
-        DataSegment.close(self)
+        try:
+            if self._closed:
+                return
+
+            self.flush()
+            self._underlying_array = None
+            DataSegment.close(self)
+        except AttributeError:
+            return
 
 
 class NumpyMemmapSegment(NumpyArraySegment):
@@ -1815,6 +2051,7 @@ class NumpyMemmapSegment(NumpyArraySegment):
         if isinstance(file_object, str):
             close_file = True
         self.close_file = close_file
+        self._file_object = file_object
 
         self._pixels_written = 0
         self._expected_pixels_written = 0
@@ -1844,19 +2081,25 @@ class NumpyMemmapSegment(NumpyArraySegment):
     def close_file(self, value):
         self._close_file = bool(value)
 
-    def close(self):
-        if hasattr(self, '_memory_map') and \
-                self.mode == 'w' and \
-                hasattr(self._memory_map, 'flush'):
-            self._memory_map.flush()
+    def flush(self) -> None:
+        try:
+            if self.mode == 'w':
+                self._memory_map.flush()
+        except AttributeError:
+            pass
 
-        NumpyArraySegment.close(self)
-        self._memory_map = None
-        if self._close_file:
-            if self._file_object is not None and \
-                    hasattr(self._file_object, 'closed') and \
-                    not self._file_object.closed:
+    def close(self):
+        try:
+            if self._closed:
+                return
+
+            NumpyArraySegment.close(self)  # NB: this calls flush
+            self._memory_map = None
+            if self._close_file and hasattr(self._file_object, 'close'):
                 self._file_object.close()
+            self._file_object = None
+        except AttributeError:
+            return
 
 
 class HDF5DatasetSegment(DataSegment):
@@ -1965,18 +2208,11 @@ class HDF5DatasetSegment(DataSegment):
             raise ValueError('Requires a dataset path or h5py.Dataset object')
         self._data_set = value
 
-    def close(self) -> None:
-        self._data_set = None
-        if self._close_file:
-            if hasattr(self.file_object, 'close'):
-                self.file_object.close()
-        self._file_object = None
-        DataSegment.close(self)
-
     def read_raw(
             self,
             subscript: Union[None, int, slice, Tuple[slice, ...]],
             squeeze=True) -> numpy.ndarray:
+        self._validate_closed()
         subscript, out_shape = get_subscript_result_size(subscript, self.raw_shape)
 
         # NB: h5py does not support slicing with a negative step (right now)
@@ -2010,6 +2246,25 @@ class HDF5DatasetSegment(DataSegment):
             subscript: Union[None, Tuple[slice, ...]] = None,
             **kwargs):
         raise NotImplementedError
+
+    def get_raw_bytes(self, warn: bool=True) -> Union[bytes, Tuple]:
+        raise NotImplementedError
+
+    def check_fully_written(self, warn: bool = False) -> bool:
+        return True
+
+    def close(self) -> None:
+        try:
+            if self._closed:
+                return
+
+            self._data_set = None
+            if self._close_file and hasattr(self.file_object, 'close'):
+                self.file_object.close()
+            self._file_object = None
+            DataSegment.close(self)
+        except AttributeError:
+            pass
 
 
 class FileReadDataSegment(DataSegment):
@@ -2103,17 +2358,11 @@ class FileReadDataSegment(DataSegment):
             raise ValueError('data_offset must be non-negative.')
         self._data_offset = value
 
-    def close(self) -> None:
-        if self._close_file:
-            if hasattr(self.file_object, 'close'):
-                self.file_object.close()
-        self._file_object = None
-        DataSegment.close(self)
-
     def read_raw(
             self,
             subscript: Union[None, int, slice, Tuple[slice, ...]],
             squeeze=True) -> numpy.ndarray:
+        self._validate_closed()
         subscript, out_shape = get_subscript_result_size(subscript, self.raw_shape)
 
         init_slice = subscript[0]
@@ -2162,3 +2411,22 @@ class FileReadDataSegment(DataSegment):
             subscript: Union[None, Tuple[slice, ...]] = None,
             **kwargs):
         raise NotImplementedError
+
+    def get_raw_bytes(self, warn: bool=True) -> Union[bytes, Tuple]:
+        raise NotImplementedError
+
+    def check_fully_written(self, warn: bool = False) -> bool:
+        return True
+
+    def close(self) -> None:
+        try:
+            if self._closed:
+                return
+
+            if self._close_file:
+                if hasattr(self.file_object, 'close'):
+                    self.file_object.close()
+            self._file_object = None
+            DataSegment.close(self)
+        except AttributeError:
+            return

@@ -65,13 +65,7 @@ def is_real_file(the_input: BinaryIO) -> bool:
     bool
     """
 
-    if hasattr(the_input, 'fileno'):
-        try:
-            # check that fileno actually works, not just exists.
-            the_input.fileno()
-            return True
-        except io.UnsupportedOperation:
-            return False
+    return isinstance(the_input, io.FileIO)
 
 
 def _fetch_initial_bytes(file_name: Union[str, BinaryIO], size: int) -> Union[None, bytes]:

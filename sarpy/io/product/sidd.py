@@ -886,18 +886,29 @@ class SICDWriter(NITFWriter):
 
     def __init__(
             self,
-            file_name: str,
+            file_object: Union[str, BinaryIO],
             sidd_meta: Optional[Union[SIDDType, SIDDType1, Sequence[SIDDType], Sequence[SIDDType1]]] = None,
-            sicd_meta: Optional[SICDType] = None,
+            sicd_meta: Optional[Union[SICDType, Sequence[SICDType]]] = None,
             sidd_writing_details: Optional[SIDDWritingDetails] = None,
             check_existence: bool = True):
+        """
+
+        Parameters
+        ----------
+        file_object : str|BinaryIO
+        sidd_meta : None|SIDDType|SIDDType1|Sequence[SIDDType]|Sequence[SIDDType1]
+        sicd_meta : None|SICDType|Sequence[SICDType]
+        sidd_writing_details : None|SIDDWritingDetails
+        check_existence : bool
+            Should we check if the given file already exists?
+        """
 
         if sidd_meta is None and sidd_writing_details is None:
             raise ValueError('One of sidd_meta or sidd_writing_details must be provided.')
         if sidd_writing_details is None:
             sidd_writing_details = SIDDWritingDetails(sidd_meta, sicd_meta=sicd_meta)
         NITFWriter.__init__(
-            self, file_name, sidd_writing_details, check_existence=check_existence)
+            self, file_object, sidd_writing_details, check_existence=check_existence)
 
     @property
     def nitf_writing_details(self) -> SIDDWritingDetails:
