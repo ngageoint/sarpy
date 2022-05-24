@@ -551,8 +551,7 @@ class ComplexFormatFunction(FormatFunction):
     _allowed_ordering = ('IQ', 'QI', 'MP', 'PM')
 
     __slots__ = (
-        '_band_dimension', '_order', '_raw_dtype', '_magnitude_lookup_table',
-        '_amplitude_scaling')
+        '_band_dimension', '_order', '_raw_dtype')
 
     def __init__(
             self,
@@ -562,9 +561,7 @@ class ComplexFormatFunction(FormatFunction):
             formatted_shape: Optional[Tuple[int, ...]] = None,
             reverse_axes: Optional[Tuple[int, ...]] = None,
             transpose_axes: Optional[Tuple[int, ...]] = None,
-            band_dimension: int = -1,
-            magnitude_lookup_table: Optional[numpy.ndarray] = None,
-            amplitude_scaling: Optional[numpy.ndarray] = None):
+            band_dimension: int = -1):
         """
 
         Parameters
@@ -573,34 +570,21 @@ class ComplexFormatFunction(FormatFunction):
             The raw datatype. Valid options dependent on the value of order.
         order : str
             One of `('IQ', 'QI', 'MP', 'PM')`. The options `('IQ', 'QI')` allow
-            raw_dtype `('int8', 'int16', 'int32', 'float32', 'float64')`. The
+            raw_dtype `('int8', 'int16', 'int32', 'float16', 'float32', 'float64')`. The
             options `('MP', 'PM')` allow raw_dtype
-            `('uint8', 'uint16', 'uint32', 'float32', 'float64')`.
+            `('uint8', 'uint16', 'uint32', 'float16', 'float32', 'float64')`.
         raw_shape : None|Tuple[int, ...]
         formatted_shape : None|Tuple[int, ...]
         reverse_axes : None|Tuple[int, ...]
         transpose_axes : None|Tuple[int, ...]
         band_dimension : int
             Which band is the complex dimension, **after** the transpose operation.
-        magnitude_lookup_table : None|numpy.ndarray
-            This is here to support the 'AMP8I_PH8I' pixel type for SICD usage,
-            and will be ignored unless `order` in `['MP', 'PM']` and `raw_dtype`
-            is `uint8`.
-        amplitude_scaling : None|numpy.ndarray
-            This is here to support the presence of a scaling in CPHD or CRSD usage.
-            This requires that `raw_dtype` in `[int8, int16]`, `band_dimension`
-            is the final dimension and neither `reverse_axes` nor `transpose_axes`
-            is populated.
         """
 
         self._raw_dtype = numpy.dtype(raw_dtype)  # type: numpy.dtype
         self._band_dimension = None
         self._order = None
         self._set_order(order)
-        self._magnitude_lookup_table = None
-        self.set_magnitude_lookup(magnitude_lookup_table)
-        self._amplitude_scaling = None
-        self.set_amplitude_scaling(amplitude_scaling)
 
         FormatFunction.__init__(
             self, raw_shape=raw_shape, formatted_shape=formatted_shape,
@@ -653,109 +637,19 @@ class ComplexFormatFunction(FormatFunction):
                 raise ValueError('order is read only once set')
         self._order = value
         if self._order in ['IQ', 'QI']:
-            if self._raw_dtype.name not in ['int8', 'int16', 'int32', 'float32', 'float64']:
+            if self._raw_dtype.name not in [
+                'int8', 'int16', 'int32', 'float16', 'float32', 'float64']:
                 raise ValueError(
                     'order is {}, and raw_dtype must be one of '
-                    'int8, int16, int32, float32, or float64'.format(self._order))
+                    'int8, int16, int32, float16, float32, or float64'.format(self._order))
         elif self._order in ['MP', 'PM']:
-            if self._raw_dtype.name not in ['uint8', 'uint16', 'uint32', 'float32', 'float64']:
+            if self._raw_dtype.name not in [
+                'uint8', 'uint16', 'uint32', 'float16', 'float32', 'float64']:
                 raise ValueError(
                     'order is {}, and raw_dtype must be one of '
-                    'uint8, uint16, uint32, float32, or float64'.format(self._order))
+                    'uint8, uint16, uint32, float16, float32, or float64'.format(self._order))
         else:
             raise ValueError('Got unhandled ordering value `{}`'.format(self._order))
-
-    @property
-    def magnitude_lookup_table(self) -> Optional[numpy.ndarray]:
-        """
-        The magnitude lookup table, for SICD usage with `AMP8I_PH8I` pixel type.
-
-        Returns
-        -------
-        Optional[numpy.ndarray]
-        """
-
-        return self._magnitude_lookup_table
-
-    def set_magnitude_lookup(
-            self,
-            lookup_table: Optional[numpy.ndarray]) -> None:
-        if lookup_table is None:
-            self._magnitude_lookup_table = None
-            return
-
-        if not isinstance(lookup_table, numpy.ndarray):
-            raise ValueError('requires a numpy.ndarray, got {}'.format(type(lookup_table)))
-        if lookup_table.dtype.name not in ['float32', 'float64']:
-            raise ValueError('requires a numpy.ndarray of float32 or 64 dtype, got {}'.format(lookup_table.dtype))
-        if lookup_table.dtype.name != 'float32':
-            lookup_table = numpy.cast['float32'](lookup_table)
-        if lookup_table.shape != (256,):
-            raise ValueError('Requires a one-dimensional numpy.ndarray with 256 elements, '
-                             'got shape {}'.format(lookup_table.shape))
-
-        if self.order not in ['MP', 'PM']:
-            logger.warning(
-                'A magnitude lookup table has been supplied,\n\t'
-                'but the order is not one of `MP` or `PM`')
-        if self._raw_dtype.name != 'uint8':
-            raise ValueError(
-                'A magnitude lookup table has been supplied,\n\t'
-                'but the raw datatype is not `uint8`.')
-        self._magnitude_lookup_table = lookup_table
-
-    @property
-    def amplitude_scaling(self) -> Optional[numpy.ndarray]:
-        """
-        The scaling multiplier array, for CPHD/CRSD usage.
-
-        Returns
-        -------
-        Optional[numpy.ndarray]
-        """
-
-        return self._amplitude_scaling
-
-    def set_amplitude_scaling(
-            self,
-            array: Optional[numpy.ndarray]) -> None:
-        if array is None:
-            self._amplitude_scaling = None
-            return
-
-        if not isinstance(array, numpy.ndarray):
-            raise ValueError('requires a numpy.ndarray, got {}'.format(type(array)))
-        if array.ndim != 1:
-            raise ValueError('requires a one dimensional array')
-        if array.dtype.name not in ['float32', 'float64']:
-            raise ValueError('requires a numpy.ndarray of float32 or 64 dtype, got {}'.format(array.dtype))
-        if array.dtype.name != 'float32':
-            array = numpy.cast['float32'](array)
-
-        if self.order not in ['MP', 'PM']:
-            logger.warning(
-                'A magnitude lookup table has been supplied,\n\t'
-                'but the order is not one of `MP` or `PM`')
-        # NB: more validation as part of validate_shapes
-        if self._raw_dtype.name not in ['int8', 'int16']:
-            raise ValueError(
-                'A scaling multiplier has been supplied,\n\t'
-                'but the raw datatype is not `int8` or `int16`.')
-        self._amplitude_scaling = array
-        self._validate_amplitude_scaling()
-
-    def _validate_amplitude_scaling(self) -> None:
-        if self._amplitude_scaling is None or self._raw_shape is None:
-            return
-
-        if self.band_dimension not in [-1, self.raw_ndim-1]:
-            raise ValueError('Use of scaling multiplier requires band is the final dimension')
-        if self.transpose_axes is not None or self.reverse_axes is not None:
-            raise ValueError('Use of scaling multiplier requires null reverse_axes and transpose_axes')
-        if self._amplitude_scaling.size != self.raw_shape[0]:
-            raise ValueError(
-                'Use of scaling multiplier requires the array length\n\t'
-                'and the first dimension of raw_shape match.')
 
     def validate_shapes(self) -> None:
         self._verify_shapes_set()
@@ -794,7 +688,6 @@ class ComplexFormatFunction(FormatFunction):
                 'Input_shape `{}`, transpose_axes `{}`, band dimension `{}` yields expected output shape `{}`\n\t'
                 'got formatted_shape `{}`'.format(
                     self.raw_shape, self.transpose_axes, self.band_dimension, arranged_shape, self.formatted_shape))
-        self._validate_amplitude_scaling()
 
     def transform_formatted_slice(
             self,
@@ -868,6 +761,19 @@ class ComplexFormatFunction(FormatFunction):
                 out.append(reformat_slice(subscript[index], shape_limit, rev))
         return tuple(out)
 
+    def _forward_magnitude_theta(
+            self,
+            data: numpy.ndarray,
+            out: numpy.ndarray,
+            magnitude: numpy.ndarray,
+            theta: numpy.ndarray,
+            subscript: Tuple[slice, ...]) -> None:
+        if data.dtype.name in ['uint8', 'uint16', 'uint32']:
+            bit_depth = data.dtype.itemsize * 8
+            theta = theta*2*numpy.pi/(1 << bit_depth)
+        out.real = magnitude*numpy.cos(theta)
+        out.imag = magnitude*numpy.sin(theta)
+
     def _forward_functional_step(
             self,
             data: numpy.ndarray,
@@ -901,24 +807,30 @@ class ComplexFormatFunction(FormatFunction):
             else:
                 mag = data.take(indices=range(0, band_dim_size, 2), axis=self.band_dimension)
                 theta = data.take(indices=range(1, band_dim_size, 2), axis=self.band_dimension)
-
-            if self.magnitude_lookup_table is not None:
-                mag = self.magnitude_lookup_table[mag]
-
-            if data.dtype.name in ['uint8', 'uint16', 'uint32']:
-                bit_depth = data.dtype.itemsize*8
-                theta = theta*2*numpy.pi/(1 << bit_depth)
-            out.real = mag*numpy.cos(theta)
-            out.imag = mag*numpy.sin(theta)
+            self._forward_magnitude_theta(data, out, mag, theta, subscript)
         else:
             raise ValueError('Unhandled order value {}'.format(self.order))
 
-        # NB: subscript is in raw coordinates, but we have verified that
-        #   the first dimension is unchanged
-        if self._amplitude_scaling is not None:
-            out = self._amplitude_scaling[subscript[0]]*out
-
         return out
+
+    def _reverse_magnitude_theta(
+            self,
+            data: numpy.ndarray,
+            out: numpy.ndarray,
+            magnitude: numpy.ndarray,
+            theta: numpy.ndarray,
+            slice0: Tuple[slice, ...],
+            slice1: Tuple[slice, ...]) -> None:
+        if self._raw_dtype.name in ['uint8', 'uint16', 'uint32']:
+            bit_depth = self._raw_dtype.itemsize * 8
+            theta *= (1 << bit_depth) / (2 * numpy.pi)
+
+        if self.order == 'MP':
+            out[slice0] = magnitude
+            out[slice1] = theta
+        else:
+            out[slice1] = magnitude
+            out[slice0] = theta
 
     def _reverse_functional_step(
             self,
@@ -934,11 +846,6 @@ class ComplexFormatFunction(FormatFunction):
             out_shape = data.shape[:self.band_dimension] + \
                 (2*band_dim_size, ) + \
                 data.shape[self.band_dimension + 1:]
-
-        # NB: subscript is in formatted coordinates, but we have verified that
-        #   transpose_axes is None and band_dimension is the final dimension
-        if self._amplitude_scaling is not None:
-            data = (1./self._amplitude_scaling[subscript[0]])*data
 
         slice0 = []
         slice1 = []
@@ -961,23 +868,9 @@ class ComplexFormatFunction(FormatFunction):
             out[slice0] = data.imag
         elif self.order in ['MP', 'PM']:
             magnitude = numpy.abs(data)
-            if self.magnitude_lookup_table is not None:
-                magnitude = numpy.digitize(
-                    magnitude.ravel(), self.magnitude_lookup_table, right=False).reshape(data.shape)
-
             theta = numpy.arctan2(data.imag, data.real)
             theta[theta < 0] += 2*numpy.pi
-
-            if self._raw_dtype.name in ['uint8', 'uint16', 'uint32']:
-                bit_depth = self._raw_dtype.itemsize*8
-                theta *= (1 << bit_depth)/(2*numpy.pi)
-
-            if self.order == 'MP':
-                out[slice0] = magnitude
-                out[slice1] = theta
-            else:
-                out[slice1] = magnitude
-                out[slice0] = theta
+            self._reverse_magnitude_theta(data, out, magnitude, theta, slice0, slice1)
         else:
             raise ValueError('Unhandled order value {}'.format(self.order))
         return out

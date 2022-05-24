@@ -39,6 +39,132 @@ _index_range_text = 'index must be in the range `[0, {})`'
 #########
 # Helper object for initially parses CPHD elements
 
+class AmpScalingFunction(ComplexFormatFunction):
+    __slots__ = (
+        '_amplitude_scaling', )
+    _allowed_ordering = ('IQ', )
+
+    def __init__(
+            self,
+            raw_dtype: Union[str, numpy.dtype],
+            raw_shape: Optional[Tuple[int, ...]] = None,
+            formatted_shape: Optional[Tuple[int, ...]] = None,
+            reverse_axes: Optional[Tuple[int, ...]] = None,
+            transpose_axes: Optional[Tuple[int, ...]] = None,
+            band_dimension: int = -1,
+            amplitude_scaling: Optional[numpy.ndarray] = None):
+        """
+
+        Parameters
+        ----------
+        raw_dtype : str|numpy.dtype
+            The raw datatype. Valid options dependent on the value of order.
+        order : str
+            One of `('IQ', 'QI', 'MP', 'PM')`. The options `('IQ', 'QI')` allow
+            raw_dtype `('int8', 'int16', 'int32', 'float32', 'float64')`. The
+            options `('MP', 'PM')` allow raw_dtype
+            `('uint8', 'uint16', 'uint32', 'float32', 'float64')`.
+        raw_shape : None|Tuple[int, ...]
+        formatted_shape : None|Tuple[int, ...]
+        reverse_axes : None|Tuple[int, ...]
+        transpose_axes : None|Tuple[int, ...]
+        band_dimension : int
+            Which band is the complex dimension, **after** the transpose operation.
+        amplitude_scaling : None|numpy.ndarray
+            This is here to support the presence of a scaling in CPHD or CRSD usage.
+            This requires that `raw_dtype` in `[int8, int16]`, `band_dimension`
+            is the final dimension and neither `reverse_axes` nor `transpose_axes`
+            is populated.
+        """
+
+        ComplexFormatFunction.__init__(
+            self, raw_dtype, 'IQ', raw_shape=raw_shape, formatted_shape=formatted_shape,
+            reverse_axes=reverse_axes, transpose_axes=transpose_axes, band_dimension=band_dimension)
+        self._amplitude_scaling = None
+        self.set_amplitude_scaling(amplitude_scaling)
+
+    @property
+    def amplitude_scaling(self) -> Optional[numpy.ndarray]:
+        """
+        The scaling multiplier array, for CPHD/CRSD usage.
+
+        Returns
+        -------
+        Optional[numpy.ndarray]
+        """
+
+        return self._amplitude_scaling
+
+    def set_amplitude_scaling(
+            self,
+            array: Optional[numpy.ndarray]) -> None:
+        if array is None:
+            self._amplitude_scaling = None
+            return
+
+        if not isinstance(array, numpy.ndarray):
+            raise ValueError('requires a numpy.ndarray, got {}'.format(type(array)))
+        if array.ndim != 1:
+            raise ValueError('requires a one dimensional array')
+        if array.dtype.name not in ['float32', 'float64']:
+            raise ValueError('requires a numpy.ndarray of float32 or 64 dtype, got {}'.format(array.dtype))
+        if array.dtype.name != 'float32':
+            array = numpy.cast['float32'](array)
+
+        if self.order not in ['MP', 'PM']:
+            logger.warning(
+                'A magnitude lookup table has been supplied,\n\t'
+                'but the order is not one of `MP` or `PM`')
+        # NB: more validation as part of validate_shapes
+        if self._raw_dtype.name not in ['int8', 'int16']:
+            raise ValueError(
+                'A scaling multiplier has been supplied,\n\t'
+                'but the raw datatype is not `int8` or `int16`.')
+        self._amplitude_scaling = array
+        self._validate_amplitude_scaling()
+
+    def _validate_amplitude_scaling(self) -> None:
+        if self._amplitude_scaling is None or self._raw_shape is None:
+            return
+
+        if self.band_dimension not in [-1, self.raw_ndim-1]:
+            raise ValueError('Use of scaling multiplier requires band is the final dimension')
+        if self.transpose_axes is not None or self.reverse_axes is not None:
+            raise ValueError('Use of scaling multiplier requires null reverse_axes and transpose_axes')
+        if self._amplitude_scaling.size != self.raw_shape[0]:
+            raise ValueError(
+                'Use of scaling multiplier requires the array length\n\t'
+                'and the first dimension of raw_shape match.')
+
+    def _forward_functional_step(
+            self,
+            data: numpy.ndarray,
+            subscript: Tuple[slice, ...]) -> numpy.ndarray:
+        out = ComplexFormatFunction._forward_functional_step(self, data, subscript)
+
+        # NB: subscript is in raw coordinates, but we have verified that
+        #   the first dimension is unchanged
+        if self._amplitude_scaling is not None:
+            out = self._amplitude_scaling[subscript[0]]*out
+
+        return out
+
+    def _reverse_functional_step(
+            self,
+            data: numpy.ndarray,
+            subscript: Tuple[slice, ...]) -> numpy.ndarray:
+        # NB: subscript is in formatted coordinates, but we have verified that
+        #   transpose_axes is None and band_dimension is the final dimension
+        if self._amplitude_scaling is not None:
+            data = (1./self._amplitude_scaling[subscript[0]])*data
+
+        return ComplexFormatFunction._reverse_functional_step(self, data, subscript)
+
+    def validate_shapes(self) -> None:
+        ComplexFormatFunction.validate_shapes(self)
+        self._validate_amplitude_scaling()
+
+
 class CPHDDetails(object):
     """
     The basic CPHD element parser.
@@ -415,7 +541,7 @@ class CPHDReader1_0(CPHDReader):
         block_offset = self.cphd_header.SIGNAL_BLOCK_BYTE_OFFSET
         for entry in data.Channels:
             amp_sf = self.read_pvp_variable('AmpSF', entry.Identifier)
-            format_function = ComplexFormatFunction(raw_dtype, order='IQ', amplitude_scaling=amp_sf)
+            format_function = AmpScalingFunction(raw_dtype, amplitude_scaling=amp_sf)
             raw_shape = (entry.NumVectors, entry.NumSamples, 2)
             data_offset = entry.SignalArrayByteOffset
             data_segments.append(
@@ -757,7 +883,7 @@ class CPHDReader0_3(CPHDReader):
         data_offset = self.cphd_header.CPHD_BYTE_OFFSET
         for index, entry in enumerate(data.ArraySize):
             amp_sf = self.read_pvp_variable('AmpSF', index)
-            format_function = ComplexFormatFunction(raw_dtype, order='IQ', amplitude_scaling=amp_sf)
+            format_function = AmpScalingFunction(raw_dtype, amplitude_scaling=amp_sf)
             raw_shape = (entry.NumVectors, entry.NumSamples, 2)
             data_segments.append(
                 NumpyMemmapSegment(
@@ -1382,7 +1508,7 @@ class CPHDWriter1_0(BaseWriter):
         for i, entry in enumerate(self.meta.Data.Channels):
             self._can_write_regular_data[entry.Identifier] = no_amp_sf
             raw_shape = (entry.NumVectors, entry.NumSamples, 2)
-            format_function = ComplexFormatFunction(signal_dtype, order='IQ')
+            format_function = AmpScalingFunction(signal_dtype)
             offset = self.writing_details.signal_details[i].item_offset
             if self._in_memory:
                 underlying_array = numpy.full(raw_shape, 0, dtype=signal_dtype)

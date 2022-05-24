@@ -123,56 +123,55 @@ def _construct_tiff_segment(
     return segment
 
 
-# TODO: revise this effort
-# def _construct_single_nitf_chipper(the_sicd, the_file, symmetry):
-#     """
-#
-#     Parameters
-#     ----------
-#     the_sicd : SICDType
-#     the_file : str
-#     symmetry : tuple
-#
-#     Returns
-#     -------
-#     BaseChipper
-#     """
-#
-#     reader = ComplexNITFReader(the_file, symmetry=symmetry, split_bands=True)
-#     # noinspection PyProtectedMember
-#     chipper = reader._chipper
-#     if len(chipper) > 1:
-#         raise ValueError(
-#             'The SLC data for a single polarmetric band was provided '
-#             'in a NITF file which has more than a single complex band.')
-#     _validate_chipper_and_sicd(the_sicd, chipper[0], 'Single NITF', the_file)
-#     return chipper[0]
+def _construct_single_nitf_segment(the_sicd, the_file, reverse_axes, transpose_axes) -> DataSegment:
+    """
 
-# TODO: revise this effort
-# def _construct_multiple_nitf_chippers(the_sicds, the_file, symmetry):
-#     """
-#
-#     Parameters
-#     ----------
-#     the_sicds : List[SICDType]
-#     the_file : str
-#     symmetry : tuple
-#
-#     Returns
-#     -------
-#     List[BaseChipper]
-#     """
-#
-#     reader = ComplexNITFReader(the_file, symmetry=symmetry, split_bands=True)
-#     # noinspection PyProtectedMember
-#     chippers = list(reader._chipper)
-#     if len(chippers) != len(the_sicds):
-#         raise ValueError(
-#             'The SLC data for {} polarmetric bands was provided '
-#             'in a NITF file which has {} single complex band.'.format(len(the_sicds), len(chippers)))
-#     for i, (the_sicd, chipper) in enumerate(zip(the_sicds, chippers)):
-#         _validate_chipper_and_sicd(the_sicd, chipper, 'NITF band {}'.format(i), the_file)
-#     return chippers
+    Parameters
+    ----------
+    the_sicd : SICDType
+    the_file : str
+    reverse_axes
+    transpose_axes
+
+    Returns
+    -------
+    DataSegment
+    """
+
+    reader = ComplexNITFReader(the_file, reverse_axes=reverse_axes, transpose_axes=transpose_axes)
+    data_segment = reader.data_segment
+    if not isinstance(data_segment, DataSegment):
+        raise ValueError(
+            'The SLC data for a single polarmetric band was provided '
+            'in a NITF file which has more than a single complex band.')
+    _validate_segment_and_sicd(the_sicd, data_segment, 'Single NITF', the_file)
+    return data_segment
+
+
+def _construct_multiple_nitf_segment(the_sicds, the_file, reverse_axes, transpose_axes) -> Tuple[DataSegment, ...]:
+    """
+
+    Parameters
+    ----------
+    the_sicds : List[SICDType]
+    the_file : str
+    reverse_axes
+    transpose_axes
+
+    Returns
+    -------
+    Tuple[DataSegment, ...]
+    """
+
+    reader = ComplexNITFReader(the_file, reverse_axes=reverse_axes, transpose_axes=transpose_axes)
+    data_segment = reader.get_data_segment_as_tuple()
+    if len(data_segment) != len(the_sicds):
+        raise ValueError(
+            'The SLC data for {} polarmetric bands was provided '
+            'in a NITF file which has {} single complex band.'.format(len(the_sicds), len(data_segment)))
+    for i, (the_sicd, segment) in enumerate(zip(the_sicds, data_segment)):
+        _validate_segment_and_sicd(the_sicd, segment, 'NITF band {}'.format(i), the_file)
+    return data_segment
 
 
 ##############
@@ -1592,7 +1591,7 @@ class RadarSatReader(SICDTypeReader):
                 if fext in ['.tiff', '.tif']:
                     data_segments.append(_construct_tiff_segment(sicd, data_file, reverse_axes, transpose_axes))
                 elif fext in ['.nitf', '.ntf']:
-                    raise ValueError('Currently unsupported...')  # TODO: handle nitf here
+                    data_segments.append(_construct_single_nitf_segment(sicd, data_file, reverse_axes, transpose_axes))
                 else:
                     raise ValueError(
                         'The radarsat reader requires image files in tiff or nitf format. '
@@ -1605,7 +1604,7 @@ class RadarSatReader(SICDTypeReader):
                     'The radarsat has image data for multiple polarizations provided in a '
                     'single image file. This requires an image files in nitf format. '
                     'Uncertain how to interpret file {}'.format(data_file))
-            raise ValueError('Currently unsupported...')  # TODO: handle nitf here
+            data_segments.extend(_construct_multiple_nitf_segment(sicds, data_file, reverse_axes, transpose_axes))
         else:
             raise ValueError(
                 'Unclear how to construct chipper elements for {} sicd elements '

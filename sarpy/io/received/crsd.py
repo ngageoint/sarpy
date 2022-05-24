@@ -16,10 +16,10 @@ import numpy
 from sarpy.io.general.utils import is_file_like
 from sarpy.io.general.base import BaseReader, SarpyIOError
 from sarpy.io.general.data_segment import DataSegment, NumpyMemmapSegment
-from sarpy.io.general.format_function import ComplexFormatFunction
 from sarpy.io.general.slice_parsing import verify_subscript, verify_slice
 
-from sarpy.io.phase_history.cphd import CPHDWritingDetails, CPHDWriter1_0
+from sarpy.io.phase_history.cphd import CPHDWritingDetails, CPHDWriter1_0, \
+    AmpScalingFunction
 from sarpy.io.received.crsd1_elements.CRSD import CRSDType, CRSDHeader
 from sarpy.io.received.base import CRSDTypeReader
 
@@ -397,7 +397,7 @@ class CRSDReader1_0(CRSDReader):
         block_offset = self.crsd_header.SIGNAL_BLOCK_BYTE_OFFSET
         for entry in data.Channels:
             amp_sf = self.read_pvp_variable('AmpSF', entry.Identifier)
-            format_function = ComplexFormatFunction(raw_dtype, order='IQ', amplitude_scaling=amp_sf)
+            format_function = AmpScalingFunction(raw_dtype, amplitude_scaling=amp_sf)
             raw_shape = (entry.NumVectors, entry.NumSamples, 2)
             data_offset = entry.SignalArrayByteOffset
             data_segments.append(

@@ -39,6 +39,95 @@ logger = logging.getLogger(__name__)
 #########
 # Helper object for initially parses NITF header
 
+
+class AmpLookupFunction(ComplexFormatFunction):
+    __slots__ = ('_magnitude_lookup_table', )
+    _allowed_ordering = ('MP', )
+
+    def __init__(
+            self,
+            raw_dtype: Union[str, numpy.dtype],
+            magnitude_lookup_table: numpy.ndarray,
+            raw_shape: Optional[Tuple[int, ...]] = None,
+            formatted_shape: Optional[Tuple[int, ...]] = None,
+            reverse_axes: Optional[Tuple[int, ...]] = None,
+            transpose_axes: Optional[Tuple[int, ...]] = None,
+            band_dimension: int = -1):
+        """
+
+        Parameters
+        ----------
+        raw_dtype : str|numpy.dtype
+            The raw datatype. Must be `uint8` up to endianness.
+        magnitude_lookup_table : numpy.ndarray
+        raw_shape : None|Tuple[int, ...]
+        formatted_shape : None|Tuple[int, ...]
+        reverse_axes : None|Tuple[int, ...]
+        transpose_axes : None|Tuple[int, ...]
+        band_dimension : int
+            Which band is the complex dimension, **after** the transpose operation.
+        """
+
+        ComplexFormatFunction.__init__(
+            self, raw_dtype, 'MP', raw_shape=raw_shape, formatted_shape=formatted_shape,
+            reverse_axes=reverse_axes, transpose_axes=transpose_axes, band_dimension=band_dimension)
+        self._magnitude_lookup_table = None
+        self.set_magnitude_lookup(magnitude_lookup_table)
+
+    @property
+    def magnitude_lookup_table(self) -> numpy.ndarray:
+        """
+        The magnitude lookup table, for SICD usage with `AMP8I_PH8I` pixel type.
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
+        return self._magnitude_lookup_table
+
+    def set_magnitude_lookup(self, lookup_table: numpy.ndarray) -> None:
+        if not isinstance(lookup_table, numpy.ndarray):
+            raise ValueError('requires a numpy.ndarray, got {}'.format(type(lookup_table)))
+        if lookup_table.dtype.name not in ['float32', 'float64']:
+            raise ValueError('requires a numpy.ndarray of float32 or 64 dtype, got {}'.format(lookup_table.dtype))
+        if lookup_table.dtype.name != 'float32':
+            lookup_table = numpy.cast['float32'](lookup_table)
+        if lookup_table.shape != (256,):
+            raise ValueError('Requires a one-dimensional numpy.ndarray with 256 elements, '
+                             'got shape {}'.format(lookup_table.shape))
+
+        if self._raw_dtype.name != 'uint8':
+            raise ValueError(
+                'A magnitude lookup table has been supplied,\n\t'
+                'but the raw datatype is not `uint8`.')
+        self._magnitude_lookup_table = lookup_table
+
+    def _forward_magnitude_theta(
+            self,
+            data: numpy.ndarray,
+            out: numpy.ndarray,
+            magnitude: numpy.ndarray,
+            theta: numpy.ndarray,
+            subscript: Tuple[slice, ...]) -> None:
+        magnitude = self.magnitude_lookup_table[magnitude]
+        ComplexFormatFunction._forward_magnitude_theta(
+            self, data, out, magnitude, theta, subscript)
+
+    def _reverse_magnitude_theta(
+            self,
+            data: numpy.ndarray,
+            out: numpy.ndarray,
+            magnitude: numpy.ndarray,
+            theta: numpy.ndarray,
+            slice0: Tuple[slice, ...],
+            slice1: Tuple[slice, ...]) -> None:
+        magnitude = numpy.digitize(
+            magnitude.ravel(), self.magnitude_lookup_table, right=False).reshape(data.shape)
+
+        ComplexFormatFunction._reverse_magnitude_theta(self, data, out, magnitude, theta, slice0, slice1)
+
+
 class SICDDetails(NITFDetails):
     """
     SICD are stored in NITF 2.1 files.
@@ -269,11 +358,9 @@ class SICDReader(NITFReader, SICDTypeReader):
         if complex_order is not None and complex_order != 'IQ':
             if complex_order != 'MP' or raw_dtype.name != 'uint8' or band_dimension != 2:
                 raise ValueError('Got unsupported SICD band type definition')
-            return ComplexFormatFunction(
-                raw_dtype,
-                complex_order,
-                band_dimension=band_dimension,
-                amplitude_scaling=self.sicd_meta.ImageData.AmpTable)
+            if self.sicd_meta.ImageData.PixelType != 'AMP8I_PH8I' or self.sicd_meta.ImageData.AmpTable is None:
+                raise ValueError('Expected AMP8I_PH8I')
+            return AmpLookupFunction(raw_dtype, self.sicd_meta.ImageData.AmpTable)
         return NITFReader.get_format_function(
             self, raw_dtype, complex_order, lut, band_dimension, image_segment_index, **kwargs)
 
@@ -452,7 +539,7 @@ def create_security_tags_from_sicd(sicd_meta: SICDType) -> NITFSecurityTags:
         if 'CODE' in args:
             return
 
-        # TODO: this is pretty terrible
+        # TODO: this is pretty terrible...
         code = re.search('(?<=/)[^/].*', in_str)
         if code is not None:
             args['CODE'] = code.group()
@@ -651,8 +738,6 @@ class SICDWritingDetails(NITFWritingDetails):
             FDT=self._get_fdt(), FTITLE=self._get_ftitle(), FL=0)
 
     def _create_image_segments(self) -> Tuple[Tuple[ImageSubheaderManager, ...], Tuple[Tuple[int, ...], ...], Tuple[Tuple[Tuple[int, ...], ...]]]:
-        # TODO: create a dictionary of keyword arguments for the Image segment subheader...
-
         image_managers = []
         basic_args = {
             'IREP': 'NODISPLY',

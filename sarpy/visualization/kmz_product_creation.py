@@ -26,7 +26,7 @@ Create a kmz overview for the contents of a sicd type reader.
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
-# TODO: move this to visualization for 1.3.0, and tidy up significantly
+# TODO: tidy up significantly
 
 
 import logging
