@@ -12,7 +12,7 @@ import logging
 import numpy
 
 from sarpy.io.complex.base import SICDTypeReader, FlatSICDReader
-from sarpy.processing.windows import get_hamming_broadening_factor
+from sarpy.processing.sicd.windows import get_hamming_broadening_factor
 from sarpy.processing.normalize_sicd import sicd_degrade_reweight, is_uniform_weight
 from sarpy.io.complex.converter import open_complex
 

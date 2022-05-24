@@ -1,7 +1,7 @@
-Subaperture methods (sarpy.processing.subaperture)
+Subaperture methods (sarpy.processing.sicd.subaperture)
 ==================================================
 
-.. automodule:: sarpy.processing.subaperture
+.. automodule:: sarpy.processing.sicd.subaperture
     :members:
     :show-inheritance:
     :inherited-members:

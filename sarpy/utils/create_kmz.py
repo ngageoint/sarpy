@@ -16,7 +16,7 @@ import os
 
 import sarpy
 from sarpy.io.complex.converter import open_complex
-from sarpy.io.product.kmz_product_creation import create_kmz_view
+from sarpy.visualization.kmz_product_creation import create_kmz_view
 
 
 if __name__ == '__main__':

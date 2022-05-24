@@ -262,7 +262,7 @@ producing a sicd/reader with reweighting and/or subaperture processing applied
 ### Changed
 - Adjustments of unit tests to skip versus fail missing tests for CPD validation. 
 - Refactors some elements of SICD window population to use the 
-sarpy.processing.windows module.
+sarpy.processing.sicd.windows module.
 
 ### Removed
 Drops stated support for Python 2.7
@@ -305,7 +305,7 @@ remains a work-in-progress.*
 
 ## [1.2.15] - 2021-09-08
 ### Added
-Creates sarpy.processing.windows module for more unified handling of commonly used
+Creates sarpy.processing.sicd.windows module for more unified handling of commonly used
 Fourier windowing definitions and functions
 
 ### Fixed

@@ -12,7 +12,7 @@ import numpy
 from numpy.linalg import norm
 from scipy.constants import speed_of_light
 
-from sarpy.processing.windows import general_hamming, taylor, kaiser, find_half_power, \
+from sarpy.processing.sicd.windows import general_hamming, taylor, kaiser, find_half_power, \
     get_hamming_broadening_factor
 from sarpy.io.xml.base import Serializable, ParametersCollection, find_first_child
 from sarpy.io.xml.descriptors import StringDescriptor, StringEnumDescriptor, \

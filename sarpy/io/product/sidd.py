@@ -877,7 +877,7 @@ class SIDDWritingDetails(NITFWritingDetails):
         return tuple(des_managers)
 
 
-class SICDWriter(NITFWriter):
+class SIDDWriter(NITFWriter):
     """
     Writer class for a SIDD file - a NITF file following certain rules.
 

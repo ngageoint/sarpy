@@ -20,8 +20,7 @@ import numpy
 from scipy.constants import speed_of_light
 
 from sarpy.io.general.base import BaseReader, SarpyIOError
-from sarpy.io.general.nitf import MemMap
-from sarpy.io.general.utils import is_file_like
+from sarpy.io.general.utils import is_file_like, MemMap
 from sarpy.geometry.geocoords import geodetic_to_ecf, wgs_84_norm, ned_to_ecf
 
 from sarpy.io.complex.base import SICDTypeReader
@@ -2056,7 +2055,7 @@ class GFFDetails(object):
                 pass
 
 
-class GFFReader(BaseReader, SICDTypeReader):
+class GFFReader(SICDTypeReader):
     """
     A GFF (Sandia format) reader implementation.
 
@@ -2082,8 +2081,7 @@ class GFFReader(BaseReader, SICDTypeReader):
         self._gff_details = gff_details
         sicd = gff_details.get_sicd()
         chipper = gff_details.get_chipper()
-        SICDTypeReader.__init__(self, sicd)
-        BaseReader.__init__(self, chipper, reader_type="SICD")
+        SICDTypeReader.__init__(self, chipper, sicd)
         self._check_sizes()
 
     @property

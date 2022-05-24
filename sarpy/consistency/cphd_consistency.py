@@ -62,7 +62,7 @@ except ImportError:
 
 
 INVALID_CHAR_REGEX = re.compile(r'\W')
-DEFAULT_SCHEMA = get_schema_path(version='1.0.1')
+DEFAULT_SCHEMA = get_schema_path('1.0.1')
 
 
 def strip_namespace(root):

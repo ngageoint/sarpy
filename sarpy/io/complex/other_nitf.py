@@ -6,7 +6,7 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 import logging
-from typing import Union
+from typing import Union, Optional
 
 from datetime import datetime
 import numpy

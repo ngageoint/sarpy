@@ -17,7 +17,7 @@ from scipy.signal import resample
 
 from sarpy.io.general.base import SarpyIOError
 from sarpy.processing.ortho_rectify import FullResolutionFetcher
-from sarpy.processing.fft_base import fft, ifft, fftshift, ifftshift, \
+from sarpy.processing.sicd.fft_base import fft, ifft, fftshift, ifftshift, \
     fft_sicd, ifft_sicd
 
 from sarpy.io.complex.base import FlatSICDReader, SICDTypeReader
