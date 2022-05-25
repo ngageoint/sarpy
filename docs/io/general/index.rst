@@ -12,3 +12,4 @@ General sarpy reading and writing objects (sarpy.io.general)
     nitf
     tiff
     nitf_elements/index
+    converter
