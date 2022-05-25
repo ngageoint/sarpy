@@ -2,6 +2,8 @@
 The module contains methods for computing a coherent change detection from registered images
 """
 
+from typing import Union, Tuple
+
 import numpy
 import scipy.signal
 
@@ -9,7 +11,10 @@ __classification__ = "UNCLASSIFIED"
 __author__ = ('Thomas Mccullough',  'Wade Schwartzkopf', 'Mike Dowell')
 
 
-def mem(reference_image, match_image, corr_window_size):
+def mem(
+        reference_image: numpy.ndarray,
+        match_image: numpy.ndarray,
+        corr_window_size: Union[int, Tuple[int, int]]) -> Tuple[numpy.ndarray, numpy.ndarray]:
     """
     Performs coherent change detection, following the equation as described in
     Jakowatz, et al., "Spotlight-mode Synthetic Aperture radar: A Signal

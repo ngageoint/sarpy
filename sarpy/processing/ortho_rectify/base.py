@@ -7,7 +7,7 @@ __author__ = "Thomas McCullough"
 
 import logging
 import os
-from typing import Union, Tuple, List, Any
+from typing import Union, Tuple, List, Any, Optional
 
 import numpy
 
@@ -36,7 +36,12 @@ class FullResolutionFetcher(object):
     __slots__ = (
         '_reader', '_index', '_sicd', '_dimension', '_data_size', '_block_size')
 
-    def __init__(self, reader, dimension=0, index=0, block_size=10):
+    def __init__(
+            self,
+            reader: Union[str, SICDTypeReader],
+            dimension: int = 0,
+            index: int = 0,
+            block_size: Union[None, int, float] = 10):
         """
 
         Parameters
@@ -72,8 +77,7 @@ class FullResolutionFetcher(object):
         self.block_size = block_size
 
     @property
-    def reader(self):
-        # type: () -> SICDTypeReader
+    def reader(self) -> SICDTypeReader:
         """
         SICDTypeReader: The reader instance.
         """
@@ -81,8 +85,7 @@ class FullResolutionFetcher(object):
         return self._reader
 
     @property
-    def dimension(self):
-        # type: () -> int
+    def dimension(self) -> int:
         """
         int: The dimension along which to perform the color subaperture split.
         """
@@ -105,8 +108,7 @@ class FullResolutionFetcher(object):
         return self._data_size
 
     @property
-    def index(self):
-        # type: () -> int
+    def index(self) -> int:
         """
         int: The index of the reader.
         """
@@ -130,8 +132,7 @@ class FullResolutionFetcher(object):
         self._data_size = self.reader.get_data_size_as_tuple()[value]
 
     @property
-    def block_size(self):
-        # type: () -> float
+    def block_size(self) -> Optional[float]:
         """
         None|float: The approximate processing block size in MB, where `None`
         represents processing in a single block.
@@ -150,8 +151,7 @@ class FullResolutionFetcher(object):
             self._block_size = value
 
     @property
-    def block_size_in_bytes(self):
-        # type: () -> Union[None, int]
+    def block_size_in_bytes(self) -> Optional[int]:
         """
         None|int: The approximate processing block size in bytes.
         """
@@ -159,16 +159,16 @@ class FullResolutionFetcher(object):
         return None if self._block_size is None else int(self._block_size*(2**20))
 
     @property
-    def sicd(self):
-        # type: () -> SICDType
+    def sicd(self) -> SICDType:
         """
         SICDType: The sicd structure.
         """
 
         return self._sicd
 
-    def _parse_slicing(self, item):
-        # type: (Union[None, int, slice, tuple]) -> Tuple[Tuple[int, int, int], Tuple[int, int, int], Any]
+    def _parse_slicing(
+            self,
+            item: Union[None, int, slice, tuple]) -> Tuple[Tuple[int, int, int], Tuple[int, int, int], Any]:
 
         def parse(entry, dimension):
             bound = self.data_size[dimension]
@@ -204,7 +204,7 @@ class FullResolutionFetcher(object):
         else:
             raise TypeError('Slicing using type {} is unsupported'.format(type(item)))
 
-    def get_fetch_block_size(self, start_element, stop_element):
+    def get_fetch_block_size(self, start_element: int, stop_element: int) -> int:
         """
         Gets the fetch block size for the given full resolution section.
         This assumes that the fetched data will be 8 bytes per pixel, in
@@ -223,8 +223,9 @@ class FullResolutionFetcher(object):
         return get_fetch_block_size(start_element, stop_element, self.block_size_in_bytes, bands=1)
 
     @staticmethod
-    def extract_blocks(the_range, index_block_size):
-        # type: (Tuple[int, int, int], Union[None, int, float]) -> (List[Tuple[int, int, int]], List[Tuple[int, int]])
+    def extract_blocks(
+            the_range: Tuple[int, int, int],
+            index_block_size: Union[None, int, float]) -> Tuple[List[Tuple[int, int, int]], List[Tuple[int, int]]]:
         """
         Convert the single range definition into a series of range definitions in
         keeping with fetching of the appropriate block sizes.
@@ -238,17 +239,20 @@ class FullResolutionFetcher(object):
 
         Returns
         -------
-        List[Tuple[int, int, int]], List[Tuple[int, int]]
+        range_definitions: List[Tuple[int, int, int]]
             The sequence of range definitions `(start index, stop index, step)`
-            relative to the overall image, and the sequence of start/stop indices
-            for positioning of the given range relative to the original range.
-
+            relative to the overall image.
+        limit_indices: List[Tuple[int, int]]
+            The sequence of start/stop indices for positioning of the given
+            range relative to the original range.
         """
 
         return extract_blocks(the_range, index_block_size)
 
-    def _full_row_resolution(self, row_range, col_range):
-        # type: (Tuple[int, int, int], Tuple[int, int, int]) -> numpy.ndarray
+    def _full_row_resolution(
+            self,
+            row_range: Tuple[int, int, int],
+            col_range: Tuple[int, int, int]) -> numpy.ndarray:
         """
         Perform the full row resolution data, with any appropriate calculations.
 
@@ -282,8 +286,10 @@ class FullResolutionFetcher(object):
         data[~numpy.isfinite(data)] = 0
         return data
 
-    def _full_column_resolution(self, row_range, col_range):
-        # type: (Tuple[int, int, int], Tuple[int, int, int]) -> numpy.ndarray
+    def _full_column_resolution(
+            self,
+            row_range: Tuple[int, int, int],
+            col_range: Tuple[int, int, int]) -> numpy.ndarray:
         """
         Perform the full column resolution data, with any appropriate calculations.
 
@@ -317,7 +323,10 @@ class FullResolutionFetcher(object):
         data[~numpy.isfinite(data)] = 0
         return data
 
-    def _prepare_output(self, row_range, col_range):
+    def _prepare_output(
+            self,
+            row_range: Tuple[int, int, int],
+            col_range: Tuple[int, int, int]) -> numpy.ndarray:
         """
         Prepare the output workspace for :func:`__getitem__`.
 
@@ -336,7 +345,7 @@ class FullResolutionFetcher(object):
         out_size = (row_count, col_count)
         return numpy.zeros(out_size, dtype=numpy.complex64)
 
-    def __getitem__(self, subscript):
+    def __getitem__(self, subscript) -> numpy.ndarray:
         """
         Fetches the processed data based on the input slice.
 
@@ -364,8 +373,12 @@ class OrthorectificationIterator(object):
         '_this_index', '_iteration_blocks', '_remap_function')
 
     def __init__(
-            self, ortho_helper, calculator=None, bounds=None,
-            remap_function=None, recalc_remap_globals=False):
+            self,
+            ortho_helper: OrthorectificationHelper,
+            calculator: Optional[FullResolutionFetcher] = None,
+            bounds: Union[None, numpy.ndarray, tuple, list] = None,
+            remap_function: Optional[RemapFunction] = None,
+            recalc_remap_globals: bool = False):
         """
 
         Parameters
@@ -441,8 +454,7 @@ class OrthorectificationIterator(object):
         self._prepare_state(recalc_remap_globals=recalc_remap_globals)
 
     @property
-    def ortho_helper(self):
-        # type: () -> OrthorectificationHelper
+    def ortho_helper(self) -> OrthorectificationHelper:
         """
         OrthorectificationHelper: The ortho-rectification helper.
         """
@@ -450,8 +462,7 @@ class OrthorectificationIterator(object):
         return self._ortho_helper
 
     @property
-    def calculator(self):
-        # type: () -> FullResolutionFetcher
+    def calculator(self) -> FullResolutionFetcher:
         """
         FullResolutionFetcher : The calculator instance.
         """
@@ -459,7 +470,7 @@ class OrthorectificationIterator(object):
         return self._calculator
 
     @property
-    def sicd(self):
+    def sicd(self) -> SICDType:
         """
         SICDType: The sicd structure.
         """
@@ -467,7 +478,7 @@ class OrthorectificationIterator(object):
         return self.calculator.sicd
 
     @property
-    def pixel_bounds(self):
+    def pixel_bounds(self) -> numpy.ndarray:
         """
         numpy.ndarray : Of the form `(row min, row max, col min, col max)`.
         """
@@ -475,7 +486,7 @@ class OrthorectificationIterator(object):
         return self._pixel_bounds
 
     @property
-    def ortho_bounds(self):
+    def ortho_bounds(self) -> numpy.ndarray:
         """
         numpy.ndarray : Of the form `(row min, row max, col min, col max)`. Note that
         these are "unnormalized" orthorectified pixel coordinates.
@@ -484,7 +495,7 @@ class OrthorectificationIterator(object):
         return self._ortho_bounds
 
     @property
-    def ortho_data_size(self):
+    def ortho_data_size(self) -> Tuple[int, int]:
         """
         Tuple[int, int] : The size of the overall ortho-rectified output.
         """
@@ -494,15 +505,14 @@ class OrthorectificationIterator(object):
             int(self.ortho_bounds[3] - self.ortho_bounds[2]))
 
     @property
-    def remap_function(self):
-        # type: () -> Union[None, RemapFunction]
+    def remap_function(self) -> Optional[RemapFunction]:
         """
         None|RemapFunction: The remap function to be applied.
         """
 
         return self._remap_function
 
-    def get_ecf_image_corners(self):
+    def get_ecf_image_corners(self) -> Optional[numpy.ndarray]:
         """
         The corner points of the overall ortho-rectified output in ECF
         coordinates. The ordering of these points follows the SICD convention.
@@ -517,7 +527,7 @@ class OrthorectificationIterator(object):
         _, ortho_pixel_corners = self._ortho_helper.bounds_to_rectangle(self.ortho_bounds)
         return self._ortho_helper.proj_helper.ortho_to_ecf(ortho_pixel_corners)
 
-    def get_llh_image_corners(self):
+    def get_llh_image_corners(self) -> Optional[numpy.ndarray]:
         """
         The corner points of the overall ortho-rectified output in Lat/Lon/HAE
         coordinates. The ordering of these points follows the SICD convention.
@@ -533,7 +543,7 @@ class OrthorectificationIterator(object):
         else:
             return ecf_to_geodetic(ecf_corners)
 
-    def _prepare_state(self, recalc_remap_globals=False):
+    def _prepare_state(self, recalc_remap_globals: bool = False) -> None:
         """
         Prepare the iteration state.
 
@@ -557,7 +567,9 @@ class OrthorectificationIterator(object):
                 self.ortho_helper.reader, index=self.ortho_helper.index, pixel_bounds=self.pixel_bounds)
 
     @staticmethod
-    def _get_ortho_helper(pixel_bounds, this_data):
+    def _get_ortho_helper(
+            pixel_bounds: Tuple[int, int, int, int],
+            this_data: numpy.ndarray) -> Tuple[numpy.ndarray, numpy.ndarray]:
         """
         Get helper data for ortho-rectification.
 
@@ -588,7 +600,11 @@ class OrthorectificationIterator(object):
             raise ValueError('Unhandled data size mismatch {} and {}'.format(this_data.shape, cols_temp))
         return row_array, col_array
 
-    def _get_orthorectified_version(self, this_ortho_bounds, pixel_bounds, this_data):
+    def _get_orthorectified_version(
+            self,
+            this_ortho_bounds: numpy.ndarray,
+            pixel_bounds: Tuple[int, int, int, int],
+            this_data: numpy.ndarray):
         """
         Get the orthorectified version from the raw values and pixel information.
 
@@ -611,7 +627,9 @@ class OrthorectificationIterator(object):
         else:
             return self.remap_function(ortho_data)
 
-    def _get_state_parameters(self, pad=10):
+    def _get_state_parameters(
+            self,
+            pad: int = 10) -> Tuple[numpy.ndarray, numpy.ndarray]:
         """
         Gets the pixel information associated with the current state.
 
@@ -642,15 +660,16 @@ class OrthorectificationIterator(object):
     def __iter__(self):
         return self
 
-    def __next__(self):
+    def __next__(self) -> Tuple[numpy.ndarray, Tuple[int, int]]:
         """
         Get the next iteration of orthorectified data.
 
         Returns
         -------
-        (numpy.ndarray, Tuple[int, int])
-            The data and the (normalized) indices (start_row, start_col) for this section of data, relative
-            to overall output shape.
+        data: numpy.ndarray
+        indices: Tuple[int, int]
+            The (normalized) indices `(start_row, start_col)` for this section of
+            data, relative to overall output shape.
         """
 
         # NB: this is the Python 3 pattern for iteration
@@ -680,15 +699,16 @@ class OrthorectificationIterator(object):
                          this_ortho_bounds[2] - self.ortho_bounds[2])
         return ortho_data, start_indices
 
-    def next(self):
+    def next(self) -> Tuple[numpy.ndarray, Tuple[int, int]]:
         """
         Get the next iteration of ortho-rectified data.
 
         Returns
         -------
-        numpy.ndarray, Tuple[int, int]
-            The data and the (normalized) indices (start_row, start_col) for this section of data, relative
-            to overall output shape.
+        data: numpy.ndarray
+        indices: Tuple[int, int]
+            The (normalized) indices `(start_row, start_col)` for this section of
+            data, relative to overall output shape.
         """
 
         # NB: this is the Python 2 pattern for iteration

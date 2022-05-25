@@ -45,6 +45,8 @@ Examples
 __classification__ = "UNCLASSIFIED"
 __author__ = 'Thomas McCullough'
 
+from typing import Union, Tuple, Optional
+
 import numpy
 
 from sarpy.processing.sicd.fft_base import FFTCalculator, fft, ifft, fftshift
@@ -52,7 +54,7 @@ from sarpy.io.complex.base import SICDTypeReader
 from sarpy.io.complex.utils import get_fetch_block_size
 
 
-def filter_map_construction(siz):
+def filter_map_construction(siz: Union[int, float]) -> numpy.ndarray:
     """
     Provides the RGB filter array for sub-aperture processing.
 
@@ -90,7 +92,12 @@ def filter_map_construction(siz):
     return out
 
 
-def csi_array(array, dimension=0, platform_direction='R', fill=1, filter_map=None):
+def csi_array(
+        array: numpy.ndarray,
+        dimension: int = 0,
+        platform_direction: str = 'R',
+        fill: Union[int, float] = 1,
+        filter_map: Optional[numpy.ndarray] = None) -> numpy.ndarray:
     """
     Creates a color subaperture array from a complex array.
 
@@ -186,8 +193,12 @@ class CSICalculator(FFTCalculator):
     the amount of data which must be fetched.
     """
 
-
-    def __init__(self, reader, dimension=0, index=0, block_size=50):
+    def __init__(
+            self,
+            reader: Union[str, SICDTypeReader],
+            dimension: int = 0,
+            index: int = 0,
+            block_size: Union[None, int, float] = 50):
         """
 
         Parameters
@@ -205,7 +216,10 @@ class CSICalculator(FFTCalculator):
         super(CSICalculator, self).__init__(
             reader, dimension=dimension, index=index, block_size=block_size)
 
-    def get_fetch_block_size(self, start_element, stop_element):
+    def get_fetch_block_size(
+            self,
+            start_element: int,
+            stop_element: int) -> int:
         """
         Gets the fetch block size for the given full resolution section.
         This assumes that the fetched data will be 24 bytes per pixel, in
@@ -223,25 +237,36 @@ class CSICalculator(FFTCalculator):
 
         return get_fetch_block_size(start_element, stop_element, self.block_size_in_bytes, bands=3)
 
-    def _full_row_resolution(self, row_range, col_range, filter_map=None):
+    def _full_row_resolution(
+            self,
+            row_range: Tuple[int, int, int],
+            col_range: Tuple[int, int, int],
+            filter_map: Optional[numpy.ndarray] = None) -> numpy.ndarray:
         data = super(CSICalculator, self)._full_row_resolution(row_range, col_range)
         return csi_array(
             data, dimension=0, platform_direction=self._platform_direction,
             filter_map=filter_map)
 
-    def _full_column_resolution(self, row_range, col_range, filter_map=None):
+    def _full_column_resolution(
+            self,
+            row_range: Tuple[int, int, int],
+            col_range: Tuple[int, int, int],
+            filter_map: Optional[numpy.ndarray] = None) -> numpy.ndarray:
         data = super(CSICalculator, self)._full_column_resolution(row_range, col_range)
         return csi_array(
             data, dimension=1, platform_direction=self._platform_direction,
             filter_map=filter_map)
 
-    def _prepare_output(self, row_range, col_range):
+    def _prepare_output(
+            self,
+            row_range: Tuple[int, int, int],
+            col_range: Tuple[int, int, int]) -> numpy.ndarray:
         row_count = int((row_range[1] - row_range[0]) / float(row_range[2]))
         col_count = int((col_range[1] - col_range[0]) / float(col_range[2]))
         out_size = (row_count, col_count, 3)
         return numpy.zeros(out_size, dtype=numpy.float64)
 
-    def __getitem__(self, item):
+    def __getitem__(self, item) -> numpy.ndarray:
         """
         Fetches the csi data based on the input slice.
 
