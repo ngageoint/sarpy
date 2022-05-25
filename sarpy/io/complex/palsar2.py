@@ -9,7 +9,7 @@ __author__ = "Thomas McCullough"
 import logging
 import os
 import struct
-from typing import Union, Tuple, List
+from typing import Union, Tuple, List, Optional
 
 import numpy
 from numpy.polynomial import polynomial
@@ -41,35 +41,6 @@ from sarpy.io.complex.sicd_elements.ErrorStatistics import ErrorStatisticsType, 
 from sarpy.io.complex.utils import two_dim_poly_fit, fit_position_xvalidation
 
 logger = logging.getLogger(__name__)
-
-########
-# base expected functionality for a module with an implemented Reader
-
-
-def is_a(file_name):
-    """
-    Tests whether a given file_name corresponds to a PALSAR ALOS2file. Returns a reader instance, if so.
-
-    Parameters
-    ----------
-    file_name : str
-        the file_name to check
-
-    Returns
-    -------
-    PALSARReader|None
-        `PALSARReader` instance if PALSAR file, `None` otherwise
-    """
-
-    if is_file_like(file_name):
-        return None
-
-    try:
-        palsar_details = PALSARDetails(file_name)
-        logger.info('File {} is determined to be a PALSAR ALOS2 file.'.format(file_name))
-        return PALSARReader(palsar_details)
-    except (ImportError, SarpyIOError):
-        return None
 
 
 ##########
@@ -627,6 +598,7 @@ class _LED_Data(_BaseElements):
         'num_annot')
 
     def __init__(self, fi):
+        start_loc = fi.tell()
         super(_LED_Data, self).__init__(fi)
         self.rec_seq = fi.read(4).decode('utf-8')  # type: str
         self.sar_id = fi.read(4).decode('utf-8')  # type: str
@@ -743,7 +715,7 @@ class _LED_Data(_BaseElements):
         fi.seek(28, os.SEEK_CUR)  # skip reserved fields
         self.incidence_ang = [float(fi.read(20)) for _ in range(6)]  # type: List[float]
         self.num_annot = float(fi.read(8))  # type: float
-        fi.seek(8 + 64*32 + 26, os.SEEK_CUR)  # skip reserved fields, for map projection?
+        fi.seek(start_loc + self.rec_length, os.SEEK_SET)  # skip reserved fields, for map projection?
 
 
 class _LED_Position(_BaseElements):
@@ -759,6 +731,7 @@ class _LED_Position(_BaseElements):
         'pts_pos', 'pts_vel', 'leap_sec')
 
     def __init__(self, fi):
+        start_pos = fi.tell()
         super(_LED_Position, self).__init__(fi)
         self.orb_elem = fi.read(32).decode('utf-8')  # type: str
         self.pos = numpy.array([float(fi.read(16)) for _ in range(3)], dtype='float64')  # type: numpy.ndarray
@@ -785,7 +758,7 @@ class _LED_Position(_BaseElements):
             self.pts_vel[i, :] = [float(fi.read(22)) for _ in range(3)]
         fi.seek(18, os.SEEK_CUR)  # skip reserved fields
         self.leap_sec = fi.read(1).decode('utf-8')  # type: str
-        fi.seek(579, os.SEEK_CUR)  # skip reserved fields
+        fi.seek(start_pos + self.rec_length, os.SEEK_SET)  # skip reserved fields
 
 
 class _LED_AttitudePoint(object):
@@ -825,11 +798,11 @@ class _LED_Attitude(_BaseElements):
         'num_pts', 'pts')
 
     def __init__(self, fi):
+        start_loc = fi.tell()
         super(_LED_Attitude, self).__init__(fi)
         self.num_pts = int(fi.read(4))  # type: int
         self.pts = [_LED_AttitudePoint(fi) for _ in range(self.num_pts)]
-        extra = self.rec_length - (16 + 120*self.num_pts)
-        fi.seek(extra, os.SEEK_CUR)  # skip remaining reserved
+        fi.seek(start_loc + self.rec_length, os.SEEK_SET)  # skip remaining reserved
 
 
 class _LED_Radiometric(_BaseElements):
@@ -841,6 +814,7 @@ class _LED_Radiometric(_BaseElements):
         'seq_num', 'num_pts', 'cal_factor', 'tx_distortion', 'rcv_distortion')
 
     def __init__(self, fi):
+        start_loc = fi.tell()
         super(_LED_Radiometric, self).__init__(fi)
         self.seq_num = int(fi.read(4))  # type: int
         self.num_pts = int(fi.read(4))  # type: int
@@ -853,8 +827,7 @@ class _LED_Radiometric(_BaseElements):
         for i in range(2):
             for j in range(2):
                 self.rcv_distortion[i, j] = complex(real=float(fi.read(16)), imag=float(fi.read(16)))
-        extra = self.rec_length - (12 + 24 + 16*2*4*2)
-        fi.seek(extra, os.SEEK_CUR)  # skip remaining reserved
+        fi.seek(start_loc + self.rec_length, os.SEEK_SET)  # skip remaining reserved
 
 
 class _LED_DataQuality(_BaseElements):
@@ -870,6 +843,7 @@ class _LED_DataQuality(_BaseElements):
         'distort_skew', 'orient_err', 'at_misreg_err', 'ct_misreg_err')
 
     def __init__(self, fi):
+        start_loc = fi.tell()
         super(_LED_DataQuality, self).__init__(fi)
         self.dq_rec_num = fi.read(4).decode('utf-8')  # type: str
         self.chan_id = fi.read(4).decode('utf-8')  # type: str
@@ -903,8 +877,7 @@ class _LED_DataQuality(_BaseElements):
         for i in range(self.num_chans):
             self.at_misreg_err[i] = _make_float(fi.read(16))
             self.ct_misreg_err[i] = _make_float(fi.read(16))
-        this_size = 782 + 32*self.num_chans
-        fi.seek(self.rec_length-this_size, os.SEEK_CUR)  # skip reserved
+        fi.seek(start_loc + self.rec_length, os.SEEK_SET)  # skip reserved
 
 
 class _LED_Facility(_BaseElements):
@@ -922,6 +895,7 @@ class _LED_Facility(_BaseElements):
         'latlon2pixel', 'latlon2line', 'origin_lat', 'origin_lon')
 
     def __init__(self, fi, parse_all=False):
+        start_loc = fi.tell()
         super(_LED_Facility, self).__init__(fi)
         self.fac_seq_num = struct.unpack('>I', fi.read(4))[0]  # type: int
         if not parse_all:
@@ -967,7 +941,7 @@ class _LED_Facility(_BaseElements):
 
         self.origin_lat = float(fi.read(20))  # type: float
         self.origin_lon = float(fi.read(20))  # type: float
-        fi.seek(1896, os.SEEK_CUR)  # skip empty fields
+        fi.seek(start_loc + self.rec_length, os.SEEK_SET)  # skip empty fields
 
 
 class _LED_Elements(_CommonElements3):
@@ -1294,8 +1268,13 @@ class PALSARDetails(object):
         """
 
         def get_collection_info() -> CollectionInfoType:
-            collector_name = 'ALOS2' if self._vol_element.vol_set_id.startswith('ALOS2') else None
-            core_name = self._vol_element.texts[-1].scene_id[7:]
+            if self._led_element.data.scene_id.startswith('ALOS2'):
+                collector_name = 'ALOS2'
+            elif self._led_element.data.scene_id.startswith('STRIX'):
+                collector_name = self._led_element.data.scene_id[:6]
+            else:
+                collector_name = None
+            core_name = self._led_element.data.scene_id.strip()
             mode_id = self._vol_element.texts[-1].prod_id[8:11]
             mode_type = 'SPOTLIGHT' if mode_id == 'SBS' else 'STRIPMAP'
             return CollectionInfoType(
@@ -1449,12 +1428,12 @@ class PALSARDetails(object):
             return ErrorStatisticsType(
                 Components=ErrorComponentsType(
                     PosVelErr=PosVelErrType(Frame='RIC_ECF',
-                                            P1=pos_element.rad_pos_err,
-                                            P2=pos_element.at_pos_err,
-                                            P3=pos_element.ct_pos_err,
-                                            V1=pos_element.rad_vel_err,
-                                            V2=pos_element.at_vel_err,
-                                            V3=pos_element.ct_vel_err),
+                                            P1=pos_element.rad_pos_err if numpy.isfinite(pos_element.rad_pos_err) else None,
+                                            P2=pos_element.at_pos_err if numpy.isfinite(pos_element.at_pos_err) else None,
+                                            P3=pos_element.ct_pos_err if numpy.isfinite(pos_element.ct_pos_err) else None,
+                                            V1=pos_element.rad_vel_err if numpy.isfinite(pos_element.rad_vel_err) else None,
+                                            V2=pos_element.at_vel_err if numpy.isfinite(pos_element.at_vel_err) else None,
+                                            V3=pos_element.ct_vel_err if numpy.isfinite(pos_element.ct_vel_err) else None),
                     RadarSensor=RadarSensorErrorType(RangeBias=range_bias)))
 
         def get_grid_and_rma() -> Tuple[GridType, RMAType]:
@@ -1520,7 +1499,7 @@ class PALSARDetails(object):
                 Sgn=-1,
                 KCtr=2.0/data.wavelength,
                 ImpRespBW=2e3*data.bw_rng/speed_of_light,
-                ImpRespWid=led_element.data_quality.sr_res,
+                ImpRespWid=led_element.data_quality.sr_res if numpy.isfinite(led_element.data_quality.sr_res) else None,
                 DeltaKCOAPoly=Poly2DType(Coefs=[[0, ], ]),
                 WgtType=row_wgt)
             col = DirParamType(
@@ -1528,7 +1507,7 @@ class PALSARDetails(object):
                 Sgn=-1,
                 KCtr=0,
                 ImpRespBW=dop_bw*ss_zd_s/data.line_spacing,
-                ImpRespWid=led_element.data_quality.az_res,
+                ImpRespWid=led_element.data_quality.az_res if numpy.isfinite(led_element.data_quality.az_res) else None,
                 DeltaKCOAPoly=Poly2DType(Coefs=dop_centroid*ss_zd_s/data.line_spacing),
                 WgtType=col_wgt)
             t_grid = GridType(
@@ -1660,3 +1639,33 @@ class PALSARReader(SICDTypeReader):
     @property
     def file_name(self) -> str:
         return self._palsar_details.file_name
+
+########
+# base expected functionality for a module with an implemented Reader
+
+
+def is_a(file_name: str) -> Optional[PALSARReader]:
+    """
+    Tests whether a given file_name corresponds to a PALSAR ALOS2file. Returns a reader instance, if so.
+
+    Parameters
+    ----------
+    file_name : str
+        the file_name to check
+
+    Returns
+    -------
+    PALSARReader|None
+        `PALSARReader` instance if PALSAR file, `None` otherwise
+    """
+
+    if is_file_like(file_name):
+        return None
+
+    try:
+        palsar_details = PALSARDetails(file_name)
+        logger.info('File {} is determined to be a PALSAR ALOS2 file.'.format(file_name))
+        return PALSARReader(palsar_details)
+    except (ImportError, SarpyIOError):
+        return None
+
