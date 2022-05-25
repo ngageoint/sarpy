@@ -750,7 +750,7 @@ class ApplyAmplitudeScalingFunction(ComplexFormatFunction):
 
         return self._scaling_function
 
-    def _set_scaling_function(self, value: Optional[None, Callable]):
+    def _set_scaling_function(self, value: Optional[Callable]):
         if value is None:
             self._scaling_function = None
             return

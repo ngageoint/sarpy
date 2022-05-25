@@ -11,7 +11,7 @@ from sarpy.io.received.crsd_schema import get_schema_path
 
 from tests import parse_file_entry
 
-DEFAULT_SCHEMA = get_schema_path(version='1.0.0')
+DEFAULT_SCHEMA = get_schema_path('1.0.0')
 
 crsd_file_types = {}
 

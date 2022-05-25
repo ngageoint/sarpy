@@ -12,7 +12,7 @@ from sarpy.io.phase_history.cphd_schema import get_schema_path
 
 from tests import parse_file_entry
 
-DEFAULT_SCHEMA = get_schema_path(version='1.0.1')
+DEFAULT_SCHEMA = get_schema_path('1.0.1')
 
 cphd_file_types = {}
 

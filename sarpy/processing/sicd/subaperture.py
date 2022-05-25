@@ -318,7 +318,7 @@ class SubapertureCalculator(FFTCalculator):
             self,
             row_range: Tuple[int, int, int],
             col_range: Tuple[int, int, int],
-            frames: Union[None, int, list, tuple, numpy.ndarray] = None) -> Generator[numpy.ndarray]:
+            frames: Union[None, int, list, tuple, numpy.ndarray] = None) -> Generator[numpy.ndarray, None, None]:
         """
         Supplies a generator for the given row and column ranges and frames collection.
         **Note that this IGNORES the block_size parameter in fetching, and fetches the
