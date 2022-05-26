@@ -826,9 +826,9 @@ class ImageSegmentHeader(NITFElement):
         nppbv = self.NROWS if self.NPPBV == 0 else self.NPPBV
         nppbh = self.NCOLS if self.NPPBH == 0 else self.NPPBH
         if self.IMODE == 'S':
-            return nppbh*nppbv*self.NBPP
+            return int(nppbh*nppbv*self.NBPP/8)
         else:
-            return nppbh*nppbv*len(self.Bands)*self.NBPP
+            return int(nppbh*nppbv*len(self.Bands)*self.NBPP/8)
 
     def get_full_uncompressed_image_size(self) -> int:
         """

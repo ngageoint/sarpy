@@ -591,6 +591,11 @@ class ComplexFormatFunction(FormatFunction):
             reverse_axes=reverse_axes, transpose_axes=transpose_axes)
         self._set_band_dimension(band_dimension)
 
+    def set_raw_shape(self, value: Optional[Tuple[int, ...]]) -> None:
+        FormatFunction.set_raw_shape(self, value)
+        if self._band_dimension is not None:
+            self._set_band_dimension(self._band_dimension)
+
     @property
     def band_dimension(self) -> int:
         """
@@ -603,6 +608,10 @@ class ComplexFormatFunction(FormatFunction):
         if not isinstance(value, int):
             raise TypeError('band_dimension must be an integer')
 
+        if self._raw_shape is None:
+            self._band_dimension = value
+            return
+
         if not (-self.raw_ndim <= value < self.raw_ndim):
             raise ValueError('band_dimension out of bounds.')
 
@@ -610,7 +619,7 @@ class ComplexFormatFunction(FormatFunction):
             value = value + self.raw_ndim
 
         if self._band_dimension is not None:
-            if value != self._band_dimension:
+            if ((value - self._band_dimension) % self.raw_ndim) != 0:
                 raise ValueError('band_dimension is read only once set')
             return  # nothing to be done
         self._band_dimension = value

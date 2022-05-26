@@ -563,8 +563,8 @@ class DataSegment(object):
 
         self._validate_closed()
 
-        if self.mode == 'r':
-            raise ValueError('Requires mode == "r"')
+        if self.mode != 'r':
+            raise ValueError('Requires mode = "r"')
         norm_subscript = self.verify_formatted_subscript(subscript)
         raw_subscript = self.format_function.transform_formatted_slice(norm_subscript)
         raw_data = self.read_raw(raw_subscript, squeeze=False)

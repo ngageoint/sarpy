@@ -308,11 +308,11 @@ def _get_dtype(
         bands = image_header.Bands
         if len(bands) > 1:
             for band in bands:
-                if band.LUT is not None:
+                if band.LUTD is not None:
                     raise ValueError('There are multiple bands with LUT.')
 
         # TODO: this isn't really right - handle most significant/least significant nonsense
-        lut = bands[0].LUT
+        lut = bands[0].LUTD
         if lut is None:
             return None
         if lut.ndim == 1:
@@ -1842,7 +1842,8 @@ class NITFReader(BaseReader):
         assert isinstance(block_bounds, list)
 
         bytes_per_pixel = raw_bands*raw_dtype.itemsize
-        block_size = int(image_header.NPPBH*image_header.NPPBV*bytes_per_pixel)
+        block_size = image_header.get_uncompressed_block_size()
+        print(image_header.NROWS, image_header.NCOLS, bytes_per_pixel, block_size)
 
         if image_header.IMODE == 'B':
             # order inside the block is (bands, rows, columns)
@@ -1864,8 +1865,8 @@ class NITFReader(BaseReader):
             numpy.arange(len(block_bounds), dtype='int64')*block_size
 
         # noinspection PyUnresolvedReferences
-        if not (isinstance(block_offsets, numpy.ndarray) and mask_offsets.ndim == 1):
-            raise ValueError('Got unexpected mask offsets `{}`'.format(block_offsets))
+        if not (isinstance(block_offsets, numpy.ndarray) and block_offsets.ndim == 1):
+            raise ValueError('Got unexpected block offsets `{}`'.format(block_offsets))
 
         if len(block_bounds) != len(block_offsets):
             raise ValueError('Got mismatch between block definition and block offsets definition')
@@ -2105,7 +2106,7 @@ class NITFReader(BaseReader):
         mask_offsets, exclude_value, additional_offset = self._get_mask_details(image_segment_index)
 
         bytes_per_pixel = raw_dtype.itemsize  # one band at a time
-        block_size = int(image_header.NPPBH*image_header.NPPBV*bytes_per_pixel)
+        block_size = image_header.get_uncompressed_block_size()
         if mask_offsets is not None:
             block_offsets = mask_offsets
         else:
