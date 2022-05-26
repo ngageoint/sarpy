@@ -105,12 +105,12 @@ class TestComplexFunction(unittest.TestCase):
             test_data = numpy.empty((2, 3), dtype='complex64')
             test_data.real = magnitude * numpy.cos(theta)
             test_data.imag = magnitude * numpy.sin(theta)
-            self.assertTrue(numpy.all(out_data == test_data), msg='MP forward')
+            self.assertTrue(numpy.all(out_data == test_data), msg='PM forward')
 
             inv_data = func.inverse(out_data, (slice(0, 2, 1), slice(0, 3, 1)))
             inv_array_check = (base_data - inv_data)
-            self.assertTrue(numpy.all(numpy.abs(inv_array_check[:, :, 1]) < 1e-5), msg='M of MP inverse')
-            self.assertTrue(numpy.all(numpy.abs(numpy.sin(inv_array_check[:, :, 0])) < 1e-5), msg='P of MP inverse')
+            self.assertTrue(numpy.all(numpy.abs(inv_array_check[:, :, 1]) < 1e-5), msg='M of PM inverse')
+            self.assertTrue(numpy.all(numpy.abs(numpy.sin(inv_array_check[:, :, 0])) < 1e-5), msg='P of PM inverse')
 
     def test_int(self):
         for raw_type in ['int8', 'int16']:

@@ -100,7 +100,7 @@ def verify_slice(item: Union[None, int, slice, Tuple[int, ...]], max_element: in
 
 
 def verify_subscript(
-        subscript: Union[None, int, slice, Tuple[slice, ...]],
+        subscript: Union[None, int, slice, Tuple[int, ...], Tuple[slice, ...]],
         corresponding_shape: Tuple[int, ...]) -> Tuple[slice, ...]:
     """
     Verify a subscript like item against a corresponding shape.
@@ -109,7 +109,7 @@ def verify_subscript(
 
     Parameters
     ----------
-    subscript : None|int|slice|Ellipsis|Tuple[slice, ...]
+    subscript : None|int|slice|Tuple[int, ...]|Tuple[slice, ...]
     corresponding_shape : Tuple[int, ...]
 
     Returns

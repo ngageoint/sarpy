@@ -123,7 +123,7 @@ class AmpLookupFunction(ComplexFormatFunction):
             slice0: Tuple[slice, ...],
             slice1: Tuple[slice, ...]) -> None:
         magnitude = numpy.digitize(
-            magnitude.ravel(), self.magnitude_lookup_table, right=False).reshape(data.shape)
+            numpy.round(magnitude.ravel()), self.magnitude_lookup_table, right=False).reshape(data.shape)
 
         ComplexFormatFunction._reverse_magnitude_theta(self, data, out, magnitude, theta, slice0, slice1)
 

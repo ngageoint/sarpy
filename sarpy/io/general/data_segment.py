@@ -66,11 +66,11 @@ def _find_slice_overlap(
 
     Returns
     -------
-    parent_slice : None|slice
-        The overlap expressed as a slice relative to the overall indices.
-        None if there is no overlap.
     child_slice : None|slice
         The overlap expressed as a slice relative to the sliced coordinates.
+        None if there is no overlap.
+    parent_slice : None|slice
+        The overlap expressed as a slice relative to the overall indices.
         None if there is no overlap.
     """
 
@@ -166,7 +166,9 @@ def _infer_subscript_for_write(data: numpy.ndarray,
         subscript = tuple([slice(entry1, entry2, 1) for entry1, entry2 in zip(start_indices, data.shape)])
     subscript, result_shape = get_subscript_result_size(subscript, full_shape)
     if result_shape != data.shape:
-        raise ValueError('Inferred subscript does not match data.shape')
+        raise ValueError(
+            'Inferred subscript `{}` with shape `{}`\n\t'
+            'does not match data.shape `{}`'.format(subscript, result_shape, data.shape))
     return subscript
 
 
@@ -484,7 +486,7 @@ class DataSegment(object):
 
     def verify_formatted_subscript(
             self,
-            subscript: Union[None, int, slice, Tuple[slice, ...]]) -> Tuple[slice, ...]:
+            subscript: Union[None, int, slice, Tuple[int, ...], Tuple[slice, ...]]) -> Tuple[slice, ...]:
         """
         Verifies that the structure of the subscript is in keeping with the formatted
         shape, and fills in any missing dimensions.
@@ -503,7 +505,7 @@ class DataSegment(object):
 
     def _interpret_subscript(
             self,
-            subscript: Union[None, int, slice, Tuple[slice, ...]],
+            subscript: Union[None, int, slice, Tuple[int, ...], Tuple[slice, ...]],
             raw=False) -> Tuple[slice, ...]:
         """
         Restructures the subscript to be a tuple of slices guaranteed to be the same
@@ -526,7 +528,7 @@ class DataSegment(object):
         else:
             return verify_subscript(subscript, self._formatted_shape)
 
-    def __getitem__(self, subscript: Union[None, int, slice, Tuple[slice, ...]]):
+    def __getitem__(self, subscript: Union[None, int, slice, Tuple[int, ...], Tuple[slice, ...]]):
         """
         Fetch the data via slice definition.
 
@@ -545,14 +547,14 @@ class DataSegment(object):
             subscript = subscript[:-1]
         else:
             kwargs = {}
-        if kwargs.get('raw', False):
-            return self.read(subscript)
+        if kwargs.get('raw', True):
+            return self.read(subscript, squeeze=kwargs.get('squeeze', True))
         else:
             return self.read_raw(subscript, squeeze=kwargs.get('squeeze', True))
 
     def read(
             self,
-            subscript: Union[None, int, slice, Tuple[slice, ...]],
+            subscript: Union[None, int, slice, Tuple[Union[int, slice], ...]],
             squeeze=True) -> numpy.ndarray:
         """
         In keeping with data segment mode, read the data slice specified relative
@@ -581,7 +583,7 @@ class DataSegment(object):
     # noinspection PyTypeChecker
     def read_raw(
             self,
-            subscript: Union[None, int, slice, Tuple[slice, ...]],
+            subscript: Union[None, int, slice, Tuple[Union[int, slice], ...]],
             squeeze=True) -> numpy.ndarray:
         """
         In keeping with data segment mode, read raw data from the source, without
@@ -861,11 +863,11 @@ class ReorientationSegment(DataSegment):
 
     def read_raw(
             self,
-            subscript: Union[None, int, slice, Tuple[slice, ...]],
+            subscript: Union[None, int, slice, Tuple[Union[int, slice], ...]],
             squeeze=True) -> numpy.ndarray:
 
         self._validate_closed()
-        if self.mode == 'r':
+        if self.mode != 'r':
             raise ValueError('Requires mode == "r"')
 
         return self.parent.read(subscript, squeeze=squeeze)
@@ -1080,9 +1082,10 @@ class SubsetSegment(DataSegment):
         self._original_raw_indices = tuple(raw_indices)
         return tuple(raw_shape), tuple(formatted_shape)
 
-    @staticmethod
     def _get_parent_subscript(
+            self,
             norm_subscript: Tuple[slice, ...],
+            this_shape: Tuple[int, ...],
             full_shape: Tuple[int, ...],
             use_indices: Tuple[int, ...],
             subset_definition: Tuple[slice, ...]) -> Tuple[slice, ...]:
@@ -1093,13 +1096,15 @@ class SubsetSegment(DataSegment):
         ----------
         norm_subscript : Tuple[slice, ...]
             The normalized subset subscript.
+        this_shape : Tuple[int, ...]
+            The shape in the subset domain.
         full_shape : Tuple[int, ...]
             The full parent shape in the given domain.
         use_indices : Tuple[int, ...]
             Structure helping to identify the dimensions from the parent which
             have been preserved, and which have collapsed.
         subset_definition : Tuple[slice, ...]
-            The subset definition with respect to parent coordiates.
+            The subset definition with respect to parent coordinates.
 
         Returns
         -------
@@ -1116,6 +1121,8 @@ class SubsetSegment(DataSegment):
                 # now, extract start and stop
                 # the logic of this is terrible, so let's just do it the easy way
                 the_array = numpy.arange(full_size)[slice_def][part_def]
+                if len(the_array) < 1:
+                    raise KeyError('Got invalid slice definition {} for shape {}'.format(norm_subscript, this_shape))
                 start = the_array[0]
                 stop = the_array[-1] + step
                 if stop < 0:
@@ -1139,7 +1146,7 @@ class SubsetSegment(DataSegment):
         """
 
         return self._get_parent_subscript(
-            self.verify_raw_subscript(subscript), self.parent.raw_shape,
+            self.verify_raw_subscript(subscript), self.raw_shape, self.parent.raw_shape,
             self._original_raw_indices, self._raw_subset_definition)
 
     def get_parent_formatted_subscript(
@@ -1158,15 +1165,15 @@ class SubsetSegment(DataSegment):
         """
 
         return self._get_parent_subscript(
-            self.verify_formatted_subscript(subscript), self.parent.formatted_shape,
+            self.verify_formatted_subscript(subscript), self.formatted_shape, self.parent.formatted_shape,
             self._original_formatted_indices, self._formatted_subset_definition)
 
     def read_raw(
             self,
-            subscript: Union[None, int, slice, Tuple[slice, ...]],
+            subscript: Union[None, int, slice, Tuple[Union[int, slice], ...]],
             squeeze=True) -> numpy.ndarray:
         self._validate_closed()
-        if self.mode == 'r':
+        if self.mode != 'r':
             raise ValueError('Requires mode == "r"')
 
         norm_subscript = self.get_parent_raw_subscript(subscript)
@@ -1178,14 +1185,17 @@ class SubsetSegment(DataSegment):
             for check, size in zip(self._original_raw_indices, data.shape):
                 if check != -1:
                     use_shape.append(size)
-            return numpy.reshape(data, tuple(use_shape))
+            if squeeze:
+                return numpy.squeeze(data)
+            else:
+                return numpy.reshape(data, tuple(use_shape))
 
     def read(
             self,
-            subscript: Union[int, tuple, slice, numpy.ndarray],
+            subscript: Union[None, int, tuple, slice, numpy.ndarray],
             squeeze=True) -> numpy.ndarray:
         self._validate_closed()
-        if self.mode == 'r':
+        if self.mode != 'r':
             raise ValueError('Requires mode == "r"')
 
         norm_subscript = self.get_parent_formatted_subscript(subscript)
@@ -1197,7 +1207,10 @@ class SubsetSegment(DataSegment):
             for check, size in zip(self._original_formatted_indices, data.shape):
                 if check != -1:
                     use_shape.append(size)
-            return numpy.reshape(data, tuple(use_shape))
+            if squeeze:
+                return numpy.squeeze(data)
+            else:
+                return numpy.reshape(data, tuple(use_shape))
 
     def check_fully_written(self, warn: bool = False) -> bool:
         if self.mode == 'r':
@@ -1461,21 +1474,23 @@ class BandAggregateSegment(DataSegment):
 
     def read_raw(
             self,
-            subscript: Union[None, int, slice, Tuple[slice, ...]],
+            subscript: Union[None, int, slice, Tuple[Union[int, slice], ...]],
             squeeze=True) -> numpy.ndarray:
         self._validate_closed()
-        if self.mode == 'r':
+        if self.mode != 'r':
             raise ValueError('Requires mode == "r"')
 
         norm_subscript, the_shape = get_subscript_result_size(subscript, self.raw_shape)
         out = numpy.empty(the_shape, dtype=self.raw_dtype)
+        full_band_subscript = tuple(slice(0, entry, 1) for entry in the_shape)
 
         for out_index, index in enumerate(numpy.arange(self.bands)[norm_subscript[self.band_dimension]]):
             child_subscript = norm_subscript[:self.band_dimension] + norm_subscript[self.band_dimension+1:]
-            band_subscript = norm_subscript[:self.band_dimension] + \
-                (slice(out_index, out_index+1, 1), ) + \
-                norm_subscript[self.band_dimension+1:]
+            band_subscript = full_band_subscript[:self.band_dimension] + \
+                (out_index, ) + \
+                full_band_subscript[self.band_dimension+1:]
             out[band_subscript] = self.children[index].read(child_subscript, squeeze=False)
+
         if squeeze:
             return numpy.squeeze(out)
         else:
@@ -1539,7 +1554,7 @@ class BandAggregateSegment(DataSegment):
             child_subscript = norm_subscript[:self.band_dimension] + \
                 norm_subscript[self.band_dimension+1:]
             band_subscript = norm_subscript[:self.band_dimension] + \
-                (slice(out_index, out_index+1, 1), ) + \
+                (out_index, ) + \
                 norm_subscript[self.band_dimension+1:]
             self.children[index].write(
                 data[band_subscript], subscript=child_subscript, **kwargs)
@@ -1705,10 +1720,10 @@ class BlockAggregateSegment(DataSegment):
 
     def read_raw(
             self,
-            subscript: Union[None, int, slice, Tuple[slice, ...]],
+            subscript: Union[None, int, slice, Tuple[Union[int, slice], ...]],
             squeeze=True) -> numpy.ndarray:
         self._validate_closed()
-        if self.mode == 'r':
+        if self.mode != 'r':
             raise ValueError('Requires mode == "r"')
 
         subscript, formatted_shape = get_subscript_result_size(subscript, self.raw_shape)
@@ -1719,7 +1734,7 @@ class BlockAggregateSegment(DataSegment):
             parent_subscript = []
             child_subscript = []
             for data_slice, block_slice in zip(subscript, entry):
-                par_entry, child_entry = _find_slice_overlap(data_slice, block_slice)
+                child_entry, par_entry = _find_slice_overlap(data_slice, block_slice)
                 if par_entry is None:
                     use_block = False
                     # there is no overlap
@@ -1793,7 +1808,7 @@ class BlockAggregateSegment(DataSegment):
             data_subscript = []
             child_subscript = []
             for lim, data_slice, block_slice in zip(self.raw_shape, norm_subscript, entry):
-                par_entry, child_entry = _find_slice_overlap(data_slice, block_slice)
+                child_entry, par_entry = _find_slice_overlap(data_slice, block_slice)
                 # this expresses the overlap between our data slice in overall coordinates
                 #   relative to the entire raw_shape, and coordinates relative to
                 #   just the block in question
@@ -1922,7 +1937,7 @@ class NumpyArraySegment(DataSegment):
 
     def read_raw(
             self,
-            subscript: Union[None, int, slice, Tuple[slice, ...]],
+            subscript: Union[None, int, slice, Tuple[Union[int, slice], ...]],
             squeeze=True) -> numpy.ndarray:
         self._validate_closed()
         if self.mode != 'r':
@@ -1932,7 +1947,7 @@ class NumpyArraySegment(DataSegment):
         out = self._underlying_array[subscript]  # squeezed by default
 
         if squeeze:
-            return out
+            return numpy.squeeze(out)
         else:
             return numpy.reshape(out, out_shape)
 
@@ -2216,7 +2231,7 @@ class HDF5DatasetSegment(DataSegment):
 
     def read_raw(
             self,
-            subscript: Union[None, int, slice, Tuple[slice, ...]],
+            subscript: Union[None, int, slice, Tuple[Union[int, slice], ...]],
             squeeze=True) -> numpy.ndarray:
         self._validate_closed()
         subscript, out_shape = get_subscript_result_size(subscript, self.raw_shape)
@@ -2366,7 +2381,7 @@ class FileReadDataSegment(DataSegment):
 
     def read_raw(
             self,
-            subscript: Union[None, int, slice, Tuple[slice, ...]],
+            subscript: Union[None, int, slice, Tuple[Union[int, slice], ...]],
             squeeze=True) -> numpy.ndarray:
         self._validate_closed()
         subscript, out_shape = get_subscript_result_size(subscript, self.raw_shape)
@@ -2436,34 +2451,3 @@ class FileReadDataSegment(DataSegment):
             DataSegment.close(self)
         except AttributeError:
             return
-
-
-if __name__ == '__main__':
-    from sarpy.io.general.format_function import ComplexFormatFunction
-    data = numpy.reshape(numpy.arange(24, dtype='int16'), (3, 4, 2))
-    complex_data = numpy.empty((3, 4), dtype='complex64')
-    complex_data.real = data[:, :, 0]
-    complex_data.imag = data[:, :, 1]
-    complex_data = numpy.transpose(complex_data)
-
-    empty = numpy.empty((3, 4, 2), dtype='int16')
-    data_segment = NumpyArraySegment(
-        empty, formatted_dtype='complex64', formatted_shape=(4, 3),
-        transpose_axes=(1, 0, 2),
-        format_function=ComplexFormatFunction('int16', 'IQ', band_dimension=2),
-        mode='w')
-
-    data_segment.write_raw(data, start_indices=0)
-    # data_segment.write(complex_data, start_indices=0)
-    data_segment.close()
-    print(numpy.all(data == empty))
-    data_segment.write(data, start_indices=0)
-
-    # test_data = data_segment.read(None)
-    # assert(numpy.all(complex_data == test_data))
-    #
-    # subscript = (..., slice(0, 2, 1))
-    # test_data = data_segment.read(subscript)
-    # assert(numpy.all(test_data == complex_data[subscript]))
-
-

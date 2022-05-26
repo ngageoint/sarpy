@@ -4088,6 +4088,6 @@ class NITFWriter(BaseWriter):
         except AttributeError:
             pass
 
-        self.nitf_writing_details = None
+        self._nitf_writing_details = None
         self._image_segment_data_segments = None
         self._file_object = None

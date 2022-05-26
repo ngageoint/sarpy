@@ -821,9 +821,9 @@ class ComplexFormatFunction(FormatFunction):
                     data.take(indices=range(1, band_dim_size, 2), axis=self.band_dimension), out.shape)
             else:
                 mag = numpy.reshape(
-                    data.take(indices=range(0, band_dim_size, 2), axis=self.band_dimension), out.shape)
-                theta = numpy.reshape(
                     data.take(indices=range(1, band_dim_size, 2), axis=self.band_dimension), out.shape)
+                theta = numpy.reshape(
+                    data.take(indices=range(0, band_dim_size, 2), axis=self.band_dimension), out.shape)
             self._forward_magnitude_theta(data, out, mag, theta, subscript)
         else:
             raise ValueError('Unhandled order value {}'.format(self.order))
@@ -841,6 +841,8 @@ class ComplexFormatFunction(FormatFunction):
         if self._raw_dtype.name in ['uint8', 'uint16', 'uint32']:
             bit_depth = self._raw_dtype.itemsize * 8
             theta *= (1 << bit_depth) / (2 * numpy.pi)
+            theta = numpy.round(theta)
+            magnitude = numpy.round(magnitude)
 
         if self.order == 'MP':
             out[slice0] = magnitude
