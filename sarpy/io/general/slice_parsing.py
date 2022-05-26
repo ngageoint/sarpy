@@ -132,7 +132,7 @@ def verify_subscript(
     elif isinstance(subscript, tuple):
         # check for Ellipsis usage...
         ellipsis_location = None
-        for index, entry in subscript:
+        for index, entry in enumerate(subscript):
             if entry is Ellipsis:
                 if ellipsis_location is None:
                     ellipsis_location = index
@@ -140,7 +140,7 @@ def verify_subscript(
                     raise KeyError('slice definition cannot contain more than one ellipsis')
 
         if ellipsis_location is not None:
-            if len(subscript) > ndim-1:
+            if len(subscript) > ndim:
                 raise ValueError('More subscript entries ({}) than shape dimensions ({}).'.format(len(subscript), ndim))
 
             if ellipsis_location == len(subscript)-1:

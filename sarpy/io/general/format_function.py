@@ -804,18 +804,26 @@ class ComplexFormatFunction(FormatFunction):
 
         out = numpy.empty(out_shape, dtype='complex64')
         if self.order == 'IQ':
-            out.real = data.take(indices=range(0, band_dim_size, 2), axis=self.band_dimension)
-            out.imag = data.take(indices=range(1, band_dim_size, 2), axis=self.band_dimension)
+            out.real = numpy.reshape(
+                data.take(indices=range(0, band_dim_size, 2), axis=self.band_dimension), out.shape)
+            out.imag = numpy.reshape(
+                data.take(indices=range(1, band_dim_size, 2), axis=self.band_dimension), out.shape)
         elif self.order == 'QI':
-            out.imag = data.take(indices=range(0, band_dim_size, 2), axis=self.band_dimension)
-            out.real = data.take(indices=range(1, band_dim_size, 2), axis=self.band_dimension)
+            out.imag = numpy.reshape(
+                data.take(indices=range(0, band_dim_size, 2), axis=self.band_dimension), out.shape)
+            out.real = numpy.reshape(
+                data.take(indices=range(1, band_dim_size, 2), axis=self.band_dimension), out.shape)
         elif self.order in ['MP', 'PM']:
             if self.order == 'MP':
-                mag = data.take(indices=range(0, band_dim_size, 2), axis=self.band_dimension)
-                theta = data.take(indices=range(1, band_dim_size, 2), axis=self.band_dimension)
+                mag = numpy.reshape(
+                    data.take(indices=range(0, band_dim_size, 2), axis=self.band_dimension), out.shape)
+                theta = numpy.reshape(
+                    data.take(indices=range(1, band_dim_size, 2), axis=self.band_dimension), out.shape)
             else:
-                mag = data.take(indices=range(0, band_dim_size, 2), axis=self.band_dimension)
-                theta = data.take(indices=range(1, band_dim_size, 2), axis=self.band_dimension)
+                mag = numpy.reshape(
+                    data.take(indices=range(0, band_dim_size, 2), axis=self.band_dimension), out.shape)
+                theta = numpy.reshape(
+                    data.take(indices=range(1, band_dim_size, 2), axis=self.band_dimension), out.shape)
             self._forward_magnitude_theta(data, out, mag, theta, subscript)
         else:
             raise ValueError('Unhandled order value {}'.format(self.order))
@@ -846,19 +854,23 @@ class ComplexFormatFunction(FormatFunction):
             data: numpy.ndarray,
             subscript: Tuple[slice, ...]) -> numpy.ndarray:
         if data.ndim != self.formatted_ndim:
-            raise ValueError('Expected formatted data of dimension {}'.format(self.raw_ndim))
+            raise ValueError('Expected formatted data of dimension {}'.format(self.formatted_ndim))
 
         if self.formatted_ndim < self.raw_ndim:
             out_shape = data.shape[:self.band_dimension] + (2,) + data.shape[self.band_dimension:]
+            use_shape = data.shape[:self.band_dimension] + (1,) + data.shape[self.band_dimension:]
         else:
             band_dim_size = data.shape[self.band_dimension]
             out_shape = data.shape[:self.band_dimension] + \
                 (2*band_dim_size, ) + \
                 data.shape[self.band_dimension + 1:]
+            use_shape = data.shape[:self.band_dimension] + \
+                (band_dim_size, ) + \
+                data.shape[self.band_dimension + 1:]
 
         slice0 = []
         slice1 = []
-        for index, siz in out_shape:
+        for index, siz in enumerate(out_shape):
             if index == self.band_dimension:
                 slice0.append(slice(0, siz, 2))
                 slice1.append(slice(1, siz, 2))
@@ -870,14 +882,14 @@ class ComplexFormatFunction(FormatFunction):
 
         out = numpy.empty(out_shape, dtype=self._raw_dtype)
         if self.order == 'IQ':
-            out[slice0] = data.real
-            out[slice1] = data.imag
+            out[slice0] = numpy.reshape(data.real, use_shape)
+            out[slice1] = numpy.reshape(data.imag, use_shape)
         elif self.order == 'QI':
-            out[slice1] = data.real
-            out[slice0] = data.imag
+            out[slice1] = numpy.reshape(data.real, use_shape)
+            out[slice0] = numpy.reshape(data.imag, use_shape)
         elif self.order in ['MP', 'PM']:
-            magnitude = numpy.abs(data)
-            theta = numpy.arctan2(data.imag, data.real)
+            magnitude = numpy.reshape(numpy.abs(data), use_shape)
+            theta = numpy.reshape(numpy.arctan2(data.imag, data.real), use_shape)
             theta[theta < 0] += 2*numpy.pi
             self._reverse_magnitude_theta(data, out, magnitude, theta, slice0, slice1)
         else:
@@ -1034,31 +1046,3 @@ class SingleLUTFormatFunction(FormatFunction):
             return numpy.squeeze(array)
         else:
             return array
-
-
-if __name__ == '__main__':
-
-    # TODO: formulate this simple testing into unit tests...
-
-    # check the reverse_axes and transpose_axes functionality
-    t_data = numpy.reshape(numpy.arange(6, dtype='int32'), (3, 2))
-
-    # check just reverse axes
-    # for axis in [0, 1]:
-    #     func_rev = IdentityFunction(raw_shape=(3, 2), formatted_shape=(3, 2), reverse_axes=(axis, ), transpose_axes=None)
-    #     out_data = func_rev(t_data, None)
-    #     test_data = numpy.flip(t_data, axis=axis)
-    #     print(f'Reverse axis {axis} Success? {numpy.all(test_data == out_data)}')
-
-    # check just transpose axes
-    # func_transpose = IdentityFunction(raw_shape=(3, 2), formatted_shape=(2, 3), transpose_axes=(1, 0))
-    # out_data = func_transpose(t_data, None)
-    # test_data = numpy.transpose(t_data, (1, 0))
-    # print(f'transpose axes success? {numpy.all(test_data == out_data)}')
-
-    # check both together
-    for axis in ((0, ), (1, ), (0, 1)):
-        func = IdentityFunction(raw_shape=(3, 2), formatted_shape=(2, 3), reverse_axes=axis, transpose_axes=(1, 0))
-        out_data = func(t_data, None)
-        test_data = numpy.transpose(numpy.flip(t_data, axis=axis), (1, 0))
-        print(f'combined axis {axis} success? {numpy.all(test_data == out_data)}')

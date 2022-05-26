@@ -159,11 +159,11 @@ def _infer_subscript_for_write(data: numpy.ndarray,
 
     if start_indices is not None:
         if isinstance(start_indices, int):
-            start_indices = (start_indices,)
-        if len(start_indices) < len(full_shape):
-            start_indices = start_indices + (full_shape[len(start_indices):])
-        subscript = tuple([slice(entry1, entry2, 1) for entry1, entry2 in zip(start_indices, data.shape)])
+            start_indices = (start_indices, )
 
+        if len(start_indices) < len(full_shape):
+            start_indices = start_indices + tuple(0 for _ in range(len(start_indices), len(full_shape)))
+        subscript = tuple([slice(entry1, entry2, 1) for entry1, entry2 in zip(start_indices, data.shape)])
     subscript, result_shape = get_subscript_result_size(subscript, full_shape)
     if result_shape != data.shape:
         raise ValueError('Inferred subscript does not match data.shape')
@@ -443,6 +443,14 @@ class DataSegment(object):
 
         return self.mode == 'w' and self.format_function.has_inverse
 
+    @property
+    def closed(self) -> bool:
+        """
+        bool: Is the data segment closed? Reading or writing will result in a ValueError
+        """
+
+        return self._closed
+
     def _validate_closed(self):
         if not hasattr(self, '_closed') or self._closed:
             raise ValueError('I/O operation of closed data segment')
@@ -601,7 +609,7 @@ class DataSegment(object):
 
     def _verify_write_raw_details(self, data: numpy.ndarray) -> None:
         if self.mode != 'w':
-            raise ValueError('Functionality requires writing')
+            raise ValueError('I/O Error, functionality requires mode == "w"')
 
         if data.dtype.itemsize != self.raw_dtype.itemsize:
             raise ValueError(
@@ -645,7 +653,7 @@ class DataSegment(object):
 
         if not self.can_write_regular:
             raise ValueError(
-                'Functionality requires writing,\n\t'
+                'I/O error, functionality requires mode = "w"\n\t'
                 'and the ability to invert the format function')
 
         if data.dtype.itemsize != self.formatted_dtype.itemsize:
@@ -904,10 +912,9 @@ class ReorientationSegment(DataSegment):
         self._verify_write_raw_details(data)
 
         subscript = _infer_subscript_for_write(data, start_indices, subscript, self.raw_shape)
-        # NB: this is just reordering, and trivially has an inverse
-        raw_data = self.format_function.inverse(data, subscript)
-        raw_subscript = self.format_function.transform_formatted_slice(subscript)
-        self.parent.write(raw_data, subscript=raw_subscript, **kwargs)
+        parent_data = self.format_function.inverse(data, subscript)
+        parent_form_subscript = self.format_function.transform_formatted_slice(subscript)
+        self.parent.write(data, subscript=parent_form_subscript, **kwargs)
 
     def get_raw_bytes(self, warn: bool=True) -> Union[bytes, Tuple]:
         self._validate_closed()
@@ -936,7 +943,7 @@ class ReorientationSegment(DataSegment):
 
 class SubsetSegment(DataSegment):
     """
-    Define a subset of a given DataSegment. This is read only functionality.
+    Define a subset of a given DataSegment.
 
     Introduced in version 1.3.0.
     """
@@ -1918,7 +1925,7 @@ class NumpyArraySegment(DataSegment):
             subscript: Union[None, int, slice, Tuple[slice, ...]],
             squeeze=True) -> numpy.ndarray:
         self._validate_closed()
-        if self.mode == 'r':
+        if self.mode != 'r':
             raise ValueError('Requires mode == "r"')
 
         subscript, out_shape = get_subscript_result_size(subscript, self.raw_shape)
@@ -1969,10 +1976,8 @@ class NumpyArraySegment(DataSegment):
         self._validate_closed()
         self._verify_write_raw_details(data)
         subscript = _infer_subscript_for_write(data, start_indices, subscript, self.raw_shape)
-        raw_data = self.format_function.inverse(data, subscript)
-        raw_subscript = self.format_function.transform_formatted_slice(subscript)
-        self._underlying_array[raw_subscript] = raw_data
-        self._update_pixels_written(raw_data.size)
+        self._underlying_array[subscript] = data
+        self._update_pixels_written(data.size)
 
     def get_raw_bytes(self, warn: bool=False) -> Union[bytes, Tuple]:
         self._validate_closed()
@@ -1986,6 +1991,7 @@ class NumpyArraySegment(DataSegment):
         self._validate_closed()
         try:
             if self.mode == 'w' and hasattr(self._underlying_array, 'flush'):
+                # noinspection PyUnresolvedReferences
                 self._underlying_array.flush()
         except AttributeError:
             return
@@ -2430,3 +2436,34 @@ class FileReadDataSegment(DataSegment):
             DataSegment.close(self)
         except AttributeError:
             return
+
+
+if __name__ == '__main__':
+    from sarpy.io.general.format_function import ComplexFormatFunction
+    data = numpy.reshape(numpy.arange(24, dtype='int16'), (3, 4, 2))
+    complex_data = numpy.empty((3, 4), dtype='complex64')
+    complex_data.real = data[:, :, 0]
+    complex_data.imag = data[:, :, 1]
+    complex_data = numpy.transpose(complex_data)
+
+    empty = numpy.empty((3, 4, 2), dtype='int16')
+    data_segment = NumpyArraySegment(
+        empty, formatted_dtype='complex64', formatted_shape=(4, 3),
+        transpose_axes=(1, 0, 2),
+        format_function=ComplexFormatFunction('int16', 'IQ', band_dimension=2),
+        mode='w')
+
+    data_segment.write_raw(data, start_indices=0)
+    # data_segment.write(complex_data, start_indices=0)
+    data_segment.close()
+    print(numpy.all(data == empty))
+    data_segment.write(data, start_indices=0)
+
+    # test_data = data_segment.read(None)
+    # assert(numpy.all(complex_data == test_data))
+    #
+    # subscript = (..., slice(0, 2, 1))
+    # test_data = data_segment.read(subscript)
+    # assert(numpy.all(test_data == complex_data[subscript]))
+
+
