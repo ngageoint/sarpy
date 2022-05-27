@@ -4,7 +4,8 @@ import numpy
 
 from sarpy.io.general.format_function import ComplexFormatFunction
 from sarpy.io.general.data_segment import NumpyArraySegment, SubsetSegment, \
-    BandAggregateSegment, BlockAggregateSegment
+    BandAggregateSegment, BlockAggregateSegment, FileReadDataSegment
+from io import BytesIO
 
 
 class TestNumpyArraySegment(unittest.TestCase):
@@ -66,6 +67,11 @@ class TestNumpyArraySegment(unittest.TestCase):
             subscript = (slice(0, 2, 1), slice(1, 3, 1))
             test_data = data_segment[0:2, 1:3]
             self.assertTrue(numpy.all(complex_data[subscript] == test_data))
+
+        with self.subTest(msg='read using __getitem__ and specifiying raw'):
+            subscript = (slice(0, 2, 1), slice(1, 3, 1))
+            test_data = data_segment[0:2, 1:3, 'raw']
+            self.assertTrue(numpy.all(data[subscript] == test_data))
 
         with self.assertRaises(ValueError, msg='write_raw attempt'):
             data_segment.write_raw(data, start_indices=0)
@@ -157,7 +163,6 @@ class TestNumpyArraySegment(unittest.TestCase):
 
 
 class TestSubsetSegment(unittest.TestCase):
-
     def test_read(self):
         data = numpy.reshape(numpy.arange(24, dtype='int16'), (6, 4))
 
@@ -210,7 +215,6 @@ class TestSubsetSegment(unittest.TestCase):
 
 
 class TestBandAggregateSegment(unittest.TestCase):
-
     def test_read(self):
         data0 = numpy.reshape(numpy.arange(12, dtype='uint8'), (3, 4))
         data1 = numpy.reshape(numpy.arange(12, 24, dtype='uint8'), (3, 4))
@@ -270,7 +274,6 @@ class TestBandAggregateSegment(unittest.TestCase):
 
 
 class TestBlockAggregateSegment(unittest.TestCase):
-
     def test_read(self):
         data0 = numpy.reshape(numpy.arange(6, dtype='int16'), (3, 2))
         data1 = numpy.reshape(numpy.arange(6, 12, dtype='int16'), (3, 2))
@@ -328,4 +331,83 @@ class TestBlockAggregateSegment(unittest.TestCase):
 
 
 class TestFileReadSegment(unittest.TestCase):
-    pass
+    def test_read(self):
+        data = numpy.reshape(numpy.arange(24, dtype='int16'), (3, 4, 2))
+        complex_data = numpy.empty((3, 4), dtype='complex64')
+        complex_data.real = data[:, :, 0]
+        complex_data.imag = data[:, :, 1]
+
+        file_object = BytesIO(data.tobytes())
+        data_segment = FileReadDataSegment(
+            file_object, 0, 'int16', (3, 4, 2), 'complex64', (3, 4),
+            format_function=ComplexFormatFunction('int16', 'IQ', band_dimension=2))
+
+        with self.subTest(msg='read_raw full'):
+            test_data = data_segment.read_raw(None)
+            self.assertTrue(numpy.all(data == test_data))
+
+        with self.subTest(msg='read_raw subscript'):
+            subscript = (slice(0, 2, 1), slice(1, 3, 1))
+            test_data = data_segment.read_raw(subscript)
+            self.assertTrue(numpy.all(data[subscript] == test_data))
+
+        with self.subTest(msg='read_raw index with squeeze'):
+            test_data = data_segment.read_raw((0, 1, 1), squeeze=True)
+            self.assertTrue(test_data.ndim == 0, msg='{}'.format(test_data))
+            self.assertTrue(data[0, 1, 1] == test_data)
+
+        with self.subTest(msg='read_raw index without squeeze'):
+            test_data = data_segment.read_raw((0, 1, 1), squeeze=False)
+            self.assertTrue(test_data.ndim == 3)
+            self.assertTrue(data[0, 1, 1] == test_data)
+
+        with self.subTest(msg='read full'):
+            test_data = data_segment.read(None)
+            self.assertTrue(numpy.all(complex_data == test_data))
+
+        with self.subTest(msg='read subscript'):
+            subscript = (slice(0, 2, 1), slice(1, 3, 1))
+            test_data = data_segment.read(subscript)
+            self.assertTrue(numpy.all(complex_data[subscript] == test_data))
+
+        with self.subTest(msg='read subscript with ellipsis'):
+            subscript = (..., slice(1, 3, 1))
+            test_data = data_segment.read(subscript)
+            self.assertTrue(numpy.all(complex_data[subscript] == test_data))
+
+        with self.subTest(msg='read index with squeeze'):
+            test_data = data_segment.read((0, 1), squeeze=True)
+            self.assertTrue(test_data.ndim == 0)
+            self.assertTrue(complex_data[0, 1] == test_data)
+
+        with self.subTest(msg='read index without squeeze'):
+            test_data = data_segment.read((0, 1), squeeze=False)
+            self.assertTrue(test_data.ndim == 2)
+            self.assertTrue(complex_data[0, 1] == test_data)
+
+        with self.subTest(msg='read using __getitem__ subscript'):
+            subscript = (slice(0, 2, 1), slice(1, 3, 1))
+            test_data = data_segment[0:2, 1:3]
+            self.assertTrue(numpy.all(complex_data[subscript] == test_data))
+
+        with self.subTest(msg='read using __getitem__ and specifiying raw'):
+            subscript = (slice(0, 2, 1), slice(1, 3, 1))
+            test_data = data_segment[0:2, 1:3, 'raw']
+            self.assertTrue(numpy.all(data[subscript] == test_data))
+
+        with self.assertRaises(ValueError, msg='write_raw attempt'):
+            data_segment.write_raw(data, start_indices=0)
+
+        with self.assertRaises(ValueError, msg='write attempt'):
+            data_segment.write(complex_data, start_indices=0)
+
+        with self.subTest(msg='close functionality test'):
+            self.assertFalse(data_segment.closed)
+            data_segment.close()
+            self.assertTrue(data_segment.closed)
+
+        with self.assertRaises(ValueError, msg='read access when closed'):
+            _ = data_segment.read(None)
+
+        with self.assertRaises(ValueError, msg='read_raw access when closed'):
+            _ = data_segment.read_raw(None)

@@ -57,9 +57,16 @@ def _parse_xml(file_name: str, without_ns: bool=False) -> Union[ElementTree.Elem
 
 
 def _is_level1_product(prospective_file: str) -> bool:
-    with open(prospective_file, 'r') as fi:
-        check = fi.read(30)
-    return check.startswith('<level1Product')
+    with open(prospective_file, 'rb') as fi:
+        check = fi.read(200)
+        if check.startswith(b'<?xml'):
+            end_xml_declaration = check.find(b'?>')
+            if end_xml_declaration == -1:
+                raise ValueError('Poorly formed xml declaration\n\t`{}`'.format(check))
+            check = check[end_xml_declaration+2:].strip()
+        else:
+            check = check.strip()
+    return check.startswith(b'<level1Product')
 
 
 ############
@@ -1154,6 +1161,5 @@ def is_a(file_name: str) -> Optional[TSXReader]:
         tsx_details = TSXDetails(file_name)
         logger.info('Path {} is determined to be a TerraSAR-X file package.'.format(tsx_details.file_name))
         return TSXReader(tsx_details)
-    except (SarpyIOError, AttributeError, SyntaxError, ElementTree.ParseError):
+    except SarpyIOError:
         return None
-

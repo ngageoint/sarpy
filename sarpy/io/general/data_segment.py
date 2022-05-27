@@ -131,10 +131,11 @@ def _find_slice_overlap(
                slice(child_start, child_stop, 1)
 
 
-def _infer_subscript_for_write(data: numpy.ndarray,
-                               start_indices: Union[None, int, Tuple[int, ...]],
-                               subscript: Union[None, Tuple[slice, ...]],
-                               full_shape: Tuple[int, ...]) -> Tuple[slice, ...]:
+def _infer_subscript_for_write(
+        data: numpy.ndarray,
+        start_indices: Union[None, int, Tuple[int, ...]],
+        subscript: Union[None, Sequence[slice]],
+        full_shape: Tuple[int, ...]) -> Tuple[slice, ...]:
     """
     Helper function, for writing operation, which infers the subscript definition
     between the given start_indices or (possibly partially defined) subscript.
@@ -143,7 +144,7 @@ def _infer_subscript_for_write(data: numpy.ndarray,
     ----------
     data : numpy.ndarray
     start_indices : None|int|Tuple[int, ...]
-    subscript : None|Tuple[slice, ...]
+    subscript : None|Sequence[slice]
     full_shape : Tuple[int, ...]
 
     Returns
@@ -170,6 +171,38 @@ def _infer_subscript_for_write(data: numpy.ndarray,
             'Inferred subscript `{}` with shape `{}`\n\t'
             'does not match data.shape `{}`'.format(subscript, result_shape, data.shape))
     return subscript
+
+def extract_string_from_subscript(
+        subscript: Union[None, int, slice, Tuple]) -> Tuple[Union[None, int, slice, Sequence], Tuple[str, ...]]:
+    """
+    Extracts any string elements (stripped and made all lowercase) from subscript entries.
+
+    Parameters
+    ----------
+    subscript : None|str|int|slice|Sequence
+
+    Returns
+    -------
+    subscript: None|int|slice|Sequence
+        With string entries removed
+    strings : Tuple[str, ...]
+        The string entries, stripped and made all lower case.
+    """
+
+    string_entries = []
+    if isinstance(subscript, str):
+        string_entries.append(subscript.strip().lower())
+        subscript = None
+    elif isinstance(subscript, Sequence):
+        new_subscript = []
+        for entry in subscript:
+            if isinstance(entry, str):
+                string_entries.append(entry.strip().lower())
+            else:
+                new_subscript.append(entry)
+        if len(string_entries) > 0:
+            subscript = tuple(new_subscript)
+    return subscript, tuple(string_entries)
 
 
 #####
@@ -214,7 +247,7 @@ class DataSegment(object):
         raw_shape : Tuple[int, ...]
         formatted_dtype : str|numpy.dtype
         formatted_shape : Tuple[int, ...]
-        reverse_axes : None|int|Sequence[int, ...]
+        reverse_axes : None|int|Sequence[int]
             The collection of axes (in raw order) to reverse, prior to applying
             transpose operation
         transpose_axes : None|Tuple[int, ...]
@@ -467,14 +500,14 @@ class DataSegment(object):
     # read related methods
     def verify_raw_subscript(
             self,
-            subscript: Union[None, int, slice, Tuple[slice, ...]]) -> Tuple[slice, ...]:
+            subscript: Union[None, int, slice, Sequence[Union[int, slice, Tuple[int, ...]]]]) -> Tuple[slice, ...]:
         """
         Verifies that the structure of the subscript is in keeping with the raw
         shape, and fills in any missing dimensions.
 
         Parameters
         ----------
-        subscript : None|int|slice|Tuple[slice, ...]
+        subscript : None|int|slice|Sequence[int|slice|Tuple[int, ...]]
 
         Returns
         -------
@@ -486,14 +519,14 @@ class DataSegment(object):
 
     def verify_formatted_subscript(
             self,
-            subscript: Union[None, int, slice, Tuple[int, ...], Tuple[slice, ...]]) -> Tuple[slice, ...]:
+            subscript: Union[None, int, slice, Sequence[Union[int, slice, Tuple[int, ...]]]]) -> Tuple[slice, ...]:
         """
         Verifies that the structure of the subscript is in keeping with the formatted
         shape, and fills in any missing dimensions.
 
         Parameters
         ----------
-        subscript : None|int|slice|Tuple[slice, ...]
+        subscript : None|int|slice|Sequence[int|slice|Tuple[int, ...]]
 
         Returns
         -------
@@ -505,8 +538,8 @@ class DataSegment(object):
 
     def _interpret_subscript(
             self,
-            subscript: Union[None, int, slice, Tuple[int, ...], Tuple[slice, ...]],
-            raw=False) -> Tuple[slice, ...]:
+            subscript: Union[None, int, slice, Sequence[Union[int, slice, Tuple[int, ...]]]],
+            raw: bool = False) -> Tuple[slice, ...]:
         """
         Restructures the subscript to be a tuple of slices guaranteed to be the same
         length as the dimension of the return.
@@ -528,33 +561,36 @@ class DataSegment(object):
         else:
             return verify_subscript(subscript, self._formatted_shape)
 
-    def __getitem__(self, subscript: Union[None, int, slice, Tuple[int, ...], Tuple[slice, ...]]):
+    def __getitem__(
+            self,
+            subscript: Union[None, int, slice, str, Sequence[Union[None, int, slice, str]]]) -> numpy.ndarray:
         """
         Fetch the data via slice definition.
 
         Parameters
         ----------
-        subscript : None|int|slice|tuple
+        subscript : None|int|slice|str|tuple
 
         Returns
         -------
         numpy.ndarray
         """
 
+        # TODO: document the string entries situation
         self._validate_closed()
-        if isinstance(subscript, tuple) and isinstance(subscript[-1], dict):
-            kwargs = subscript[-1]
-            subscript = subscript[:-1]
+
+        subscript, string_entries = extract_string_from_subscript(subscript)
+        use_raw = ('raw' in string_entries)
+        squeeze = ('nosqueeze' not in string_entries)
+
+        if use_raw:
+            return self.read_raw(subscript, squeeze=squeeze)
         else:
-            kwargs = {}
-        if kwargs.get('raw', True):
-            return self.read(subscript, squeeze=kwargs.get('squeeze', True))
-        else:
-            return self.read_raw(subscript, squeeze=kwargs.get('squeeze', True))
+            return self.read(subscript, squeeze=squeeze)
 
     def read(
             self,
-            subscript: Union[None, int, slice, Tuple[Union[int, slice], ...]],
+            subscript: Union[None, int, slice, Sequence[Union[int, slice, Tuple[int, ...]]]],
             squeeze=True) -> numpy.ndarray:
         """
         In keeping with data segment mode, read the data slice specified relative
@@ -562,7 +598,7 @@ class DataSegment(object):
 
         Parameters
         ----------
-        subscript : int|slice|tuple
+        subscript : None|int|slice|Sequence[int|slice|Tuple[int, ...]]
         squeeze : bool
             Apply the numpy.squeeze operation, which eliminates dimension of size 1?
 
@@ -583,7 +619,7 @@ class DataSegment(object):
     # noinspection PyTypeChecker
     def read_raw(
             self,
-            subscript: Union[None, int, slice, Tuple[Union[int, slice], ...]],
+            subscript: Union[None, int, slice, Sequence[Union[int, slice, Tuple[int, ...]]]],
             squeeze=True) -> numpy.ndarray:
         """
         In keeping with data segment mode, read raw data from the source, without
@@ -592,7 +628,7 @@ class DataSegment(object):
 
         Parameters
         ----------
-        subscript : slice|Tuple[slice, ...]
+        subscript : None|int|slice|Sequence[int|slice|Tuple[int, ...]]
             These arguments are relative to raw data shape and order, no symmetry
             operations have been applied.
         squeeze : bool
@@ -623,7 +659,7 @@ class DataSegment(object):
             self,
             data: numpy.ndarray,
             start_indices: Union[None, int, Tuple[int, ...]] = None,
-            subscript: Union[None, Tuple[slice, ...]] = None,
+            subscript: Union[None, Sequence[slice]] = None,
             **kwargs) -> None:
         """
         In keeping with data segment mode, write the data provided in formatted
@@ -642,7 +678,7 @@ class DataSegment(object):
             Assuming a contiguous chunk of data, this provides the starting
             indices of the chunk. Any missing (tail) coordinates will be filled
             in with 0's.
-        subscript : None|Tuple[slice, ...]
+        subscript : None|Sequence[slice]
             The subscript definition in formatted coordinates.
         kwargs
 
@@ -677,7 +713,7 @@ class DataSegment(object):
             self,
             data: numpy.ndarray,
             start_indices: Union[None, int, Tuple[int, ...]] = None,
-            subscript: Union[None, Tuple[slice, ...]] = None,
+            subscript: Union[None, Sequence[slice]] = None,
             **kwargs) -> None:
         """
         In keeping with data segment mode, write the data provided in raw form,
@@ -802,7 +838,7 @@ class ReorientationSegment(DataSegment):
         parent : DataSegment
         formatted_dtype : str|numpy.dtype
         formatted_shape : Tuple[int, ...]
-        reverse_axes : None|int|Sequence[int, ...]
+        reverse_axes : None|int|Sequence[int]
             The collection of axes (in raw order) to reverse, prior to applying
             transpose operation
         transpose_axes : None|Tuple[int, ...]
@@ -863,7 +899,7 @@ class ReorientationSegment(DataSegment):
 
     def read_raw(
             self,
-            subscript: Union[None, int, slice, Tuple[Union[int, slice], ...]],
+            subscript: Union[None, int, slice, Sequence[Union[int, slice, Tuple[int, ...]]]],
             squeeze=True) -> numpy.ndarray:
 
         self._validate_closed()
@@ -879,7 +915,7 @@ class ReorientationSegment(DataSegment):
             self,
             data: numpy.ndarray,
             start_indices: Union[None, int, Tuple[int, ...]] = None,
-            subscript: Union[None, Tuple[slice, ...]] = None,
+            subscript: Union[None, Sequence[slice]] = None,
             **kwargs):
         """
         In keeping with data segment mode, write the data provided in raw form,
@@ -901,7 +937,7 @@ class ReorientationSegment(DataSegment):
             Assuming a contiguous chunk of data, this provides the starting
             indices of the chunk. Any missing (tail) coordinates will be filled
             in with 0's.
-        subscript : None|Tuple[slice, ...]
+        subscript : None|Sequence[slice]
             The subscript definition in raw coordinates.
         kwargs
 
@@ -966,7 +1002,7 @@ class SubsetSegment(DataSegment):
         Parameters
         ----------
         parent : DataSegment
-        subset_definition : tuple
+        subset_definition : Tuple[slice, ...]
         coordinate_basis : str
             The coordinate basis for the subset definition, it should be one of
             `('raw', 'formatted')`.
@@ -998,7 +1034,7 @@ class SubsetSegment(DataSegment):
         return self._parent
 
     @property
-    def formatted_subset_definition(self) -> Tuple[slice]:
+    def formatted_subset_definition(self) -> Tuple[slice, ...]:
         """
         Tuple[slice]: The subset definition, in formatted coordinates.
         """
@@ -1006,7 +1042,7 @@ class SubsetSegment(DataSegment):
         return self._formatted_subset_definition
 
     @property
-    def raw_subset_definition(self) -> Tuple[slice]:
+    def raw_subset_definition(self) -> Tuple[slice, ...]:
         """
         Tuple[slice]: The subset definition, in raw coordinates.
         """
@@ -1132,13 +1168,13 @@ class SubsetSegment(DataSegment):
 
     def get_parent_raw_subscript(
             self,
-            subscript: Union[None, int, slice, Tuple[slice, ...]]) -> Tuple[slice, ...]:
+            subscript: Union[None, int, slice, Sequence[Union[int, slice]]]) -> Tuple[slice, ...]:
         """
         Gets the raw parent subscript from the raw subset subscript definition.
 
         Parameters
         ----------
-        subscript : Tuple[slice, ...]
+        subscript : None|int|slice|Sequence[int|slice]
 
         Returns
         -------
@@ -1151,13 +1187,13 @@ class SubsetSegment(DataSegment):
 
     def get_parent_formatted_subscript(
             self,
-            subscript: Union[None, int, slice, Tuple[slice, ...]]) -> Tuple[slice, ...]:
+            subscript: Union[None, int, slice, Sequence[Union[int, slice]]]) -> Tuple[slice, ...]:
         """
         Gets the formatted parent subscript from the formatted subset subscript definition.
 
         Parameters
         ----------
-        subscript : Tuple[slice, ...]
+        subscript : None|int|slice|Sequence[int|slice]
 
         Returns
         -------
@@ -1170,7 +1206,7 @@ class SubsetSegment(DataSegment):
 
     def read_raw(
             self,
-            subscript: Union[None, int, slice, Tuple[Union[int, slice], ...]],
+            subscript: Union[None, int, slice, Sequence[Union[int, slice, Tuple[int, ...]]]],
             squeeze=True) -> numpy.ndarray:
         self._validate_closed()
         if self.mode != 'r':
@@ -1192,7 +1228,7 @@ class SubsetSegment(DataSegment):
 
     def read(
             self,
-            subscript: Union[None, int, tuple, slice, numpy.ndarray],
+            subscript: Union[None, int, slice, Sequence[Union[int, slice]]],
             squeeze=True) -> numpy.ndarray:
         self._validate_closed()
         if self.mode != 'r':
@@ -1247,7 +1283,7 @@ class SubsetSegment(DataSegment):
             self,
             data: numpy.ndarray,
             start_indices: Union[None, int, Tuple[int, ...]] = None,
-            subscript: Union[None, Tuple[slice, ...]] = None,
+            subscript: Union[None, Sequence[slice]] = None,
             **kwargs):
         self._validate_closed()
         self._verify_write_raw_details(data)
@@ -1338,7 +1374,7 @@ class BandAggregateSegment(DataSegment):
             and is not permitted to be reversed by reverse_axes.
         formatted_dtype : str|numpy.dtype
         formatted_shape : Tuple[int, ...]
-        reverse_axes : None|int|Sequence[int, ...]
+        reverse_axes : None|int|Sequence[int]
             The collection of axes (in raw order) to reverse, prior to applying
             transpose operation
         transpose_axes : None|Tuple[int, ...]
@@ -1474,7 +1510,7 @@ class BandAggregateSegment(DataSegment):
 
     def read_raw(
             self,
-            subscript: Union[None, int, slice, Tuple[Union[int, slice], ...]],
+            subscript: Union[None, int, slice, Sequence[Union[int, slice, Tuple[int, ...]]]],
             squeeze=True) -> numpy.ndarray:
         self._validate_closed()
         if self.mode != 'r':
@@ -1512,7 +1548,7 @@ class BandAggregateSegment(DataSegment):
             self,
             data: numpy.ndarray,
             start_indices: Union[None, int, Tuple[int, ...]] = None,
-            subscript: Union[None, Tuple[slice, ...]] = None,
+            subscript: Union[None, Sequence[slice]] = None,
             **kwargs):
         """
         In keeping with data segment mode, write the data provided in raw form,
@@ -1534,7 +1570,7 @@ class BandAggregateSegment(DataSegment):
             Assuming a contiguous chunk of data, this provides the starting
             indices of the chunk. Any missing (tail) coordinates will be filled
             in with 0's.
-        subscript : None|Tuple[slice, ...]
+        subscript : None|Sequence[slice]
             The subscript definition in raw coordinates.
         kwargs
 
@@ -1720,7 +1756,7 @@ class BlockAggregateSegment(DataSegment):
 
     def read_raw(
             self,
-            subscript: Union[None, int, slice, Tuple[Union[int, slice], ...]],
+            subscript: Union[None, int, slice, Sequence[Union[int, slice, Tuple[int, ...]]]],
             squeeze=True) -> numpy.ndarray:
         self._validate_closed()
         if self.mode != 'r':
@@ -1766,7 +1802,7 @@ class BlockAggregateSegment(DataSegment):
             self,
             data: numpy.ndarray,
             start_indices: Union[None, int, Tuple[int, ...]] = None,
-            subscript: Union[None, Tuple[slice, ...]] = None,
+            subscript: Union[None, Sequence[slice]] = None,
             **kwargs):
         """
         In keeping with data segment mode, write the data provided in raw form,
@@ -1788,7 +1824,7 @@ class BlockAggregateSegment(DataSegment):
             Assuming a contiguous chunk of data, this provides the starting
             indices of the chunk. Any missing (tail) coordinates will be filled
             in with 0's.
-        subscript : None|Tuple[slice, ...]
+        subscript : None|Sequence[slice]
             The subscript definition in raw coordinates.
         kwargs
 
@@ -1882,7 +1918,7 @@ class NumpyArraySegment(DataSegment):
         underlying_array : numpy.ndarray
         formatted_dtype : str|numpy.dtype
         formatted_shape : Tuple[int, ...]
-        reverse_axes : None|int|Sequence[int, ...]
+        reverse_axes : None|int|Sequence[int]
             The collection of axes (in raw order) to reverse, prior to applying
             transpose operation
         transpose_axes : None|Tuple[int, ...]
@@ -1937,7 +1973,7 @@ class NumpyArraySegment(DataSegment):
 
     def read_raw(
             self,
-            subscript: Union[None, int, slice, Tuple[Union[int, slice], ...]],
+            subscript: Union[None, int, slice, Sequence[Union[int, slice, Tuple[int, ...]]]],
             squeeze=True) -> numpy.ndarray:
         self._validate_closed()
         if self.mode != 'r':
@@ -1986,7 +2022,7 @@ class NumpyArraySegment(DataSegment):
             self,
             data: numpy.ndarray,
             start_indices: Optional[Union[int, Tuple[int, ...]]] = None,
-            subscript: Optional[Tuple[slice, ...]] = None,
+            subscript: Optional[Sequence[slice]] = None,
             **kwargs):
         self._validate_closed()
         self._verify_write_raw_details(data)
@@ -2057,7 +2093,7 @@ class NumpyMemmapSegment(NumpyArraySegment):
         raw_shape : Tuple[int, ...]
         formatted_dtype : str|numpy.dtype
         formatted_shape : Tuple[int, ...]
-        reverse_axes : None|int|Sequence[int, ...]
+        reverse_axes : None|int|Sequence[int]
             The collection of axes (in raw order) to reverse, prior to applying
             transpose operation
         transpose_axes : None|Tuple[int, ...]
@@ -2152,7 +2188,7 @@ class HDF5DatasetSegment(DataSegment):
         data_set : str|h5py.Dataset
         formatted_dtype : str|numpy.dtype
         formatted_shape : Tuple[int, ...]
-        reverse_axes : None|int|Sequence[int, ...]
+        reverse_axes : None|int|Sequence[int]
             The collection of axes (in raw order) to reverse, prior to applying
             transpose operation
         transpose_axes : None|Tuple[int, ...]
@@ -2231,7 +2267,7 @@ class HDF5DatasetSegment(DataSegment):
 
     def read_raw(
             self,
-            subscript: Union[None, int, slice, Tuple[Union[int, slice], ...]],
+            subscript: Union[None, int, slice, Sequence[Union[int, slice, Tuple[int, ...]]]],
             squeeze=True) -> numpy.ndarray:
         self._validate_closed()
         subscript, out_shape = get_subscript_result_size(subscript, self.raw_shape)
@@ -2264,7 +2300,7 @@ class HDF5DatasetSegment(DataSegment):
             self,
             data: numpy.ndarray,
             start_indices: Union[None, int, Tuple[int, ...]] = None,
-            subscript: Union[None, Tuple[slice, ...]] = None,
+            subscript: Union[None, Sequence[slice]] = None,
             **kwargs):
         raise NotImplementedError
 
@@ -2322,7 +2358,7 @@ class FileReadDataSegment(DataSegment):
         raw_shape : Tuple[int, ...]
         formatted_dtype : str|numpy.dtype
         formatted_shape : Tuple[int, ...]
-        reverse_axes : None|int|Sequence[int, ...]
+        reverse_axes : None|int|Sequence[int]
             The collection of axes (in raw order) to reverse, prior to applying
             transpose operation
         transpose_axes : None|Tuple[int, ...]
@@ -2381,7 +2417,7 @@ class FileReadDataSegment(DataSegment):
 
     def read_raw(
             self,
-            subscript: Union[None, int, slice, Tuple[Union[int, slice], ...]],
+            subscript: Union[None, int, slice, Sequence[Union[int, slice, Tuple[int, ...]]]],
             squeeze=True) -> numpy.ndarray:
         self._validate_closed()
         subscript, out_shape = get_subscript_result_size(subscript, self.raw_shape)
@@ -2429,8 +2465,11 @@ class FileReadDataSegment(DataSegment):
             self,
             data: numpy.ndarray,
             start_indices: Union[None, int, Tuple[int, ...]] = None,
-            subscript: Union[None, Tuple[slice, ...]] = None,
+            subscript: Union[None, Sequence[slice]] = None,
             **kwargs):
+
+        if self.mode != 'w':
+            raise ValueError('I/O Error, functionality requires mode == "w"')
         raise NotImplementedError
 
     def get_raw_bytes(self, warn: bool=True) -> Union[bytes, Tuple]:

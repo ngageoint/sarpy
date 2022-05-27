@@ -5,7 +5,7 @@ Utilities for parsing slice input.
 __classification__ = "UNCLASSIFIED"
 __author__ = 'Thomas McCullough'
 
-from typing import Union, Tuple
+from typing import Union, Tuple, Sequence
 import numpy
 
 
@@ -71,7 +71,7 @@ def verify_slice(item: Union[None, int, slice, Tuple[int, ...]], max_element: in
     if not isinstance(max_element, int) or max_element < 1:
         raise ValueError('slice verification requires a positive integer limit')
 
-    if isinstance(item, tuple):
+    if isinstance(item, Sequence):
         item = slice(*item)
 
     if item is None:
@@ -100,7 +100,7 @@ def verify_slice(item: Union[None, int, slice, Tuple[int, ...]], max_element: in
 
 
 def verify_subscript(
-        subscript: Union[None, int, slice, Tuple[int, ...], Tuple[slice, ...]],
+        subscript: Union[None, int, slice, Sequence[Union[int, slice, Tuple[int, ...]]]],
         corresponding_shape: Tuple[int, ...]) -> Tuple[slice, ...]:
     """
     Verify a subscript like item against a corresponding shape.
@@ -109,7 +109,7 @@ def verify_subscript(
 
     Parameters
     ----------
-    subscript : None|int|slice|Tuple[int, ...]|Tuple[slice, ...]
+    subscript : None|int|slice|Sequence[int|slice|Tuple[int, ...]]
     corresponding_shape : Tuple[int, ...]
 
     Returns
@@ -129,7 +129,7 @@ def verify_subscript(
         out = [verify_slice(subscript, corresponding_shape[0]), ]
         out.extend([slice(0, corresponding_shape[i], 1) for i in range(1, ndim)])
         return tuple(out)
-    elif isinstance(subscript, tuple):
+    elif isinstance(subscript, Sequence):
         # check for Ellipsis usage...
         ellipsis_location = None
         for index, entry in enumerate(subscript):
@@ -159,7 +159,8 @@ def verify_subscript(
         if len(out) < ndim:
             out.extend([slice(0, corresponding_shape[i], 1) for i in range(len(out), ndim)])
         return tuple(out)
-
+    else:
+        raise ValueError('Got unhandled subscript {}'.format(subscript))
 
 def get_slice_result_size(slice_in: slice) -> int:
     """
@@ -186,7 +187,7 @@ def get_slice_result_size(slice_in: slice) -> int:
 
 
 def get_subscript_result_size(
-        subscript: Union[None, int, slice, Tuple[slice, ...]],
+        subscript: Union[None, int, slice, Sequence[Union[int, slice, Tuple[int, ...]]]],
         corresponding_shape: Tuple[int, ...]) -> (Tuple[slice, ...], Tuple[int, ...]):
     """
     Validate the given subscript against the corresponding shape, and also determine

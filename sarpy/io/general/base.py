@@ -18,7 +18,8 @@ import numpy
 
 from sarpy.compliance import SarpyError
 from sarpy.io.general.format_function import FormatFunction
-from sarpy.io.general.data_segment import DataSegment, NumpyArraySegment
+from sarpy.io.general.data_segment import DataSegment, extract_string_from_subscript, \
+    NumpyArraySegment
 
 logger = logging.getLogger(__name__)
 
@@ -279,6 +280,14 @@ class BaseReader(object):
 
         return self._delete_temp_files
 
+    @property
+    def closed(self) -> bool:
+        """
+        bool: Is the reader closed? Reading will result in a ValueError
+        """
+
+        return self._closed
+
     def _validate_closed(self):
         if not hasattr(self, '_closed') or self._closed:
             raise ValueError('I/O operation of closed writer')
@@ -310,7 +319,7 @@ class BaseReader(object):
 
     def read(
             self,
-            *ranges: Sequence[Union[None, int, Tuple[int, ...], slice]],
+            *ranges: Union[None, int, Tuple[int, ...], slice],
             index: int = 0,
             squeeze: bool = True) -> numpy.ndarray:
         """
@@ -340,7 +349,7 @@ class BaseReader(object):
 
     def read_raw(
             self,
-            *ranges: Sequence[Union[None, int, Tuple[int, ...], slice]],
+            *ranges: Union[None, int, Tuple[int, ...], slice],
             index: int = 0,
             squeeze: bool = True) -> numpy.ndarray:
         """
@@ -369,7 +378,7 @@ class BaseReader(object):
 
     def __call__(
             self,
-            *ranges: Sequence[Union[None, int, slice]],
+            *ranges: Union[None, int, Tuple[int, ...], slice],
             index: int = 0,
             raw: bool = False,
             squeeze: bool = True) -> numpy.ndarray:
@@ -382,7 +391,7 @@ class BaseReader(object):
             subscript = []
             for rng in ranges:
                 if rng is None:
-                    subscript.append(slice(None, None, None))
+                    subscript.append(slice(None, None, 1))
                 elif isinstance(rng, int):
                     subscript.append(slice(rng))
                 elif isinstance(rng, tuple):
@@ -391,7 +400,6 @@ class BaseReader(object):
                     subscript.append(rng)
                 else:
                     raise TypeError('Got unexpected type `{}` value for range/slice'.format(type(rng)))
-
         if isinstance(self._data_segment, tuple):
             ds = self.data_segment[index]
         else:
@@ -403,13 +411,20 @@ class BaseReader(object):
             return ds.read(subscript, squeeze=squeeze)
 
     def __getitem__(self, subscript) -> numpy.ndarray:
-        if self.image_count == 1:
-            return self.__call__(subscript, index=0, raw=False, squeeze=True)
+        # TODO: document the str usage and index determination
 
-        if isinstance(subscript, tuple):
-            if not isinstance(subscript[-1], slice):
-                return self.__call__(subscript[:-1], index=subscript[-1], raw=False, squeeze=True)
-        return self.__call__(subscript, index=0, raw=False, squeeze=True)
+        subscript, string_entries = extract_string_from_subscript(subscript)
+        if not isinstance(subscript, (tuple, list)):
+            subscript = (subscript, )
+
+        raw = ('raw' in string_entries)
+        squeeze = ('nosqueeze' not in string_entries)
+
+        if isinstance(subscript[-1], int):
+            the_index = subscript[-1]
+            if -self.image_count < the_index < self.image_count:
+                return self.__call__(*subscript[:-1], index=subscript[-1], raw=raw, squeeze=squeeze)
+        return self.__call__(*subscript, index=0, raw=raw, squeeze=squeeze)
 
     def close(self) -> None:
         """
@@ -558,7 +573,7 @@ class AggregateReader(BaseReader):
 
         # prepare the index mapping workspace
         index_mapping = []
-        # assemble the chipper arguments
+
         segments = []
         for i, reader in enumerate(self._readers):
             for j, segment in enumerate(reader.get_data_segment_as_tuple()):
@@ -664,6 +679,14 @@ class BaseWriter(object):
 
         return tuple(entry.raw_shape for entry in self.data_segment)
 
+    @property
+    def closed(self) -> bool:
+        """
+        bool: Is the reader closed? Reading will result in a ValueError
+        """
+
+        return self._closed
+
     def _validate_closed(self):
         if not hasattr(self, '_closed') or self._closed:
             raise ValueError('I/O operation of closed writer')
@@ -752,7 +775,7 @@ class BaseWriter(object):
         See :meth:`sarpy.io.general.data_segment.DataSegment.write_raw`.
         """
 
-        self.__call__(data, start_indices=start_indices, subscript=subscript, index=index, raw=False)
+        self.__call__(data, start_indices=start_indices, subscript=subscript, index=index, raw=True)
 
     def __call__(
             self,
@@ -783,7 +806,7 @@ class BaseWriter(object):
         if raw:
             return ds.write_raw(data, start_indices=start_indices, subscript=subscript)
         else:
-            if ds.can_write_regular:
+            if not ds.can_write_regular:
                 raise ValueError(
                     'The data segment at index {} can not convert from formatted data to raw data.\n\t'
                     'It is only permitted to use the write_raw() function on this data set,\n\t'
@@ -818,7 +841,6 @@ class BaseWriter(object):
             return
 
         try:
-            self._closed = True
             # flush the data
             self.flush(force=True)
             # close all the segments
@@ -826,7 +848,9 @@ class BaseWriter(object):
                 for entry in self._data_segment:
                     entry.close()
             self._data_segment = None
+            self._closed = True
         except AttributeError:
+            self._closed = True
             return
 
     def __del__(self):
