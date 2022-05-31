@@ -912,12 +912,9 @@ class SICDWriter(NITFWriter):
         if complex_order is not None and complex_order != 'IQ':
             if complex_order != 'MP' or raw_dtype.name != 'uint8' or band_dimension != 2:
                 raise ValueError('Got unsupported SICD band type definition')
-            return ComplexFormatFunction(
-                raw_dtype,
-                complex_order,
-                band_dimension=band_dimension,
-                amplitude_scaling=self.sicd_meta.ImageData.AmpTable)
+            if self.sicd_meta.ImageData.PixelType != 'AMP8I_PH8I' or self.sicd_meta.ImageData.AmpTable is None:
+                raise ValueError('Expected AMP8I_PH8I')
+            return AmpLookupFunction(raw_dtype, self.sicd_meta.ImageData.AmpTable)
         return NITFWriter.get_format_function(
             self, raw_dtype, complex_order, lut, band_dimension, image_segment_index, **kwargs)
-
 

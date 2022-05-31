@@ -1841,9 +1841,7 @@ class NITFReader(BaseReader):
         block_bounds = self._construct_block_bounds(image_segment_index)
         assert isinstance(block_bounds, list)
 
-        bytes_per_pixel = raw_bands*raw_dtype.itemsize
         block_size = image_header.get_uncompressed_block_size()
-        print(image_header.NROWS, image_header.NCOLS, bytes_per_pixel, block_size)
 
         if image_header.IMODE == 'B':
             # order inside the block is (bands, rows, columns)
@@ -2776,7 +2774,8 @@ class ImageSubheaderManager(SubheaderManager):
             return
 
         SubheaderManager.write_subheader(self, file_object)
-        file_object.write(self.subheader.mask_subheader.to_bytes())
+        if self.subheader.mask_subheader is not None:
+            file_object.write(self.subheader.mask_subheader.to_bytes())
 
     def write_item(self, file_object: BinaryIO) -> None:
         if self.item_written:
@@ -2890,7 +2889,6 @@ class NITFWritingDetails(object):
         self._res_managers = None
 
         self.header = header
-        self._header_size = header.get_bytes_length()  # type: int
         self.image_managers = image_managers
         self.image_segment_collections = image_segment_collections
         self.image_segment_coordinates = image_segment_coordinates
@@ -2898,6 +2896,10 @@ class NITFWritingDetails(object):
         self.text_managers = text_managers
         self.des_managers = des_managers
         self.res_managers = res_managers
+
+        # set nominal size arrays (for header size purposes), to be corrected later
+        self.set_all_sizes(require=False)
+        self._header_size = header.get_bytes_length()  # type: int
 
     @property
     def header(self) -> NITFHeader:
@@ -3131,7 +3133,8 @@ class NITFWritingDetails(object):
     def _get_sizes(
             self,
             managers: Optional[Sequence[SubheaderManager]],
-            name: str) -> Tuple[Optional[numpy.ndarray], Optional[numpy.ndarray]]:
+            name: str,
+            require: bool = False) -> Tuple[Optional[numpy.ndarray], Optional[numpy.ndarray]]:
         if managers is None:
             return None, None
 
@@ -3141,8 +3144,11 @@ class NITFWritingDetails(object):
             subhead_sizes[i] = entry.subheader_size
             item_size = entry.item_size
             if item_size is None:
-                raise ValueError('item_size for {} at index {} is unset'.format(name, item_size))
-            item_sizes[i] = entry.item_size
+                if require:
+                    raise ValueError('item_size for {} at index {} is unset'.format(name, item_size))
+                else:
+                    item_size = 0
+            item_sizes[i] = item_size
         return subhead_sizes, item_sizes
 
     def _write_items(self, managers: Optional[Sequence[SubheaderManager]], file_object: BinaryIO) -> None:
@@ -3162,7 +3168,7 @@ class NITFWritingDetails(object):
             if not entry.item_written:
                 logger.error('{} data at index {} not written'.format(name, index))
 
-    def _get_image_sizes(self) -> ImageSegmentsType:
+    def _get_image_sizes(self, require: bool = False) -> ImageSegmentsType:
         """
         Gets the image sizes details for the NITF header.
 
@@ -3171,22 +3177,27 @@ class NITFWritingDetails(object):
         ImageSegmentsType
         """
 
-        subhead_sizes, item_sizes = self._get_sizes(self.image_managers, 'Image')
+        subhead_sizes, item_sizes = self._get_sizes(self.image_managers, 'Image', require=require)
         return ImageSegmentsType(subhead_sizes=subhead_sizes, item_sizes=item_sizes)
 
-    def _get_graphics_sizes(self) -> GraphicsSegmentsType:
+    def _get_graphics_sizes(self, require: bool = False) -> GraphicsSegmentsType:
         """
         Gets the graphics sizes details for the NITF header.
+
+        Parameters
+        ----------
+        require : bool
+            Require all sizes to be set?
 
         Returns
         -------
         ImageSegmentsType
         """
 
-        subhead_sizes, item_sizes = self._get_sizes(self.graphics_managers, 'Graphics')
+        subhead_sizes, item_sizes = self._get_sizes(self.graphics_managers, 'Graphics', require=require)
         return GraphicsSegmentsType(subhead_sizes=subhead_sizes, item_sizes=item_sizes)
 
-    def _get_text_sizes(self) -> TextSegmentsType:
+    def _get_text_sizes(self, require: bool = False) -> TextSegmentsType:
         """
         Gets the text sizes details for the NITF header.
 
@@ -3195,10 +3206,10 @@ class NITFWritingDetails(object):
         TextSegmentsType
         """
 
-        subhead_sizes, item_sizes = self._get_sizes(self.text_managers, 'Text')
+        subhead_sizes, item_sizes = self._get_sizes(self.text_managers, 'Text', require=require)
         return TextSegmentsType(subhead_sizes=subhead_sizes, item_sizes=item_sizes)
 
-    def _get_des_sizes(self) -> DataExtensionsType:
+    def _get_des_sizes(self, require: bool = False) -> DataExtensionsType:
         """
         Gets the image sizes details for the NITF header.
 
@@ -3207,10 +3218,10 @@ class NITFWritingDetails(object):
         ImageSegmentsType
         """
 
-        subhead_sizes, item_sizes = self._get_sizes(self.des_managers, 'DES')
+        subhead_sizes, item_sizes = self._get_sizes(self.des_managers, 'DES', require=require)
         return DataExtensionsType(subhead_sizes=subhead_sizes, item_sizes=item_sizes)
 
-    def _get_res_sizes(self) -> ReservedExtensionsType:
+    def _get_res_sizes(self, require: bool = False) -> ReservedExtensionsType:
         """
         Gets the image sizes details for the NITF header.
 
@@ -3219,7 +3230,7 @@ class NITFWritingDetails(object):
         ImageSegmentsType
         """
 
-        subhead_sizes, item_sizes = self._get_sizes(self.res_managers, 'RES')
+        subhead_sizes, item_sizes = self._get_sizes(self.res_managers, 'RES', require=require)
         return ReservedExtensionsType(subhead_sizes=subhead_sizes, item_sizes=item_sizes)
 
     def set_first_image_offset(self) -> None:
@@ -3253,21 +3264,27 @@ class NITFWritingDetails(object):
             out &= (entry.subheader.IC in ['NC', 'NM'])
         return out
 
-    def verify_all_sizes(self) -> None:
+    def set_all_sizes(self, require: bool = False) -> None:
         """
-        This verifies that all the item_size values are set and populates the
-        size information in the nitf header.
+        This sets the nominal size information in the nitf header, and optionally
+        verifies that all the item_size values are set.
+
+        Parameters
+        ----------
+        require : bool
+            Require all sizes to be set? `0` will be used a as placeholder for
+            header information population.
 
         Returns
         -------
         None
         """
 
-        self.header.ImageSegments = self._get_image_sizes()
-        self.header.GraphicsSegments = self._get_graphics_sizes()
-        self.header.TextSegments = self._get_text_sizes()
-        self.header.DataExtensions = self._get_des_sizes()
-        self.header.ReservedExtensions = self._get_res_sizes()
+        self.header.ImageSegments = self._get_image_sizes(require=require)
+        self.header.GraphicsSegments = self._get_graphics_sizes(require=require)
+        self.header.TextSegments = self._get_text_sizes(require=require)
+        self.header.DataExtensions = self._get_des_sizes(require=require)
+        self.header.ReservedExtensions = self._get_res_sizes(require=require)
 
     def verify_all_offsets(self, require: bool = False) -> bool:
         """
@@ -3292,13 +3309,13 @@ class NITFWritingDetails(object):
                     raise ValueError(
                         'image manager at index {} has subheader offset which does not agree\n\t'
                         'with the end of the previous element'.format(index))
-                last_offset = entry.end_of_item
-                if last_offset is None:
+                if entry.item_size is None or entry.item_size == 0:
                     if require:
                         raise ValueError(
-                            'image manager at index {} has end_of_item (i.e item_size) unpopulated.'.format(index))
+                            'image manager at index {} has item_size unpopulated or populated as 0'.format(index))
                     else:
                         return False
+                last_offset = entry.end_of_item
 
         if self.graphics_managers is not None:
             for index, entry in enumerate(self.graphics_managers):
@@ -3308,13 +3325,13 @@ class NITFWritingDetails(object):
                     raise ValueError(
                         'graphics manager at index {} has subheader offset which does not agree\n\t'
                         'with the end of the previous element'.format(index))
-                last_offset = entry.end_of_item
-                if last_offset is None:
+                if entry.item_size is None or entry.item_size == 0:
                     if require:
                         raise ValueError(
-                            'graphics manager at index {} has end_of_item unpopulated.'.format(index))
+                            'graphics manager at index {} has item_size unpopulated or populated as 0'.format(index))
                     else:
                         return False
+                last_offset = entry.end_of_item
 
         if self.text_managers is not None:
             for index, entry in enumerate(self.text_managers):
@@ -3324,13 +3341,13 @@ class NITFWritingDetails(object):
                     raise ValueError(
                         'text manager at index {} has subheader offset which does not agree\n\t'
                         'with the end of the previous element'.format(index))
-                last_offset = entry.end_of_item
-                if last_offset is None:
+                if entry.item_size is None or entry.item_size == 0:
                     if require:
                         raise ValueError(
-                            'text manager at index {} has end_of_item unpopulated.'.format(index))
+                            'text manager at index {} has item_size unpopulated or populated as 0'.format(index))
                     else:
                         return False
+                last_offset = entry.end_of_item
 
         if self.des_managers is not None:
             for index, entry in enumerate(self.des_managers):
@@ -3340,13 +3357,13 @@ class NITFWritingDetails(object):
                     raise ValueError(
                         'des manager at index {} has subheader offset which does not agree\n\t'
                         'with the end of the previous element'.format(index))
-                last_offset = entry.end_of_item
-                if last_offset is None:
+                if entry.item_size is None or entry.item_size == 0:
                     if require:
                         raise ValueError(
-                            'des manager at index {} has end_of_item unpopulated.'.format(index))
+                            'des manager at index {} has item_size unpopulated or populated as 0'.format(index))
                     else:
                         return False
+                last_offset = entry.end_of_item
 
         if self.res_managers is not None:
             for index, entry in enumerate(self.res_managers):
@@ -3356,13 +3373,13 @@ class NITFWritingDetails(object):
                     raise ValueError(
                         'res manager at index {} has subheader offset which does not agree\n\t'
                         'with the end of the previous element'.format(index))
-                last_offset = entry.end_of_item
-                if last_offset is None:
+                if entry.item_size is None or entry.item_size == 0:
                     if require:
                         raise ValueError(
-                            'res manager at index {} has end_of_item unpopulated.'.format(index))
+                            'res manager at index {} has item_size unpopulated or populated as 0'.format(index))
                     else:
                         return False
+                last_offset = entry.end_of_item
         self.header.FL = last_offset
         return True
 
@@ -3409,6 +3426,7 @@ class NITFWritingDetails(object):
         if self._header_written and not overwrite:
             return
         the_bytes = self.header.to_bytes()
+        print(self.header.get_bytes_length(), len(the_bytes))
         if len(the_bytes) != self._header_size:
             raise ValueError(
                 'The anticipated header length {}\n\t'
@@ -3512,7 +3530,7 @@ class NITFWriter(BaseWriter):
 
         data_segments = self.get_data_segments()
 
-        self.nitf_writing_details.verify_all_sizes()  # NB: while no compression supported...
+        self.nitf_writing_details.set_all_sizes(require=True)  # NB: while no compression supported...
         if not self._in_memory:
             self.nitf_writing_details.write_all_populated_items(self._file_object)
         BaseWriter.__init__(self, data_segments)
@@ -3810,7 +3828,7 @@ class NITFWriter(BaseWriter):
                 image_segment_index=image_segment_index)
             use_transpose = None
             use_reverse = None
-            formatted_shape = _get_shape(image_header.NCOLS, image_header.NROWS, formatted_bands, band_dimension=2)
+            formatted_shape = _get_shape(image_header.NROWS, image_header.NCOLS, formatted_bands, band_dimension=2)
         else:
             format_function = None
             use_transpose = None

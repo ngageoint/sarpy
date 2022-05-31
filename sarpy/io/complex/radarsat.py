@@ -138,6 +138,8 @@ def _construct_single_nitf_segment(the_sicd, the_file, reverse_axes, transpose_a
     DataSegment
     """
 
+    if transpose_axes is not None:
+        transpose_axes = transpose_axes[:2]
     reader = ComplexNITFReader(the_file, reverse_axes=reverse_axes, transpose_axes=transpose_axes)
     data_segment = reader.data_segment
     if not isinstance(data_segment, DataSegment):
@@ -163,6 +165,8 @@ def _construct_multiple_nitf_segment(the_sicds, the_file, reverse_axes, transpos
     Tuple[DataSegment, ...]
     """
 
+    if transpose_axes is not None:
+        transpose_axes = transpose_axes[:2]
     reader = ComplexNITFReader(the_file, reverse_axes=reverse_axes, transpose_axes=transpose_axes)
     data_segment = reader.get_data_segment_as_tuple()
     if len(data_segment) != len(the_sicds):

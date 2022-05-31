@@ -11,7 +11,6 @@ import hashlib
 import os
 import warnings
 import struct
-import io
 import mmap
 
 
@@ -65,7 +64,13 @@ def is_real_file(the_input: BinaryIO) -> bool:
     bool
     """
 
-    return isinstance(the_input, io.FileIO)
+    if not hasattr(the_input, 'fileno'):
+        return False
+    try:
+        fileno = the_input.fileno()
+        return isinstance(fileno, int) and (fileno >= 0)
+    except Exception:
+        return False
 
 
 def _fetch_initial_bytes(file_name: Union[str, BinaryIO], size: int) -> Union[None, bytes]:

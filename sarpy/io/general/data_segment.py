@@ -164,7 +164,7 @@ def _infer_subscript_for_write(
 
         if len(start_indices) < len(full_shape):
             start_indices = start_indices + tuple(0 for _ in range(len(start_indices), len(full_shape)))
-        subscript = tuple([slice(entry1, entry2, 1) for entry1, entry2 in zip(start_indices, data.shape)])
+        subscript = tuple([slice(entry1, entry1+entry2, 1) for entry1, entry2 in zip(start_indices, data.shape)])
     subscript, result_shape = get_subscript_result_size(subscript, full_shape)
     if result_shape != data.shape:
         raise ValueError(
