@@ -515,7 +515,7 @@ class DataSegment(object):
             Guaranteed to be a tuple of slices of length `raw_ndim`.
         """
 
-        return verify_subscript(subscript, self._formatted_shape)
+        return verify_subscript(subscript, self._raw_shape)
 
     def verify_formatted_subscript(
             self,
@@ -613,7 +613,6 @@ class DataSegment(object):
             raise ValueError('Requires mode = "r"')
         norm_subscript = self.verify_formatted_subscript(subscript)
         raw_subscript = self.format_function.transform_formatted_slice(norm_subscript)
-
         raw_data = self.read_raw(raw_subscript, squeeze=False)
         return self.format_function(raw_data, raw_subscript, squeeze=squeeze)
 
@@ -982,7 +981,8 @@ class ReorientationSegment(DataSegment):
 
 class SubsetSegment(DataSegment):
     """
-    Define a subset of a given DataSegment.
+    Define a subset of a given DataSegment, with formatting handled by the
+    parent data segment.
 
     Introduced in version 1.3.0.
     """
@@ -1029,6 +1029,10 @@ class SubsetSegment(DataSegment):
             self._expected_pixels_written = int(numpy.prod(raw_shape))
         else:
             self._expected_pixels_written = 0
+
+    def _validate_shapes(self) -> None:
+        # handled else where
+        pass
 
     @property
     def parent(self) -> DataSegment:
@@ -1090,7 +1094,7 @@ class SubsetSegment(DataSegment):
             raw_def = self.parent.verify_raw_subscript(subset_definition)
             form_def = self.parent.format_function.transform_raw_slice(raw_def)
         elif coordinate_basis == 'formatted':
-            form_def = self.verify_formatted_subscript(subset_definition)
+            form_def = self.parent.verify_formatted_subscript(subset_definition)
             raw_def = self.parent.format_function.transform_formatted_slice(form_def)
         else:
             raise ValueError('Got unexpected coordinate basis `{}`'.format(coordinate_basis))
@@ -1338,7 +1342,7 @@ class SubsetSegment(DataSegment):
                 self.parent.close()
             DataSegment.close(self)
             self._parent = None
-        except AttributeError:
+        except (ValueError, AttributeError):
             return
 
 

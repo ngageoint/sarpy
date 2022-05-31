@@ -717,18 +717,21 @@ class ComplexFormatFunction(FormatFunction):
                         'Slicing along the complex dimension and applying this format function\n\t'
                         'is only only permitted using step +/-1')
                 if temp_sl.step > 0:
-                    start = 2*temp_sl.start
+                    start = 2*temp_sl.start if index == self.band_dimension else temp_sl.start
                     # noinspection PyTypeChecker
-                    stop = 2*temp_sl.stop
+                    stop = 2*temp_sl.stop if index == self.band_dimension else temp_sl.stop
                     out.append(slice(start, stop, 1))
                 elif temp_sl.step < 0:
-                    start = 2*temp_sl.start
-                    # noinspection PyTypeChecker
-                    stop = None if temp_sl.stop is None else 2*temp_sl.stop
+                    start = 2*temp_sl.start if index == self.band_dimension else temp_sl.start
+                    if temp_sl.stop is None:
+                        stop = None
+                    elif index == self.band_dimension:
+                        stop = 2*temp_sl.stop
+                    else:
+                        stop = temp_sl.stop
                     out.append(slice(start, stop, -1))
             else:
                 out.append(reformat_slice(use_subscript[index], shape_limit, rev))
-
         return tuple(out)
 
     def transform_raw_slice(

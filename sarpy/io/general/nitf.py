@@ -1965,7 +1965,6 @@ class NITFReader(BaseReader):
             child_def = _get_subscript_def(
                 row_start, row_end, col_start, col_end, raw_bands, raw_band_dimension)
             child_arrangement.append(child_def)
-
         return BlockAggregateSegment(
             data_segments, child_arrangement, 'raw', 0, raw_shape,
             formatted_dtype, formatted_shape, reverse_axes=reverse_axes,
