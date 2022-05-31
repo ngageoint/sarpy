@@ -919,3 +919,5 @@ class SICDWriter(NITFWriter):
                 amplitude_scaling=self.sicd_meta.ImageData.AmpTable)
         return NITFWriter.get_format_function(
             self, raw_dtype, complex_order, lut, band_dimension, image_segment_index, **kwargs)
+
+

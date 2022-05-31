@@ -79,6 +79,31 @@ class TestBaseReader(unittest.TestCase):
         with self.assertRaises(ValueError, msg='read_raw access when closed'):
             _ = reader.read_raw()
 
+    def test_read_with_symmetry(self):
+        data = numpy.reshape(numpy.arange(24, dtype='int16'), (3, 4, 2))
+
+        complex_data = numpy.empty((3, 4), dtype='complex64')
+        complex_data.real = data[:, :, 0]
+        complex_data.imag = data[:, :, 1]
+        complex_data = numpy.transpose(complex_data)
+
+        data_segment = NumpyArraySegment(
+            data, formatted_dtype='complex64', formatted_shape=(4, 3),
+            transpose_axes=(1, 0, 2),
+            format_function=ComplexFormatFunction('int16', 'IQ', band_dimension=2),
+            mode='r')
+        reader = BaseReader(data_segment)
+
+        with self.subTest(msg='read full'):
+            test_data = reader.read()
+            self.assertTrue(numpy.all(complex_data == test_data))
+
+        with self.subTest(msg='read subscript'):
+            subscript = (slice(1, 3, 1), slice(0, 2, 1))
+            test_data = reader.read(*subscript)
+            self.assertTrue(numpy.all(test_data == complex_data[subscript]))
+
+
 class TestBaseWriter(unittest.TestCase):
     def test_write(self):
         data = numpy.reshape(numpy.arange(24, dtype='int16'), (3, 4, 2))

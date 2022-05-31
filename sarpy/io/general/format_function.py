@@ -56,8 +56,8 @@ def reformat_slice(
         raise ValueError('input slice has negative stop value')
 
     if mirror:
-        # reverse the indexing/ordering of the slice, and ensure that the
-        # step gets handled properly
+        # make the mirror image of the slice, the step maintains the same sign,
+        # and will be reversed by the format function
         if sl_in.step > 0:
             start_in = 0 if sl_in.start is None else sl_in.start
             stop_in = limit_in if sl_in.stop is None else sl_in.stop
@@ -66,35 +66,21 @@ def reformat_slice(
             else:
                 step_in = sl_in.step
 
-            # are we fetching the whole dimension?
-            if step_in == 1 and start_in == 0 and stop_in == limit_in:
-                return slice(limit_in - 1, None, -1)
-
-            count = int((stop_in - start_in) / float(step_in))
-
-            if count == 1:
-                return slice(limit_in - (start_in + 1), limit_in - start_in, 1)
-
-            last_entry = start_in + (count - 1) * sl_in.step
-            if start_in == 0:
-                return slice(limit_in - 1 - last_entry, None, -sl_in.step)
-            else:
-                return slice(limit_in - 1 - last_entry, limit_in - start_in, -sl_in.step)
+            # what is the last included location?
+            count = int((stop_in - start_in)/float(step_in))
+            final_location = start_in + count*step_in
+            return slice(limit_in - final_location, limit_in - start_in, step_in)
         else:
             start_in = limit_in - 1 if sl_in.start is None else sl_in.start
             stop_in = -1 if sl_in.stop is None else sl_in.stop
 
-            # are we fetching the whole dimension?
-            if sl_in.step == -1 and start_in == limit_in - 1 and stop_in == -1:
-                return slice(0, None, 1)
-
-            count = int((stop_in - start_in) / float(sl_in.step))
-
-            if count == 0:
-                return slice(limit_in - (start_in + 1), limit_in - start_in, 1)
-
-            last_entry = start_in + (count - 1) * sl_in.step
-            return slice(limit_in - 1 - last_entry, limit_in - start_in, -sl_in.step)
+            if sl_in.step < (stop_in - start_in):
+                step_in = stop_in - start_in
+            else:
+                step_in = sl_in.step
+            count = int((stop_in - start_in) / float(step_in))
+            final_location = start_in + count*step_in
+            return slice(limit_in - final_location, limit_in - start_in, step_in)
     else:
         return sl_in
 
@@ -497,9 +483,9 @@ class IdentityFunction(FormatFunction):
         # to reverse_axes definition (in raw order)
         out = []
         for i, index in enumerate(rev_transpose_axes):
-            # index in raw order, i in formatted order
-            rev = (index in reverse_axes)
-            shape_limit = self.raw_shape[index]  # also self.formatted_shape[i]
+            # formatted order @ index corresponds to raw order @ i
+            rev = (i in reverse_axes)
+            shape_limit = self.raw_shape[i]  # also self.formatted_shape[index]
             out.append(reformat_slice(subscript[index], shape_limit, rev))
         return tuple(out)
 
@@ -518,9 +504,9 @@ class IdentityFunction(FormatFunction):
         # definition (in raw order)
         out = []
         for i, index in enumerate(transpose_axes):
-            # index in formatted order, i in raw order
-            rev = (i in reverse_axes)
-            shape_limit = self.formatted_shape[index]  # also self.raw_shape[i]
+            # raw order @ index corresponds to formatted order @ i
+            rev = (index in reverse_axes)
+            shape_limit = self.formatted_shape[i]  # also self.raw_shape[index]
             out.append(reformat_slice(subscript[index], shape_limit, rev))
         return tuple(out)
 
@@ -621,7 +607,6 @@ class ComplexFormatFunction(FormatFunction):
         if self._band_dimension is not None:
             if ((value - self._band_dimension) % self.raw_ndim) != 0:
                 raise ValueError('band_dimension is read only once set')
-            return  # nothing to be done
         self._band_dimension = value
 
     @property
@@ -682,7 +667,7 @@ class ComplexFormatFunction(FormatFunction):
                 raise ValueError(
                     'Input_shape `{}`, transpose_axes `{}`, band dimension `{}` yields expected output shape `{}`\n\t'
                     'got formatted_shape `{}`'.format(
-                        self.raw_shape, self.transpose_axes, self.band_dimension, arranged_shape, self.formatted_shape))
+                        self.raw_shape, self.transpose_axes, self.band_dimension, after_mapping_shape, self.formatted_shape))
         elif self.raw_ndim == self.formatted_ndim + 1:
             reduced_shape = [entry for entry in arranged_shape]
             reduced_shape.pop(self.band_dimension)
@@ -721,9 +706,9 @@ class ComplexFormatFunction(FormatFunction):
         # to reverse_axes definition (in raw order)
         out = []
         for i, index in enumerate(rev_transpose_axes):
-            # index in raw order, i in formatted order (possibly padded for missing band dimension)
-            rev = (index in reverse_axes)
-            shape_limit = self.raw_shape[index]  # also self.formatted_shape[i]
+            # formatted order @ index corresponds to raw order @ i (possibly padded for missing band dimension)
+            rev = (i in reverse_axes)
+            shape_limit = self.raw_shape[i]
             if self.raw_ndim == self.formatted_ndim:
                 # the band dimension is not flattened, we have to transform
                 temp_sl = reformat_slice(use_subscript[index], shape_limit, rev)
@@ -743,6 +728,7 @@ class ComplexFormatFunction(FormatFunction):
                     out.append(slice(start, stop, -1))
             else:
                 out.append(reformat_slice(use_subscript[index], shape_limit, rev))
+
         return tuple(out)
 
     def transform_raw_slice(
@@ -760,9 +746,9 @@ class ComplexFormatFunction(FormatFunction):
         # definition (in raw order)
         out = []
         for i, index in enumerate(transpose_axes):
-            # index in formatted order, i in raw order
-            rev = (i in reverse_axes)
-            shape_limit = self.formatted_shape[index]  # also self.raw_shape[i]
+            # raw order @ index corresponds to formatted order @ i
+            rev = (index in reverse_axes)
+            shape_limit = self.raw_shape[index]  # also self.formatted_shape[i]
             if index == self.band_dimension and self.formatted_ndim < self.raw_ndim:
                 # the band dimension has collapsed, so omit anything here
                 continue
@@ -978,9 +964,9 @@ class SingleLUTFormatFunction(FormatFunction):
         out = []
         # NB: for 2-d LUT, the final slice will be ignored here (as it should)
         for i, index in enumerate(rev_transpose_axes):
-            # index in raw order, i in formatted order
-            rev = (index in reverse_axes)
-            shape_limit = self.raw_shape[index]  # also self.formatted_shape[i]
+            # formatted order @ index corresponds to raw order @ i
+            rev = (i in reverse_axes)
+            shape_limit = self.raw_shape[i]  # also self.formatted_shape[index]
             out.append(reformat_slice(subscript[index], shape_limit, rev))
         return tuple(out)
 
@@ -999,8 +985,8 @@ class SingleLUTFormatFunction(FormatFunction):
         # definition (in raw order)
         out = []
         for i, index in enumerate(transpose_axes):
-            # index in formatted order, i in raw order
-            rev = (i in reverse_axes)
+            # raw order @ index corresponds to formatted order @ i
+            rev = (index in reverse_axes)
             shape_limit = self.formatted_shape[index]  # also self.raw_shape[i]
             out.append(reformat_slice(subscript[index], shape_limit, rev))
         if self.raw_ndim < self.formatted_ndim:

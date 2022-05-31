@@ -462,7 +462,6 @@ class NativeTiffDataSegment(NumpyMemmapSegment):
         raw_shape = (int(tiff_details.tags['ImageLength']), int(tiff_details.tags['ImageWidth']), raw_bands)
         raw_dtype = numpy.dtype('{0:s}{1:s}{2:d}'.format(
             self._tiff_details.endian, self._SAMPLE_FORMATS[samp_form], int(bits_per_sample/8)))
-
         if output_dtype is None:
             output_dtype = raw_dtype
         data_offset = int(tiff_details.tags['StripOffsets'][0])
@@ -493,6 +492,7 @@ class NativeTiffDataSegment(NumpyMemmapSegment):
             output_shape = raw_shape[:2]
         else:
             output_shape = (raw_shape[1], raw_shape[0])
+
         if output_bands > 1:
             output_shape = output_shape + (output_bands, )
 

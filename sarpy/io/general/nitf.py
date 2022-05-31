@@ -3790,7 +3790,7 @@ class NITFWriter(BaseWriter):
             numpy.arange(len(block_bounds), dtype='int64')*block_size
 
         # noinspection PyUnresolvedReferences
-        if not (isinstance(block_offsets, numpy.ndarray) and mask_offsets.ndim == 1):
+        if not (isinstance(block_offsets, numpy.ndarray) and block_offsets.ndim == 1):
             raise ValueError('Got unexpected mask offsets `{}`'.format(block_offsets))
 
         if len(block_bounds) != len(block_offsets):

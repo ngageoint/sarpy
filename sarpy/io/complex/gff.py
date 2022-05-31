@@ -1249,7 +1249,7 @@ class _GFFInterpreter1(_GFFInterpreter):
             formatted_shape = (raw_shape[1], raw_shape[0])
         else:
             transpose_axes = None
-            formatted_shape = raw_shape[:]
+            formatted_shape = raw_shape[:2]
 
         if self.header.image_type == 1:
             # phase/magnitude which is integer

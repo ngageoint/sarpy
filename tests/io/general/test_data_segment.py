@@ -10,13 +10,13 @@ from io import BytesIO
 
 class TestNumpyArraySegment(unittest.TestCase):
     def test_basic_read(self):
-        data = numpy.reshape(numpy.arange(24, dtype='int16'), (3, 4, 2))
-        complex_data = numpy.empty((3, 4), dtype='complex64')
+        data = numpy.reshape(numpy.arange(60, dtype='int16'), (5, 6, 2))
+        complex_data = numpy.empty((5, 6), dtype='complex64')
         complex_data.real = data[:, :, 0]
         complex_data.imag = data[:, :, 1]
 
         data_segment = NumpyArraySegment(
-            data, formatted_dtype='complex64', formatted_shape=(3, 4),
+            data, formatted_dtype='complex64', formatted_shape=(5, 6),
             format_function=ComplexFormatFunction('int16', 'IQ', band_dimension=2),
             mode='r')
 
@@ -68,10 +68,26 @@ class TestNumpyArraySegment(unittest.TestCase):
             test_data = data_segment[0:2, 1:3]
             self.assertTrue(numpy.all(complex_data[subscript] == test_data))
 
-        with self.subTest(msg='read using __getitem__ and specifiying raw'):
+        with self.subTest(msg='read using __getitem__ and specifying raw'):
             subscript = (slice(0, 2, 1), slice(1, 3, 1))
             test_data = data_segment[0:2, 1:3, 'raw']
             self.assertTrue(numpy.all(data[subscript] == test_data))
+
+        with self.subTest(msg='corners :3,:3'):
+            test_data = data_segment[:3, :3]
+            self.assertTrue(test_data.shape == (3, 3))
+
+        with self.subTest(msg='corners -3:,:3'):
+            test_data = data_segment[-3:, :3]
+            self.assertTrue(test_data.shape == (3, 3))
+
+        with self.subTest(msg='corners :3,-3:'):
+            test_data = data_segment[:3, -3:]
+            self.assertTrue(test_data.shape == (3, 3))
+
+        with self.subTest(msg='corners -3:,-3:'):
+            test_data = data_segment[-3:, -3:]
+            self.assertTrue(test_data.shape == (3, 3))
 
         with self.assertRaises(ValueError, msg='write_raw attempt'):
             data_segment.write_raw(data, start_indices=0)
@@ -90,28 +106,48 @@ class TestNumpyArraySegment(unittest.TestCase):
         with self.assertRaises(ValueError, msg='read_raw access when closed'):
             _ = data_segment.read_raw(None)
 
-    def test_read_with_symmetry(self):
-        data = numpy.reshape(numpy.arange(24, dtype='int16'), (3, 4, 2))
+    def test_read_with_transpose_and_reverse(self):
+        data = numpy.reshape(numpy.arange(60, dtype='int16'), (5, 6, 2))
 
-        complex_data = numpy.empty((3, 4), dtype='complex64')
-        complex_data.real = data[:, :, 0]
-        complex_data.imag = data[:, :, 1]
-        complex_data = numpy.transpose(complex_data)
+        for axis in [None, (0, ), (1, ), (0, 1)]:
+            complex_data = numpy.empty((5, 6), dtype='complex64')
+            complex_data.real = data[:, :, 0]
+            complex_data.imag = data[:, :, 1]
+            if axis is None:
+                complex_data = numpy.transpose(complex_data)
+            else:
+                complex_data = numpy.transpose(numpy.flip(complex_data, axis=axis))
 
-        data_segment = NumpyArraySegment(
-            data, formatted_dtype='complex64', formatted_shape=(4, 3),
-            transpose_axes=(1, 0, 2),
-            format_function=ComplexFormatFunction('int16', 'IQ', band_dimension=2),
-            mode='r')
+            data_segment = NumpyArraySegment(
+                data, formatted_dtype='complex64', formatted_shape=(6, 5),
+                reverse_axes=axis, transpose_axes=(1, 0, 2),
+                format_function=ComplexFormatFunction('int16', 'IQ', band_dimension=2),
+                mode='r')
 
-        with self.subTest(msg='read full'):
-            test_data = data_segment.read(None)
-            self.assertTrue(numpy.all(complex_data == test_data))
+            with self.subTest(msg='read full, axis {}'.format(axis)):
+                test_data = data_segment.read(None)
+                self.assertTrue(numpy.all(complex_data == test_data))
 
-        with self.subTest(msg='read subscript'):
-            subscript = (slice(1, 3, 1), slice(0, 2, 1))
-            test_data = data_segment.read(subscript)
-            self.assertTrue(numpy.all(test_data == complex_data[subscript]))
+            with self.subTest(msg='read subscript, axis {}'.format(axis)):
+                subscript = (slice(1, 3, 1), slice(0, 2, 1))
+                test_data = data_segment.read(subscript)
+                self.assertTrue(numpy.all(test_data == complex_data[subscript]))
+
+            with self.subTest(msg='corners :3,:3, axis {}'.format(axis)):
+                test_data = data_segment[:3, :3]
+                self.assertTrue(test_data.shape == (3, 3))
+
+            with self.subTest(msg='corners -3:,:3, axis {}'.format(axis)):
+                test_data = data_segment[-3:, :3]
+                self.assertTrue(test_data.shape == (3, 3))
+
+            with self.subTest(msg='corners :3,-3:, axis {}'.format(axis)):
+                test_data = data_segment[:3, -3:]
+                self.assertTrue(test_data.shape == (3, 3))
+
+            with self.subTest(msg='corners -3:,-3:, axis {}'.format(axis)):
+                test_data = data_segment[-3:, -3:]
+                self.assertTrue(test_data.shape == (3, 3))
 
     def test_basic_write(self):
         data = numpy.reshape(numpy.arange(24, dtype='int16'), (3, 4, 2))

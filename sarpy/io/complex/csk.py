@@ -711,7 +711,7 @@ class CSKReader(SICDTypeReader):
                     csk_details.file_name, the_band,
                     formatted_dtype='complex64', formatted_shape=(basic_shape[1], basic_shape[0]),
                     reverse_axes=reverse_axes, transpose_axes=transpose_axes,
-                    format_function=ComplexFormatFunction(raw_dtype=dtype_dict[band_name], order='IQ'),
+                    format_function=ComplexFormatFunction(raw_dtype=dtype_dict[band_name], order='IQ', band_dimension=2),
                     close_file=True))
 
         SICDTypeReader.__init__(self, data_segments, sicds, close_segments=True)

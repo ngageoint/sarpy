@@ -613,6 +613,7 @@ class DataSegment(object):
             raise ValueError('Requires mode = "r"')
         norm_subscript = self.verify_formatted_subscript(subscript)
         raw_subscript = self.format_function.transform_formatted_slice(norm_subscript)
+
         raw_data = self.read_raw(raw_subscript, squeeze=False)
         return self.format_function(raw_data, raw_subscript, squeeze=squeeze)
 
@@ -2116,10 +2117,10 @@ class NumpyMemmapSegment(NumpyArraySegment):
         mmap_mode = 'r' if mode == 'r' else 'r+'
         self._memory_map = numpy.memmap(
             file_object,
-            dtype=raw_dtype,
-            mode=mmap_mode,
             offset=data_offset,
-            shape=raw_shape)
+            dtype=raw_dtype,
+            shape=raw_shape,
+            mode=mmap_mode)
 
         NumpyArraySegment.__init__(
             self, self._memory_map, formatted_dtype=formatted_dtype, formatted_shape=formatted_shape,
@@ -2223,7 +2224,6 @@ class HDF5DatasetSegment(DataSegment):
                 formatted_shape = raw_shape
             else:
                 formatted_shape = tuple(raw_shape[entry] for entry in transpose_axes)
-
         self.close_file = close_file
 
         DataSegment.__init__(
