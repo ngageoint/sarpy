@@ -123,19 +123,24 @@ def _construct_tiff_segment(
     return segment
 
 
-def _construct_single_nitf_segment(the_sicd, the_file, reverse_axes, transpose_axes) -> DataSegment:
+def _construct_single_nitf_segment(
+        the_sicd: SICDType,
+        the_file: str,
+        reverse_axes: Optional[Sequence[int]],
+        transpose_axes: Optional[Tuple[int, ...]]) -> Tuple[ComplexNITFReader, DataSegment]:
     """
 
     Parameters
     ----------
     the_sicd : SICDType
     the_file : str
-    reverse_axes
-    transpose_axes
+    reverse_axes : None|Sequence[int]
+    transpose_axes : None|Tuple[int, ...]
 
     Returns
     -------
-    DataSegment
+    reader: ComplexNITFReader
+    data_segment: DataSegment
     """
 
     if transpose_axes is not None:
@@ -147,22 +152,27 @@ def _construct_single_nitf_segment(the_sicd, the_file, reverse_axes, transpose_a
             'The SLC data for a single polarmetric band was provided '
             'in a NITF file which has more than a single complex band.')
     _validate_segment_and_sicd(the_sicd, data_segment, 'Single NITF', the_file)
-    return data_segment
+    return reader, data_segment
 
 
-def _construct_multiple_nitf_segment(the_sicds, the_file, reverse_axes, transpose_axes) -> Tuple[DataSegment, ...]:
+def _construct_multiple_nitf_segment(
+        the_sicds: List[SICDType],
+        the_file: str,
+        reverse_axes: Optional[Sequence[int]],
+        transpose_axes: Optional[Tuple[int, ...]]) -> Tuple[ComplexNITFReader, Tuple[DataSegment, ...]]:
     """
 
     Parameters
     ----------
     the_sicds : List[SICDType]
     the_file : str
-    reverse_axes
-    transpose_axes
+    reverse_axes : None|Sequence[int]
+    transpose_axes : None|Tuple[int, ...]
 
     Returns
     -------
-    Tuple[DataSegment, ...]
+    reader: ComplexNITFReader
+    data_segment: Tuple[DataSegment, ...]
     """
 
     if transpose_axes is not None:
@@ -175,7 +185,7 @@ def _construct_multiple_nitf_segment(the_sicds, the_file, reverse_axes, transpos
             'in a NITF file which has {} single complex band.'.format(len(the_sicds), len(data_segment)))
     for i, (the_sicd, segment) in enumerate(zip(the_sicds, data_segment)):
         _validate_segment_and_sicd(the_sicd, segment, 'NITF band {}'.format(i), the_file)
-    return data_segment
+    return reader, data_segment
 
 
 ##############
@@ -1538,7 +1548,7 @@ class RadarSatReader(SICDTypeReader):
     **Changed in version 1.3.0** for reading changes.
     """
 
-    __slots__ = ('_radar_sat_details', '_readers')
+    __slots__ = ('_radar_sat_details', '_other_reader')
 
     def __init__(self, radar_sat_details):
         """
@@ -1549,6 +1559,7 @@ class RadarSatReader(SICDTypeReader):
             file name or RadarSatDetails object
         """
 
+        self._other_reader = None
         if isinstance(radar_sat_details, str):
             radar_sat_details = RadarSatDetails(radar_sat_details)
         if not isinstance(radar_sat_details, RadarSatDetails):
@@ -1568,11 +1579,12 @@ class RadarSatReader(SICDTypeReader):
         SICDTypeReader.__init__(self, the_segments, use_sicds, close_segments=True)
         self._check_sizes()
 
-    @staticmethod
-    def _construct_segments(sicds: List[SICDType],
-                            data_files: List[str],
-                            reverse_axes: Optional[Tuple[int, ...]],
-                            transpose_axes: Optional[Tuple[int, ...]]) -> List[DataSegment]:
+    def _construct_segments(
+            self,
+            sicds: List[SICDType],
+            data_files: List[str],
+            reverse_axes: Optional[Tuple[int, ...]],
+            transpose_axes: Optional[Tuple[int, ...]]) -> List[DataSegment]:
         """
         Construct the data segments.
 
@@ -1595,7 +1607,9 @@ class RadarSatReader(SICDTypeReader):
                 if fext in ['.tiff', '.tif']:
                     data_segments.append(_construct_tiff_segment(sicd, data_file, reverse_axes, transpose_axes))
                 elif fext in ['.nitf', '.ntf']:
-                    data_segments.append(_construct_single_nitf_segment(sicd, data_file, reverse_axes, transpose_axes))
+                    reader, segment = _construct_single_nitf_segment(sicd, data_file, reverse_axes, transpose_axes)
+                    self._other_reader = reader  # NB: maintain reference, to keep segment open
+                    data_segments.append(segment)
                 else:
                     raise ValueError(
                         'The radarsat reader requires image files in tiff or nitf format. '
@@ -1608,7 +1622,9 @@ class RadarSatReader(SICDTypeReader):
                     'The radarsat has image data for multiple polarizations provided in a '
                     'single image file. This requires an image files in nitf format. '
                     'Uncertain how to interpret file {}'.format(data_file))
-            data_segments.extend(_construct_multiple_nitf_segment(sicds, data_file, reverse_axes, transpose_axes))
+            reader, segments = _construct_multiple_nitf_segment(sicds, data_file, reverse_axes, transpose_axes)
+            self._other_reader = reader  # NB: maintain reference, to keep segments open
+            data_segments.extend(segments)
         else:
             raise ValueError(
                 'Unclear how to construct chipper elements for {} sicd elements '
@@ -1626,6 +1642,10 @@ class RadarSatReader(SICDTypeReader):
     @property
     def file_name(self) -> str:
         return self.radarsat_details.directory_name
+
+    def close(self) -> None:
+        SICDTypeReader.close(self)
+        self._other_reader = None
 
 
 ########
