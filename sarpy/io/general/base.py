@@ -622,6 +622,7 @@ class BaseWriter(object):
             self,
             data_segment: Union[DataSegment, Sequence[DataSegment]]):
 
+        self._closed = False
         if isinstance(data_segment, DataSegment):
             data_segment = [data_segment, ]
         if not isinstance(data_segment, Sequence):
@@ -636,7 +637,6 @@ class BaseWriter(object):
                 raise ValueError('Each data segment must have mode="w" for writing')
 
         self._data_segment = tuple(data_segment)
-        self._closed = False
 
     @property
     def file_name(self) -> Optional[str]:

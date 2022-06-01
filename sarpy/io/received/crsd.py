@@ -250,7 +250,7 @@ class CRSDReader(CRSDTypeReader):
         crsd_details = _validate_crsd_details(args[0])
 
         if crsd_details.crsd_version.startswith('1.0'):
-            return CRSDReader1_0(crsd_details)
+            return object.__new__(CRSDReader1_0)
         else:
             raise ValueError('Got unhandled CRSD version {}'.format(crsd_details.crsd_version))
 
@@ -649,7 +649,7 @@ class CRSDReader1_0(CRSDReader):
                  raw: bool=False,
                  squeeze: bool=True) -> numpy.ndarray:
         index = self._validate_index(index)
-        return BaseReader.__call__(*ranges, index=index, raw=raw, squeeze=squeeze)
+        return BaseReader.__call__(self, *ranges, index=index, raw=raw, squeeze=squeeze)
 
 
 def is_a(file_name: str) -> Optional[CRSDReader]:
@@ -703,6 +703,32 @@ class CRSDWritingDetails(CPHDWritingDetails):
 
 
 class CRSDWriter1_0(CPHDWriter1_0):
+    """
+    The CRSD version 1.0 writer.
+
+    **Updated in version 1.3.0** for writing changes.
+    """
+    _writing_details_type = CRSDWritingDetails
+
+    def __init__(self,
+                 file_object: Union[str, BinaryIO],
+                 meta: Optional[CRSDType] = None,
+                 writing_details: Optional[CRSDWritingDetails] = None,
+                 check_existence: bool=True):
+        """
+
+        Parameters
+        ----------
+        file_object : str|BinaryIO
+        meta : None|CRSDType
+        writing_details : None|CRSDWritingDetails
+        check_existence : bool
+            Should we check if the given file already exists, and raises an exception if so?
+        """
+
+        CPHDWriter1_0.__init__(
+            self, file_object, meta=meta, writing_details=writing_details,
+            check_existence=check_existence)
 
     @property
     def writing_details(self) -> CRSDWritingDetails:

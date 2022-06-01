@@ -168,6 +168,7 @@ class SIDDDetails(NITFDetails):
 def _check_iid_format(iid1: str) -> bool:
     if not (iid1[:4] == 'SIDD' and iid1[4:].isnumeric()):
         return False
+    return True
 
 
 class SIDDReader(NITFReader, SIDDTypeReader):
@@ -552,10 +553,7 @@ class SIDDWritingDetails(NITFWritingDetails):
         if value is None:
             raise ValueError('sidd_meta is required.')
 
-        if isinstance(value, Sequence):
-            self._sidd_meta = tuple(validate_sidd_for_writing(entry) for entry in value)
-        else:
-            self._sidd_meta = (validate_sidd_for_writing(value), )
+        self._sidd_meta = validate_sidd_for_writing(value)
         # noinspection PyTypeChecker
         self._sidd_security_tags = tuple(create_security_tags_from_sidd(entry) for entry in self._sidd_meta)
 
@@ -575,10 +573,7 @@ class SIDDWritingDetails(NITFWritingDetails):
             self._sicd_security_tags = None
             return
 
-        if isinstance(value, Sequence):
-            self._sicd_meta = tuple(validate_sicd_for_writing(entry) for entry in value)
-        else:
-            self._sicd_meta = (validate_sicd_for_writing(value), )
+        self._sicd_meta = validate_sicd_for_writing(value)
         # noinspection PyTypeChecker
         self._sicd_security_tags = tuple(create_security_tags_from_sicd(entry) for entry in self._sicd_meta)
 
@@ -720,7 +715,7 @@ class SIDDWritingDetails(NITFWritingDetails):
         image_managers = []
         sidd = self.sidd_meta[sidd_index]
 
-        if sidd.Compression is not None:
+        if isinstance(sidd, SIDDType) and sidd.Compression is not None:
             raise ValueError('Compression not currently supported.')
 
         basic_args = {
@@ -783,7 +778,7 @@ class SIDDWritingDetails(NITFWritingDetails):
                 IALVL=sidd_index + i+ 1,
                 ILOC=iloc,
                 Bands=ImageBands(values=[ImageBand(ISUBCAT='', IREPBAND=entry) for entry in irepband]),
-                Security=self._sidd_security_tags(sidd_index),
+                Security=self._sidd_security_tags[sidd_index],
                 **basic_args)
             image_managers.append(ImageSubheaderManager(subhead))
             image_segment_indices.append(total_image_count)

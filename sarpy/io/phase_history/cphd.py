@@ -22,7 +22,6 @@ from sarpy.io.general.format_function import ComplexFormatFunction
 from sarpy.io.general.slice_parsing import verify_subscript, verify_slice
 
 from sarpy.io.phase_history.base import CPHDTypeReader
-from sarpy.io.phase_history.cphd1_elements.utils import binary_format_string_to_dtype
 # noinspection PyProtectedMember
 from sarpy.io.phase_history.cphd1_elements.CPHD import CPHDType as CPHDType1_0, \
     CPHDHeader as CPHDHeader1_0, _CPHD_SECTION_TERMINATOR
@@ -59,11 +58,6 @@ class AmpScalingFunction(ComplexFormatFunction):
         ----------
         raw_dtype : str|numpy.dtype
             The raw datatype. Valid options dependent on the value of order.
-        order : str
-            One of `('IQ', 'QI', 'MP', 'PM')`. The options `('IQ', 'QI')` allow
-            raw_dtype `('int8', 'int16', 'int32', 'float32', 'float64')`. The
-            options `('MP', 'PM')` allow raw_dtype
-            `('uint8', 'uint16', 'uint32', 'float32', 'float64')`.
         raw_shape : None|Tuple[int, ...]
         formatted_shape : None|Tuple[int, ...]
         reverse_axes : None|Tuple[int, ...]
@@ -401,9 +395,9 @@ class CPHDReader(CPHDTypeReader):
         cphd_details = _validate_cphd_details(args[0])
 
         if cphd_details.cphd_version.startswith('0.3'):
-            return CPHDReader0_3(cphd_details)
+            return object.__new__(CPHDReader0_3)
         elif cphd_details.cphd_version.startswith('1.0'):
-            return CPHDReader1_0(cphd_details)
+            return object.__new__(CPHDReader1_0)
         else:
             raise ValueError('Got unhandled CPHD version {}'.format(cphd_details.cphd_version))
 
@@ -802,7 +796,7 @@ class CPHDReader1_0(CPHDReader):
                  raw: bool=False,
                  squeeze: bool=True) -> numpy.ndarray:
         index = self._validate_index(index)
-        return BaseReader.__call__(*ranges, index=index, raw=raw, squeeze=squeeze)
+        return BaseReader.__call__(self, *ranges, index=index, raw=raw, squeeze=squeeze)
 
 
 class CPHDReader0_3(CPHDReader):
@@ -958,7 +952,7 @@ class CPHDReader0_3(CPHDReader):
                  raw: bool=False,
                  squeeze: bool=True) -> numpy.ndarray:
         index = self._validate_index(index)
-        return BaseReader.__call__(*ranges, index=index, raw=raw, squeeze=squeeze)
+        return BaseReader.__call__(self, *ranges, index=index, raw=raw, squeeze=squeeze)
 
 
 def is_a(file_name: str) -> Optional[CPHDReader]:
@@ -1143,6 +1137,7 @@ class CPHDWritingDetails(object):
 
         if self.meta.Data.SupportArrays is None:
             self._signal_details = None
+            return
 
         support_details = []
         for i, entry in enumerate(self.meta.Data.SupportArrays):
@@ -1256,6 +1251,7 @@ class CPHDWriter1_0(BaseWriter):
 
     **Updated in version 1.3.0** for writing changes.
     """
+    _writing_details_type = CPHDWritingDetails
 
     __slots__ = (
         '_file_name', '_file_object', '_in_memory', '_writing_details',
@@ -1300,7 +1296,7 @@ class CPHDWriter1_0(BaseWriter):
         if meta is None and writing_details is None:
             raise ValueError('One of meta or writing_details must be provided.')
         if writing_details is None:
-            writing_details = CPHDWritingDetails(meta)
+            writing_details = self._writing_details_type(meta)
         self.writing_details = writing_details
 
         self._pvp_memmaps = None  # type: Optional[Dict[str, numpy.ndarray]]
@@ -1504,7 +1500,15 @@ class CPHDWriter1_0(BaseWriter):
         self._signal_data_segments = {}
         self._can_write_regular_data = {}
         signal_data_segments = []
-        signal_dtype = binary_format_string_to_dtype(self.meta.Data.SignalArrayFormat)
+        signal_array_format = self.meta.Data.SignalArrayFormat
+        if signal_array_format == 'CI2':
+            signal_dtype = numpy.dtype('>i1')
+        elif signal_array_format == 'CI4':
+            signal_dtype = numpy.dtype('>i2')
+        elif signal_array_format == 'CF8':
+            signal_dtype = numpy.dtype('>f4')
+        else:
+            raise ValueError('Got unhandled SignalArrayFormat {}'.format(signal_array_format))
         for i, entry in enumerate(self.meta.Data.Channels):
             self._can_write_regular_data[entry.Identifier] = no_amp_sf
             raw_shape = (entry.NumVectors, entry.NumSamples, 2)
@@ -1769,7 +1773,7 @@ class CPHDWriter1_0(BaseWriter):
             return
 
     def close(self):
-        if self._closed:
+        if hasattr(self, '_closed') and self._closed:
             return
 
         BaseWriter.close(self)  # NB: flush called here

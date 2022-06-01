@@ -634,8 +634,8 @@ class ComplexFormatFunction(FormatFunction):
             if self._raw_dtype.name not in [
                 'int8', 'int16', 'int32', 'float16', 'float32', 'float64']:
                 raise ValueError(
-                    'order is {}, and raw_dtype must be one of '
-                    'int8, int16, int32, float16, float32, or float64'.format(self._order))
+                    'order is {}, and raw_dtype ({}, {}) must be one of '
+                    'int8, int16, int32, float16, float32, or float64'.format(self._order, self._raw_dtype, self._raw_dtype.name))
         elif self._order in ['MP', 'PM']:
             if self._raw_dtype.name not in [
                 'uint8', 'uint16', 'uint32', 'float16', 'float32', 'float64']:

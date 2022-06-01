@@ -7,7 +7,7 @@ __classification__ = "UNCLASSIFIED"
 
 
 import logging
-from typing import Union, Generator, Tuple, List, Optional, Any
+from typing import Union, Generator, Tuple, List, Optional, Sequence
 
 import numpy
 from scipy.constants import speed_of_light
@@ -310,14 +310,14 @@ class SubapertureCalculator(FFTCalculator):
             raise TypeError(
                 'The final slice dimension is of unsupported type {}'.format(type(the_frame)))
 
-    def _parse_slicing(self, item) -> Tuple[Tuple[int, int, int], Tuple[int, int, int], Any]:
+    def _parse_slicing(self, item) -> Tuple[slice, slice, Optional[int]]:
         row_range, col_range, the_frame = super(SubapertureCalculator, self)._parse_slicing(item)
         return row_range, col_range, self._parse_frame_argument(the_frame)
 
     def subaperture_generator(
             self,
-            row_range: Tuple[int, int, int],
-            col_range: Tuple[int, int, int],
+            row_range: Union[slice, Tuple[int, int, int]],
+            col_range: Union[slice, Tuple[int, int, int]],
             frames: Union[None, int, list, tuple, numpy.ndarray] = None) -> Generator[numpy.ndarray, None, None]:
         """
         Supplies a generator for the given row and column ranges and frames collection.
@@ -329,9 +329,9 @@ class SubapertureCalculator(FFTCalculator):
 
         Parameters
         ----------
-        row_range : Tuple[int, int, int]
+        row_range : slice|Tuple[int, int, int]
             The row range.
-        col_range : Tuple[int, int, int]
+        col_range : slice|Tuple[int, int, int]
             The column range.
         frames : None|int|list|tuple|numpy.ndarray
             The frame or frame collection.
@@ -341,11 +341,21 @@ class SubapertureCalculator(FFTCalculator):
         Generator[numpy.ndarray]
         """
 
-        def get_dimension_details(the_range):
-            the_snip = -1 if the_range[2] < 0 else 1
-            t_full_range = (the_range[0], the_range[1], the_snip)
-            t_full_size = the_range[1] - the_range[0]
-            t_step = abs(the_range[2])
+        def get_dimension_details(
+                the_range: Union[slice, Tuple[int, int, int]]) -> Tuple[Tuple[int, int, int], int, int]:
+            if isinstance(the_range, Sequence):
+                start, stop, step = the_range
+            elif isinstance(the_range, slice):
+                start = the_range.start
+                stop = the_range.stop
+                step = the_range.step
+            else:
+                raise TypeError('Got unexpected range input {}'.format(the_range))
+
+            the_snip = -1 if step < 0 else 1
+            t_full_range = (start, stop, the_snip)
+            t_full_size = stop - start
+            t_step = abs(step)
             return t_full_range, t_full_size, t_step
 
         if self._fill is None:
@@ -355,22 +365,25 @@ class SubapertureCalculator(FFTCalculator):
         if isinstance(frames, int):
             frames = [frames, ]
 
+        if isinstance(row_range, tuple):
+            row_slice = slice(*row_range)
+        else:
+            row_slice = row_range
+        if isinstance(col_range, tuple):
+            col_slice = slice(*row_range)
+        else:
+            col_slice = row_range
+
         if self.dimension == 0:
             # determine the full resolution block of data to fetch
             this_row_range, full_size, step = get_dimension_details(row_range)
             # fetch the necessary data block
-            data = self.reader[
-                   this_row_range[0]:this_row_range[1]:this_row_range[2],
-                   col_range[0]:col_range[1]:col_range[2],
-                   self.index]
+            data = self.reader[(slice(*this_row_range), col_slice, self.index)]
         else:
             # determine the full resolution block of data to fetch
             this_col_range, full_size, step = get_dimension_details(col_range)
             # fetch the necessary data block, and transform to phase space
-            data = self.reader[
-                   row_range[0]:row_range[1]:row_range[2],
-                   this_col_range[0]:this_col_range[1]:this_col_range[2],
-                   self.index]
+            data = self.reader[(row_slice, slice(*this_col_range), self.index)]
         # handle any nonsense data as 0
         data[~numpy.isfinite(data)] = 0
         # transform the data to phase space
@@ -393,11 +406,25 @@ class SubapertureCalculator(FFTCalculator):
 
     def _prepare_output(
             self,
-            row_range: Tuple[int, int, int],
-            col_range: Tuple[int, int, int],
+            row_range: Union[slice, Tuple[int, int, int]],
+            col_range: Union[slice, Tuple[int, int, int]],
             frames: Union[None, int, list, tuple, numpy.ndarray] = None) -> numpy.ndarray:
-        row_count = int((row_range[1] - row_range[0]) / float(row_range[2]))
-        col_count = int((col_range[1] - col_range[0]) / float(col_range[2]))
+        row_start, row_stop, row_step = row_range if isinstance(row_range, tuple) else \
+            (row_range.start, row_range.stop, row_range.step)
+        if row_stop is None:
+            if row_step > 0:
+                raise ValueError('Got unexpected row_range {}'.format(row_range))
+            row_stop = -1
+
+        col_start, col_stop, col_step = col_range if isinstance(col_range, tuple) else \
+            (col_range.start, col_range.stop, col_range.step)
+        if col_stop is None:
+            if col_step > 0:
+                raise ValueError('Got unexpected col_range {}'.format(col_range))
+            col_stop = -1
+
+        row_count = int((row_stop - row_start)/float(row_step))
+        col_count = int((col_stop - col_start)/float(col_step))
         if frames is None or len(frames) == 1:
             out_size = (row_count, col_count)
         else:
@@ -429,7 +456,7 @@ class SubapertureCalculator(FFTCalculator):
             frames = [frames, ]
 
         if self.dimension == 0:
-            column_block_size = self.get_fetch_block_size(row_range[0], row_range[1])
+            column_block_size = self.get_fetch_block_size(row_range.start, row_range.stop)
             # get our block definitions
             column_blocks, result_blocks = self.extract_blocks(col_range, column_block_size)
             if column_blocks == 1 and len(frames) == 1:
@@ -437,6 +464,7 @@ class SubapertureCalculator(FFTCalculator):
                 out = self.subaperture_generator(row_range, col_range, frames).__next__()
             else:
                 out = self._prepare_output(row_range, col_range, frames=frames)
+                # noinspection PyTypeChecker
                 for this_column_range, result_range in zip(column_blocks, result_blocks):
                     generator = self.subaperture_generator(row_range, this_column_range, frames)
                     if len(frames) == 1:
@@ -445,13 +473,14 @@ class SubapertureCalculator(FFTCalculator):
                         for i, data in enumerate(generator):
                             out[:, result_range[0]:result_range[1], i] = data
         else:
-            row_block_size = self.get_fetch_block_size(col_range[0], col_range[1])
+            row_block_size = self.get_fetch_block_size(col_range.start, col_range.stop)
             # get our block definitions
             row_blocks, result_blocks = self.extract_blocks(row_range, row_block_size)
             if row_blocks == 1 and len(frames) == 1:
                 out = self.subaperture_generator(row_range, col_range, frames).__next__()
             else:
                 out = self._prepare_output(row_range, col_range, frames=frames)
+                # noinspection PyTypeChecker
                 for this_row_range, result_range in zip(row_blocks, result_blocks):
                     generator = self.subaperture_generator(this_row_range, col_range, frames)
                     if len(frames) == 1:
@@ -888,7 +917,7 @@ class ApertureFilter(object):
         frequencies = numpy.linspace(freq_limits[1], freq_limits[0], self.normalized_phase_history.shape[0])
         return frequencies
 
-    def __getitem__(self, item) -> numpy.ndarray:
+    def __getitem__(self, item) -> Optional[numpy.ndarray]:
         if self.normalized_phase_history is None:
             return None
         filtered_cdata = numpy.zeros(self.normalized_phase_history.shape, dtype='complex64')

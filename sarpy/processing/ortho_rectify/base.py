@@ -7,7 +7,7 @@ __author__ = "Thomas McCullough"
 
 import logging
 import os
-from typing import Union, Tuple, List, Any, Optional
+from typing import Union, Tuple, List, Optional, Sequence
 
 import numpy
 
@@ -168,41 +168,15 @@ class FullResolutionFetcher(object):
 
     def _parse_slicing(
             self,
-            item: Union[None, int, slice, tuple]) -> Tuple[Tuple[int, int, int], Tuple[int, int, int], Any]:
-
-        def parse(entry, dimension):
-            bound = self.data_size[dimension]
-            if entry is None:
-                return 0, bound, 1
-            elif isinstance(entry, int):
-                entry = validate_slice_int(entry, bound)
-                return entry, entry+1, 1
-            elif isinstance(entry, slice):
-                entry = validate_slice(entry, bound)
-                return entry.start, entry.stop, entry.step
-            else:
-                raise TypeError('No support for slicing using type {}'.format(type(entry)))
-
-        # this input is assumed to come from slice parsing
-        if isinstance(item, tuple):
+            item: Union[None, int, slice, Tuple[Union[int, slice], ...]]) -> Tuple[slice, slice, Optional[int]]:
+        if isinstance(item, tuple) and len(item) > 2:
             if len(item) > 3:
-                raise ValueError(
-                    'Received slice argument {}. We cannot slice '
-                    'on more than two dimensions.'.format(item))
-            elif len(item) == 3:
-                return parse(item[0], 0), parse(item[1], 1), item[2]
-            elif len(item) == 2:
-                return parse(item[0], 0), parse(item[1], 1), None
-            elif len(item) == 1:
-                return parse(item[0], 0), parse(None, 1), None
-            else:
-                return parse(None, 0), parse(None, 1), None
-        elif isinstance(item, slice):
-            return parse(item, 0), parse(None, 1), None
-        elif isinstance(item, int):
-            return parse(item, 0), parse(None, 1), None
-        else:
-            raise TypeError('Slicing using type {} is unsupported'.format(type(item)))
+                raise ValueError('Got unexpected subscript {}'.format(item))
+            if len(item) == 3:
+                if not isinstance(item[2], int):
+                    raise ValueError('Got unexpected subscript {}'.format(item))
+                return verify_subscript(item[:2], self._data_size) + (item[2], )
+        return verify_subscript(item, self._data_size) + (None, )
 
     def get_fetch_block_size(self, start_element: int, stop_element: int) -> int:
         """
@@ -224,7 +198,7 @@ class FullResolutionFetcher(object):
 
     @staticmethod
     def extract_blocks(
-            the_range: Tuple[int, int, int],
+            the_range: Union[slice, Tuple[int, int, int]],
             index_block_size: Union[None, int, float]) -> Tuple[List[Tuple[int, int, int]], List[Tuple[int, int]]]:
         """
         Convert the single range definition into a series of range definitions in
@@ -232,7 +206,7 @@ class FullResolutionFetcher(object):
 
         Parameters
         ----------
-        the_range : Tuple[int, int, int]
+        the_range : slice|Tuple[int, int, int]
             The input (off processing axis) range.
         index_block_size : None|int|float
             The size of blocks (number of indices).
@@ -247,38 +221,44 @@ class FullResolutionFetcher(object):
             range relative to the original range.
         """
 
-        return extract_blocks(the_range, index_block_size)
+        if isinstance(the_range, slice):
+            if the_range.stop is None:
+                if the_range.step > 0:
+                    raise ValueError('Got unexpected slice {}'.format(the_range))
+                use_range = (the_range.start, -1, the_range.step)
+            else:
+                use_range = (the_range.start, the_range.stop, the_range.step)
+        else:
+            use_range = the_range
+        # noinspection PyTypeChecker
+        return extract_blocks(use_range, index_block_size)
 
     def _full_row_resolution(
             self,
-            row_range: Tuple[int, int, int],
-            col_range: Tuple[int, int, int]) -> numpy.ndarray:
+            row_range: Union[slice, Tuple[int, int, int]],
+            col_range: Union[slice, Tuple[int, int, int]]) -> numpy.ndarray:
         """
         Perform the full row resolution data, with any appropriate calculations.
 
         Parameters
         ----------
-        row_range : Tuple[int, int, int]
-        col_range : Tuple[int, int, int]
+        row_range : slice|Tuple[int, int, int]
+        col_range : slice|Tuple[int, int, int]
 
         Returns
         -------
         numpy.ndarray
         """
 
+        if isinstance(row_range, Sequence):
+            row_range = slice(*row_range)
+        if isinstance(col_range, Sequence):
+            col_range = slice(*col_range)
+
         # fetch the data and perform the csi calculation
-        if row_range[2] not in [1, -1]:
+        if row_range.step not in [1, -1]:
             raise ValueError('The step for row_range must be +/- 1, for full row resolution data.')
-        if row_range[1] == -1:
-            data = self.reader[
-                   row_range[0]::row_range[2],
-                   col_range[0]:col_range[1]:col_range[2],
-                   self.index]
-        else:
-            data = self.reader[
-                   row_range[0]:row_range[1]:row_range[2],
-                   col_range[0]:col_range[1]:col_range[2],
-                   self.index]
+        data = self.reader[(row_range, col_range, self.index)]
 
         if data.ndim < 2:
             data = numpy.reshape(data, (-1, 1))
@@ -288,8 +268,8 @@ class FullResolutionFetcher(object):
 
     def _full_column_resolution(
             self,
-            row_range: Tuple[int, int, int],
-            col_range: Tuple[int, int, int]) -> numpy.ndarray:
+            row_range: Union[slice, Tuple[int, int, int]],
+            col_range: Union[slice, Tuple[int, int, int]]) -> numpy.ndarray:
         """
         Perform the full column resolution data, with any appropriate calculations.
 
@@ -303,19 +283,15 @@ class FullResolutionFetcher(object):
         numpy.ndarray
         """
 
+        if isinstance(row_range, Sequence):
+            row_range = slice(*row_range)
+        if isinstance(col_range, Sequence):
+            col_range = slice(*col_range)
+
         # fetch the data and perform the csi calculation
-        if col_range[2] not in [1, -1]:
+        if col_range.step not in [1, -1]:
             raise ValueError('The step for col_range must be +/- 1, for full col resolution data.')
-        if col_range[1] == -1:
-            data = self.reader[
-                   row_range[0]:row_range[1]:row_range[2],
-                   col_range[0]::col_range[2],
-                   self.index]
-        else:
-            data = self.reader[
-                   row_range[0]:row_range[1]:row_range[2],
-                   col_range[0]:col_range[1]:col_range[2],
-                   self.index]
+        data = self.reader[(row_range, col_range, self.index)]
 
         if data.ndim < 2:
             data = numpy.reshape(data, (1, -1))
@@ -325,15 +301,15 @@ class FullResolutionFetcher(object):
 
     def _prepare_output(
             self,
-            row_range: Tuple[int, int, int],
-            col_range: Tuple[int, int, int]) -> numpy.ndarray:
+            row_range: Union[slice, Tuple[int, int, int]],
+            col_range: Union[slice, Tuple[int, int, int]]) -> numpy.ndarray:
         """
         Prepare the output workspace for :func:`__getitem__`.
 
         Parameters
         ----------
-        row_range
-        col_range
+        row_range : slice|Tuple[int, int, int]
+        col_range : slice|Tuple[int, int, int]
 
         Returns
         -------
@@ -359,7 +335,7 @@ class FullResolutionFetcher(object):
         """
 
         subscript = verify_subscript(subscript, self.data_size)
-        return self.reader.read(subscript, index=self.index)
+        return self.reader.read(*subscript, index=self.index)
 
 
 class OrthorectificationIterator(object):
@@ -534,7 +510,7 @@ class OrthorectificationIterator(object):
 
         Returns
         -------
-        numpy.ndarray
+        None|numpy.ndarray
         """
 
         ecf_corners = self.get_ecf_image_corners()
@@ -546,6 +522,10 @@ class OrthorectificationIterator(object):
     def _prepare_state(self, recalc_remap_globals: bool = False) -> None:
         """
         Prepare the iteration state.
+
+        Parameters
+        ----------
+        recalc_remap_globals : bool
 
         Returns
         -------
@@ -568,19 +548,20 @@ class OrthorectificationIterator(object):
 
     @staticmethod
     def _get_ortho_helper(
-            pixel_bounds: Tuple[int, int, int, int],
+            pixel_bounds: Union[Tuple[int, int, int, int], numpy.ndarray],
             this_data: numpy.ndarray) -> Tuple[numpy.ndarray, numpy.ndarray]:
         """
         Get helper data for ortho-rectification.
 
         Parameters
         ----------
-        pixel_bounds
-        this_data
+        pixel_bounds : Tuple[int, int, int, int]|numpy.ndarray
+        this_data : numpy.ndarray
 
         Returns
         -------
-        (numpy.ndarray, numpy.ndarray)
+        row_array: numpy.ndarray
+        col_array: numpy.ndarray
         """
 
         rows_temp = pixel_bounds[1] - pixel_bounds[0]
@@ -603,8 +584,8 @@ class OrthorectificationIterator(object):
     def _get_orthorectified_version(
             self,
             this_ortho_bounds: numpy.ndarray,
-            pixel_bounds: Tuple[int, int, int, int],
-            this_data: numpy.ndarray):
+            pixel_bounds: Union[Tuple[int, int, int, int], numpy.ndarray],
+            this_data: numpy.ndarray) -> numpy.ndarray:
         """
         Get the orthorectified version from the raw values and pixel information.
 
@@ -640,7 +621,8 @@ class OrthorectificationIterator(object):
 
         Returns
         -------
-        (numpy.ndarray, numpy.ndarray)
+        ortho_bounds: numpy.ndarray
+        pixel_bounds: numpy.ndarray
         """
 
         if self._calculator.dimension == 0:

@@ -408,14 +408,20 @@ def _verify_image_segment_compatibility(
         return False
     if form_band0 != form_band1:
         return False
+
     if (comp_order0 is None and comp_order1 is not None) or \
-            (comp_order0 is not None or comp_order1 is None) or \
+            (comp_order0 is not None and comp_order1 is None):
+        return False
+    elif comp_order0 is not None and comp_order1 is not None and \
             (comp_order0 != comp_order1):
         return False
-    if (lut0 is None and lut1 is not None) or \
-            (lut0 is not None or lut1 is None) or \
-            (numpy.any(lut0 != lut1)):
+
+    if (lut0 is None and lut1 is not None) or (lut0 is not None and lut1 is None):
         return False
+    elif lut0 is not None and lut1 is not None and numpy.any(lut0 != lut1):
+        return False
+
+    return True
 
 
 def _correctly_order_image_segment_collection(
@@ -492,8 +498,8 @@ def _get_collection_element_coordinate_limits(
         else:
             previous_indices = block_definition[i-1, :]
         rel_row_start, rel_col_start = int(iloc[:5]), int(iloc[5:])
-        abs_row_start = rel_row_start + previous_indices[1]
-        abs_col_start = rel_col_start + previous_indices[3]
+        abs_row_start = rel_row_start + previous_indices[0]
+        abs_col_start = rel_col_start + previous_indices[2]
         block_definition[i, :] = (abs_row_start, abs_row_start + rows, abs_col_start, abs_col_start + cols)
 
     # now, renormalize the coordinate system to be sensible

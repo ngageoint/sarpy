@@ -491,9 +491,9 @@ class DeskewCalculator(FullResolutionFetcher):
 
     def _get_index_arrays(
             self,
-            row_range: Tuple[int, int],
+            row_range: Tuple[int, Union[int, None]],
             row_step: int,
-            col_range: Tuple[int, int],
+            col_range: Tuple[int, Union[int, None]],
             col_step: int) -> Tuple[numpy.ndarray, numpy.ndarray]:
         """
         Get index array data for polynomial evaluation.
@@ -510,8 +510,8 @@ class DeskewCalculator(FullResolutionFetcher):
         (numpy.ndarray, numpy.ndarray)
         """
 
-        row_array = self._row_mult*(numpy.arange(row_range[0], row_range[1], row_step) - self._row_shift)
-        col_array = self._col_mult*(numpy.arange(col_range[0], col_range[1], col_step) - self._col_shift)
+        row_array = self._row_mult*(numpy.arange(row_range[0], -1 if row_range[1] is None else row_range[1], row_step) - self._row_shift)
+        col_array = self._col_mult*(numpy.arange(col_range[0], -1 if col_range[1] is None else col_range[1], col_step) - self._col_shift)
         return row_array, col_array
 
     def __getitem__(self, item) -> numpy.ndarray:
@@ -559,11 +559,11 @@ class DeskewCalculator(FullResolutionFetcher):
         # parse the slicing to ensure consistent structure
         row_range, col_range, _ = self._parse_slicing(item)
         # get full resolution data in both directions
-        row_step = 1 if row_range[2] > 0 else -1
-        col_step = 1 if col_range[2] > 0 else -1
+        row_step = 1 if row_range.step > 0 else -1
+        col_step = 1 if col_range.step > 0 else -1
         full_data = self.reader[
-               row_range[0]:row_range[1]:row_step,
-               col_range[0]:col_range[1]:col_step,
+               row_range.start:row_range.stop:row_step,
+               col_range.start:col_range.stop:col_step,
                self.index]
         # de-weight in each applicable direction
         if self._apply_deweighting and self._is_not_skewed_row and not self._is_uniform_weight_row:
@@ -572,7 +572,9 @@ class DeskewCalculator(FullResolutionFetcher):
             full_data = apply_weight_array(full_data, self._col_weight, self._col_pad, 1, inverse=True)
 
         # deskew in our given dimension
-        row_array, col_array = self._get_index_arrays(row_range[:2], row_step, col_range[:2], col_step)
+        row_array, col_array = self._get_index_arrays(
+            (row_range.start, row_range.stop), row_step,
+            (col_range.start, col_range.stop), col_step)
         if self.dimension == 0:
             # deskew on axis, if necessary
             if not self._is_not_skewed_row:
@@ -591,7 +593,7 @@ class DeskewCalculator(FullResolutionFetcher):
             if self._apply_off_axis:
                 # deskew off axis, to the extent possible
                 full_data = other_axis_deskew(full_data, self._row_fft_sgn)
-        return full_data[::abs(row_range[2]), ::abs(col_range[2])]
+        return full_data[::abs(row_range.step), ::abs(col_range.step)]
 
 
 def aperture_dimension_limits(

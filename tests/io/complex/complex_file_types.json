@@ -1,7 +1,8 @@
 {
   "SICD":  [
     {"path":  "sicd/sicd_example_1_PFA_RE32F_IM32F_HH.nitf", "path_type":  "relative"},
-    {"path":  "sicd/sicd_example_RMA_RGZERO_RE16I_IM16I.nitf", "path_type":  "relative"}],
+    {"path":  "sicd/sicd_example_RMA_RGZERO_RE16I_IM16I.nitf", "path_type":  "relative"},
+    {"path":  "sicd/sicd_example_RMA_RGZERO_RE32F_IM32F_cropped_multiple_image_segments.nitf", "path_type":  "relative"}],
   "RCM": [
     {"path":  "RCM/RCM1_OK1049807_PK1049808_1_16M11_20191028_224339_HH_HV_SLC", "path_type":  "relative"}],
   "RCM_SCANSAR": [

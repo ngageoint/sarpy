@@ -232,6 +232,7 @@ def fit_position_xvalidation(
         # stop if the error is not smaller than at the previous step
         if cur_vel_error >= prev_vel_error:
             break
+    # noinspection PyTypeChecker
     return P_x, P_y, P_z
 
 
@@ -341,8 +342,9 @@ def get_fetch_block_size(start_element, stop_element, block_size_in_bytes, bands
     return max(1, int(numpy.ceil(block_size_in_bytes / float(bands*8*full_size))))
 
 
-def extract_blocks(the_range, index_block_size):
-    # type: (Tuple[int, int, int], int) -> (List[Tuple[int, int, int]], List[Tuple[int, int]])
+def extract_blocks(
+        the_range: Tuple[int, int, int],
+        index_block_size: Union[None, int, float]) -> Tuple[List[Tuple[int, int, int]], List[Tuple[int, int]]]:
     """
     Convert the single range definition into a series of range definitions in
     keeping with fetching of the appropriate block sizes.
@@ -359,10 +361,12 @@ def extract_blocks(the_range, index_block_size):
 
     Returns
     -------
-    List[Tuple[int, int, int]], List[Tuple[int, int]]
+    range_def: List[Tuple[int, int, int]]
         The sequence of range definitions `(start index, stop index, step)`
-        relative to the overall image, and the sequence of start/stop indices
-        for positioning of the given range relative to the original range.
+        relative to the overall image.
+    index_limits: List[Tuple[int, int]]
+        The sequence of start/stop indices for positioning of the given range
+        relative to the original range.
     """
 
     entries = numpy.arange(the_range[0], the_range[1], the_range[2], dtype=numpy.int64)
@@ -422,6 +426,7 @@ def get_data_mean_magnitude(bounds, reader, index, block_size_in_bytes):
     mean_column_blocks, _ = extract_blocks((bounds[2], bounds[3], 1), mean_block_size)
     mean_total = 0.0
     mean_count = 0
+    # noinspection PyTypeChecker
     for this_column_range in mean_column_blocks:
         data = numpy.abs(reader[
                          bounds[0]:bounds[1],
@@ -496,6 +501,7 @@ def get_data_extrema(bounds, reader, index, block_size_in_bytes, percentile=None
         'Calculating extrema over the block ({}:{}, {}:{}), this may be time consuming'.format(*bounds))
     mean_block_size = get_fetch_block_size(bounds[0], bounds[1], block_size_in_bytes)
     mean_column_blocks, _ = extract_blocks((bounds[2], bounds[3], 1), mean_block_size)
+    # noinspection PyTypeChecker
     for this_column_range in mean_column_blocks:
         data = numpy.abs(reader[
                          bounds[0]:bounds[1],
