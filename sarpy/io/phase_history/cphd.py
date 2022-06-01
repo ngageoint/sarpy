@@ -1521,7 +1521,7 @@ class CPHDWriter1_0(BaseWriter):
                     format_function=format_function, mode='w')
             else:
                 data_segment = NumpyMemmapSegment(
-                    self._file_object, offset, signal_dtype, raw_shape,
+                    self._file_object.name, offset, signal_dtype, raw_shape,
                     formatted_dtype='complex64', formatted_shape=raw_shape[:2],
                     format_function=format_function, mode='w', close_file=False)
             signal_data_segments.append(data_segment)
@@ -1545,18 +1545,20 @@ class CPHDWriter1_0(BaseWriter):
 
         int_index = self._validate_support_index(identifier)
         identifier = self._validate_support_key(identifier)
-        entry = self.meta.Data.SupportArrays[int_index]
 
-        if data.shape != (entry.NumRows, entry.NumCols):
-            raise ValueError('Support data shape is not compatible with provided')
+        out_array = self._support_memmaps[identifier]
+        if data.shape != out_array.shape:
+            raise ValueError(
+                'Support data shape {} is not compatible with\n\t'
+                'that provided in metadata {}'.format(data.shape, out_array.shape))
 
         # write the data
-        self._support_memmaps[identifier][:] = data
+        out_array[:] = data
         # mark it as written
         details = self.writing_details.support_details[int_index]
         if self._in_memory:
-            # TODO: we can likely delete the memmap now?
-            details.item_bytes = self._support_memmaps[identifier].tobytes()
+            # TODO: we can delete the memmap now?
+            details.item_bytes = out_array.tobytes()
         else:
             details.item_written = True
 

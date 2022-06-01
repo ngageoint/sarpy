@@ -5,8 +5,6 @@ Processing elements (sarpy.processing)
     :maxdepth: 2
     :caption: Contents:
 
-    rgiqe
-    normalize_sicd
     rational_polynomial
     sicd/index
     sidd/index

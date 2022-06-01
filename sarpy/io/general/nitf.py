@@ -3431,7 +3431,6 @@ class NITFWritingDetails(object):
         if self._header_written and not overwrite:
             return
         the_bytes = self.header.to_bytes()
-        print(self.header.get_bytes_length(), len(the_bytes))
         if len(the_bytes) != self._header_size:
             raise ValueError(
                 'The anticipated header length {}\n\t'

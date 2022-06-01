@@ -370,7 +370,7 @@ class SubapertureCalculator(FFTCalculator):
         else:
             row_slice = row_range
         if isinstance(col_range, tuple):
-            col_slice = slice(*row_range)
+            col_slice = slice(*col_range)
         else:
             col_slice = row_range
 

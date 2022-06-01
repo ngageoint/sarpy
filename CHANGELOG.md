@@ -1,8 +1,26 @@
 # Change Log
 
-SarPy follows a continuous release process, so there are lots of releases. Since 
-essentially every commit corresponds to a release, specific release points are 
-not being annotated in github.
+SarPy follows a continuous release process, so there are fairly frequent releases. 
+Since essentially every (squash merge) commit corresponds to a release, specific 
+release points are not being annotated in github.
+
+## [1.3.0] - 2022-06-01
+### Changed
+- The base reading and writing structures have been updated to enable reading and 
+writing data in both the natural use format of data (using `read()` or `write()`), 
+as well as the raw storage format (using `read_raw()` or `write_raw()`). 
+- kmz construction has been moved from the `sarpy.io.product` subpackage to the 
+`sarpy.visualization` subpackage.
+- The `sarpy.processing` subpackage has been restructured for clarity of purpose.
+This includes moving sidd production construction has been moved from the 
+`sarpy.io.product` subpackage to the `sarpy.processing.sidd` subpackage.
+
+### Added
+Implementations for DataSegment and FormatFunction for reading and writing 
+changes.
+
+# 1.3
+
 
 ## [1.2.70] - 2022-05-05
 ### Changed
