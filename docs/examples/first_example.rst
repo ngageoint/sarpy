@@ -67,10 +67,10 @@ unnecessary steps in attempting using other format readers, catching the associa
 exceptions, and continuing until success.
 
 The second reason to do or try this is when the general opener process is not working.
-Remember, the general complex opener function simply iterates over the collection of
-complex format readers, *catching most exceptions*, and returning the first reader
-instance that works. In this case, the catching of exceptions can actually lead to
-confusion, because the underlying problem is being suppressed.
+The general complex opener function simply iterates over the collection of complex
+format readers, *catching some exceptions*, and returning the first reader instance
+that works. In this case, the catching of exceptions can actually lead to confusion,
+because the underlying problem is being suppressed.
 
 .. code-block:: python
 
@@ -82,7 +82,8 @@ SICD metadata structure
 -----------------------
 
 Access the SICD structure or tuple of structures associated with the reader.
-Note that the sicd structure is defined using elements of `sarpy.io.complex.sicd_elements`
+Note that the sicd structure is defined using elements of
+`sarpy.io.complex.sicd_elements`
 
 A sicd file will necessarily be composed of a single image, but other file formats
 (like sentinel or radarsat) often contain multiple images combined into a single
@@ -116,35 +117,60 @@ package (i.e. multiple polarizations or other aggregate collections).
     print(the_sicd.CollectionInfo.CollectorName)
 
 
-The SICD structure access details are implemented as in :meth:`sarpy.io.complex.base.SICDTypeReader.get_sicds_as_tuple`.
-The behavior of the SICD structure methods are implmeneted as in :meth:`sarpy.io.complex.sicd_elements.SICD.SICDType.to_xml_string`.
+The SICD structure access details are implemented as in
+:meth:`sarpy.io.complex.base.SICDTypeReader.get_sicds_as_tuple`. The behavior of
+the SICD structure methods are implemented as in
+:meth:`sarpy.io.complex.sicd_elements.SICD.SICDType.to_xml_string`.
 
-Read complex pixel data
------------------------
+Read SICD-like (complex) pixel data
+-----------------------------------
 
 In the image file(s), complex format data is generally stored with real and
-imaginary components of either 16-bit integer or 32-bit floating point type.
-When reading complex format data, regardless of storage format, the returned data
-will be cast or redefined to be 64-bit complex data type, which has 32-bit floating
-point real and imaginary components.
+imaginary components of either 16-bit integer or 32-bit floating point type. For
+most typical use cases, the storage format is not important, and the data should
+be reformatted as 64-bit complex data (i.e. 32-bit floating point real and
+imaginary components).
 
-The recommended methodology uses slice notation, with basic syntax as:
+Every SICD-like reader has each image consisting of a single complex band, and
+can be sliced based on rows (first dimension, according to SICD convention) and
+columns (second dimension, according to SICD convention). There is no expectation
+on relation of individual image sizes from the same reader, and **slicing on multiple
+images simultaneously is not supported.**
+
+Here are example methodologies for reading properly formatted data:
 
 .. code-block:: python
 
     # ... assumes previously defined reader instance
 
-    # overall syntax
-    data = reader[row_start:row_end:row_step, col_start:col_end:col_step, image_index=0]
+    # overall syntax using numpy-like slicing syntax
+    data = reader[row_start:row_end:row_step, col_start:col_end:col_step, <index>]
+    # for SICD-like readers, slicing in the index dimension is unsupported
+    data = reader[<slice>, <slice>, index_start:index_stop:index_end]  # UNSUPPORTED
 
-    # in the event of a single image, or read from first image
+    # omitting the index in slicing yields the first image
     all_data = reader[:]  # or reader[:, :] - reads all data from the first image
     decimated_data = reader[::10, ::10] # reads every 10th pixel from the first image
 
-    # read all data from the 3rd image (requires that there is one).
-    third_image_data = reader[:, :, 2]
+    # numpy slicing convention not quite followed for index identification,
+    # any integer as the final slice identifies the image index (unless there is only one)
+    third_image_data = reader[:, :, 1]  # all data from 2nd image (requires that there is one)
+    third_image_data = reader[:, 1]  # same
+    third_image_data = reader[1]  # same
 
-This behavior is implemented in  :meth:`sarpy.io.general.base.BaseReader.__getitem__`.
+    # to use an integer slice in the final location, be sure to specify image index
+    column_three = reader[:, 3, 2]   # extracts the column 3 from the image at index 2
+
+    # using the read method,
+    data = reader.read(slice(row_start, row_end, row_step), slice(col_start, col_end, col_step), index=<index>)
+    # or
+    data = reader.read((row_start, row_end, row_step), (col_start, col_end, col_step), index=<index>)
+
+    # using reader as a callable
+    data = reader(slice(row_start, row_end, row_step), slice(col_start, col_end, col_step), index=<index>)
+    # or
+    data = reader((row_start, row_end, row_step), (col_start, col_end, col_step), index=<index>)
+
 
 Basic data plot and remap
 -------------------------

@@ -817,7 +817,7 @@ class SICDType(Serializable):
         None
         """
 
-        from sarpy.processing.rgiqe import populate_rniirs_for_sicd
+        from sarpy.processing.sicd.rgiqe import populate_rniirs_for_sicd
         populate_rniirs_for_sicd(self, signal=signal, noise=noise, override=override)
 
     def get_suggested_name(self, product_number=1):

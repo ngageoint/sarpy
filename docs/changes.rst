@@ -4,12 +4,15 @@ Important recent changes
 
 Introduced in Version 1.3.0
 ===========================
-words
 
-Reading and writing changes in 1.3.0
-------------------------------------
-more words
+Reading changes
+---------------
 
-Restructuring of sarpy.processing subpackage in 1.3.0
------------------------------------------------------
+
+Writing changes
+---------------
+
+
+Restructuring of sarpy.processing subpackage
+--------------------------------------------
 even more words

@@ -14,7 +14,7 @@ from scipy.constants import speed_of_light
 
 from sarpy.processing.sicd.fft_base import FFTCalculator, fft, ifft, fftshift, fft2_sicd, ifft2_sicd
 from sarpy.io.general.slice_parsing import validate_slice_int, verify_slice
-from sarpy.processing.normalize_sicd import DeskewCalculator
+from sarpy.processing.sicd.normalize_sicd import DeskewCalculator
 from sarpy.processing.ortho_rectify import OrthorectificationHelper, OrthorectificationIterator
 from sarpy.visualization.remap import RemapFunction
 from sarpy.io.complex.base import SICDTypeReader

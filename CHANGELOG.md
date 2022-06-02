@@ -229,7 +229,7 @@ given the presence of other RCS polynomials
 
 ### Fixed
 Account for noise and Radiometric SF poly changes due to subaperture and 
-weighting changes in sarpy.processing.normalize_sicd methods
+weighting changes in sarpy.processing.sicd.normalize_sicd methods
 
 ## [1.2.29] - 2021-10-15
 ### Fixed

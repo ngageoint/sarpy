@@ -15,7 +15,7 @@ import numpy
 from sarpy.io.complex.base import SICDTypeReader, FlatSICDReader
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.processing.sicd.windows import get_hamming_broadening_factor
-from sarpy.processing.normalize_sicd import sicd_degrade_reweight, is_uniform_weight
+from sarpy.processing.sicd.normalize_sicd import sicd_degrade_reweight, is_uniform_weight
 from sarpy.io.complex.converter import open_complex
 
 logger = logging.getLogger(__name__)
@@ -780,7 +780,7 @@ def quality_degrade(
         modifications which change the noise due to sub-aperture degradation and/or
         de-weighting.
     kwargs
-        Keyword arguments passed through to :func:`sarpy.processing.normalize_sicd.sicd_degrade_reweight`
+        Keyword arguments passed through to :func:`sarpy.processing.sicd.normalize_sicd.sicd_degrade_reweight`
 
     Returns
     -------
@@ -850,7 +850,7 @@ def quality_degrade_resolution(
         The desired ImpRespBW (Row, Col) tuple. Exactly one of `desired_resolution`
         and `desired_bandwidth` must be provided.
     kwargs
-        Keyword arguments passed through to :func:`sarpy.processing.normalize_sicd.sicd_degrade_reweight`
+        Keyword arguments passed through to :func:`sarpy.processing.sicd.normalize_sicd.sicd_degrade_reweight`
 
     Returns
     -------
@@ -891,7 +891,7 @@ def quality_degrade_noise(
     desired_nesz : None|float
         The desired noise equivalent sigma zero value.
     kwargs
-        Keyword arguments passed through to :func:`sarpy.processing.normalize_sicd.sicd_degrade_reweight`
+        Keyword arguments passed through to :func:`sarpy.processing.sicd.normalize_sicd.sicd_degrade_reweight`
 
     Returns
     -------
@@ -948,7 +948,7 @@ def quality_degrade_rniirs(
         distribution of variability between required influence from increasing
         noise and require influence of decreasing bandwidth.
     kwargs
-        Keyword arguments passed through to :func:`sarpy.processing.normalize_sicd.sicd_degrade_reweight`
+        Keyword arguments passed through to :func:`sarpy.processing.sicd.normalize_sicd.sicd_degrade_reweight`
 
     Returns
     -------
