@@ -197,7 +197,7 @@ class _CommonElements3(_CommonElements2):
         'num_proc_rec', 'proc_len', 'num_cal_rec', 'cal_len',
         'num_gcp_rec', 'gcp_len', 'num_fac_data_rec', 'fac_data_len')
 
-    def __init__(self, fi):
+    def __init__(self, fi, facility_count: int):
         super(_CommonElements3, self).__init__(fi)
         self.num_map_rec = int(fi.read(6))  # type: int
         self.map_len = int(fi.read(6))  # type: int
@@ -228,15 +228,14 @@ class _CommonElements3(_CommonElements2):
         self.num_gcp_rec = int(fi.read(6))  # type: int
         self.gcp_len = int(fi.read(6))  # type: int
         fi.seek(60, os.SEEK_CUR)  # skip reserved fields
-        # the five data facility records
+        # the data facility records
         num_fac_data_rec = []
         fac_data_len = []
-        for i in range(5):
+        for i in range(facility_count):
             num_fac_data_rec.append(int(fi.read(6)))
             fac_data_len.append(int(fi.read(8)))
         self.num_fac_data_rec = tuple(num_fac_data_rec)  # type: Tuple[int]
         self.fac_data_len = tuple(fac_data_len)  # type: Tuple[int]
-
 
 ##########
 # IMG file interpretation
@@ -522,9 +521,11 @@ class _IMG_Elements(_CommonElements2):
         prefix_bytes = self.prefix_bytes
         suffix_bytes = self.suffix_bytes
         if (prefix_bytes % pixel_size) != 0:
-            raise ValueError('prefix size is not compatible with pixel size')
+            raise ValueError(
+                'prefix size ({}) is not compatible with pixel size ({})'.format(prefix_bytes, pixel_size))
         if (suffix_bytes % pixel_size) != 0:
-            raise ValueError('suffix size is not compatible with pixel size')
+            raise ValueError(
+                'suffix size ({}) is not compatible with pixel size ({})'.format(suffix_bytes, pixel_size))
         pref_cols = int(prefix_bytes/pixel_size)
         suf_cols = int(suffix_bytes/pixel_size)
 
@@ -849,14 +850,14 @@ class _LED_DataQuality(_BaseElements):
         self.chan_id = fi.read(4).decode('utf-8')  # type: str
         self.date = fi.read(6).decode('utf-8')  # type: str
         self.num_chans = int(fi.read(4))  # type: int
-        self.islr = float(fi.read(16))  # type: float
-        self.pslr = float(fi.read(16))  # type: float
-        self.aar = float(fi.read(16))  # type: float
-        self.rar = float(fi.read(16))  # type: float
-        self.snr = float(fi.read(16))  # type: float
+        self.islr = _make_float(fi.read(16))  # type: float
+        self.pslr = _make_float(fi.read(16))  # type: float
+        self.aar = _make_float(fi.read(16))  # type: float
+        self.rar = _make_float(fi.read(16))  # type: float
+        self.snr = _make_float(fi.read(16))  # type: float
         self.ber = fi.read(16).decode('utf-8')  # type: str
-        self.sr_res = float(fi.read(16))  # type: float
-        self.az_res = float(fi.read(16))  # type: float
+        self.sr_res = _make_float(fi.read(16))  # type: float
+        self.az_res = _make_float(fi.read(16))  # type: float
         self.rad_res = fi.read(16).decode('utf-8')  # type: str
         self.dyn_rng = fi.read(16).decode('utf-8')  # type: str
         self.abs_cal_mag = fi.read(16).decode('utf-8')  # type: str
@@ -866,7 +867,7 @@ class _LED_DataQuality(_BaseElements):
         for i in range(self.num_chans):
             self.rel_cal_mag[i] = _make_float(fi.read(16))
             self.rel_cal_phs[i] = _make_float(fi.read(16))
-        fi.seek(480 - self.num_chans*32, os.SEEK_CUR)  # skip reserved
+        fi.seek(512 - self.num_chans*32, os.SEEK_CUR)  # skip reserved
         self.abs_err_at = fi.read(16).decode('utf-8')  # type: str
         self.abs_err_ct = fi.read(16).decode('utf-8')  # type: str
         self.distort_line = fi.read(16).decode('utf-8')  # type: str
@@ -883,6 +884,8 @@ class _LED_DataQuality(_BaseElements):
 class _LED_Facility(_BaseElements):
     """
     The data quality summary in the LED file.
+
+    NOTE: this is too failure prone, and is functionally being skipped for now.
     """
 
     __slots__ = (
@@ -897,9 +900,12 @@ class _LED_Facility(_BaseElements):
     def __init__(self, fi, parse_all=False):
         start_loc = fi.tell()
         super(_LED_Facility, self).__init__(fi)
-        self.fac_seq_num = struct.unpack('>I', fi.read(4))[0]  # type: int
+        # self.rec_length = 5000  # I don't kow why it gets populated wrong?
+
+        # self.fac_seq_num = struct.unpack('>I', fi.read(4))[0]  # type: int
+        self.fac_seq_num = int(fi.read(4))  # type: int
         if not parse_all:
-            fi.seek(self.rec_length-16, os.SEEK_CUR)
+            fi.seek(start_loc + self.rec_length, os.SEEK_SET)
             return
 
         self.mapproj2pix = numpy.zeros((10, ), dtype='float64')  # type: numpy.ndarray
@@ -965,7 +971,7 @@ class _LED_Elements(_CommonElements3):
             raise SarpyIOError('file {} does not appear to be an LED file'.format(file_name))
         self._file_name = file_name  # type: str
         with open(self._file_name, 'rb') as fi:
-            super(_LED_Elements, self).__init__(fi)
+            _CommonElements3.__init__(self, fi, 5)
             fi.seek(230, os.SEEK_CUR)  # skip reserved fields
             self.data = _LED_Data(fi)  # type: _LED_Data
             if self.num_map_rec > 0:
@@ -976,8 +982,10 @@ class _LED_Elements(_CommonElements3):
             self.attitude = _LED_Attitude(fi)  # type: _LED_Attitude
             self.radiometric = _LED_Radiometric(fi)  # type: _LED_Radiometric
             self.data_quality = _LED_DataQuality(fi)  # type: _LED_DataQuality
-            self.facility = [_LED_Facility(fi, parse_all=False) for _ in range(4)]  # type: List[_LED_Facility]
-            self.facility.append(_LED_Facility(fi, parse_all=True))
+            facilities = []
+            for i in range(5):
+                facilities.append(_LED_Facility(fi, parse_all=False))
+            self.facility = facilities
 
     @property
     def file_name(self):
@@ -1025,7 +1033,7 @@ class _TRL_Elements(_CommonElements3):
             raise SarpyIOError('file {} does not appear to be an LED file'.format(file_name))
         self._file_name = file_name  # type: str
         with open(self._file_name, 'rb') as fi:
-            super(_TRL_Elements, self).__init__(fi)
+            _CommonElements3.__init__(self, fi, 5)
             self.num_low_res_rec = int(fi.read(6))  # type: int
             self.low_res = tuple([_TRL_LowResRecord(fi) for _ in range(self.num_low_res_rec)])
             fi.seek(720, os.SEEK_CUR)  # skip reserved data
@@ -1334,10 +1342,13 @@ class PALSARDetails(object):
             return GeoDataType(SCP=SCPType(LLH=[scp_lat, scp_lon, 0.0]))
 
         def get_timeline() -> TimelineType:
+            starting_usec = start_signal.usec if start_signal.usec != 0 else 1000*start_signal.msec
+            ending_usec = end_signal.usec if end_signal.usec != 0 else 1000*end_signal.msec
+
             start_time = numpy.datetime64('{0:04d}-01-01'.format(start_signal.year), 'us') + \
-                         (start_signal.day-1)*86400*1000000 + start_signal.usec
+                         numpy.timedelta64((start_signal.day-1)*86400*1000000 + starting_usec, 'us')
             end_time = numpy.datetime64('{0:04d}-01-01'.format(end_signal.year), 'us') + \
-                       (end_signal.day-1)*86400*1000000 + end_signal.usec
+                       numpy.timedelta64((end_signal.day-1)*86400*1000000 + ending_usec, 'us')
             duration = get_seconds(end_time, start_time, precision='us')
             # NB: I opt to calculate duration this way instead of subtracting usec directly,
             # just in case midnight UTC occurs during the collect
@@ -1355,7 +1366,7 @@ class PALSARDetails(object):
             pos_element = led_element.position
             position_start = numpy.datetime64(
                 '{0:04d}-{1:02d}-{2:02d}'.format(pos_element.year, pos_element.month, pos_element.day), 'us') + \
-                             int(pos_element.sec*1000000)
+                             numpy.timedelta64(int(pos_element.sec*1000000), 'us')
             arp_pos = pos_element.pts_pos
             arp_vel = pos_element.pts_vel
             diff_time = get_seconds(position_start, timeline.CollectStart, precision='us')
