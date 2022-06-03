@@ -1168,6 +1168,8 @@ class SubsetSegment(DataSegment):
                 stop = the_array[-1] + step
                 if stop < 0:
                     stop = None
+                elif stop > full_size:
+                    stop = full_size
                 out.append(slice(start, stop, step))
         return tuple(out)
 
@@ -1205,9 +1207,11 @@ class SubsetSegment(DataSegment):
         Tuple[slice, ...]
         """
 
-        return self._get_parent_subscript(
+
+        out = self._get_parent_subscript(
             self.verify_formatted_subscript(subscript), self.formatted_shape, self.parent.formatted_shape,
             self._original_formatted_indices, self._formatted_subset_definition)
+        return out
 
     def read_raw(
             self,
@@ -1394,11 +1398,11 @@ class BandAggregateSegment(DataSegment):
         self.close_children = close_children
         self._children = None
         self._set_band_dimension(band_dimension, reverse_axes, transpose_axes)
-        raw_dtype, raw_shape, the_mode = self._set_children(children, transpose_axes)
+        raw_dtype, raw_shape, form_shape, the_mode = self._set_children(children, transpose_axes)
 
         if format_function is None:
             formatted_dtype = raw_dtype
-            formatted_shape = raw_shape
+            formatted_shape = form_shape
         else:
             if formatted_dtype is None or formatted_shape is None:
                 raise ValueError(
@@ -1473,7 +1477,7 @@ class BandAggregateSegment(DataSegment):
     def _set_children(
             self,
             children: Sequence[DataSegment],
-            transpose_axes: Union[None, Tuple[int, ...]]) -> (numpy.dtype, Tuple[int, ...]):
+            transpose_axes: Optional[Tuple[int, ...]]) -> Tuple[numpy.dtype, Tuple[int, ...], Tuple[int, ...], str]:
         if len(children) < 2:
             raise ValueError('Cannot define a BandAggregateSegment based on fewer than 2 segments.')
 
@@ -1484,12 +1488,11 @@ class BandAggregateSegment(DataSegment):
         if transpose_axes is None:
             transpose_axes = tuple(range(0, len(child_shape) + 1))
 
-        t_shape = [entry for entry in child_shape]
-        t_shape.insert(self.band_dimension, len(children))
-        the_shape = []
-        for entry in transpose_axes:
-            the_shape.append(t_shape[entry])
-        the_shape = tuple(the_shape)
+        raw_shape = [entry for entry in child_shape]
+        raw_shape.insert(self.band_dimension, len(children))
+        raw_shape = tuple(raw_shape)
+
+        form_shape = tuple(raw_shape[entry] for entry in transpose_axes)
 
         use_children = []
         for child in children:
@@ -1503,7 +1506,7 @@ class BandAggregateSegment(DataSegment):
                 raise ValueError('write mode requires that all children can write regular data')
             use_children.append(child)
         self._children = tuple(use_children)
-        return the_dtype, the_shape, the_mode
+        return the_dtype, raw_shape, form_shape, the_mode
 
     @property
     def bands(self) -> int:

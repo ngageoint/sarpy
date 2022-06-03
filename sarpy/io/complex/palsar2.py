@@ -16,7 +16,8 @@ from numpy.polynomial import polynomial
 from scipy.constants import speed_of_light
 
 from sarpy.io.general.base import SarpyIOError
-from sarpy.io.general.data_segment import DataSegment, NumpyMemmapSegment, SubsetSegment
+from sarpy.io.general.data_segment import DataSegment, NumpyMemmapSegment, \
+    SubsetSegment, BandAggregateSegment
 from sarpy.io.general.format_function import ComplexFormatFunction
 from sarpy.io.general.utils import get_seconds, parse_timestring, is_file_like
 
@@ -517,29 +518,11 @@ class _IMG_Elements(_CommonElements2):
 
         reverse_axes = (1, ) if flip_pixels else None
 
+        # TODO: handle the case where pixel_size == 8 and prefix_bytes % 8 == 4...
+
         pixel_size = self.num_bytes
         prefix_bytes = self.prefix_bytes
         suffix_bytes = self.suffix_bytes
-        if (prefix_bytes % pixel_size) != 0:
-            raise ValueError(
-                'prefix size ({}) is not compatible with pixel size ({})'.format(prefix_bytes, pixel_size))
-        if (suffix_bytes % pixel_size) != 0:
-            raise ValueError(
-                'suffix size ({}) is not compatible with pixel size ({})'.format(suffix_bytes, pixel_size))
-        pref_cols = int(prefix_bytes/pixel_size)
-        suf_cols = int(suffix_bytes/pixel_size)
-
-        raw_shape = (self.num_lines, pref_cols + self.num_pixels + suf_cols, 2)
-        formatted_shape = raw_shape[1::-1]
-        formatted_dtype = 'complex64'
-        transpose_axes = (1, 0, 2)
-
-        if flip_pixels:
-            sub_start = suf_cols
-            sub_end = self.num_pixels+suf_cols
-        else:
-            sub_start = pref_cols
-            sub_end = self.num_pixels+pref_cols
 
         if pixel_size == 8:
             sar_datatype_code = self.sar_datatype_code.strip()
@@ -552,16 +535,33 @@ class _IMG_Elements(_CommonElements2):
         else:
             raise ValueError('Got unhandled pixel size = {}'.format(pixel_size))
 
-        format_function = ComplexFormatFunction(raw_dtype, order='IQ', band_dimension=2)
+        entry_pixel_size = int(pixel_size/2)
+
+        if (prefix_bytes % entry_pixel_size) != 0:
+            raise ValueError(
+                'prefix size ({}) is not compatible with pixel size ({})'.format(prefix_bytes, pixel_size))
+        if (suffix_bytes % entry_pixel_size) != 0:
+            raise ValueError(
+                'suffix size ({}) is not compatible with pixel size ({})'.format(suffix_bytes, pixel_size))
+        pref_cols = int(prefix_bytes/entry_pixel_size)
+        suf_cols = int(suffix_bytes/entry_pixel_size)
+
+        raw_shape = (self.num_lines, pref_cols + 2*self.num_pixels + suf_cols)
         parent_data_segment = NumpyMemmapSegment(
-            self._file_name, self.rec_length,
-            raw_shape=raw_shape, raw_dtype=raw_dtype,
-            formatted_shape=formatted_shape, formatted_dtype=formatted_dtype,
-            reverse_axes=reverse_axes, transpose_axes=transpose_axes,
-            format_function=format_function, mode='r', close_file=True)
-        subset_definition = (slice(sub_start, sub_end, 1), slice(0, self.num_lines, 1))
-        return SubsetSegment(
-            parent_data_segment, subset_definition, coordinate_basis='formatted', close_parent=True)
+            self._file_name, self.rec_length, raw_dtype, raw_shape, mode='r', close_file=True)
+        real_subset_def = (slice(0, self.num_lines, 1), slice(pref_cols, pref_cols + 2*self.num_pixels, 2))
+        imag_subset_def = (slice(0, self.num_lines, 1), slice(pref_cols+1, pref_cols + 2*self.num_pixels, 2))
+
+        real_subset = SubsetSegment(parent_data_segment, real_subset_def, coordinate_basis='raw', close_parent=True)
+        imag_subset = SubsetSegment(parent_data_segment, imag_subset_def, coordinate_basis='raw', close_parent=True)
+
+        formatted_shape = real_subset.raw_shape[::-1]
+        return BandAggregateSegment(
+            (real_subset, imag_subset), 2,
+            formatted_dtype='complex64', formatted_shape=formatted_shape,
+            reverse_axes=reverse_axes, transpose_axes=(1, 0, 2),
+            format_function=ComplexFormatFunction(raw_dtype, order='IQ', band_dimension=2),
+            close_children=True)
 
 
 ###########

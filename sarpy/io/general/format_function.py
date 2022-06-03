@@ -526,10 +526,9 @@ class IdentityFunction(FormatFunction):
 
 class ComplexFormatFunction(FormatFunction):
     """
-    Reformats data from real/imaginary dimension pairs
-    to complex64 output, assuming that the raw data has
-    fixed dimensionality and the real/imaginary pairs fall 
-    along a given dimension.
+    Reformats data from real/imaginary dimension pairs to complex64 output,
+    assuming that the raw data has fixed dimensionality and the real/imaginary
+    pairs fall along a given band dimension.
 
     Introduced in version 1.3.0.
     """
@@ -669,7 +668,7 @@ class ComplexFormatFunction(FormatFunction):
                     'got formatted_shape `{}`'.format(
                         self.raw_shape, self.transpose_axes, self.band_dimension, after_mapping_shape, self.formatted_shape))
         elif self.raw_ndim == self.formatted_ndim + 1:
-            reduced_shape = [entry for entry in arranged_shape]
+            reduced_shape = [entry for entry in after_mapping_shape]
             reduced_shape.pop(self.band_dimension)
             reduced_shape = tuple(reduced_shape)
             if reduced_shape != self.formatted_shape:
