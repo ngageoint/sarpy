@@ -6,7 +6,7 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 import logging
-from typing import List, Sequence
+from typing import List, Tuple, Sequence, Optional, Union
 
 import numpy
 from numpy.polynomial import polynomial
@@ -24,7 +24,7 @@ class SarpyRatPolyError(SarpyError):
 #################
 # helper functions
 
-def _get_num_variables(coeff_list):
+def _get_num_variables(coeff_list: Sequence[Union[int, Tuple[int, ...]]]) -> int:
     """
     Determine the number of variables by inspection of the coefficient list
 
@@ -54,15 +54,15 @@ def _get_num_variables(coeff_list):
     return variables
 
 
-def _map_list_to_poly_matrix(coeffs, coeff_list):
+def _map_list_to_poly_matrix(coeffs: Sequence[float], coeff_list: Sequence[Tuple[int, ...]]) -> numpy.ndarray:
     """
     Maps the coefficients and coefficient listing to corresponding
     numpy polynomial coefficient matrix.
 
     Parameters
     ----------
-    coeffs : Sequence
-    coeff_list : Sequence
+    coeffs : Sequence[float]
+    coeff_list : Sequence[Tuple[int, ...]]
 
     Returns
     -------
@@ -81,7 +81,7 @@ def _map_list_to_poly_matrix(coeffs, coeff_list):
     return coefficient_array
 
 
-def get_default_coefficient_ordering(variables, order):
+def get_default_coefficient_ordering(variables: int, order: int) -> Sequence[Tuple[int, ...]]:
     """
     Gets a sensible coefficient ordering of a polynomial of given number of
     variables and order.
@@ -93,7 +93,7 @@ def get_default_coefficient_ordering(variables, order):
 
     Returns
     -------
-    coefficient_list : List[tuple]
+    coefficient_list : Tuple[Tuple[int, ...]]
         List of the form `[(exponent 0, exponent 1, ...)]`, determining the ordering
         of monomial terms in the associated multivariable polynomial.
     """
@@ -111,13 +111,17 @@ def get_default_coefficient_ordering(variables, order):
         total_exponent = sum(index)
         if total_exponent <= order:
             coefficient_list.append(index)
-    return coefficient_list
+    return tuple(coefficient_list)
 
 
 ###################
 # base rational polynomial fitting functions
 
-def rational_poly_fit_1d(x, data, coeff_list, cond=None):
+def rational_poly_fit_1d(
+        x: numpy.ndarray,
+        data: numpy.ndarray,
+        coeff_list: Sequence[Union[int, Tuple[int]]],
+        cond: Optional[float] = None) -> Tuple[numpy.ndarray, numpy.ndarray]:
     """
     Fits a one variable rational polynomial according to the input coefficient
     listing order.
@@ -126,9 +130,19 @@ def rational_poly_fit_1d(x, data, coeff_list, cond=None):
     ----------
     x : numpy.ndarray
     data : numpy.ndarray
-    coeff_list : List
+    coeff_list : List[int|Tuple[int]]
     cond : None|float
         Passed through to :func:`scipy.linalg.lstsq`.
+
+    Returns
+    -------
+    numerator: numpy.ndarray
+    denominator: numpy.ndarray
+
+    Raises
+    ------
+    SarpyRatPolyError
+        Convergence failures passed through
     """
 
     if coeff_list[0] not in [0, (0, )]:
@@ -181,7 +195,12 @@ def rational_poly_fit_1d(x, data, coeff_list, cond=None):
     return numerator, denominator
 
 
-def rational_poly_fit_2d(x, y, data, coeff_list, cond=None):
+def rational_poly_fit_2d(
+        x: numpy.ndarray,
+        y: numpy.ndarray,
+        data: numpy.ndarray,
+        coeff_list: Sequence[Tuple[int, int]],
+        cond: Optional[float] = None) -> Tuple[numpy.ndarray, numpy.ndarray]:
     """
     Fits a two variable rational polynomial according to the input coefficient
     listing order.
@@ -191,9 +210,19 @@ def rational_poly_fit_2d(x, y, data, coeff_list, cond=None):
     x : numpy.ndarray
     y : numpy.ndarray
     data : numpy.ndarray
-    coeff_list : List
+    coeff_list : Sequence[Tuple[int, int]]
     cond : None|float
         Passed through to :func:`scipy.linalg.lstsq`.
+
+    Returns
+    -------
+    numerator: numpy.ndarray
+    denominator: numpy.ndarray
+
+    Raises
+    ------
+    SarpyRatPolyError
+        Convergence failures passed through
     """
 
     if coeff_list[0] != (0, 0):
@@ -247,7 +276,13 @@ def rational_poly_fit_2d(x, y, data, coeff_list, cond=None):
     return numerator, denominator
 
 
-def rational_poly_fit_3d(x, y, z, data, coeff_list, cond=None):
+def rational_poly_fit_3d(
+        x: numpy.ndarray,
+        y: numpy.ndarray,
+        z: numpy.ndarray,
+        data: numpy.ndarray,
+        coeff_list: Sequence[Tuple[int, int, int]],
+        cond: Optional[float] = None) -> Tuple[numpy.ndarray, numpy.ndarray]:
     """
     Fits a three variable rational polynomial according to the input coefficient
     listing order.
@@ -258,9 +293,19 @@ def rational_poly_fit_3d(x, y, z, data, coeff_list, cond=None):
     y : numpy.ndarray
     z : numpy.ndarray
     data : numpy.ndarray
-    coeff_list : List
+    coeff_list : Sequence[Tuple[int, int, int]]
     cond : None|float
         Passed through to :func:`scipy.linalg.lstsq`.
+
+    Returns
+    -------
+    numerator: numpy.ndarray
+    denominator: numpy.ndarray
+
+    Raises
+    ------
+    SarpyRatPolyError
+        Convergence failures passed through
     """
 
     if coeff_list[0] != (0, 0, 0):
@@ -347,16 +392,24 @@ class RationalPolynomial(object):
         '_numerator', '_denominator', '_coeff_list', '_variables', '_input_offsets', '_input_scales',
         '_output_offset', '_output_scale', '_numerator_array', '_denominator_array')
 
-    def __init__(self, numerator, denominator, coeff_list, input_offsets, input_scales, output_offset, output_scale):
+    def __init__(
+            self,
+            numerator: Union[Sequence[float], numpy.ndarray],
+            denominator: Union[Sequence[float], numpy.ndarray],
+            coeff_list: Sequence[Tuple[int, ...]],
+            input_offsets: Sequence[float],
+            input_scales: Sequence[float],
+            output_offset: float,
+            output_scale: float):
         """
 
         Parameters
         ----------
         numerator : Sequence|numpy.ndarray
         denominator : Sequence|numpy.ndarray
-        coeff_list : Sequence
-        input_offsets : Sequence
-        input_scales : Sequence
+        coeff_list : Sequence[Tuple[int, ...]]
+        input_offsets : Sequence[float]
+        input_scales : Sequence[float]
         output_offset : float
         output_scale : float
         """
@@ -388,7 +441,7 @@ class RationalPolynomial(object):
         self._denominator_array = _map_list_to_poly_matrix(denominator, coeff_list)
 
     @property
-    def variables(self):
+    def variables(self) -> int:
         """
         The number of independent variables.
 
@@ -400,7 +453,7 @@ class RationalPolynomial(object):
         return self._variables
 
     @property
-    def coefficient_list(self):
+    def coefficient_list(self) -> Sequence[Tuple[int, ...]]:
         """
         The coefficient list.
 
@@ -412,7 +465,7 @@ class RationalPolynomial(object):
         return self._coeff_list
 
     @property
-    def numerator(self):
+    def numerator(self) -> Sequence[float]:
         """
         The numerator coefficients.
 
@@ -424,7 +477,7 @@ class RationalPolynomial(object):
         return self._numerator
 
     @property
-    def denominator(self):
+    def denominator(self) -> Sequence[float]:
         """
         The denominator coefficients.
 
@@ -435,7 +488,7 @@ class RationalPolynomial(object):
 
         return self._denominator
 
-    def __call__(self, *input_variables):
+    def __call__(self, *input_variables: List[numpy.ndarray]) -> numpy.ndarray:
         def ensure_the_type(data):
             if isinstance(data, (numpy.number, int, float, numpy.ndarray)):
                 return data
@@ -489,8 +542,7 @@ class RationalPolynomial(object):
         return value*self._output_scale + self._output_offset
 
 
-def _get_scale_and_offset(array):
-    # type: (numpy.ndarray) -> (float, float)
+def _get_scale_and_offset(array: numpy.ndarray) -> Tuple[float, float]:
     min_value = numpy.min(array)
     max_value = numpy.max(array)
     scale_value = 0.5*(max_value - min_value)
@@ -498,7 +550,12 @@ def _get_scale_and_offset(array):
     return offset_value, scale_value
 
 
-def get_rational_poly_1d(x, data, coeff_list=None, order=None, cond=None):
+def get_rational_poly_1d(
+        x: numpy.ndarray,
+        data: numpy.ndarray,
+        coeff_list: Optional[Sequence[Union[int, Tuple[int]]]] = None,
+        order: Optional[int] = None,
+        cond: Optional[float] = None) -> RationalPolynomial:
     """
     Gets the RationalPolynomial instance that comes from fitting the provided data.
 
@@ -510,6 +567,15 @@ def get_rational_poly_1d(x, data, coeff_list=None, order=None, cond=None):
     order : None|int
     cond : None|float
         Passed through to :func:`scipy.linalg.lstsq`.
+
+    Returns
+    -------
+    RationalPolynomial
+
+    Raises
+    ------
+    SarpyRatPolyError
+        Convergence failures passed through
     """
 
     if (coeff_list is None and order is None) or \
@@ -535,7 +601,13 @@ def get_rational_poly_1d(x, data, coeff_list=None, order=None, cond=None):
         offset_data, scale_data)
 
 
-def get_rational_poly_2d(x, y, data, coeff_list=None, order=None, cond=None):
+def get_rational_poly_2d(
+        x: numpy.ndarray,
+        y: numpy.ndarray,
+        data: numpy.ndarray,
+        coeff_list: Optional[Sequence[Tuple[int, int]]] = None,
+        order: Optional[int] = None,
+        cond: Optional[float] = None) -> RationalPolynomial:
     """
     Gets the RationalPolynomial instance that comes from fitting the provided data.
 
@@ -548,6 +620,15 @@ def get_rational_poly_2d(x, y, data, coeff_list=None, order=None, cond=None):
     order : None|int
     cond : None|float
         Passed through to :func:`scipy.linalg.lstsq`.
+
+    Returns
+    -------
+    RationalPolynomial
+
+    Raises
+    ------
+    SarpyRatPolyError
+        Convergence failures passed through
     """
 
     if (coeff_list is None and order is None) or \
@@ -574,7 +655,14 @@ def get_rational_poly_2d(x, y, data, coeff_list=None, order=None, cond=None):
         offset_data, scale_data)
 
 
-def get_rational_poly_3d(x, y, z, data, coeff_list=None, order=None, cond=None):
+def get_rational_poly_3d(
+        x: numpy.ndarray,
+        y: numpy.ndarray,
+        z: numpy.ndarray,
+        data: numpy.ndarray,
+        coeff_list: Optional[Sequence[Tuple[int, int]]] = None,
+        order: Optional[int] = None,
+        cond: Optional[float] = None) -> RationalPolynomial:
     """
     Gets the RationalPolynomial instance that comes from fitting the provided data.
 
@@ -588,6 +676,15 @@ def get_rational_poly_3d(x, y, z, data, coeff_list=None, order=None, cond=None):
     order : None|int
     cond : None|float
         Passed through to :func:`scipy.linalg.lstsq`.
+
+    Returns
+    -------
+    RationalPolynomial
+
+    Raises
+    ------
+    SarpyRatPolyError
+        Convergence failures passed through
     """
 
     if (coeff_list is None and order is None) or \
@@ -620,14 +717,14 @@ def get_rational_poly_3d(x, y, z, data, coeff_list=None, order=None, cond=None):
 
 class CombinedRationalPolynomial(object):
     """
-    Assemble a collection of RationalPolynomial objects with the same number of variables
-    into a single multi-variable output object.
+    Assemble a collection of RationalPolynomial objects with the same number of
+    variables into a single multi-variable output object.
     """
 
     __slots__ = ('_collection', )
 
-    def __init__(self, *collection):
-        if len(collection) == 1 and isinstance(collection[0], (list, tuple)):
+    def __init__(self, *collection: List[RationalPolynomial]):
+        if len(collection) == 1 and isinstance(collection[0], Sequence):
             collection = collection[0]
         if len(collection) < 2:
             raise ValueError('This requires more than a single input')
@@ -648,7 +745,10 @@ class CombinedRationalPolynomial(object):
             coll.append(entry)
         self._collection = tuple(coll)
 
-    def __call__(self, *args, combine=True):
+    def __call__(
+            self,
+            *args: List[numpy.ndarray],
+            combine: bool = True) -> Union[Tuple[numpy.ndarray, ...], numpy.ndarray]:
         out = tuple([entry(*args) for entry in self._collection])
         if combine:
             return numpy.stack(out, axis=-1)

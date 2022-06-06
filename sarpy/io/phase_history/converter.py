@@ -6,6 +6,7 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 import os
+from typing import Callable
 
 from sarpy.io.general.base import SarpyIOError, check_for_openers
 from sarpy.io.phase_history.base import CPHDTypeReader
@@ -17,13 +18,13 @@ _openers = []
 _parsed_openers = False
 
 
-def register_opener(open_func):
+def register_opener(open_func: Callable) -> None:
     """
     Provide a new opener.
 
     Parameters
     ----------
-    open_func
+    open_func : Callable
         This is required to be a function which takes a single argument (file name).
         This function should return a sarpy.io.phase_history.base.CPHDTypeReader instance
         if the referenced file is viable for the underlying type, and None otherwise.
@@ -39,7 +40,7 @@ def register_opener(open_func):
         _openers.append(open_func)
 
 
-def parse_openers():
+def parse_openers() -> None:
     """
     Automatically find the viable openers (i.e. :func:`is_a`) in the various modules.
     """
@@ -52,7 +53,7 @@ def parse_openers():
     check_for_openers('sarpy.io.phase_history', register_opener)
 
 
-def open_phase_history(file_name):
+def open_phase_history(file_name: str) -> CPHDTypeReader:
     """
     Given a file, try to find and return the appropriate reader object.
 

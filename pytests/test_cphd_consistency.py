@@ -36,7 +36,8 @@ if TEST_FILE_ROOT is not None:
 GOOD_CPHD = TEST_FILE_PATHS.get('simple', None)
 BISTATIC_CPHD = TEST_FILE_PATHS.get('bistatic', None)
 ANTENNA_CPHD = TEST_FILE_PATHS.get('has_antenna', None)
-DEFAULT_SCHEMA = get_schema_path(version='1.0.1')
+DEFAULT_SCHEMA = get_schema_path('1.0.1')
+
 
 def make_elem(tag, text=None, children=None, namespace=None, attributes=None, **attrib):
     """

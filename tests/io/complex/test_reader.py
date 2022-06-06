@@ -87,9 +87,6 @@ def generic_reader_test(instance, test_file, reader_type_string, reader_type):
     del reader
 
 
-# NB: I'm splitting these tests to ensure interpretable names - each reader has it's own test.
-
-
 class TestSICD(unittest.TestCase):
     @unittest.skipIf(len(complex_file_types.get('SICD', [])) == 0, 'No SICD files specified or found')
     def test_sicd_reader(self):

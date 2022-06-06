@@ -7,7 +7,7 @@ __author__ = "Thomas McCullough"
 
 
 import logging
-from typing import Iterator, Tuple, List
+from typing import Iterator, Tuple, List, Optional, Union
 
 import numpy
 from numpy.polynomial import polynomial
@@ -20,9 +20,17 @@ from sarpy.io.complex.sicd_elements.blocks import Poly2DType
 logger = logging.getLogger(__name__)
 
 
-def two_dim_poly_fit(x, y, z, x_order=2, y_order=2, x_scale=1, y_scale=1, rcond=None):
+def two_dim_poly_fit(
+        x: numpy.ndarray,
+        y: numpy.ndarray,
+        z: numpy.ndarray,
+        x_order: int=2,
+        y_order: int=2,
+        x_scale: float=1.,
+        y_scale: float=1.,
+        rcond: Optional[float]=None) -> Tuple[numpy.ndarray, numpy.ndarray, int, numpy.ndarray]:
     """
-    Perform fit of data to two dimensional polynomial.
+    Perform fit of data to two-dimensional polynomial.
 
     Parameters
     ----------
@@ -45,8 +53,14 @@ def two_dim_poly_fit(x, y, z, x_order=2, y_order=2, x_scale=1, y_scale=1, rcond=
 
     Returns
     -------
-    numpy.ndarray
+    solution : numpy.ndarray
         the coefficient array
+    residuals : numpy.ndarray
+        this is often an empty array
+    rank : int
+        the rank of the fitting matrix
+    sing_values : numpy.ndarray
+        the singular values of the fitting matrix
     """
 
     if not isinstance(x, numpy.ndarray) or not isinstance(y, numpy.ndarray) or not isinstance(z, numpy.ndarray):
@@ -74,7 +88,11 @@ def two_dim_poly_fit(x, y, z, x_order=2, y_order=2, x_scale=1, y_scale=1, rcond=
     return sol, residuals, rank, sing_values
 
 
-def get_im_physical_coords(array, grid, image_data, direction):
+def get_im_physical_coords(
+        array,
+        grid,
+        image_data,
+        direction):
     """
     Converts one dimension of "pixel" image (row or column) coordinates to
     "physical" image (range or azimuth in meters) coordinates, for use in the
@@ -82,7 +100,7 @@ def get_im_physical_coords(array, grid, image_data, direction):
 
     Parameters
     ----------
-    array : numpy.array|float|int
+    array : numpy.ndarray|float|int
         either row or col coordinate component
     grid : sarpy.io.complex.sicd_elements.Grid.GridType
     image_data : sarpy.io.complex.sicd_elements.ImageData.ImageDataType
@@ -101,7 +119,12 @@ def get_im_physical_coords(array, grid, image_data, direction):
         raise ValueError('Unrecognized direction {}'.format(direction))
 
 
-def fit_time_coa_polynomial(inca, image_data, grid, dop_rate_scaled_coeffs, poly_order=2):
+def fit_time_coa_polynomial(
+        inca,
+        image_data,
+        grid,
+        dop_rate_scaled_coeffs,
+        poly_order=2):
     """
 
     Parameters
@@ -140,7 +163,11 @@ def fit_time_coa_polynomial(inca, image_data, grid, dop_rate_scaled_coeffs, poly
     return Poly2DType(Coefs=coefs)
 
 
-def fit_position_xvalidation(time_array, position_array, velocity_array, max_degree=5):
+def fit_position_xvalidation(
+        time_array: numpy.ndarray,
+        position_array: numpy.ndarray,
+        velocity_array: numpy.ndarray,
+        max_degree: int=5) -> Tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray]:
     """
     Empirically fit the polynomials for the X, Y, Z ECF position array, using cross
     validation with the velocity array to determine the best fit degree up to a
@@ -155,8 +182,9 @@ def fit_position_xvalidation(time_array, position_array, velocity_array, max_deg
 
     Returns
     -------
-    (numpy.ndarray, numpy.ndarray, numpy.ndarray,)
-        The X, Y, Z polynomial coefficients.
+    X_poly : numpy.ndarray
+    Y_poly : numpy.ndarray
+    Z_poly : numpy.ndarray
     """
 
     if not isinstance(time_array, numpy.ndarray) or \
@@ -204,10 +232,15 @@ def fit_position_xvalidation(time_array, position_array, velocity_array, max_deg
         # stop if the error is not smaller than at the previous step
         if cur_vel_error >= prev_vel_error:
             break
+    # noinspection PyTypeChecker
     return P_x, P_y, P_z
 
 
-def sicd_reader_iterator(reader, partitions=None, polarization=None, band=None):
+def sicd_reader_iterator(
+        reader,
+        partitions=None,
+        polarization=None,
+        band=None):
     """
     Provides an iterator over a collection of partitions (tuple of tuple of integer
     indices for the reader) for a sicd type reader object.
@@ -254,7 +287,10 @@ def sicd_reader_iterator(reader, partitions=None, polarization=None, band=None):
                 yield this_partition, this_index, this_sicd
 
 
-def get_physical_coordinates(the_sicd, row_value, col_value):
+def get_physical_coordinates(
+        the_sicd,
+        row_value: Union[int, float, numpy.ndarray],
+        col_value: Union[int, float, numpy.ndarray]) -> Tuple[Union[float, numpy.ndarray], Union[float, numpy.ndarray]]:
     """
     Transform from image coordinates to physical coordinates, for polynomial evaluation.
 
@@ -266,8 +302,8 @@ def get_physical_coordinates(the_sicd, row_value, col_value):
 
     Returns
     -------
-    tuple
-        The row and colummn physical coordinates
+    row_coords : float|numpy.ndarray
+    col_coords : float|numpy.ndarray
     """
 
     return get_im_physical_coords(row_value, the_sicd.Grid, the_sicd.ImageData, 'row'), \
@@ -306,8 +342,9 @@ def get_fetch_block_size(start_element, stop_element, block_size_in_bytes, bands
     return max(1, int(numpy.ceil(block_size_in_bytes / float(bands*8*full_size))))
 
 
-def extract_blocks(the_range, index_block_size):
-    # type: (Tuple[int, int, int], int) -> (List[Tuple[int, int, int]], List[Tuple[int, int]])
+def extract_blocks(
+        the_range: Tuple[int, int, int],
+        index_block_size: Union[None, int, float]) -> Tuple[List[Tuple[int, int, int]], List[Tuple[int, int]]]:
     """
     Convert the single range definition into a series of range definitions in
     keeping with fetching of the appropriate block sizes.
@@ -324,10 +361,12 @@ def extract_blocks(the_range, index_block_size):
 
     Returns
     -------
-    List[Tuple[int, int, int]], List[Tuple[int, int]]
+    range_def: List[Tuple[int, int, int]]
         The sequence of range definitions `(start index, stop index, step)`
-        relative to the overall image, and the sequence of start/stop indices
-        for positioning of the given range relative to the original range.
+        relative to the overall image.
+    index_limits: List[Tuple[int, int]]
+        The sequence of start/stop indices for positioning of the given range
+        relative to the original range.
     """
 
     entries = numpy.arange(the_range[0], the_range[1], the_range[2], dtype=numpy.int64)
@@ -387,6 +426,7 @@ def get_data_mean_magnitude(bounds, reader, index, block_size_in_bytes):
     mean_column_blocks, _ = extract_blocks((bounds[2], bounds[3], 1), mean_block_size)
     mean_total = 0.0
     mean_count = 0
+    # noinspection PyTypeChecker
     for this_column_range in mean_column_blocks:
         data = numpy.abs(reader[
                          bounds[0]:bounds[1],
@@ -461,6 +501,7 @@ def get_data_extrema(bounds, reader, index, block_size_in_bytes, percentile=None
         'Calculating extrema over the block ({}:{}, {}:{}), this may be time consuming'.format(*bounds))
     mean_block_size = get_fetch_block_size(bounds[0], bounds[1], block_size_in_bytes)
     mean_column_blocks, _ = extract_blocks((bounds[2], bounds[3], 1), mean_block_size)
+    # noinspection PyTypeChecker
     for this_column_range in mean_column_blocks:
         data = numpy.abs(reader[
                          bounds[0]:bounds[1],

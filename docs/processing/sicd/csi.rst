@@ -1,7 +1,7 @@
-The CSI methods (sarpy.processing.csi)
+The CSI methods (sarpy.processing.sicd.csi)
 ======================================
 
-.. automodule:: sarpy.processing.csi
+.. automodule:: sarpy.processing.sicd.csi
     :members:
     :show-inheritance:
     :inherited-members:

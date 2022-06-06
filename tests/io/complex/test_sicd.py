@@ -4,9 +4,9 @@ import tempfile
 import shutil
 import unittest
 
-from sarpy.io.complex.converter import open_complex, conversion_utility
-import sarpy.io.complex.sicd
+from sarpy.io.complex.converter import conversion_utility
 from sarpy.io.complex.sicd import SICDReader
+from sarpy.io.complex.sicd_schema import get_schema_path
 
 
 from tests import parse_file_entry
@@ -33,10 +33,7 @@ if os.path.isfile(file_reference):
 
 sicd_files = complex_file_types.get('SICD', [])
 
-the_schema = os.path.join(
-    os.path.split(sarpy.io.complex.sicd.__file__)[0],
-    'sicd_schema',
-    'SICD_schema_V1_2_1_2018_12_13.xsd')
+the_schema =  get_schema_path('1.2.1')
 
 
 class TestSICDWriting(unittest.TestCase):

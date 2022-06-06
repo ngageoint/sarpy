@@ -42,7 +42,7 @@ following the SIDD standard.
     from sarpy.io.complex.converter import open_complex
     from sarpy.processing.ortho_rectify import BivariateSplineMethod, \
         NearestNeighborMethod
-    from sarpy.io.product.sidd_product_creation import create_detected_image_sidd, \
+    from sarpy.processing.sidd.sidd_product_creation import create_detected_image_sidd, \
         create_csi_sidd, create_dynamic_image_sidd
 
     # open a sicd type file
@@ -59,7 +59,7 @@ following the SIDD standard.
     # create a sidd version 2 dynamic image/sub-aperture stack for the whole file
     create_dynamic_image_sidd(ortho_helper, '<output directory>', dimension=0, version=2)
 
-See module :mod:`sarpy.io.product.sidd_product_creation` for more specific details.
+See module :mod:`sarpy.processing.sidd.sidd_product_creation` for more specific details.
 
 This can also be accomplished using a command-line utility as
 
@@ -78,7 +78,7 @@ There are a few basic utilities for producing a kmz overlay from a SICD type fil
 
     import os
     from sarpy.io.complex.converter import open_complex
-    from sarpy.io.product.kmz_product_creation import create_kmz_view
+    from sarpy.visualization.kmz_product_creation import create_kmz_view
 
     test_root = '<root directory>'
     reader = open_complex(os.path.join(test_root, '<file name>'))
@@ -89,7 +89,7 @@ There are a few basic utilities for producing a kmz overlay from a SICD type fil
         inc_collection_wedge=True)
 
 
-See module :mod:`sarpy.io.product.kmz_product_creation` for more specific details.
+See module :mod:`sarpy.visualization.kmz_product_creation` for more specific details.
 
 This can also be accomplished using a command-line utility as
 

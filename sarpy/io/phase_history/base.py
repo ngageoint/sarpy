@@ -5,30 +5,41 @@ Base structures for phase history readers and usage
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
-from typing import Union, Tuple
+
+from typing import Union, Tuple, Sequence, Dict, Optional
 
 import numpy
 
-from sarpy.io.general.base import AbstractReader
+from sarpy.io.general.base import BaseReader
+from sarpy.io.general.data_segment import DataSegment
 from sarpy.io.phase_history.cphd1_elements.CPHD import CPHDType as CPHDType1_0
 from sarpy.io.phase_history.cphd0_3_elements.CPHD import CPHDType as CPHDType0_3
 
 
-class CPHDTypeReader(AbstractReader):
+class CPHDTypeReader(BaseReader):
     """
-    An abstract class for ensuring common CPHD functionality.
+    A class for common CPHD reading functionality.
 
-    This is intended to be used solely in conjunction with implementing a
-    legitimate reader.
+    **Updated in version 1.3.0**
     """
 
-    def __init__(self, cphd_meta):
+    def __init__(self,
+                 data_segment: Union[None, DataSegment, Sequence[DataSegment]],
+                 cphd_meta: Union[None, CPHDType1_0, CPHDType0_3],
+                 close_segments: bool=True,
+                 delete_files: Union[None, str, Sequence[str]]=None):
         """
 
         Parameters
         ----------
+        data_segment : None|DataSegment|Sequence[DataSegment]
         cphd_meta : None|CPHDType1_0|CPHDType0_3
-            `None`, the CPHD metadata object
+            The CPHD metadata object
+        close_segments : bool
+            Call segment.close() for each data segment on reader.close()?
+        delete_files : None|Sequence[str]
+            Any temp files which should be cleaned up on reader.close()?
+            This will occur after closing segments.
         """
 
         if cphd_meta is None:
@@ -39,17 +50,20 @@ class CPHDTypeReader(AbstractReader):
             raise TypeError(
                 'The cphd_meta must be of type CPHDType, got `{}`'.format(type(cphd_meta)))
 
+        BaseReader.__init__(
+            self, data_segment, reader_type='CPHD', close_segments=close_segments, delete_files=delete_files)
+
     @property
-    def cphd_meta(self):
-        # type: () -> Union[None, CPHDType1_0, CPHDType0_3]
+    def cphd_meta(self) -> Union[None, CPHDType1_0, CPHDType0_3]:
         """
         None|CPHDType1_0|CPHDType0_3: the cphd meta_data.
         """
 
         return self._cphd_meta
 
-    def read_support_array(self, index, dim1_range, dim2_range):
-        # type: (Union[int, str], Union[None, int, Tuple[int, int], Tuple[int, int, int]], Union[None, int, Tuple[int, int], Tuple[int, int, int]]) -> numpy.ndarray
+    def read_support_array(self,
+                           index: Union[int, str],
+                           *ranges: Sequence[Union[None, int, Tuple[int, ...], slice]]) -> numpy.ndarray:
         """
         Read the support array.
 
@@ -57,12 +71,8 @@ class CPHDTypeReader(AbstractReader):
         ----------
         index : int|str
             The support array integer index.
-        dim1_range : None|int|Tuple[int, int]|Tuple[int, int, int]
-            The row data selection of the form `[start, [stop, [stride]]]`, and
-            `None` defaults to all rows (i.e. `(0, NumRows, 1)`)
-        dim2_range : None|int|Tuple[int, int]|Tuple[int, int, int]
-            The column data selection of the form `[start, [stop, [stride]]]`, and
-            `None` defaults to all rows (i.e. `(0, NumCols, 1)`)
+        ranges : Sequence[None|int|Tuple[int, ...]|slice]
+            The slice definition appropriate for support array usage.
 
         Returns
         -------
@@ -76,7 +86,7 @@ class CPHDTypeReader(AbstractReader):
 
         raise TypeError('Class {} does not provide support arrays'.format(type(self)))
 
-    def read_support_block(self):
+    def read_support_block(self) -> Dict[str, numpy.ndarray]:
         """
         Reads the entirety of support block(s).
 
@@ -88,7 +98,11 @@ class CPHDTypeReader(AbstractReader):
 
         raise TypeError('Class {} does not provide support arrays'.format(type(self)))
 
-    def read_pvp_variable(self, variable, index, the_range=None):
+    def read_pvp_variable(
+            self,
+            variable: str,
+            index: Union[int, str],
+            the_range: Union[None, int, Tuple[int, ...], slice]=None) -> Optional[numpy.ndarray]:
         """
         Read the vector parameter for the given `variable` and CPHD channel.
 
@@ -97,9 +111,10 @@ class CPHDTypeReader(AbstractReader):
         variable : str
         index : int|str
             The channel index or identifier.
-        the_range : None|int|List[int]|Tuple[int]
-            The indices for the vector parameter. `None` returns all, otherwise
-            a slice in the (non-traditional) form `([start, [stop, [stride]]])`.
+        the_range : None|int|Tuple[int, ...]|slice
+            The indices for the vector parameter. `None` returns all,
+            a integer returns the single value at that location, otherwise
+            the input determines a slice.
 
         Returns
         -------
@@ -109,7 +124,10 @@ class CPHDTypeReader(AbstractReader):
 
         raise NotImplementedError
 
-    def read_pvp_array(self, index, the_range=None):
+    def read_pvp_array(
+            self,
+            index: Union[int, str],
+            the_range: Union[None, int, Tuple[int, ...], slice]=None) -> numpy.ndarray:
         """
         Read the PVP array from the requested channel.
 
@@ -117,9 +135,10 @@ class CPHDTypeReader(AbstractReader):
         ----------
         index : int|str
             The support array integer index (of cphd.Data.Channels list) or identifier.
-        the_range : None|int|List[int]|Tuple[int]
-            The indices for the vector parameter. `None` returns all, otherwise
-            a slice in the (non-traditional) form `([start, [stop, [stride]]])`.
+        the_range : None|int|Tuple[int, ...]|slice
+            The indices for the vector parameter. `None` returns all,
+            a integer returns the single value at that location, otherwise
+            the input determines a slice.
 
         Returns
         -------
@@ -128,26 +147,40 @@ class CPHDTypeReader(AbstractReader):
 
         raise NotImplementedError
 
-    def read_pvp_block(self):
+    def read_pvp_block(self) -> Dict[Union[int, str], numpy.ndarray]:
         """
         Reads the entirety of the PVP block(s).
 
         Returns
         -------
         Dict[Union[int, str], numpy.ndarray]
-            Dictionary of `numpy.ndarray` containing the PVP arrays.
+            Dictionary containing the PVP arrays.
         """
 
         raise NotImplementedError
 
-    def read_signal_block(self):
+    def read_signal_block(self) -> Dict[Union[int, str], numpy.ndarray]:
         """
-        Reads the entirety of signal block(s).
+        Reads the entirety of signal block(s), with data formatted as complex64
+        (after accounting for AmpSF).
 
         Returns
         -------
         Dict[Union[int, str], numpy.ndarray]
-            Dictionary of `numpy.ndarray` containing the support arrays.
+            Dictionary of `numpy.ndarray` containing the signal arrays.
+        """
+
+        raise NotImplementedError
+
+    def read_signal_block_raw(self) -> Dict[Union[int, str], numpy.ndarray]:
+        """
+        Reads the entirety of signal block(s), with data formatted in file
+        storage format (no converting to complex, no consideration of AmpSF).
+
+        Returns
+        -------
+        Dict[Union[int, str], numpy.ndarray]
+            Dictionary of `numpy.ndarray` containing the signal arrays.
         """
 
         raise NotImplementedError

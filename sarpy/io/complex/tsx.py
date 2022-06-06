@@ -9,16 +9,13 @@ __author__ = "Thomas McCullough"
 import os
 import logging
 from xml.etree import ElementTree
-from typing import Union, List
+from typing import Union, List, Tuple, Optional, BinaryIO
 from functools import reduce
 import struct
 
 import numpy
 from numpy.polynomial import polynomial
 from scipy.constants import speed_of_light
-
-from sarpy.io.general.base import BaseReader, SubsetChipper, BIPChipper, SarpyIOError
-from sarpy.io.general.utils import get_seconds, parse_timestring, is_file_like
 
 from sarpy.io.complex.base import SICDTypeReader
 from sarpy.io.complex.sicd_elements.blocks import Poly1DType, Poly2DType
@@ -38,43 +35,19 @@ from sarpy.io.complex.sicd_elements.RMA import RMAType, INCAType
 from sarpy.io.complex.sicd_elements.Radiometric import RadiometricType, NoiseLevelType_
 from sarpy.io.complex.utils import two_dim_poly_fit, fit_position_xvalidation
 
+from sarpy.io.general.base import SarpyIOError
+from sarpy.io.general.data_segment import DataSegment, NumpyMemmapSegment, SubsetSegment
+from sarpy.io.general.format_function import ComplexFormatFunction
+from sarpy.io.general.utils import get_seconds, parse_timestring, is_file_like
+
+
 logger = logging.getLogger(__name__)
-
-########
-# base expected functionality for a module with an implemented Reader
-
-
-def is_a(file_name):
-    """
-    Tests whether a given file_name corresponds to a TerraSAR-X file SSC package.
-    Returns a reader instance, if so.
-
-    Parameters
-    ----------
-    file_name : str
-        the file_name to check
-
-    Returns
-    -------
-    TSXReader|None
-        `TSXReader` instance if TerraSAR-X file file, `None` otherwise
-    """
-
-    if is_file_like(file_name):
-        return None
-
-    try:
-        tsx_details = TSXDetails(file_name)
-        logger.info('Path {} is determined to be a TerraSAR-X file package.'.format(tsx_details.file_name))
-        return TSXReader(tsx_details)
-    except (SarpyIOError, AttributeError, SyntaxError, ElementTree.ParseError):
-        return None
 
 
 ##########
 # helper functions and basic interpreter
 
-def _parse_xml(file_name, without_ns=False):
+def _parse_xml(file_name: str, without_ns: bool=False) -> Union[ElementTree.Element, Tuple[dict, ElementTree.Element]]:
     root_node = ElementTree.parse(file_name).getroot()
     if without_ns:
         return root_node
@@ -83,10 +56,17 @@ def _parse_xml(file_name, without_ns=False):
         return ns, root_node
 
 
-def _is_level1_product(prospective_file):
-    with open(prospective_file, 'r') as fi:
-        check = fi.read(30)
-    return check.startswith('<level1Product')
+def _is_level1_product(prospective_file: str) -> bool:
+    with open(prospective_file, 'rb') as fi:
+        check = fi.read(200)
+        if check.startswith(b'<?xml'):
+            end_xml_declaration = check.find(b'?>')
+            if end_xml_declaration == -1:
+                raise ValueError('Poorly formed xml declaration\n\t`{}`'.format(check))
+            check = check[end_xml_declaration+2:].strip()
+        else:
+            check = check.strip()
+    return check.startswith(b'<level1Product')
 
 
 ############
@@ -101,7 +81,7 @@ class TSXDetails(object):
         '_parent_directory', '_main_file', '_georef_file', '_main_root', '_georef_root',
         '_im_format')
 
-    def __init__(self, file_name):
+    def __init__(self, file_name: str):
         """
 
         Parameters
@@ -123,7 +103,7 @@ class TSXDetails(object):
                 'The file is determined to be of type TerraSAR-X, but we got '
                 'unexpected image format value {}'.format(self.image_format))
 
-    def _validate_file(self, file_name):
+    def _validate_file(self, file_name: str) -> None:
         """
         Validate the input file location.
 
@@ -184,7 +164,7 @@ class TSXDetails(object):
             self._georef_root = _parse_xml(self._georef_file, without_ns=True)
 
     @property
-    def file_name(self):
+    def file_name(self) -> str:
         """
         str: the package directory location
         """
@@ -192,14 +172,14 @@ class TSXDetails(object):
         return self._parent_directory
 
     @property
-    def image_format(self):
+    def image_format(self) -> str:
         """
         str: The image file format enum value.
         """
 
         return self._im_format
 
-    def _find_main(self, tag):
+    def _find_main(self, tag: str) -> ElementTree.Element:
         """
         Pass through to ElementTree.Element.find(tag).
 
@@ -214,7 +194,7 @@ class TSXDetails(object):
 
         return self._main_root.find(tag)
 
-    def _findall_main(self, tag):
+    def _findall_main(self, tag: str) -> List[ElementTree.Element]:
         """
         Pass through to ElementTree.Element.findall(tag).
 
@@ -229,7 +209,7 @@ class TSXDetails(object):
 
         return self._main_root.findall(tag)
 
-    def _find_georef(self, tag):
+    def _find_georef(self, tag: str) -> ElementTree.Element:
         """
         Pass through to ElementTree.Element.find(tag).
 
@@ -244,7 +224,7 @@ class TSXDetails(object):
 
         return None if self._georef_root is None else self._georef_root.find(tag)
 
-    def _findall_georef(self, tag):
+    def _findall_georef(self, tag: str) -> List[ElementTree.Element]:
         """
         Pass through to ElementTree.Element.findall(tag).
 
@@ -259,13 +239,15 @@ class TSXDetails(object):
 
         return None if self._georef_root is None else self._georef_root.findall(tag)
 
-    def _get_state_vector_data(self):
+    def _get_state_vector_data(self) -> Tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray]:
         """
         Gets the state vector data.
 
         Returns
         -------
-        (numpy.ndarray, numpy.ndarray, numpy.ndarray)
+        times: numpy.ndarray
+        positions: numpy.ndarray
+        velocities: numpy.ndarray
         """
 
         state_vecs = self._findall_main('./platform/orbit/stateVec')
@@ -283,28 +265,28 @@ class TSXDetails(object):
         return tims, pos, vel
 
     @staticmethod
-    def _parse_pol_string(str_in):
-        # type: (str) -> (str, str)
+    def _parse_pol_string(str_in: str) -> Tuple[str, str]:
         return str_in[0], str_in[1]
 
-    def _get_sicd_tx_rcv_pol(self, str_in):
-        # type: (str) -> str
+    def _get_sicd_tx_rcv_pol(self, str_in: str) -> str:
         tx_pol, rcv_pol = self._parse_pol_string(str_in)
         return '{}:{}'.format(tx_pol, rcv_pol)
 
-    def _get_full_pol_list(self):
+    def _get_full_pol_list(self) -> Tuple[List[str], List[str], List[str]]:
         """
         Gets the full list of polarization states.
 
         Returns
         -------
-        (list, list, list)
+        original_pols : List[str]
+        tx_pols : List[str]
+        tx_rcv_pols: List[str]
         """
 
         t_original_pols = []
         t_tx_pols = []
         t_tx_rcv_pols = []
-        # TODO: this is particular is probably troubled for ScanSAR mode
+        # TODO: this in particular is probably troubled for ScanSAR mode
         for node in self._findall_main('./productComponents/imageData'):
             orig_pol = node.find('./polLayer').text
             tx_part, rcv_part = self._parse_pol_string(orig_pol)
@@ -313,7 +295,7 @@ class TSXDetails(object):
             t_tx_rcv_pols.append('{}:{}'.format(tx_part, rcv_part))
         return t_original_pols, t_tx_pols, t_tx_rcv_pols
 
-    def _find_middle_grid_node(self):
+    def _find_middle_grid_node(self) -> Optional[ElementTree.Element]:
         """
         Find and returns the middle geolocationGrid point, if it exists.
         Otherwise, returns None.
@@ -337,8 +319,12 @@ class TSXDetails(object):
                 return entry
         return test_nodes[int(len(test_nodes)/2)]
 
-    def _calculate_dop_polys(self, layer_index, azimuth_time_scp, range_time_scp, collect_start,
-                             doppler_rate_reference_node):
+    def _calculate_dop_polys(self,
+                             layer_index: str,
+                             azimuth_time_scp: float,
+                             range_time_scp: float,
+                             collect_start: numpy.datetime64,
+                             doppler_rate_reference_node: ElementTree.Element) -> Tuple[numpy.ndarray, numpy.ndarray]:
         """
         Calculate the doppler centroid polynomials. This is apparently extracted
         from the paper "TerraSAR-X Deskew Description" by Michael Stewart dated
@@ -358,7 +344,7 @@ class TSXDetails(object):
 
         Returns
         -------
-        (numpy.ndarray, numpy.ndarray, ElementTree.Element)
+        (numpy.ndarray, numpy.ndarray)
         """
 
         # parse the doppler centroid estimates nodes
@@ -425,7 +411,10 @@ class TSXDetails(object):
 
         return dop_centroid_poly, time_coa_poly
 
-    def _get_basic_sicd_shell(self, center_freq, dop_bw, ss_zd_s):
+    def _get_basic_sicd_shell(self,
+                              center_freq: float,
+                              dop_bw: float,
+                              ss_zd_s: float) -> SICDType:
         """
         Define the common sicd elements.
 
@@ -568,7 +557,9 @@ class TSXDetails(object):
             ImageFormation=init_image_formation,
             RMA=init_rma)
 
-    def _populate_basic_image_data(self, sicd, grid_node):
+    def _populate_basic_image_data(self,
+                                   sicd: SICDType,
+                                   grid_node: Optional[ElementTree.Element]) -> None:
         """
         Populate the basic ImageData and GeoData. This assumes not ScanSAR mode.
         This modifies the provided sicd in place.
@@ -612,7 +603,10 @@ class TSXDetails(object):
         sicd.GeoData = GeoDataType(SCP=SCPType(LLH=scp_llh))
 
     @staticmethod
-    def _populate_initial_radar_collection(sicd, tx_pols, tx_rcv_pols):
+    def _populate_initial_radar_collection(
+            sicd: SICDType,
+            tx_pols: List[str],
+            tx_rcv_pols: List[str]) -> None:
         """
         Populate the initial radar collection information. This modifies the
         provided sicd in place.
@@ -640,8 +634,19 @@ class TSXDetails(object):
             TxSequence=tx_sequence,
             RcvChannels=[ChanParametersType(TxRcvPolarization=tx_rcv_pol) for tx_rcv_pol in tx_rcv_pols])
 
-    def _complete_sicd(self, sicd, orig_pol, layer_index, pol_index, ss_zd_s, side_of_track,
-                       center_freq, arp_times, arp_pos, arp_vel, middle_grid, doppler_rate_reference_node):
+    def _complete_sicd(self,
+                       sicd: SICDType,
+                       orig_pol: str,
+                       layer_index: str,
+                       pol_index: int,
+                       ss_zd_s: float,
+                       side_of_track: str,
+                       center_freq: float,
+                       arp_times: numpy.ndarray,
+                       arp_pos: numpy.ndarray,
+                       arp_vel: numpy.ndarray,
+                       middle_grid: Optional[ElementTree.Element],
+                       doppler_rate_reference_node: ElementTree.Element) -> SICDType:
         """
         Complete the remainder of the sicd information and populate as collection,
         if appropriate. **This assumes that this is not ScanSAR mode.**
@@ -863,13 +868,14 @@ class TSXDetails(object):
         out_sicd.populate_rniirs(override=False)
         return out_sicd
 
-    def get_sicd_collection(self):
+    def get_sicd_collection(self) -> Tuple[List[str], List[SICDType]]:
         """
         Gets the sicd metadata collection.
 
         Returns
         -------
-        (List[str], List[SICDType])
+        files: List[str]
+        sicds: List[SICDType]
         """
 
         def get_file_name(layer_index):
@@ -924,7 +930,7 @@ class COSARDetails(object):
         '_file_name', '_file_size', '_header_offsets', '_data_offsets',
         '_burst_index', '_burst_size', '_data_sizes')
 
-    def __init__(self, file_name):
+    def __init__(self, file_name: str):
         """
 
         Parameters
@@ -945,14 +951,16 @@ class COSARDetails(object):
         self._parse_details()
 
     @property
-    def burst_count(self):
+    def burst_count(self) -> int:
         """
         int: The discovered burst count
         """
 
         return len(self._data_offsets)
 
-    def _process_burst_header(self, fi, the_offset):
+    def _process_burst_header(self,
+                              fi: BinaryIO,
+                              the_offset: int):
         """
 
         Parameters
@@ -962,7 +970,7 @@ class COSARDetails(object):
 
         Returns
         -------
-
+        None
         """
 
         if the_offset >= self._file_size - 48:
@@ -1018,7 +1026,7 @@ class COSARDetails(object):
                     self._file_name, self._file_size, self._burst_index[-1],
                     self._burst_size[-1], the_offset))
 
-    def _parse_details(self):
+    def _parse_details(self) -> None:
         with open(self._file_name, 'rb') as fi:
             # process the first burst header
             self._process_burst_header(fi, 0)
@@ -1030,19 +1038,24 @@ class COSARDetails(object):
                 else:
                     cont = False
 
-    def construct_chipper(self, index, symmetry, expected_size):
+    def construct_data_segment(self,
+                          index: int,
+                          reverse_axes: Optional[Tuple[int, ...]],
+                          transpose_axes: Optional[Tuple[int, ...]],
+                          expected_size: Tuple[int, ...]) -> DataSegment:
         """
-        Construct a chipper for the given burst index.
+        Construct a data segment for the given burst index.
 
         Parameters
         ----------
         index : int
-        symmetry : tuple
-        expected_size : tuple
+        reverse_axes : None|int|Sequence[int, ...]
+        transpose_axes : None|Tuple[int, ...]
+        expected_size : Tuple[int, ...]
 
         Returns
         -------
-        SubsetChipper
+        DataSegment
         """
 
         index = int(index)
@@ -1056,19 +1069,26 @@ class COSARDetails(object):
             raise ValueError(
                 'Expected raw burst size is {}, while actual raw burst size '
                 'is {}'.format(expected_size, (range_samples, azimuth_samples)))
-
-        p_chipper = BIPChipper(
-            self._file_name, raw_dtype=numpy.dtype('>i2'), data_size=(azimuth_samples, range_samples + 2), raw_bands=2, output_bands=1,
-            output_dtype='complex64', symmetry=symmetry, transform_data='COMPLEX', data_offset=offset)
-        return SubsetChipper(p_chipper, (2, exp_rows+2), (0, exp_cols))
+        raw_dtype = numpy.dtype('>i2')
+        format_function = ComplexFormatFunction(raw_dtype, 'IQ')
+        parent_segment = NumpyMemmapSegment(
+            self._file_name, offset, raw_dtype, (azimuth_samples, range_samples + 2, 2),
+            'complex64', (range_samples + 2, azimuth_samples),
+            reverse_axes=reverse_axes, transpose_axes=transpose_axes,
+            format_function=format_function, mode='r', close_file=True)
+        subset_def = (slice(2, exp_rows+2), slice(0, exp_cols))
+        relevant_segment = SubsetSegment(parent_segment, subset_def, 'formatted', close_parent=True)
+        return relevant_segment
 
 
 #########
 # the reader implementation
 
-class TSXReader(BaseReader, SICDTypeReader):
+class TSXReader(SICDTypeReader):
     """
-    The TerraSAR-X reader implementation
+    The TerraSAR-X SLC reader implementation.
+
+    **Changed in version 1.3.0** for reading changes.
     """
 
     __slots__ = ('_tsx_details', )
@@ -1088,13 +1108,15 @@ class TSXReader(BaseReader, SICDTypeReader):
                 'tsx_details is expected to be the path to the TerraSAR-X package '
                 'directory or main xml file, of TSXDetails instance. Got type {}'.format(type(tsx_details)))
         self._tsx_details = tsx_details
-        chippers = []
+
+        data_segments = []
         image_format = tsx_details.image_format
         the_files, the_sicds = tsx_details.get_sicd_collection()
         for the_file, the_sicd in zip(the_files, the_sicds):
             rows = the_sicd.ImageData.NumRows
             cols = the_sicd.ImageData.NumCols
-            symmetry = ((the_sicd.SCPCOA.SideOfTrack == 'L'), False, True)
+            reverse_axes = (0, ) if the_sicd.SCPCOA.SideOfTrack == 'L' else None
+            transpose_axes = (1, 0, 2)
             if image_format != 'COSAR':
                 raise ValueError(
                     'Expected complex data for TerraSAR-X to be in COSAR format. '
@@ -1103,13 +1125,41 @@ class TSXReader(BaseReader, SICDTypeReader):
             if cosar_details.burst_count != 1:
                 raise ValueError(
                     'Expected one burst in the COSAR file {}, but got {} bursts'.format(the_file, cosar_details.burst_count))
-            chippers.append(cosar_details.construct_chipper(0, symmetry, (cols, rows)))
-
-        SICDTypeReader.__init__(self, tuple(the_sicds))
-        BaseReader.__init__(self, tuple(chippers), reader_type="SICD")
+            data_seg = cosar_details.construct_data_segment(0, reverse_axes, transpose_axes, (cols, rows))
+            data_segments.append(data_seg)
+        SICDTypeReader.__init__(self, data_segments, the_sicds, close_segments=True)
         self._check_sizes()
 
     @property
-    def file_name(self):
-        # type: () -> str
+    def file_name(self) -> str:
         return self._tsx_details.file_name
+
+
+########
+# base expected functionality for a module with an implemented Reader
+
+def is_a(file_name: str) -> Optional[TSXReader]:
+    """
+    Tests whether a given file_name corresponds to a TerraSAR-X file SSC package.
+    Returns a reader instance, if so.
+
+    Parameters
+    ----------
+    file_name : str
+        the file_name to check
+
+    Returns
+    -------
+    TSXReader|None
+        `TSXReader` instance if TerraSAR-X file file, `None` otherwise
+    """
+
+    if is_file_like(file_name):
+        return None
+
+    try:
+        tsx_details = TSXDetails(file_name)
+        logger.info('Path {} is determined to be a TerraSAR-X file package.'.format(tsx_details.file_name))
+        return TSXReader(tsx_details)
+    except SarpyIOError:
+        return None

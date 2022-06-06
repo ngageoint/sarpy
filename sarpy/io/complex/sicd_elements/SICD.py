@@ -48,7 +48,7 @@ _SICD_SPECIFICATION_IDENTIFIER = get_specification_identifier()
 _SICD_DEFAULT_TUPLE = (1, 2, 1)
 _SICD_VERSION_DEFAULT = '{}.{}.{}'.format(*_SICD_DEFAULT_TUPLE)
 _SICD_SPEC_DETAILS = {
-    key : {'namespace': 'urn:SICD:{}'.format(key),
+    key: {'namespace': 'urn:SICD:{}'.format(key),
            'details': get_urn_details('urn:SICD:{}'.format(key))}
     for key in ['1.1.0', '1.2.1', '1.3.0']}
 
@@ -817,7 +817,7 @@ class SICDType(Serializable):
         None
         """
 
-        from sarpy.processing.rgiqe import populate_rniirs_for_sicd
+        from sarpy.processing.sicd.rgiqe import populate_rniirs_for_sicd
         populate_rniirs_for_sicd(self, signal=signal, noise=noise, override=override)
 
     def get_suggested_name(self, product_number=1):

@@ -247,3 +247,21 @@ class ImageDataType(Serializable):
             return None
         return numpy.array(
             [[0, 0], [0, self.NumCols - 1], [self.NumRows - 1, self.NumCols - 1], [self.NumRows - 1, 0]], dtype=dtype)
+
+    def get_pixel_size(self) -> int:
+        """
+        Gets the size per pixel, in bytes.
+
+        Returns
+        -------
+        int
+        """
+
+        if self.PixelType == "RE32F_IM32F":
+            return 8
+        elif self.PixelType == "RE16I_IM16I":
+            return 4
+        elif self.PixelType == "AMP8I_PHS8I":
+            return 2
+        else:
+            raise ValueError('Got unhandled pixel type `{}`'.format(self.PixelType))

@@ -12,7 +12,7 @@ __author__ = ["Thomas McCullough", "Terry M. Calloway", "Wade Schwartzkopf"]
 
 
 import logging
-from typing import Tuple
+from typing import List, Tuple, Dict, Union, Optional
 
 import numpy
 from scipy.signal import correlate2d
@@ -24,37 +24,12 @@ from sarpy.io.general.base import BaseReader
 logger = logging.getLogger(__name__)
 
 
-def _validate_reader(the_reader, the_index):
-    """
-    Validate the array or reader for registration efforts.
-
-    Parameters
-    ----------
-    the_reader : BaseReader|numpy.ndarray
-    the_index : None|int
-
-    Returns
-    -------
-    the_index : None|int
-    the_size : Tuple[int, int]
-        The size of the input
-    """
-
-    if isinstance(the_reader, BaseReader):
-        if the_index is None:
-            the_index = 0
-        the_size = the_reader.get_data_size_as_tuple()[the_index]
-    elif isinstance(the_reader, numpy.ndarray):
-        if the_reader.ndim != 2:
-            raise ValueError('Provided image array must be two-dimensional')
-        the_index = None
-        the_size = the_reader.shape
-    else:
-        raise ValueError('Image must be a reader instance or an array')
-    return the_reader, the_index, the_size
-
-
-def _validate_match_parameters(reference_size, moving_size, match_box_size, moving_deviation, decimation):
+def _validate_match_parameters(
+        reference_size: Tuple[int, int],
+        moving_size: Tuple[int, int],
+        match_box_size: Tuple[int, int],
+        moving_deviation: Tuple[int, int],
+        decimation: Tuple[int, int]) -> None:
     """
     Validate the match paramaters based the size of the images.
 
@@ -90,7 +65,8 @@ def _validate_match_parameters(reference_size, moving_size, match_box_size, movi
                 match_box_size, decimation, moving_size))
 
 
-def _populate_difference_structure(mapping_values):
+def _populate_difference_structure(
+        mapping_values: List[List[Dict]]) -> None:
     """
     Helper function for populating derivative estimates into our structure.
 
@@ -160,11 +136,11 @@ def _populate_difference_structure(mapping_values):
             basic_estimate_diff(element, row_index, col_index)
 
 
-def _subpixel_shift(values):
+def _subpixel_shift(values: numpy.ndarray) -> float:
     """
     This is simplified port of the SAR toolbox matlab function fin_minms. This
     uses data from an empirical fit derived from unknown origins to estimate where
-    the "real" minimum occured.
+    the "real" minimum occurred.
 
     Parameters
     ----------
@@ -228,7 +204,10 @@ def _subpixel_shift(values):
     return -shift if rms[0] < rms[2] else shift
 
 
-def _max_correlation_step(reference_array, moving_array, do_subpixel=False):
+def _max_correlation_step(
+        reference_array: numpy.ndarray,
+        moving_array: numpy.ndarray,
+        do_subpixel: bool = False) -> Tuple[Optional[numpy.ndarray], Optional[float]]:
     """
     Find the best match location of the moving array inside the reference array.
 
@@ -246,7 +225,7 @@ def _max_correlation_step(reference_array, moving_array, do_subpixel=False):
         or moving patch is all 0. Otherwise, this will be a numpy array
         `[row, column]` of the location of highest correlation, determined via
         :func:`numpy.argmax`.
-    maximum_correlation : float
+    maximum_correlation : None|float
     """
 
     if reference_array.ndim != 2 or moving_array != 2:
@@ -295,10 +274,17 @@ def _max_correlation_step(reference_array, moving_array, do_subpixel=False):
 
 
 def _single_step_location(
-        reference_data, reference_index, reference_size,
-        moving_data, moving_index, moving_size,
-        reference_location, moving_location,
-        match_box_size=(25, 25), moving_deviation=(15, 15), decimation=(1, 1)):
+        reference_data: Union[BaseReader, numpy.ndarray],
+        reference_index: Optional[int],
+        reference_size: Tuple[int, int],
+        moving_data: Union[BaseReader, numpy.ndarray],
+        moving_index: Optional[int],
+        moving_size: Tuple[int, int],
+        reference_location: Tuple[int, int],
+        moving_location: Tuple[int, int],
+        match_box_size: Tuple[int, int] = (25, 25),
+        moving_deviation: Tuple[int, int] = (15, 15),
+        decimation: Tuple[int, int] = (1, 1)) -> Tuple[Optional[Tuple[int, int]], Optional[float]]:
     """
     Perform a single step of the reference search by finding the best matching
     location at given size and scale.
@@ -393,11 +379,18 @@ def _single_step_location(
 
 
 def _single_step_grid(
-        reference_data, reference_index, reference_size,
-        moving_data, moving_index, moving_size,
-        reference_box_rough, moving_box_rough,
-        match_box_size=(25, 25), moving_deviation=(15, 15), decimation=(1, 1),
-        previous_values=None):
+        reference_data: Union[BaseReader, numpy.ndarray],
+        reference_index: Optional[int],
+        reference_size: Tuple[int, int],
+        moving_data: Union[BaseReader, numpy.ndarray],
+        moving_index: Optional[int],
+        moving_size: Tuple[int, int],
+        reference_box_rough: Tuple[int, int],
+        moving_box_rough: Tuple[int, int],
+        match_box_size: Tuple[int, int] = (25, 25),
+        moving_deviation: Tuple[int, int] = (15, 15),
+        decimation: Tuple[int, int] = (1, 1),
+        previous_values: Optional[List[List[Dict]]] = None):
     """
     We will determine a series of best matching (small size) patch locations
     between the pixel area of `reference_data` laid out in `reference_box_rough`
@@ -506,7 +499,9 @@ def _single_step_grid(
     return result_values
 
 
-def register_arrays(reference_data, moving_data):
+def register_arrays(
+        reference_data: numpy.ndarray,
+        moving_data: numpy.ndarray) -> List[List[Dict]]:
     """
     Register the moving_data array to the reference_data array using the regi algorithm.
 

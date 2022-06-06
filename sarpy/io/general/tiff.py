@@ -16,10 +16,11 @@ import os
 
 import numpy
 import re
-from typing import Tuple
+from typing import Union, Tuple, Dict, BinaryIO, Sequence
 
-from sarpy.io.general.base import BaseReader, BIPChipper, SarpyIOError
-
+from sarpy.io.general.base import BaseReader, SarpyIOError
+from sarpy.io.general.format_function import ComplexFormatFunction
+from sarpy.io.general.data_segment import NumpyMemmapSegment
 
 logger = logging.getLogger(__name__)
 
@@ -133,37 +134,8 @@ _GEOTIFF_TAGS = {
     34737: 'GeoAsciiParamsTag',
 }
 
-########
-# base expected functionality for a module with an implemented Reader
-
-
-def is_a(file_name):
-    """
-    Tests whether a given file_name corresponds to a tiff file. Returns a
-    tiff reader instance, if so.
-
-    Parameters
-    ----------
-    file_name : str
-        the file_name to check
-
-    Returns
-    -------
-    TiffReader|None
-        `TiffReader` instance if tiff file, `None` otherwise
-    """
-
-    try:
-        tiff_details = TiffDetails(file_name)
-        logger.info('File {} is determined to be a tiff file.'.format(file_name))
-        return TiffReader(tiff_details)
-    except SarpyIOError:
-        # we don't want to catch parsing errors, for now
-        return None
-
 
 ##########
-
 
 class TiffDetails(object):
     """
@@ -183,7 +155,7 @@ class TiffDetails(object):
          8, 8, 8], dtype=numpy.int64)
     # no definition for entries for 14 & 15
 
-    def __init__(self, file_name):
+    def __init__(self, file_name: str):
         """
 
         Parameters
@@ -223,7 +195,7 @@ class TiffDetails(object):
         self._tags = None
 
     @property
-    def file_name(self):
+    def file_name(self) -> str:
         """
         str: READ ONLY. The file name.
         """
@@ -231,7 +203,7 @@ class TiffDetails(object):
         return self._file_name
 
     @property
-    def endian(self):
+    def endian(self) -> str:
         """
         str: READ ONLY. The numpy dtype style ``('>' = big, '<' = little)`` endian string for the tiff file.
         """
@@ -239,17 +211,19 @@ class TiffDetails(object):
         return self._endian
 
     @property
-    def tags(self):
+    def tags(self) -> Dict[str, Union[str, numpy.ndarray]]:
         """
-        None|dict: READ ONLY. the tiff tags dictionary, provided that func:`parse_tags` has been called.
-        This dictionary is of the form ``{<tag name> : numpy.ndarray value}``, even for
-        those tags containing only a single entry (i.e. `count=1`).
+        Dict: READ ONLY. The tiff tags dictionary,
+        provided that :meth:`parse_tags` has been called. This dictionary is
+        of the form `{<tag name> : str|numpy.ndarray}`, even for those tags
+        containing only a single entry (i.e. `count=1`).
         """
+
         if self._tags is None:
             self.parse_tags()
         return self._tags
 
-    def parse_tags(self):
+    def parse_tags(self) -> None:
         """
         Parse the tags from the file, if desired. This sets the `tags` attribute.
 
@@ -279,7 +253,11 @@ class TiffDetails(object):
             self._parse_ifd(fi, tags, type_dtype, count_dtype, offset_dtype, offset_size)
         self._tags = tags
 
-    def _read_tag(self, fi, tiff_type, num_tag, count):
+    def _read_tag(self,
+                  fi: BinaryIO,
+                  tiff_type: int,
+                  num_tag: int,
+                  count: int) -> Dict:
         """
         Parse the specific tag information.
 
@@ -332,7 +310,13 @@ class TiffDetails(object):
                 val = val[0]
         return {'Value': val, 'Name': name, 'Extension': ext}
 
-    def _parse_ifd(self, fi, tags, type_dtype, count_dtype, offset_dtype, offset_size):
+    def _parse_ifd(self,
+                   fi: BinaryIO,
+                   tags: dict,
+                   type_dtype: Union[str, numpy.dtype],
+                   count_dtype: Union[str, numpy.dtype],
+                   offset_dtype: Union[str, numpy.dtype],
+                   offset_size: int) -> None:
         """
         Recursively parses the tag data and populates a provided dictionary
         Parameters
@@ -410,22 +394,30 @@ class TiffDetails(object):
                 '"gdal_translate -co TILED=no <input_file> <output_file>"')
 
 
-class NativeTiffChipper(BIPChipper):
+class NativeTiffDataSegment(NumpyMemmapSegment):
     """
-    Direct reading of data from tiff file, failing if compression is present
+    Direct reading of data from tiff file, failing if compression is present.
+
+    This is a very complex SAR specific implementation, and not general.
     """
 
     __slots__ = ('_tiff_details', )
     _SAMPLE_FORMATS = {
         1: 'u', 2: 'i', 3: 'f', 5: 'i', 6: 'f'}  # 5 and 6 are complex int/float
 
-    def __init__(self, tiff_details, symmetry=(False, False, True)):
+    def __init__(self,
+                 tiff_details: Union[str, TiffDetails],
+                 reverse_axes: Union[None, int, Sequence[int]] = None,
+                 transpose_axes: Union[None, Tuple[int, ...]] = None):
         """
+        If format function and format_dtype are not provided, then SAR specific
+        (not necessarily general) choices will be made.
 
         Parameters
         ----------
         tiff_details : TiffDetails
-        symmetry : Tuple[bool]
+        reverse_axes : None|Tuple[int, ...]
+        transpose_axes : None|Tuple[int, ...]
         """
 
         if isinstance(tiff_details, str):
@@ -467,54 +459,115 @@ class NativeTiffChipper(BIPChipper):
             output_bands = raw_bands
             output_dtype = None
 
-        data_size = (int(tiff_details.tags['ImageLength']), int(tiff_details.tags['ImageWidth']))
+        raw_shape = (int(tiff_details.tags['ImageLength']), int(tiff_details.tags['ImageWidth']), raw_bands)
         raw_dtype = numpy.dtype('{0:s}{1:s}{2:d}'.format(
             self._tiff_details.endian, self._SAMPLE_FORMATS[samp_form], int(bits_per_sample/8)))
-
         if output_dtype is None:
             output_dtype = raw_dtype
         data_offset = int(tiff_details.tags['StripOffsets'][0])
 
-        super(NativeTiffChipper, self).__init__(
-            tiff_details.file_name, raw_dtype, data_size, raw_bands, output_bands, output_dtype,
-            symmetry=symmetry, transform_data=transform_data, data_offset=data_offset)
+        format_function = None
+        if transform_data == 'COMPLEX':
+            format_function = ComplexFormatFunction(raw_dtype, order='IQ')
+
+        if reverse_axes is not None:
+            if isinstance(reverse_axes, int):
+                reverse_axes = (reverse_axes, )
+            for entry in reverse_axes:
+                if not entry < 2:
+                    raise ValueError('reversing of axes on permitted along the first two axes.')
+
+        if transpose_axes is not None:
+            if len(transpose_axes) < 2 or len(transpose_axes) > 3:
+                raise ValueError('transpose axes must have length 2 or 3')
+            elif len(transpose_axes) == 2:
+                transpose_axes = transpose_axes + (2, )
+
+            if transpose_axes[2] != 2:
+                raise ValueError(
+                    'The transpose operation must preserve the location of the band data,\n\t'
+                    'in the final dimension')
+
+        if transpose_axes is None or transpose_axes == (0, 1, 2):
+            output_shape = raw_shape[:2]
+        else:
+            output_shape = (raw_shape[1], raw_shape[0])
+
+        if output_bands > 1:
+            output_shape = output_shape + (output_bands, )
+
+        NumpyMemmapSegment.__init__(
+            self, tiff_details.file_name, data_offset, raw_dtype, raw_shape,
+            formatted_dtype=output_dtype, formatted_shape=output_shape,
+            reverse_axes=reverse_axes, transpose_axes=transpose_axes,
+            format_function=format_function, mode='r', close_file=True)
+
+    @property
+    def tiff_details(self) -> TiffDetails:
+        return self._tiff_details
 
 
 class TiffReader(BaseReader):
-    __slots__ = ('_tiff_details', )
-    _DEFAULT_SYMMETRY = (False, False, False)
-
-    def __init__(self, tiff_details, symmetry=None):
+    def __init__(self,
+                 tiff_details: Union[str, TiffDetails],
+                 reverse_axes: Union[None, int, Sequence[int]] = None,
+                 transpose_axes: Union[None, Tuple[int, ...]] = None):
         """
 
         Parameters
         ----------
         tiff_details : TiffDetails
-        symmetry : Tuple[bool]
+        reverse_axes : None|int|Sequence[int]
+        transpose_axes : None|Tuple[int, ...]
         """
 
-        if isinstance(tiff_details, str):
-            tiff_details = TiffDetails(tiff_details)
-        if not isinstance(tiff_details, TiffDetails):
-            raise TypeError('TiffReader input argument must be a filename '
-                            'or TiffDetails object.')
-
-        self._tiff_details = tiff_details
-        if symmetry is None:
-            symmetry = self._DEFAULT_SYMMETRY
-
-        chipper = NativeTiffChipper(tiff_details, symmetry=symmetry)
-        super(TiffReader, self).__init__(chipper, reader_type="OTHER")
+        data_segment = NativeTiffDataSegment(tiff_details, reverse_axes=reverse_axes, transpose_axes=transpose_axes)
+        BaseReader.__init__(self, data_segment, reader_type='OTHER', close_segments=True)
 
     @property
-    def tiff_details(self):
-        # type: () -> TiffDetails
+    def data_segment(self) -> NativeTiffDataSegment:
+        """
+        NativeTiffDataSegment: The tiff data segment.
+        """
+
+        return self._data_segment
+
+    @property
+    def tiff_details(self) -> TiffDetails:
         """
         TiffDetails: The tiff details object.
         """
 
-        return self._tiff_details
+        return self.data_segment.tiff_details
 
     @property
     def file_name(self):
         return self.tiff_details.file_name
+
+########
+# base expected functionality for a module with an implemented Reader
+
+
+def is_a(file_name: str) -> Union[None, TiffReader]:
+    """
+    Tests whether a given file_name corresponds to a tiff file. Returns a
+    tiff reader instance, if so.
+
+    Parameters
+    ----------
+    file_name : str
+        the file_name to check
+
+    Returns
+    -------
+    None|TiffReader
+        `TiffReader` instance if tiff file, `None` otherwise
+    """
+
+    try:
+        tiff_details = TiffDetails(file_name)
+        logger.info('File {} is determined to be a tiff file.'.format(file_name))
+        return TiffReader(tiff_details)
+    except SarpyIOError:
+        # we don't want to catch parsing errors, for now
+        return None

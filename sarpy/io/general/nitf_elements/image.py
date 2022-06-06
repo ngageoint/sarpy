@@ -274,7 +274,10 @@ class MaskSubheader(NITFElement):
         # type: () -> Union[None, numpy.ndarray]
         """
         None|numpy.ndarray: The block mask records array. This will be None if
-        and only if `BMRLNTH=0`
+        and only if `BMRLNTH=0`. Each entry records the offset in bytes from
+        the beginning of the blocked image data to the first byte of the respective
+        block. If the block is not recorded/transmitted (i.e. present), then the
+        offset value is defaulted to `0xFFFFFFFF`.
         """
 
         return self._BMR
@@ -305,7 +308,10 @@ class MaskSubheader(NITFElement):
         # type: () -> Union[None, numpy.ndarray]
         """
         None|numpy.ndarray: The transparent mask records array. This will be None if
-        and only if `TMRLNTH=0`
+        and only if `TMRLNTH=0`. Each entry records the offset in bytes from
+        the beginning of the blocked image data to the first byte of the respective
+        block (if this block contains pad pixels), or the default value `0xFFFFFFFF`
+        to indicate that this block does not contain pad pixels.
         """
 
         return self._TMR
@@ -805,6 +811,59 @@ class ImageSegmentHeader(NITFElement):
         else:
             return super(ImageSegmentHeader, cls)._parse_attribute(fields, attribute, value, start)
 
+    def get_uncompressed_block_size(self) -> int:
+        """
+        Gets the size of an uncompressed block.
+
+        Note that if `IMODE == 'S'`, then each block consists of a single band.
+        Otherwise, a block consists of all bands.
+
+        Returns
+        -------
+        int
+        """
+
+        nppbv = self.NROWS if self.NPPBV == 0 else self.NPPBV
+        nppbh = self.NCOLS if self.NPPBH == 0 else self.NPPBH
+        if self.IMODE == 'S':
+            return int(nppbh*nppbv*self.NBPP/8)
+        else:
+            return int(nppbh*nppbv*len(self.Bands)*self.NBPP/8)
+
+    def get_full_uncompressed_image_size(self) -> int:
+        """
+        Gets the full size in bytes of the uncompressed image including any padding
+        in the blocks.
+
+        Returns
+        -------
+        int
+        """
+
+        total_blocks = self.NBPR*self.NBPC
+        if self.IMODE == 'S':
+            total_blocks *= len(self.Bands)
+        return total_blocks*self.get_uncompressed_block_size()
+
+    def get_clevel(self) -> int:
+        """
+        Gets the CLEVEL value for this image segment.
+
+        Returns
+        -------
+        int
+        """
+
+        dim_size = max(self.NROWS, self.NCOLS)
+        if dim_size <= 2048:
+            return 3
+        elif dim_size <= 8192:
+            return 5
+        elif dim_size <= 65536:
+            return 6
+        else:
+            return 7
+
 
 #########
 # NITF 2.0 version
@@ -1167,3 +1226,56 @@ class ImageSegmentHeader0(NITFElement):
         else:
             out = super(ImageSegmentHeader0, cls)._parse_attribute(fields, attribute, value, start)
         return out
+
+    def get_uncompressed_block_size(self) -> int:
+        """
+        Gets the size of an uncompressed block.
+
+        Note that if `IMODE == 'S'`, then each block consists of a single band.
+        Otherwise, a block consists of all bands.
+
+        Returns
+        -------
+        int
+        """
+
+        nppbv = self.NROWS if self.NPPBV == 0 else self.NPPBV
+        nppbh = self.NCOLS if self.NPPBH == 0 else self.NPPBH
+        if self.IMODE == 'S':
+            return int(nppbh*nppbv*self.NBPP/8)
+        else:
+            return int(nppbh*nppbv*len(self.Bands)*self.NBPP/8)
+
+    def get_full_uncompressed_image_size(self) -> int:
+        """
+        Gets the full size in bytes of the uncompressed image including any padding
+        in the blocks.
+
+        Returns
+        -------
+        int
+        """
+
+        total_blocks = self.NBPR*self.NBPC
+        if self.IMODE == 'S':
+            total_blocks *= len(self.Bands)
+        return total_blocks*self.get_uncompressed_block_size()
+
+    def get_clevel(self) -> int:
+        """
+        Gets the CLEVEL value for this image segment.
+
+        Returns
+        -------
+        int
+        """
+
+        dim_size = max(self.NROWS, self.NCOLS)
+        if dim_size <= 2048:
+            return 3
+        elif dim_size <= 8192:
+            return 5
+        elif dim_size <= 65536:
+            return 6
+        else:
+            return 7

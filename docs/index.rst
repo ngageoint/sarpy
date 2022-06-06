@@ -7,6 +7,7 @@ Welcome to sarpy's documentation!
     :maxdepth: 3
     :caption: Contents:
 
+    changes
     examples/index
     utils/index
     io/index

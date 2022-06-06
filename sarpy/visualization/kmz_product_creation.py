@@ -13,7 +13,7 @@ Create a kmz overview for the contents of a sicd type reader.
 
     import os
     from sarpy.io.complex.converter import open_complex
-    from sarpy.io.product.kmz_product_creation import create_kmz_view
+    from sarpy.visualization.kmz_product_creation import create_kmz_view
 
     test_root = '<root directory>'
     reader = open_complex(os.path.join(test_root, '<file name>>'))
@@ -25,6 +25,8 @@ Create a kmz overview for the contents of a sicd type reader.
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
+
+# TODO: tidy up significantly
 
 
 import logging
@@ -671,7 +673,7 @@ def create_kmz_view(
 
         import os
         from sarpy.io.complex.converter import open_complex
-        from sarpy.io.product.kmz_product_creation import create_kmz_view
+        from sarpy.visualization.kmz_product_creation import create_kmz_view
 
         test_root = '<root directory>'
         reader = open_complex(os.path.join(test_root, '<file name>>'))

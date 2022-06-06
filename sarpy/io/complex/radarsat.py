@@ -11,16 +11,13 @@ import re
 import os
 from datetime import datetime
 from xml.etree import ElementTree
-from typing import Tuple, List, Union
+from typing import Tuple, List, Sequence, Union, Optional
 
 import numpy
 from scipy.interpolate import RectBivariateSpline
 from numpy.polynomial import polynomial
 from scipy.constants import speed_of_light
 
-from sarpy.io.general.base import BaseReader, SarpyIOError
-from sarpy.io.general.tiff import TiffDetails, TiffReader
-from sarpy.io.general.utils import get_seconds, parse_timestring, is_file_like
 from sarpy.geometry.geocoords import geodetic_to_ecf
 
 from sarpy.io.complex.base import SICDTypeReader
@@ -43,44 +40,20 @@ from sarpy.io.complex.sicd_elements.SCPCOA import SCPCOAType
 from sarpy.io.complex.sicd_elements.Radiometric import RadiometricType, NoiseLevelType_
 from sarpy.io.complex.utils import fit_time_coa_polynomial, fit_position_xvalidation
 
+from sarpy.io.general.base import SarpyIOError
+from sarpy.io.general.data_segment import DataSegment
+from sarpy.io.general.tiff import NativeTiffDataSegment
+from sarpy.io.general.utils import get_seconds, parse_timestring, is_file_like
+
 logger = logging.getLogger(__name__)
 
 _unhandled_generation_text = 'Unhandled generation `{}`'
-
-########
-# base expected functionality for a module with an implemented Reader
-
-def is_a(file_name):
-    """
-    Tests whether a given file_name corresponds to a RadarSat file. Returns a reader instance, if so.
-
-    Parameters
-    ----------
-    file_name : str
-        the file_name to check
-
-    Returns
-    -------
-    RadarSatReader|None
-        `RadarSatReader` instance if RadarSat file, `None` otherwise
-    """
-
-    if is_file_like(file_name):
-        return None
-
-    try:
-        details = RadarSatDetails(file_name)
-        logger.info('Path {} is determined to be or contain a RadarSat or RCM product.xml file.'.format(file_name))
-        return RadarSatReader(details)
-    except SarpyIOError:
-        return None
 
 
 ############
 # Helper functions
 
-def _parse_xml(file_name, without_ns=False):
-    # type: (str, bool) -> ElementTree.Element
+def _parse_xml(file_name: str, without_ns: bool=False) -> ElementTree.Element:
     if without_ns:
         with open(file_name, 'rb') as fi:
             xml_string = fi.read()
@@ -90,21 +63,25 @@ def _parse_xml(file_name, without_ns=False):
         return ElementTree.parse(file_name).getroot()
 
 
-def _format_class_str(class_str):
+def _format_class_str(class_str: str) -> str:
     if 'UNCLASS' in class_str:
         return 'UNCLASSIFIED'
     else:
         return class_str
 
 
-def _validate_chipper_and_sicd(the_sicd, chipper, name, the_file):
+def _validate_segment_and_sicd(
+        the_sicd: SICDType,
+        data_segment: DataSegment,
+        name: str,
+        the_file: str):
     """
     Check that chipper and sicd are compatible.
 
     Parameters
     ----------
     the_sicd : SICDType
-    chipper : BaseChipper
+    data_segment : DataSegment
     name : str
     the_file : str
 
@@ -113,85 +90,102 @@ def _validate_chipper_and_sicd(the_sicd, chipper, name, the_file):
     None
     """
 
-    rows, cols = the_sicd.ImageData.NumRows, the_sicd.ImageData.NumCols
-    data_size = chipper.data_size
-    if data_size[0] != rows or data_size[1] != cols:
+    sicd_data_size = (the_sicd.ImageData.NumRows, the_sicd.ImageData.NumCols)
+    segment_data_size = data_segment.formatted_shape
+    if sicd_data_size != segment_data_size:
         raise ValueError(
-            'The {} chipper construction for file {}\ngot incompatible sicd size ({}, {}) and '
-            'chipper size {}'.format(name, the_file, rows, cols, data_size))
+            'The {} data segment construction for file {}\n'
+            'got incompatible sicd size `{}` and segment size `{}`'.format(
+                name, the_file, sicd_data_size, segment_data_size))
 
 
-def _construct_tiff_chipper(the_sicd, the_file, symmetry):
+def _construct_tiff_segment(
+        the_sicd: SICDType,
+        the_file : str,
+        reverse_axes: Union[None, int, Sequence[int]] = None,
+        transpose_axes: Union[None, Tuple[int, ...]] = None):
     """
 
     Parameters
     ----------
     the_sicd : SICDType
     the_file : str
-    symmetry : tuple
+    reverse_axes : None|Tuple[int, ...]
+    transpose_axes : None|Tuple[int, ...]
 
     Returns
     -------
-    BaseChipper
+    NativeTiffDataSegment
     """
 
-    tiff_details = TiffDetails(the_file)
-    reader = TiffReader(tiff_details, symmetry=symmetry)
-    # noinspection PyProtectedMember
-    chipper = reader._chipper
-    _validate_chipper_and_sicd(the_sicd, chipper, 'tiff', the_file)
-    return chipper
+    segment = NativeTiffDataSegment(the_file, reverse_axes=reverse_axes, transpose_axes=transpose_axes)
+    _validate_segment_and_sicd(the_sicd, segment, 'tiff', the_file)
+    return segment
 
 
-def _construct_single_nitf_chipper(the_sicd, the_file, symmetry):
+def _construct_single_nitf_segment(
+        the_sicd: SICDType,
+        the_file: str,
+        reverse_axes: Optional[Sequence[int]],
+        transpose_axes: Optional[Tuple[int, ...]]) -> Tuple[ComplexNITFReader, DataSegment]:
     """
 
     Parameters
     ----------
     the_sicd : SICDType
     the_file : str
-    symmetry : tuple
+    reverse_axes : None|Sequence[int]
+    transpose_axes : None|Tuple[int, ...]
 
     Returns
     -------
-    BaseChipper
+    reader: ComplexNITFReader
+    data_segment: DataSegment
     """
 
-    reader = ComplexNITFReader(the_file, symmetry=symmetry, split_bands=True)
-    # noinspection PyProtectedMember
-    chipper = reader._chipper
-    if len(chipper) > 1:
+    if transpose_axes is not None:
+        transpose_axes = transpose_axes[:2]
+    reader = ComplexNITFReader(the_file, reverse_axes=reverse_axes, transpose_axes=transpose_axes)
+    data_segment = reader.data_segment
+    if not isinstance(data_segment, DataSegment):
         raise ValueError(
             'The SLC data for a single polarmetric band was provided '
             'in a NITF file which has more than a single complex band.')
-    _validate_chipper_and_sicd(the_sicd, chipper[0], 'Single NITF', the_file)
-    return chipper[0]
+    _validate_segment_and_sicd(the_sicd, data_segment, 'Single NITF', the_file)
+    return reader, data_segment
 
 
-def _construct_multiple_nitf_chippers(the_sicds, the_file, symmetry):
+def _construct_multiple_nitf_segment(
+        the_sicds: List[SICDType],
+        the_file: str,
+        reverse_axes: Optional[Sequence[int]],
+        transpose_axes: Optional[Tuple[int, ...]]) -> Tuple[ComplexNITFReader, Tuple[DataSegment, ...]]:
     """
 
     Parameters
     ----------
     the_sicds : List[SICDType]
     the_file : str
-    symmetry : tuple
+    reverse_axes : None|Sequence[int]
+    transpose_axes : None|Tuple[int, ...]
 
     Returns
     -------
-    List[BaseChipper]
+    reader: ComplexNITFReader
+    data_segment: Tuple[DataSegment, ...]
     """
 
-    reader = ComplexNITFReader(the_file, symmetry=symmetry, split_bands=True)
-    # noinspection PyProtectedMember
-    chippers = list(reader._chipper)
-    if len(chippers) != len(the_sicds):
+    if transpose_axes is not None:
+        transpose_axes = transpose_axes[:2]
+    reader = ComplexNITFReader(the_file, reverse_axes=reverse_axes, transpose_axes=transpose_axes)
+    data_segment = reader.get_data_segment_as_tuple()
+    if len(data_segment) != len(the_sicds):
         raise ValueError(
             'The SLC data for {} polarmetric bands was provided '
-            'in a NITF file which has {} single complex band.'.format(len(the_sicds), len(chippers)))
-    for i, (the_sicd, chipper) in enumerate(zip(the_sicds, chippers)):
-        _validate_chipper_and_sicd(the_sicd, chipper, 'NITF band {}'.format(i), the_file)
-    return chippers
+            'in a NITF file which has {} single complex band.'.format(len(the_sicds), len(data_segment)))
+    for i, (the_sicd, segment) in enumerate(zip(the_sicds, data_segment)):
+        _validate_segment_and_sicd(the_sicd, segment, 'NITF band {}'.format(i), the_file)
+    return reader, data_segment
 
 
 ##############
@@ -204,12 +198,12 @@ class RadarSatDetails(object):
     """
 
     __slots__ = (
-        '_file_name', '_satellite', '_root_node', '_beams', '_bursts',
+        '_file_name', '_directory_name', '_satellite', '_root_node', '_beams', '_bursts',
         '_num_lines_processed', '_polarizations',
         '_x_spline', '_y_spline', '_z_spline',
         '_state_time', '_state_position', '_state_velocity')
 
-    def __init__(self, file_name):
+    def __init__(self, file_name: str):
         """
 
         Parameters
@@ -254,13 +248,19 @@ class RadarSatDetails(object):
 
         self._root_node = root_node
         self._satellite = satellite
+        absolute_path = os.path.abspath(self._file_name)
+        parent_dir, _ = os.path.split(absolute_path)
+        if self.generation == 'RS2':
+            self._directory_name = parent_dir
+        else:
+            self._directory_name, _ = os.path.split(parent_dir)
 
         self._build_location_spline()
         self._parse_state_vectors()
         self._extract_beams_and_bursts()
 
     @property
-    def file_name(self):
+    def file_name(self) -> str:
         """
         str: the file name
         """
@@ -268,7 +268,15 @@ class RadarSatDetails(object):
         return self._file_name
 
     @property
-    def satellite(self):
+    def directory_name(self) -> str:
+        """
+        str: the package directory name
+        """
+
+        return self._directory_name
+
+    @property
+    def satellite(self) -> str:
         """
         str: the satellite name
         """
@@ -276,7 +284,7 @@ class RadarSatDetails(object):
         return self._satellite
 
     @property
-    def generation(self):
+    def generation(self) -> str:
         """
         str: RS2 or RCM
         """
@@ -287,20 +295,21 @@ class RadarSatDetails(object):
             return 'RCM'
 
     @property
-    def pass_direction(self):
+    def pass_direction(self) -> str:
         """
         str: The pass direction
         """
 
         return self._find('./sourceAttributes/orbitAndAttitude/orbitInformation/passDirection').text
 
-    def get_symmetry(self):
+    def get_symmetry(self) -> Tuple[Optional[Tuple[int, ...]], Optional[Tuple[int, ...]]]:
         """
-        Get the symmetry tuple.
+        Get the symmetry transform information.
 
         Returns
         -------
-        Tuple[bool]
+        reverse_axes : None|Tuple[int, ...]
+        transpose_axes : None|Tuple[int, ...]
         """
 
         look_dir = self._find('./sourceAttributes/radarParameters/antennaPointing').text.upper()[0]
@@ -313,17 +322,22 @@ class RadarSatDetails(object):
         reverse_cols = not (
                 (line_order == 'DECREASING' and look_dir == 'L') or
                 (line_order != 'DECREASING' and look_dir != 'L'))
-        return reverse_cols, sample_order == 'DECREASING', True
+        reverse_axes = []
+        if reverse_cols:
+            reverse_axes.append(0)
+        if sample_order == 'DECREASING':
+            reverse_axes.append(1)
+        reverse_axes = tuple(reverse_axes) if len(reverse_axes) > 0 else None
+        transpose_axes = (1, 0, 2)
+        return reverse_axes, transpose_axes
 
-    def _find(self, tag):
-        # type: (str) -> ElementTree.Element
+    def _find(self, tag: str) -> ElementTree.Element:
         return self._root_node.find(tag)
 
-    def _findall(self, tag):
-        # type: (str) -> List[ElementTree.Element, ...]
+    def _findall(self, tag: str) -> List[ElementTree.Element]:
         return self._root_node.findall(tag)
 
-    def _get_tiepoint_nodes(self):
+    def _get_tiepoint_nodes(self) -> List[ElementTree.Element]:
         """
         Fetch the tie point nodes.
 
@@ -334,7 +348,7 @@ class RadarSatDetails(object):
 
         return self._findall('./imageAttributes/geographicInformation/geolocationGrid/imageTiePoint')
 
-    def _build_location_spline(self):
+    def _build_location_spline(self) -> None:
         """
         Populates the three (line, sample) -> location coordinate splines. This
         should be done once for all images.
@@ -406,7 +420,7 @@ class RadarSatDetails(object):
         self._z_spline = RectBivariateSpline(
             lines, samples, numpy.reshape(ecf_coords[:, 2], (lines.size, samples.size)), kx=3, ky=3, s=0)
 
-    def _get_image_location(self, line, sample):
+    def _get_image_location(self, line: Union[int, float], sample: Union[int, float]) -> numpy.ndarray:
         """
         Fetch the image location estimate based on the previously constructed splines.
 
@@ -427,7 +441,7 @@ class RadarSatDetails(object):
              float(self._y_spline.ev(line, sample)),
              float(self._z_spline.ev(line, sample))], dtype='float64')
 
-    def _parse_state_vectors(self):
+    def _parse_state_vectors(self) -> None:
         """
         Parses the state vectors.
 
@@ -454,7 +468,7 @@ class RadarSatDetails(object):
                 float(state_vec.find('yVelocity').text),
                 float(state_vec.find('zVelocity').text)]
 
-    def _extract_beams_and_bursts(self):
+    def _extract_beams_and_bursts(self) -> None:
         """
         Extract the beam and burst and polarization information.
 
@@ -479,7 +493,7 @@ class RadarSatDetails(object):
                     num_lines_processed = max(num_lines_processed, nlines+line_offset)
                 self._num_lines_processed = num_lines_processed
 
-    def _get_sicd_radar_mode(self):
+    def _get_sicd_radar_mode(self) -> RadarModeType:
         """
         Gets the RadarMode information.
 
@@ -502,7 +516,7 @@ class RadarSatDetails(object):
             mode_type = 'STRIPMAP'
         return RadarModeType(ModeID=mode_id, ModeType=mode_type)
 
-    def _get_sicd_collection_info(self, start_time):
+    def _get_sicd_collection_info(self, start_time: numpy.datetime64) -> Tuple[dict, CollectionInfoType]:
         """
         Gets the sicd CollectionInfo information.
 
@@ -512,7 +526,9 @@ class RadarSatDetails(object):
 
         Returns
         -------
-        (dict, CollectionInfoType)
+        nitf : dict
+            The NITF element dictionary
+        collection_info : CollectionInfoType
         """
 
         try:
@@ -541,7 +557,7 @@ class RadarSatDetails(object):
             RadarMode=self._get_sicd_radar_mode(),
             CollectType='MONOSTATIC')
 
-    def _get_sicd_image_creation(self):
+    def _get_sicd_image_creation(self) -> ImageCreationType:
         """
         Gets the ImageCreation metadata.
 
@@ -558,7 +574,7 @@ class RadarSatDetails(object):
             Site=processing_info.find('processingFacility').text,
             Profile='sarpy {}'.format(__version__))
 
-    def _get_sicd_position(self, start_time):
+    def _get_sicd_position(self, start_time: numpy.datetime64) -> PositionType:
         """
         Gets the SICD Position definition, based on the given start time.
 
@@ -577,7 +593,7 @@ class RadarSatDetails(object):
         return PositionType(ARPPoly=XYZPolyType(X=P_x, Y=P_y, Z=P_z))
 
     @staticmethod
-    def _parse_polarization(str_in):
+    def _parse_polarization(str_in: str) -> Tuple[str, str]:
         """
         Parses the Radarsat polarization string into it's two SICD components.
 
@@ -597,8 +613,7 @@ class RadarSatDetails(object):
         rcv_pol = 'RHC' if str_in[1] == 'C' else str_in[1]  # probably only H/V
         return tx_pol, rcv_pol
 
-    def _get_sicd_polarizations(self):
-        # type: () -> (List[str, ...], List[str, ...])
+    def _get_sicd_polarizations(self) -> Tuple[List[str], List[str]]:
         tx_pols = []
         tx_rcv_pols = []
         for entry in self._polarizations:
@@ -608,7 +623,7 @@ class RadarSatDetails(object):
             tx_rcv_pols.append('{}:{}'.format(tx_pol, rcv_pol))
         return tx_pols, tx_rcv_pols
 
-    def _get_side_of_track(self):
+    def _get_side_of_track(self) -> str:
         """
         Gets the sicd side of track.
 
@@ -619,7 +634,7 @@ class RadarSatDetails(object):
 
         return self._find('./sourceAttributes/radarParameters/antennaPointing').text[0].upper()
 
-    def _get_regular_sicd(self):
+    def _get_regular_sicd(self) -> Tuple[List[SICDType], List[str]]:
         """
         Gets the SICD collection. This will return one SICD per polarimetric
         collection. It will also return the data file(s). This is only applicable
@@ -627,10 +642,11 @@ class RadarSatDetails(object):
 
         Returns
         -------
-        (List[SICDType], List[str])
+        sicds: List[SICDType]
+        files: List[str]
         """
 
-        def get_image_and_geo_data():
+        def get_image_and_geo_data() -> Tuple[ImageDataType, GeoDataType]:
             if self.generation == 'RS2':
                 pixel_type = 'RE16I_IM16I'
                 cols = int(self._find('./imageAttributes/rasterAttributes/numberOfLines').text)
@@ -656,8 +672,7 @@ class RadarSatDetails(object):
             t_geo_data = GeoDataType(SCP=SCPType(ECF=scp_ecf))
             return im_data, t_geo_data
 
-        def get_grid_row():
-            # type: () -> DirParamType
+        def get_grid_row() -> DirParamType:
             if self.generation == 'RS2':
                 row_ss = float(self._find('./imageAttributes/rasterAttributes/sampledPixelSpacing').text)
                 row_irbw = 2*float(self._find('./imageGenerationParameters'
@@ -683,16 +698,14 @@ class RadarSatDetails(object):
                 SS=row_ss, ImpRespBW=row_irbw, Sgn=-1, KCtr=2*center_frequency/speed_of_light,
                 DeltaKCOAPoly=Poly2DType(Coefs=((0,),)), WgtType=row_wgt_type)
 
-        def get_grid_col():
-            # type: () -> DirParamType
+        def get_grid_col() -> DirParamType:
             az_win = self._find('./imageGenerationParameters/sarProcessingInformation/azimuthWindow')
             col_wgt_type = WgtTypeType(WindowName=az_win.find('./windowName').text.upper())
             if col_wgt_type.WindowName == 'KAISER':
                 col_wgt_type.Parameters = {'BETA': az_win.find('./windowCoefficient').text}
             return DirParamType(Sgn=-1, KCtr=0, WgtType=col_wgt_type)
 
-        def get_radar_collection():
-            # type: () -> RadarCollectionType
+        def get_radar_collection() -> RadarCollectionType:
             radar_params = self._find('./sourceAttributes/radarParameters')
             # Ultrafine and spotlight modes have t pulses, otherwise just one.
             bandwidth_elements = sorted(radar_params.findall('pulseBandwidth'), key=lambda x: x.get('pulse'))
@@ -728,9 +741,7 @@ class RadarSatDetails(object):
                     TxStepType(TxPolarization=entry, index=j+1) for j, entry in enumerate(tx_pols)]
             return t_radar_collection
 
-        def get_timeline():
-            # type: () -> TimelineType
-
+        def get_timeline() -> TimelineType:
             pulse_parts = len(self._findall('./sourceAttributes/radarParameters/pulseBandwidth'))
             if self.generation == 'RS2':
                 pulse_rep_freq = float(self._find('./sourceAttributes/radarParameters/pulseRepetitionFrequency').text)
@@ -759,8 +770,7 @@ class RadarSatDetails(object):
             return TimelineType(
                 CollectStart=collect_start, CollectDuration=duration, IPP=[ipp, ])
 
-        def get_image_formation():
-            # type: () -> ImageFormationType
+        def get_image_formation() -> ImageFormationType:
             pulse_parts = len(self._findall('./sourceAttributes/radarParameters/pulseBandwidth'))
             return ImageFormationType(
                 # PRFScaleFactor for either polarimetric or multi-step, but not both.
@@ -776,9 +786,7 @@ class RadarSatDetails(object):
                 AzAutofocus='NO',
                 RgAutofocus='NO')
 
-        def get_rma_adjust_grid():
-            # type: () -> RMAType
-
+        def get_rma_adjust_grid() -> RMAType:
             # fetch all the things needed below
             # generation agnostic
             doppler_bandwidth = float(
@@ -936,10 +944,8 @@ class RadarSatDetails(object):
                 raise ValueError('unhandled ModeType {}'.format(collection_info.RadarMode.ModeType))
             return RMAType(RMAlgoType='OMEGA_K', INCA=inca)
 
-        def get_radiometric():
-            # type: () -> Union[None, RadiometricType]
-
-            def perform_radiometric_fit(component_file):
+        def get_radiometric()-> Optional[RadiometricType]:
+            def perform_radiometric_fit(component_file: str) -> numpy.ndarray:
                 comp_struct = _parse_xml(component_file, without_ns=(self.generation != 'RS2'))
                 comp_values = numpy.array(
                     [float(entry) for entry in comp_struct.find('./gains').text.split()], dtype='float64')
@@ -1031,12 +1037,12 @@ class RadarSatDetails(object):
                                    GammaZeroSFPoly=gamma_zero_sf_poly,
                                    NoiseLevel=noise_level)
 
-        def correct_scp():
+        def correct_scp() -> None:
             scp_pixel = base_sicd.ImageData.SCPPixel.get_array()
             scp_ecf = base_sicd.project_image_to_ground(scp_pixel, projection_type='HAE')
             base_sicd.update_scp(scp_ecf, coord_system='ECF')
 
-        def get_data_file_names():
+        def get_data_file_names() -> List[str]:
             base_path = os.path.dirname(self.file_name)
             image_files = []
             if self.generation == 'RS2':
@@ -1106,7 +1112,7 @@ class RadarSatDetails(object):
             the_sicds.append(this_sicd)
         return the_sicds, the_files
 
-    def _get_scansar_sicd(self, beam, burst):
+    def _get_scansar_sicd(self, beam: str, burst: str) -> Tuple[List[SICDType], List[str]]:
         """
         Gets the SICD collection for the given burst. This is only applicable
         to ScanSAR collects. This will return one SICD per polarimetric collection.
@@ -1119,10 +1125,11 @@ class RadarSatDetails(object):
 
         Returns
         -------
-        (List[SICDType], List[str])
+        sicds: List[SICDType]
+        files: List[str]
         """
 
-        def get_image_and_geo_data():
+        def get_image_and_geo_data() -> Tuple[ImageDataType, GeoDataType, int]:
             img_attributes = self._find('./sceneAttributes/imageAttributes[@burst="{}"]'.format(burst))
             sample_offset = int(img_attributes.find('./pixelOffset').text)
             line_offset = int(img_attributes.find('./lineOffset').text)
@@ -1144,8 +1151,7 @@ class RadarSatDetails(object):
             t_geo_data = GeoDataType(SCP=SCPType(ECF=scp_ecf))
             return im_data, t_geo_data, sample_offset
 
-        def get_grid_row():
-            # type: () -> DirParamType
+        def get_grid_row() -> DirParamType:
             row_ss = float(self._find('./imageReferenceAttributes/rasterAttributes/sampledPixelSpacing').text)
             row_irbw = 2*float(self._find('./sourceAttributes'
                                           '/radarParameters'
@@ -1165,8 +1171,7 @@ class RadarSatDetails(object):
                 SS=row_ss, ImpRespBW=row_irbw, Sgn=-1, KCtr=2*center_frequency/speed_of_light,
                 DeltaKCOAPoly=Poly2DType(Coefs=((0,),)), WgtType=row_wgt_type)
 
-        def get_grid_col():
-            # type: () -> DirParamType
+        def get_grid_col() -> DirParamType:
             az_win = self._find('./imageGenerationParameters/sarProcessingInformation/azimuthWindow[@beam="{}"]'.format(beam))
             col_wgt_type = WgtTypeType(WindowName=az_win.find('./windowName').text.upper())
             if col_wgt_type.WindowName == 'KAISER':
@@ -1174,8 +1179,7 @@ class RadarSatDetails(object):
 
             return DirParamType(Sgn=-1, KCtr=0, WgtType=col_wgt_type)
 
-        def get_radar_collection():
-            # type: () -> RadarCollectionType
+        def get_radar_collection() -> RadarCollectionType:
             radar_params = self._find('./sourceAttributes/radarParameters')
             # Ultrafine and spotlight modes have t pulses, otherwise just one.
             bandwidth_elements = sorted(
@@ -1227,8 +1231,7 @@ class RadarSatDetails(object):
                 CollectDuration=processing_time_span,
                 IPP=[ipp, ])
 
-        def get_image_formation():
-            # type: () -> ImageFormationType
+        def get_image_formation() -> ImageFormationType:
             pulse_parts = len(self._findall('./sourceAttributes/radarParameters/pulseBandwidth[@beam="{}"]'.format(beam)))
             return ImageFormationType(
                 # PRFScaleFactor for either polarimetric or multi-step, but not both.
@@ -1244,9 +1247,7 @@ class RadarSatDetails(object):
                 AzAutofocus='NO',
                 RgAutofocus='NO')
 
-        def get_rma_adjust_grid():
-            # type: () -> RMAType
-
+        def get_rma_adjust_grid() -> RMAType:
             sar_processing_info = self._find('./imageGenerationParameters/sarProcessingInformation')
 
             doppler_bandwidth = float(sar_processing_info.find('./totalProcessedAzimuthBandwidth').text)
@@ -1357,10 +1358,8 @@ class RadarSatDetails(object):
                 raise ValueError('ScanSAR mode data should be SPOTLIGHT mode')
             return RMAType(RMAlgoType='OMEGA_K', INCA=inca)
 
-        def get_radiometric():
-            # type: () -> Union[RadiometricType, None]
-
-            def perform_radiometric_fit(component_file):
+        def get_radiometric() -> Optional[RadiometricType]:
+            def perform_radiometric_fit(component_file: str) -> numpy.ndarray:
                 comp_struct = _parse_xml(component_file, without_ns=True)
                 comp_values = numpy.array(
                     [float(entry) for entry in comp_struct.find('./gains').text.split()], dtype=numpy.float64)
@@ -1427,12 +1426,12 @@ class RadarSatDetails(object):
                                    GammaZeroSFPoly=gamma_zero_sf_poly,
                                    NoiseLevel=noise_level)
 
-        def correct_scp():
+        def correct_scp() -> None:
             scp_pixel = base_sicd.ImageData.SCPPixel.get_array()
             scp_ecf = base_sicd.project_image_to_ground(scp_pixel, projection_type='HAE')
             base_sicd.GeoData.SCP.ECF = scp_ecf
 
-        def get_data_file_names():
+        def get_data_file_names() -> List[str]:
             base_path = os.path.dirname(self.file_name)
             image_files = []
             img_attribute_node = self._find('./sceneAttributes/imageAttributes[@burst="{}"]'.format(burst))
@@ -1514,13 +1513,14 @@ class RadarSatDetails(object):
             the_sicds.append(this_sicd)
         return the_sicds, the_files
 
-    def get_sicd_collection(self):
+    def get_sicd_collection(self) -> Tuple[List[List[SICDType]], List[List[str]]]:
         """
         Gets the collection of sicd objects.
 
         Returns
         -------
-        (List[List[SICDType]], List[List[str]])
+        sicds: List[List[SICDType]]
+        files: List[List[str]]
         """
 
         sicds = []
@@ -1540,12 +1540,15 @@ class RadarSatDetails(object):
 ##############
 # reader implementation - really just borrows from tiff or NITF reader
 
-class RadarSatReader(BaseReader, SICDTypeReader):
+class RadarSatReader(SICDTypeReader):
     """
-    The reader object for RadarSat SAR file package.
+    A RadarSat-2 and RadarSat Constellation Mission (RCM) SLC file package
+    reader implementation.
+
+    **Changed in version 1.3.0** for reading changes.
     """
 
-    __slots__ = ('_radar_sat_details', '_readers')
+    __slots__ = ('_radar_sat_details', '_other_reader')
 
     def __init__(self, radar_sat_details):
         """
@@ -1556,6 +1559,7 @@ class RadarSatReader(BaseReader, SICDTypeReader):
             file name or RadarSatDetails object
         """
 
+        self._other_reader = None
         if isinstance(radar_sat_details, str):
             radar_sat_details = RadarSatDetails(radar_sat_details)
         if not isinstance(radar_sat_details, RadarSatDetails):
@@ -1563,41 +1567,49 @@ class RadarSatReader(BaseReader, SICDTypeReader):
                             'filename or RadarSatDetails object')
         self._radar_sat_details = radar_sat_details
         # determine symmetry
-        symmetry = self._radar_sat_details.get_symmetry()
+        reverse_axes, transpose_axes = self._radar_sat_details.get_symmetry()
         # get the sicd collection and data file names
         the_sicds, the_files = self.radarsat_details.get_sicd_collection()
         use_sicds = []
-        the_chippers = []
+        the_segments = []
         for sicd_entry, file_entry in zip(the_sicds, the_files):
-            the_chippers.extend(self._construct_chippers(sicd_entry, file_entry, symmetry))
+            the_segments.extend(self._construct_segments(sicd_entry, file_entry, reverse_axes, transpose_axes))
             use_sicds.extend(sicd_entry)
 
-        SICDTypeReader.__init__(self, tuple(use_sicds))
-        BaseReader.__init__(self, tuple(the_chippers), reader_type="SICD")
+        SICDTypeReader.__init__(self, the_segments, use_sicds, close_segments=True)
         self._check_sizes()
 
-    def _construct_chippers(self, sicds, data_files, symmetry):
+    def _construct_segments(
+            self,
+            sicds: List[SICDType],
+            data_files: List[str],
+            reverse_axes: Optional[Tuple[int, ...]],
+            transpose_axes: Optional[Tuple[int, ...]]) -> List[DataSegment]:
         """
-        Construct the chippers for the provided
+        Construct the data segments.
 
         Parameters
         ----------
         sicds : List[SICDType]
         data_files : List[str]
+        reverse_axes : None|Tuple[int, ...]
+        transpose_axes : None|Tuple[int, ...]
 
         Returns
         -------
         List[BaseChipper]
         """
 
-        chippers = []
+        data_segments = []
         if len(sicds) == len(data_files):
             for sicd, data_file in zip(sicds, data_files):
                 fext = os.path.splitext(data_file)[1]
                 if fext in ['.tiff', '.tif']:
-                    chippers.append(_construct_tiff_chipper(sicd, data_file, symmetry))
+                    data_segments.append(_construct_tiff_segment(sicd, data_file, reverse_axes, transpose_axes))
                 elif fext in ['.nitf', '.ntf']:
-                    chippers.append(_construct_single_nitf_chipper(sicd, data_file, symmetry))
+                    reader, segment = _construct_single_nitf_segment(sicd, data_file, reverse_axes, transpose_axes)
+                    self._other_reader = reader  # NB: maintain reference, to keep segment open
+                    data_segments.append(segment)
                 else:
                     raise ValueError(
                         'The radarsat reader requires image files in tiff or nitf format. '
@@ -1610,16 +1622,17 @@ class RadarSatReader(BaseReader, SICDTypeReader):
                     'The radarsat has image data for multiple polarizations provided in a '
                     'single image file. This requires an image files in nitf format. '
                     'Uncertain how to interpret file {}'.format(data_file))
-            chippers.extend(_construct_multiple_nitf_chippers(sicds, data_file, symmetry))
+            reader, segments = _construct_multiple_nitf_segment(sicds, data_file, reverse_axes, transpose_axes)
+            self._other_reader = reader  # NB: maintain reference, to keep segments open
+            data_segments.extend(segments)
         else:
             raise ValueError(
                 'Unclear how to construct chipper elements for {} sicd elements '
                 'from {} image files.'.format(len(sicds), len(data_files)))
-        return chippers
+        return data_segments
 
     @property
-    def radarsat_details(self):
-        # type: () -> RadarSatDetails
+    def radarsat_details(self) -> RadarSatDetails:
         """
         RadarSarDetails: The RadarSat/RCM details object.
         """
@@ -1627,5 +1640,38 @@ class RadarSatReader(BaseReader, SICDTypeReader):
         return self._radar_sat_details
 
     @property
-    def file_name(self):
-        return self.radarsat_details.file_name
+    def file_name(self) -> str:
+        return self.radarsat_details.directory_name
+
+    def close(self) -> None:
+        SICDTypeReader.close(self)
+        self._other_reader = None
+
+
+########
+# base expected functionality for a module with an implemented Reader
+
+def is_a(file_name: str) -> Optional[RadarSatReader]:
+    """
+    Tests whether a given file_name corresponds to a RadarSat file. Returns a reader instance, if so.
+
+    Parameters
+    ----------
+    file_name : str
+        the file_name to check
+
+    Returns
+    -------
+    RadarSatReader|None
+        `RadarSatReader` instance if RadarSat file, `None` otherwise
+    """
+
+    if is_file_like(file_name):
+        return None
+
+    try:
+        details = RadarSatDetails(file_name)
+        logger.info('Path {} is determined to be or contain a RadarSat or RCM product.xml file.'.format(file_name))
+        return RadarSatReader(details)
+    except SarpyIOError:
+        return None

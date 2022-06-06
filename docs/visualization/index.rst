@@ -6,3 +6,4 @@ Visualization elements (sarpy.visualization)
     :caption: Contents:
 
     remap
+    kmz_product_creation
