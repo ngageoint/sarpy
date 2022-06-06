@@ -711,7 +711,8 @@ class ComplexFormatFunction(FormatFunction):
             if self.raw_ndim == self.formatted_ndim:
                 # the band dimension is not flattened, we have to transform
                 temp_sl = reformat_slice(use_subscript[index], shape_limit, rev)
-                if temp_sl.step not in [-1, 1]:
+
+                if index == self.band_dimension and temp_sl.step not in [-1, 1]:
                     raise ValueError(
                         'Slicing along the complex dimension and applying this format function\n\t'
                         'is only only permitted using step +/-1')
