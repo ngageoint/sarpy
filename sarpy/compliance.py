@@ -29,4 +29,4 @@ def bytes_to_string(bytes_in, encoding='utf-8'):
     if not isinstance(bytes_in, bytes):
         raise TypeError('Input is required to be bytes. Got type {}'.format(type(bytes_in)))
 
-    return bytes_in.decode(encoding)
+    return bytes_in.decode(encoding, errors='ignore')
