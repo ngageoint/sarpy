@@ -50,8 +50,10 @@ except ImportError:
 
 try:
     # noinspection PyPackageRequirements
-    from PIL import PIL_Image
+    from PIL import Image as PIL_Image
     PIL_Image.MAX_IMAGE_PIXELS = None  # get rid of decompression bomb checking
+    from PIL import ImageFile
+    ImageFile.LOAD_TRUNCATED_IMAGES = True
 except ImportError:
     PIL_Image = None
 
@@ -339,7 +341,7 @@ def _get_dtype(
 
     # is there an LUT?
     lut = get_lut_info()
-    if lut:
+    if lut is not None:
         formatted_dtype = lut.dtype
         formatted_bands = 1 if lut.ndim == 1 else lut.shape[1]
 
@@ -759,10 +761,11 @@ class NITFDetails(object):
         bytes
         """
 
-        return self._fetch_item('image subheader',
-                                index,
-                                self.img_subheader_offsets,
-                                self._nitf_header.ImageSegments.subhead_sizes)
+        return self._fetch_item(
+            'image subheader',
+            index,
+            self.img_subheader_offsets,
+            self._nitf_header.ImageSegments.subhead_sizes)
 
     def parse_image_subheader(self, index: int) -> Union[ImageSegmentHeader, ImageSegmentHeader0]:
         """
@@ -798,6 +801,25 @@ class NITFDetails(object):
                 the_bytes, 0, band_depth=band_depth, blocks=blocks)
         return out
 
+    def get_image_bytes(self, index: int) -> bytes:
+        """
+        Fetches the image bytes at the given index.
+
+        Parameters
+        ----------
+        index : int
+
+        Returns
+        -------
+        bytes
+        """
+
+        return self._fetch_item(
+            'image data',
+            index,
+            self.img_segment_offsets,
+            self._nitf_header.ImageSegments.item_sizes)
+
     def get_text_subheader_bytes(self, index: int) -> bytes:
         """
         Fetches the text segment subheader at the given index.
@@ -811,10 +833,11 @@ class NITFDetails(object):
         bytes
         """
 
-        return self._fetch_item('text subheader',
-                                index,
-                                self.text_subheader_offsets,
-                                self._nitf_header.TextSegments.subhead_sizes)
+        return self._fetch_item(
+            'text subheader',
+            index,
+            self.text_subheader_offsets,
+            self._nitf_header.TextSegments.subhead_sizes)
 
     def get_text_bytes(self, index: int) -> bytes:
         """
@@ -829,10 +852,11 @@ class NITFDetails(object):
         bytes
         """
 
-        return self._fetch_item('text segment',
-                                index,
-                                self.text_segment_offsets,
-                                self._nitf_header.TextSegments.item_sizes)
+        return self._fetch_item(
+            'text segment',
+            index,
+            self.text_segment_offsets,
+            self._nitf_header.TextSegments.item_sizes)
 
     def parse_text_subheader(self, index: int) -> Union[TextSegmentHeader, TextSegmentHeader0]:
         """
@@ -869,10 +893,11 @@ class NITFDetails(object):
         """
 
         if self._nitf_version == '02.10':
-            return self._fetch_item('graphics subheader',
-                                    index,
-                                    self.graphics_subheader_offsets,
-                                    self._nitf_header.GraphicsSegments.subhead_sizes)
+            return self._fetch_item(
+                'graphics subheader',
+                index,
+                self.graphics_subheader_offsets,
+                self._nitf_header.GraphicsSegments.subhead_sizes)
         else:
             raise ValueError('Only NITF version 02.10 has graphics segments')
 
@@ -890,10 +915,11 @@ class NITFDetails(object):
         """
 
         if self._nitf_version == '02.10':
-            return self._fetch_item('graphics segment',
-                                    index,
-                                    self.graphics_segment_offsets,
-                                    self._nitf_header.GraphicsSegments.item_sizes)
+            return self._fetch_item(
+                'graphics segment',
+                index,
+                self.graphics_segment_offsets,
+                self._nitf_header.GraphicsSegments.item_sizes)
         else:
             raise ValueError('Only NITF version 02.10 has graphics segments')
 
@@ -930,10 +956,11 @@ class NITFDetails(object):
         """
 
         if self.nitf_version == '02.00':
-            return self._fetch_item('symbol subheader',
-                                    index,
-                                    self.symbol_subheader_offsets,
-                                    self._nitf_header.GraphicsSegments.subhead_sizes)
+            return self._fetch_item(
+                'symbol subheader',
+                index,
+                self.symbol_subheader_offsets,
+                self._nitf_header.SymbolSegments.subhead_sizes)
         else:
             raise ValueError('Only NITF 02.00 has symbol elements.')
 
@@ -951,10 +978,11 @@ class NITFDetails(object):
         """
 
         if self.nitf_version == '02.00':
-            return self._fetch_item('symbol segment',
-                                    index,
-                                    self.symbol_segment_offsets,
-                                    self._nitf_header.GraphicsSegments.item_sizes)
+            return self._fetch_item(
+                'symbol segment',
+                index,
+                self.symbol_segment_offsets,
+                self._nitf_header.SymbolSegments.item_sizes)
         else:
             raise ValueError('Only NITF 02.00 has symbol elements.')
 
@@ -991,10 +1019,11 @@ class NITFDetails(object):
         """
 
         if self.nitf_version == '02.00':
-            return self._fetch_item('label subheader',
-                                    index,
-                                    self.label_subheader_offsets,
-                                    self._nitf_header.GraphicsSegments.subhead_sizes)
+            return self._fetch_item(
+                'label subheader',
+                index,
+                self.label_subheader_offsets,
+                self._nitf_header.LabelSegments.subhead_sizes)
         else:
             raise ValueError('Only NITF 02.00 has label elements.')
 
@@ -1012,10 +1041,11 @@ class NITFDetails(object):
         """
 
         if self.nitf_version == '02.00':
-            return self._fetch_item('label segment',
-                                    index,
-                                    self.label_segment_offsets,
-                                    self._nitf_header.GraphicsSegments.item_sizes)
+            return self._fetch_item(
+                'label segment',
+                index,
+                self.label_segment_offsets,
+                self._nitf_header.LabelSegments.item_sizes)
         else:
             raise ValueError('Only NITF 02.00 has symbol elements.')
 
@@ -1051,10 +1081,11 @@ class NITFDetails(object):
         bytes
         """
 
-        return self._fetch_item('des subheader',
-                                index,
-                                self.des_subheader_offsets,
-                                self._nitf_header.DataExtensions.subhead_sizes)
+        return self._fetch_item(
+            'des subheader',
+            index,
+            self.des_subheader_offsets,
+            self._nitf_header.DataExtensions.subhead_sizes)
 
     def get_des_bytes(self, index: int) -> bytes:
         """
@@ -1069,10 +1100,11 @@ class NITFDetails(object):
         bytes
         """
 
-        return self._fetch_item('des',
-                                index,
-                                self.des_segment_offsets,
-                                self._nitf_header.DataExtensions.item_sizes)
+        return self._fetch_item(
+            'des',
+            index,
+            self.des_segment_offsets,
+            self._nitf_header.DataExtensions.item_sizes)
 
     def parse_des_subheader(self, index: int) -> Union[DataExtensionHeader, DataExtensionHeader0]:
         """
@@ -1108,10 +1140,11 @@ class NITFDetails(object):
         bytes
         """
 
-        return self._fetch_item('res subheader',
-                                index,
-                                self.res_subheader_offsets,
-                                self._nitf_header.ReservedExtensions.subhead_sizes)
+        return self._fetch_item(
+            'res subheader',
+            index,
+            self.res_subheader_offsets,
+            self._nitf_header.ReservedExtensions.subhead_sizes)
 
     def get_res_bytes(self, index: int) -> bytes:
         """
@@ -1126,10 +1159,11 @@ class NITFDetails(object):
         bytes
         """
 
-        return self._fetch_item('res',
-                                index,
-                                self.res_segment_offsets,
-                                self._nitf_header.ReservedExtensions.item_sizes)
+        return self._fetch_item(
+            'res',
+            index,
+            self.res_segment_offsets,
+            self._nitf_header.ReservedExtensions.item_sizes)
 
     def parse_res_subheader(self, index: int) -> Union[ReservedExtensionHeader, ReservedExtensionHeader0]:
         """
@@ -1206,7 +1240,7 @@ class NITFReader(BaseReader):
     """
 
     _maximum_number_of_images = None
-    unsupported_compressions = ('C1', 'C4', 'C6', 'C7', 'M1', 'M4', 'M6', 'M7')
+    unsupported_compressions = ('I1', 'C1', 'C4', 'C6', 'C7', 'M1', 'M4', 'M6', 'M7')
 
     __slots__ = (
         '_nitf_details', '_unsupported_segments', '_image_segment_collections',
@@ -1406,7 +1440,7 @@ class NITFReader(BaseReader):
         if img_header.IC in self.unsupported_compressions:
             logger.error(
                 'Image segment at index {} has IC value `{}`,\n\t'
-                'which is not supported.'.format(index, img_header.IMODE))
+                'which is not supported.'.format(index, img_header.IC))
             out = False
         return out
 
@@ -1722,9 +1756,9 @@ class NITFReader(BaseReader):
         # bands to be in the final dimension, regardless of storage particulars?
 
         image_header = self.get_image_header(image_segment_index)
-        if image_header.IMODE not in ['B', 'P'] or image_header.IC not in ['I1', 'C3', 'C5', 'M3', 'M5']:
+        if image_header.IMODE not in ['B', 'P'] or image_header.IC not in ['C3', 'C5', 'M3', 'M5']:
             raise ValueError(
-                'Requires IMODE in `(B, P)` and IC in `(I1, C3, C5, M3, M5)`,\n\t'
+                'Requires IMODE in `(B, P)` and IC in `(C3, C5, M3, M5)`,\n\t'
                 'got `{}` and `{}` at image segment index {}'.format(
                     image_header.IMODE, image_header.IC, image_segment_index))
         if PIL_Image is None:
@@ -1793,11 +1827,13 @@ class NITFReader(BaseReader):
                 continue  # just skip it, it's masked out
             jpeg_delim = jpeg_delimiters[next_jpeg_block]
             # noinspection PyUnresolvedReferences
-            img = PIL_Image.open(BytesIO(the_bytes[jpeg_delim[0]:jpeg_delim[1]]))
+            the_image_bytes = the_bytes[jpeg_delim[0]:jpeg_delim[1]]
+            img = PIL_Image.open(BytesIO(the_image_bytes))
+            poo = numpy.array(img)
             # handle block padding situation
             row_start, row_end = block_bound[0], min(block_bound[1], image_header.NROWS)
             col_start, col_end = block_bound[2], min(block_bound[3], image_header.NCOLS)
-            mem_map[row_start: row_end, col_start:col_end] = numpy.asarray(img)[0:row_end - row_start,
+            mem_map[row_start:row_end, col_start:col_end] = numpy.asarray(img)[0:row_end - row_start,
                                                              0:col_end - col_start]
             next_jpeg_block += 1
 
@@ -1965,7 +2001,7 @@ class NITFReader(BaseReader):
                 subset_def = _get_subscript_def(
                     0, row_end - row_start, 0, col_end - col_start, raw_bands, raw_band_dimension)
                 data_segments.append(
-                    SubsetSegment(child_segment, subset_def, 'raw', close_parent=True))
+                    SubsetSegment(child_segment, subset_def, 'raw', close_parent=True, squeeze=False))
 
             # determine arrangement of these children
             child_def = _get_subscript_def(
@@ -2090,7 +2126,7 @@ class NITFReader(BaseReader):
 
     def _handle_imode_s_no_compression(self, image_segment_index: int, apply_format: bool) -> DataSegment:
         image_header = self.get_image_header(image_segment_index)
-        if image_header.IMODE != 'S' or image_header.IC in ['NC', 'NM']:
+        if image_header.IMODE != 'S' or image_header.IC not in ['NC', 'NM']:
             raise ValueError(
                 'Requires IMODE = `S` and IC in `(NC, NM)`, got `{}` and `{}` at image segment index {}'.format(
                     image_header.IMODE, image_header.IC, image_segment_index))
@@ -2138,7 +2174,7 @@ class NITFReader(BaseReader):
             band_raw_shape = _get_shape(image_header.NROWS, image_header.NCOLS, 1, band_dimension=2)
             data_segments = []
             child_arrangement = []
-            for block_index, (block_definition, block_offset) in enumerate(block_bounds, block_offsets[band_number, :]):
+            for block_index, (block_definition, block_offset) in enumerate(zip(block_bounds, block_offsets[band_number, :])):
                 if block_offset == exclude_value:
                     continue  # just skip this, since it's masked out
 
@@ -2167,7 +2203,7 @@ class NITFReader(BaseReader):
                     subset_def = _get_subscript_def(
                         0, row_end - row_start, 0, col_end - col_start, 1, 2)
                     data_segments.append(
-                        SubsetSegment(child_segment, subset_def, 'raw', close_parent=True))
+                        SubsetSegment(child_segment, subset_def, 'raw', close_parent=True, squeeze=False))
             band_segments.append(BlockAggregateSegment(
                 data_segments, child_arrangement, 'raw', 0, band_raw_shape,
                 raw_dtype, band_raw_shape, close_children=True))
@@ -2208,7 +2244,7 @@ class NITFReader(BaseReader):
 
         if image_header.IC in ['NC', 'NM']:
             return self._handle_no_compression(image_segment_index, apply_format)
-        elif image_header.IC in ['I1', 'C3', 'C5', 'M3', 'M5']:
+        elif image_header.IC in ['C3', 'C5', 'M3', 'M5']:
             return self._handle_jpeg(image_segment_index, apply_format)
         elif image_header.IC == 'C8':
             return self._handle_jpeg2k_no_mask(image_segment_index, apply_format)
@@ -3903,7 +3939,7 @@ class NITFWriter(BaseWriter):
                 subset_def = _get_subscript_def(
                     0, row_end - row_start, 0, col_end - col_start, raw_bands, raw_band_dimension)
                 data_segments.append(
-                    SubsetSegment(child_segment, subset_def, 'raw', close_parent=True))
+                    SubsetSegment(child_segment, subset_def, 'raw', close_parent=True, squeeze=False))
 
             # determine arrangement of these children
             child_def = _get_subscript_def(
