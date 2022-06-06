@@ -735,8 +735,8 @@ class BaseWriter(object):
             indices of the chunk. Any missing (tail) coordinates will be filled
             in with 0's.
         subscript : None|Tuple[slice, ...]
-            The subscript definition in formatted coordinates pertinent to the
-            specified data segment.
+            In contrast to providing `start_indices`, the slicing definition in
+            formatted coordinates pertinent to the specified data segment.
         index : int
             The index of the
 
@@ -768,6 +768,8 @@ class BaseWriter(object):
             indices of the chunk. Any missing (tail) coordinates will be filled
             in with 0's.
         subscript : None|Tuple[slice, ...]
+            In contrast to providing `start_indices`, the slicing definition in
+            raw coordinates pertinent to the specified data segment.
         index : int
 
         See Also
@@ -796,6 +798,8 @@ class BaseWriter(object):
             indices of the chunk. Any missing (tail) coordinates will be filled
             in with 0's.
         subscript : None|Tuple[slice, ...]
+            In contrast to providing `start_indices`, the slicing definition in
+            coordinates pertinent to the specified data segment and `raw` value.
         index : int
         raw : bool
         """
