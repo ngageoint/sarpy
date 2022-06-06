@@ -7,7 +7,7 @@ __author__ = "Thomas McCullough"
 
 import os
 import re
-from typing import List
+from typing import List, Dict, Optional
 
 
 _the_directory = os.path.split(__file__)[0]
@@ -67,7 +67,7 @@ urn_mapping = {
 _SICD_SPECIFICATION_IDENTIFIER = 'SICD Volume 1 Design & Implementation Description Document'
 
 
-def get_specification_identifier():
+def get_specification_identifier() -> str:
     """
     Get the SICD specification identifier string.
 
@@ -79,42 +79,55 @@ def get_specification_identifier():
     return _SICD_SPECIFICATION_IDENTIFIER
 
 
-def check_urn(urn_string):
+def check_urn(urn_string: str) -> str:
     """
-    Checks that the urn string follows the correct pattern. This raises an
-    exception for a poorly formed or unmapped SICD urn.
+    Checks that the urn string follows the correct pattern.
 
     Parameters
     ----------
     urn_string : str
+
+    Returns
+    -------
+    str
+
+    Raises
+    ------
+    ValueError
+        This raises an exception for a poorly formed or unmapped SICD urn.
     """
 
     if not isinstance(urn_string, str):
         raise TypeError(
             'Expected a urn input of string type, got type {}'.format(type(urn_string)))
 
+    the_match = re.match(r'^\d.\d.\d$', urn_string)
+    if the_match is not None:
+        urn_string = 'urn:SICD:{}'.format(urn_string)
+
     the_match = re.match(r'^urn:SICD:\d.\d.\d$', urn_string)
     if the_match is None:
         raise ValueError(
             'Input provided as `{}`,\nbut should be of the form '
             '`urn:SICD:<major>.<minor>.<release>'.format(urn_string))
+    return urn_string
 
 
-def get_urn_details(urn_string):
+def get_urn_details(urn_string: str) -> Dict[str, str]:
     """
     Gets the associated details for the given SICD urn, or raise an exception for
     poorly formatted or unrecognized urn.
 
     Parameters
     ----------
-    urn_string
+    urn_string : str
 
     Returns
     -------
-    dict
+    Dict[str, str]
     """
 
-    check_urn(urn_string)
+    urn_string = check_urn(urn_string)
     out = urn_mapping.get(urn_string, None)
 
     if out is None:
@@ -123,7 +136,7 @@ def get_urn_details(urn_string):
     return out
 
 
-def get_schema_path(the_urn):
+def get_schema_path(the_urn: str) -> Optional[str]:
     """
     Gets the path to the proper schema file for the given urn.
 
@@ -133,14 +146,14 @@ def get_schema_path(the_urn):
 
     Returns
     -------
-    str
+    None|str
     """
 
     result = get_urn_details(the_urn)
-    return result['schema']
+    return result.get('schema', None)
 
 
-def get_versions():
+def get_versions() -> List[str]:
     """
     Gets a list of recognized SICD urn.
 

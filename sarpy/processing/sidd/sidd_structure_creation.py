@@ -40,6 +40,7 @@ logger = logging.getLogger(__name__)
 
 _proj_helper_text = 'Unhandled projection helper type `{}`'
 
+# TODO: move this to processing for 1.3.0
 
 def _fit_timecoa_poly(proj_helper, bounds):
     """

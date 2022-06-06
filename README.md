@@ -16,21 +16,25 @@ Relevant Standards Documents
 A variety of SAR format standard are mentioned throughout this ReadMe, here are 
 associated references. 
 
-Sensor Independent Complex Data (SICD) latest version (1.2.1, 2018-12-13) 
+*Sensor Independent Complex Data (SICD)* - latest version (1.2.1; 2018-12-13) 
 1. [Volume 1, Design & Implementation Description Document](https://nsgreg.nga.mil/doc/view?i=4900)
 2. [Volume 2, File Format Description Document](https://nsgreg.nga.mil/doc/view?i=4901)
 3. [Volume 3, Image Projections Description Document](https://nsgreg.nga.mil/doc/view?i=4902)
 4. [Schema](https://nsgreg.nga.mil/doc/view?i=5230)
 
-Sensor Independent Derived Data (SIDD) latest version (2.0, 2019-05-31)
+*Sensor Independent Derived Data (SIDD)* - latest version (2.0; 2019-05-31)
 1. [Volume 1, Design and Implementation Description Document](https://nsgreg.nga.mil/doc/view?i=5009)
 2. [Volume 2, NITF File Format Description Document](https://nsgreg.nga.mil/doc/view?i=5016)
 3. [Volume 3, GeoTIFF File Format Description Document](https://nsgreg.nga.mil/doc/view?i=5017)
 4. [Schema](https://nsgreg.nga.mil/doc/view?i=5231)
 
-Compensated Phase History Data (CPHD) latest version (1.0.1, 2018-05-21)
+*Compensated Phase History Data (CPHD)* - latest version (1.0.1; 2018-05-21)
 1. [Design & Implementation Description](https://nsgreg.nga.mil/doc/view?i=4638)
 2. [Design & Implementation Schema](https://nsgreg.nga.mil/doc/view?i=4639)
+
+Both SICD and SIDD files are NITF files following specific guidelines
+*National Imagery Transmission Format (NITF)* - latest version (2.1, Revision C; 2017-06-06)
+1. [National Imagery Transmission Format](https://nsgreg.nga.mil/doc/view?i=4324)
 
 For other NGA standards inquiries, the standards registry can be searched
  [here](https://nsgreg.nga.mil/registries/search/index.jsp?registryType=doc).

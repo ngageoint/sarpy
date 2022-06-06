@@ -6,37 +6,40 @@ Base common features for complex readers
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
-import os
-from typing import Union, Tuple, BinaryIO, Sequence
+from typing import Union, Tuple, Sequence, Callable
 import numpy
-import warnings
 
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd_elements.utils import is_general_match
-from sarpy.io.general.base import AbstractReader, FlatReader, BaseReader, \
-    BaseChipper, SubsetChipper, is_file_like
-
-try:
-    import h5py
-except ImportError:
-    h5py = None
+from sarpy.io.general.base import BaseReader, FlatReader
+from sarpy.io.general.data_segment import DataSegment, SubsetSegment
+from sarpy.io.general.format_function import FormatFunction
 
 
-class SICDTypeReader(AbstractReader):
+class SICDTypeReader(BaseReader):
     """
-    An abstract class for ensuring common SICD metadata functionality.
+    A class for ensuring common SICD reading functionality.
 
-    This is intended to be used solely in conjunction with implementing a
-    legitimate reader.
+    **Changed in version 1.3.0** for reading changes.
     """
 
-    def __init__(self, sicd_meta):
+    def __init__(self,
+                 data_segment: Union[None, DataSegment, Sequence[DataSegment]],
+                 sicd_meta: Union[None, SICDType, Sequence[SICDType]],
+                 close_segments: bool=True,
+                 delete_files: Union[None, str, Sequence[str]]=None):
         """
 
         Parameters
         ----------
+        data_segment : None|DataSegment|Sequence[DataSegment]
         sicd_meta : None|SICDType|Sequence[SICDType]
-            `None`, the SICD metadata object, or tuple of objects
+            The SICD metadata object(s).
+        close_segments : bool
+            Call segment.close() for each data segment on reader.close()?
+        delete_files : None|Sequence[str]
+            Any temp files which should be cleaned up on reader.close()?
+            This will occur after closing segments.
         """
 
         if sicd_meta is None:
@@ -53,7 +56,10 @@ class SICDTypeReader(AbstractReader):
                 temp_list.append(el)
             self._sicd_meta = tuple(temp_list)
 
-    def _check_sizes(self):
+        BaseReader.__init__(
+            self, data_segment, reader_type='SICD', close_segments=close_segments, delete_files=delete_files)
+
+    def _check_sizes(self) -> None:
         data_sizes = self.get_data_size_as_tuple()
         sicds = self.get_sicds_as_tuple()
         agree = True
@@ -62,40 +68,40 @@ class SICDTypeReader(AbstractReader):
             expected_size = (sicd.ImageData.NumRows, sicd.ImageData.NumCols)
             if data_size != expected_size:
                 agree = False
-                msg += 'image/chipper at index {} has data size {}\n\t' \
+                msg += 'data segment at index {} has data size {}\n\t' \
                        'and expected size (from the sicd) {}\n'.format(i, data_size, expected_size)
         if not agree:
             raise ValueError(msg)
 
     @property
-    def sicd_meta(self):
-        # type: () -> Union[None, SICDType, Tuple[SICDType]]
+    def sicd_meta(self) -> Union[None, SICDType, Tuple[SICDType, ...]]:
         """
-        None|SICDType|Tuple[SICDType]: the sicd meta_data or meta_data collection.
+        None|SICDType|Tuple[SICDType, ...]: the sicd meta_data or meta_data collection.
         """
 
         return self._sicd_meta
 
-    def get_sicds_as_tuple(self):
+    def get_sicds_as_tuple(self) -> Union[None, Tuple[SICDType, ...]]:
         """
         Get the sicd or sicd collection as a tuple - for simplicity and consistency of use.
 
         Returns
         -------
-        Tuple[SICDType]
+        None|Tuple[SICDType, ...]
         """
 
-        if self._sicd_meta is None:
+        if self.sicd_meta is None:
             return None
-        elif isinstance(self._sicd_meta, tuple):
-            return self._sicd_meta
+        elif isinstance(self.sicd_meta, tuple):
+            return self.sicd_meta
         else:
-            return (self._sicd_meta, )
+            # noinspection PyRedundantParentheses
+            return (self.sicd_meta, )
 
-    def get_sicd_partitions(self, match_function=is_general_match):
+    def get_sicd_partitions(self, match_function: Callable=is_general_match) -> Tuple[Tuple[int, ...], ...]:
         """
         Partition the sicd collection into sub-collections according to `match_function`,
-        which is assumed to establish an equivalence relation (reflexive, symmetric, and transitive).
+        which is assumed to establish an equivalence relation.
 
         Parameters
         ----------
@@ -106,7 +112,7 @@ class SICDTypeReader(AbstractReader):
 
         Returns
         -------
-        Tuple[Tuple[int]]
+        Tuple[Tuple[int, ...], ...]
         """
 
         sicds = self.get_sicds_as_tuple()
@@ -130,18 +136,18 @@ class SICDTypeReader(AbstractReader):
             matches.append(tuple(this_match))
         return tuple(matches)
 
-    def get_sicd_bands(self):
+    def get_sicd_bands(self) -> Tuple[str, ...]:
         """
         Gets the list of bands for each sicd.
 
         Returns
         -------
-        Tuple[str]
+        Tuple[str, ...]
         """
 
         return tuple(sicd.get_transmit_band_name() for sicd in self.get_sicds_as_tuple())
 
-    def get_sicd_polarizations(self):
+    def get_sicd_polarizations(self) -> Tuple[str, ...]:
         """
         Gets the list of polarizations for each sicd.
 
@@ -154,34 +160,42 @@ class SICDTypeReader(AbstractReader):
 
 
 class FlatSICDReader(FlatReader, SICDTypeReader):
-    def __init__(self, sicd_meta, array, output_bands=None, output_dtype=None,
-                 symmetry=(False, False, False), transform_data=None, limit_to_raw_bands=None):
+    """
+    Create a sicd type reader directly from an array.
+
+    **Changed in version 1.3.0** for reading changes.
+    """
+
+    def __init__(self,
+                 sicd_meta,
+                 underlying_array,
+                 formatted_dtype: Union[None, str, numpy.dtype] = None,
+                 formatted_shape: Union[None, Tuple[int, ...]] = None,
+                 reverse_axes: Union[None, int, Sequence[int]] = None,
+                 transpose_axes: Union[None, Tuple[int, ...]] = None,
+                 format_function: Union[None, FormatFunction] = None,
+                 close_segments: bool = True):
         """
 
         Parameters
         ----------
         sicd_meta : None|SICDType
             `None`, or the SICD metadata object
-        array : numpy.ndarray
-        output_bands : None|int
-        output_dtype : None|str|numpy.dtype|numpy.number
-        symmetry : tuple
-            Describes any required data transformation. See the `symmetry` property.
-        transform_data : None|str|Callable
-            For data transformation after reading.
-            If `None`, then no transformation will be applied. If `callable`, then
-            this is expected to be the transformation method for the raw data. If
-            string valued and `'complex'`, then the assumption is that real/imaginary
-            components are stored in adjacent bands, which will be combined into a
-            single band upon extraction. Other situations will yield and value error.
-        limit_to_raw_bands : None|int|numpy.ndarray|list|tuple
-            The collection of raw bands to which to read. `None` is all bands.
+        underlying_array : numpy.ndarray
+        formatted_dtype : None|str|numpy.dtype
+        formatted_shape : None|Tuple[int, ...]
+        reverse_axes : None|Sequence[int]
+        transpose_axes : None|Tuple[int, ...]
+        format_function : None|FormatFunction
+        close_segments : bool
         """
 
         FlatReader.__init__(
-            self, array, reader_type='SICD', output_bands=output_bands, output_dtype=output_dtype,
-            symmetry=symmetry, transform_data=transform_data, limit_to_raw_bands=limit_to_raw_bands)
-        SICDTypeReader.__init__(self, sicd_meta)
+            self, underlying_array,
+            formatted_dtype=formatted_dtype, formatted_shape=formatted_shape,
+            reverse_axes=reverse_axes, transpose_axes=transpose_axes,
+            format_function=format_function, close_segments=close_segments)
+        SICDTypeReader.__init__(self, None, sicd_meta)
         self._check_sizes()
 
     def write_to_file(self, output_file, check_older_version=False, check_existence=False):
@@ -208,13 +222,14 @@ class FlatSICDReader(FlatReader, SICDTypeReader):
             writer.write_chip(self[:, :], start_indices=(0, 0))
 
 
-class SubsetSICDReader(BaseReader, SICDTypeReader):
+class SubsetSICDReader(SICDTypeReader):
     """
-    Create a reader for a given index and specific subset of a given
-    SICDTypeReader
+    Create a reader based on a specific subset of a given SICDTypeReader.
+
+    **Changed in version 1.3.0** for reading changes.
     """
 
-    def __init__(self, reader, row_bounds=None, column_bounds=None, index=0):
+    def __init__(self, reader, row_bounds, column_bounds, index=0, close_parent=False):
         """
 
         Parameters
@@ -227,94 +242,18 @@ class SubsetSICDReader(BaseReader, SICDTypeReader):
             Of the form `(min column, max column)`.
         index : int
             The image index.
+        close_parent : bool
         """
 
         sicd, row_bounds, column_bounds = reader.get_sicds_as_tuple()[index].create_subset_structure(
             row_bounds, column_bounds)
 
-        chipper = SubsetChipper(reader._get_chippers_as_tuple()[index], row_bounds, column_bounds)
-        BaseReader.__init__(self, chipper, reader_type='SICD')
-        SICDTypeReader.__init__(self, sicd)
+        parent_segment = reader.get_data_segment_as_tuple()[index]
+        subset_definition = (slice(*row_bounds), slice(*column_bounds))
+        data_segment = SubsetSegment(
+            parent_segment, subset_definition, coordinate_basis='formatted', close_parent=close_parent)
+        SICDTypeReader.__init__(self, data_segment, sicd)
 
     @property
-    def file_name(self):
+    def file_name(self) -> None:
         return None
-
-
-class H5Chipper(BaseChipper):
-    __slots__ = ('_file_name', '_band_name')
-
-    def __init__(self, file_name, band_name, data_size, symmetry, transform_data='COMPLEX'):
-        if h5py is None:
-            raise ImportError("Can't read hdf5 files, because the h5py dependency is missing.")
-        self._file_name = file_name
-        self._band_name = band_name
-        super(H5Chipper, self).__init__(data_size, symmetry=symmetry, transform_data=transform_data)
-
-    def _read_raw_fun(self, range1, range2):
-        def reorder(tr):
-            if tr[2] > 0:
-                return tr, False
-            else:
-                if tr[1] == -1 and tr[2] < 0:
-                    return (0, tr[0]+1, -tr[2]), True
-                else:
-                    return (tr[1], tr[0], -tr[2]), True
-
-        r1, r2 = self._reorder_arguments(range1, range2)
-        r1, rev1 = reorder(r1)
-        r2, rev2 = reorder(r2)
-        with h5py.File(self._file_name, 'r') as hf:
-            gp = hf[self._band_name]
-            if not isinstance(gp, h5py.Dataset):
-                raise ValueError(
-                    'hdf5 group {} is expected to be a dataset, got type {}'.format(self._band_name, type(gp)))
-            if len(gp.shape) not in (2, 3):
-                raise ValueError('Dataset {} has unexpected shape {}'.format(self._band_name, gp.shape))
-
-            if len(gp.shape) == 3:
-                data = gp[r1[0]:r1[1]:r1[2], r2[0]:r2[1]:r2[2], :]
-            else:
-                data = gp[r1[0]:r1[1]:r1[2], r2[0]:r2[1]:r2[2]]
-
-        if rev1 and rev2:
-            return data[::-1, ::-1]
-        elif rev1:
-            return data[::-1, :]
-        elif rev2:
-            return data[:, ::-1]
-        else:
-            return data
-
-
-def is_hdf5(file_name):
-    """
-    Test whether the given input file is an hdf5 file.
-
-    Parameters
-    ----------
-    file_name : str|BinaryIO
-
-    Returns
-    -------
-    bool
-    """
-
-    if is_file_like(file_name):
-        current_location = file_name.tell()
-        file_name.seek(0, os.SEEK_SET)
-        header = file_name.read(4)
-        file_name.seek(current_location, os.SEEK_SET)
-    elif isinstance(file_name, str):
-        if not os.path.isfile(file_name):
-            return False
-
-        with open(file_name, 'rb') as fi:
-            header = fi.read(4)
-    else:
-        return False
-
-    out = (header == b'\x89HDF')
-    if out and h5py is None:
-        warnings.warn('The h5py library was not successfully imported, and no hdf5 files can be read')
-    return out

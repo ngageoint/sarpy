@@ -10,18 +10,18 @@ __author__ = "Thomas McCullough"
 import logging
 import os
 import struct
-from typing import Union, BinaryIO
+from typing import Tuple, Union, BinaryIO, Optional
 from datetime import datetime
 from tempfile import mkstemp
 import zlib
-import gc
 
 import numpy
 from scipy.constants import speed_of_light
 
-from sarpy.io.general.base import BaseReader, BIPChipper, BSQChipper, \
-    is_file_like, SarpyIOError
-from sarpy.io.general.nitf import MemMap
+from sarpy.io.general.base import SarpyIOError
+from sarpy.io.general.format_function import ComplexFormatFunction
+from sarpy.io.general.data_segment import DataSegment, NumpyMemmapSegment
+from sarpy.io.general.utils import is_file_like, MemMap
 from sarpy.geometry.geocoords import geodetic_to_ecf, wgs_84_norm, ned_to_ecf
 
 from sarpy.io.complex.base import SICDTypeReader
@@ -42,7 +42,6 @@ from sarpy.io.complex.sicd_elements.ImageFormation import ImageFormationType, \
 from sarpy.io.complex.sicd_elements.Radiometric import RadiometricType, \
     NoiseLevelType_
 
-
 try:
     import PIL
 except ImportError:
@@ -53,35 +52,6 @@ logger = logging.getLogger(__name__)
 _requires_array_text = 'Requires numpy.ndarray, got `{}`'
 _requires_3darray_text = 'Requires a three-dimensional numpy.ndarray\n\t' \
                          '(with band in the last dimension), got shape {}'
-
-########
-# base expected functionality for a module with an implemented Reader
-
-def is_a(file_name):
-    """
-    Tests whether a given file_name corresponds to a Cosmo Skymed file. Returns a reader instance, if so.
-
-    Parameters
-    ----------
-    file_name : str|BinaryIO
-        the file_name to check
-
-    Returns
-    -------
-    CSKReader|None
-        `CSKReader` instance if Cosmo Skymed file, `None` otherwise
-    """
-
-    if is_file_like(file_name):
-        return None
-
-    try:
-        gff_details = GFFDetails(file_name)
-        logger.info('File {} is determined to be a GFF version {} file.'.format(
-            file_name, gff_details.version))
-        return GFFReader(gff_details)
-    except SarpyIOError:
-        return None
 
 
 ####################
@@ -859,8 +829,9 @@ class _GSATIMG_2(object):
 
 
 # combined GFF version 2 header collection
-def _check_serialization(block_header, expected_length):
-    # type: (_BlockHeader_2, int) -> None
+def _check_serialization(
+        block_header: _BlockHeader_2,
+        expected_length: int) -> None:
     if block_header.size == expected_length:
         return
 
@@ -927,36 +898,30 @@ class _GFFHeader_2(object):
         self._check_valid(gsat_header)
 
     @property
-    def gsat_img(self):
-        # type: () -> _GSATIMG_2
+    def gsat_img(self) -> _GSATIMG_2:
         return self._gsat_img
 
     @property
-    def ap_info(self):
-        # type: () -> Union[_APInfo_1_0, _APInfo_2_0, _APInfo_3_0, _APInfo_4_0, _APInfo_5_0, _APInfo_5_1, _APInfo_5_2]
+    def ap_info(self) -> Union[_APInfo_1_0, _APInfo_2_0, _APInfo_3_0, _APInfo_4_0, _APInfo_5_0, _APInfo_5_1, _APInfo_5_2]:
         return self._ap_info
 
     @property
-    def if_info(self):
-        # type: () -> Union[_IFInfo_1_0, _IFInfo_2_0, _IFInfo_3_0]
+    def if_info(self) -> Union[_IFInfo_1_0, _IFInfo_2_0, _IFInfo_3_0]:
         return self._if_info
 
     @property
-    def geo_info(self):
-        # type: () -> _GeoInfo_1
+    def geo_info(self) -> _GeoInfo_1:
         return self._geo_info
 
     @property
-    def image_header(self):
-        # type: () -> _BlockHeader_2
+    def image_header(self) -> _BlockHeader_2:
         return self._image_header
 
     @property
-    def image_offset(self):
-        # type: () -> int
+    def image_offset(self) -> int:
         return self._image_offset
 
-    def _parse_apinfo(self, fi, estr, block_header):
+    def _parse_apinfo(self, fi, estr, block_header) -> None:
         if block_header.name != 'APINFO':
             return
 
@@ -987,7 +952,7 @@ class _GFFHeader_2(object):
                 'Could not parse required `{}` block version `{}`'.format(
                     block_header.name, block_header.version))
 
-    def _parse_ifinfo(self, fi, estr, block_header):
+    def _parse_ifinfo(self, fi, estr, block_header) -> None:
         if block_header.name != 'IFINFO':
             return
 
@@ -1005,14 +970,14 @@ class _GFFHeader_2(object):
                 'Could not parse required `{}` block version `{}`'.format(
                     block_header.name, block_header.version))
 
-    def _parse_geoinfo(self, fi, estr, block_header):
+    def _parse_geoinfo(self, fi, estr, block_header) -> None:
         if block_header.name != 'GEOINFO':
             return
 
         _check_serialization(block_header, _GeoInfo_1.serialized_length)
         self._geo_info = _GeoInfo_1(fi, estr)
 
-    def _check_valid(self, gsat_header):
+    def _check_valid(self, gsat_header) -> None:
         # ensure that the required elements are all set
         valid = True
         if self._ap_info is None:
@@ -1033,7 +998,7 @@ class _GFFHeader_2(object):
         if not valid:
             raise ValueError('GFF file determined to be invalid')
 
-    def get_arp_vel(self):
+    def get_arp_vel(self) -> numpy.ndarray:
         """
         Gets the aperture velocity in ECF coordinates
 
@@ -1041,8 +1006,6 @@ class _GFFHeader_2(object):
         -------
         numpy.ndarray
         """
-
-        # TODO: this is not correct
 
         # get the aperture velocity in its native frame of reference (rotated ENU)
         arp_vel_orig = numpy.array(self.ap_info.apcVel, dtype='float64')
@@ -1062,8 +1025,7 @@ class _GFFHeader_2(object):
 ####################
 # object for creation of sicd structure from GFF header object
 
-def _get_wgt(str_in):
-    # type: (str) -> Union[None, WgtTypeType]
+def _get_wgt(str_in: str) -> Optional[WgtTypeType]:
     if str_in == '':
         return None
 
@@ -1082,8 +1044,7 @@ def _get_wgt(str_in):
         Parameters=parameters)
 
 
-def _get_polarization_string(int_value):
-    # type: (int) -> Union[None, str]
+def _get_polarization_string(int_value: int) -> Optional[str]:
     if int_value == 0:
         return 'H'
     elif int_value == 1:
@@ -1100,8 +1061,7 @@ def _get_polarization_string(int_value):
         return 'UNKNOWN'
 
 
-def _get_tx_rcv_polarization(tx_pol_int, rcv_pol_int):
-    # type: (int, int) -> (str, str)
+def _get_tx_rcv_polarization(tx_pol_int: int, rcv_pol_int: int) -> Tuple[str, str]:
     tx_pol = _get_polarization_string(tx_pol_int)
     rcv_pol = _get_polarization_string(rcv_pol_int)
     if tx_pol in ['OTHER', 'UNKNOWN'] or rcv_pol in ['OTHER', 'UNKNOWN']:
@@ -1116,7 +1076,7 @@ class _GFFInterpreter(object):
     Extractor for the sicd details
     """
 
-    def get_sicd(self):
+    def get_sicd(self) -> SICDType:
         """
         Gets the SICD structure.
 
@@ -1127,16 +1087,19 @@ class _GFFInterpreter(object):
 
         raise NotImplementedError
 
-    def get_chipper(self):
+    def get_data_segment(self) -> DataSegment:
         """
         Gets the chipper for reading the data.
 
         Returns
         -------
-        BIPChipper
+        DataSegment
         """
 
         raise NotImplementedError
+
+    def clean_up(self) -> None:
+        return
 
 
 class _GFFInterpreter1(_GFFInterpreter):
@@ -1145,7 +1108,7 @@ class _GFFInterpreter1(_GFFInterpreter):
     object
     """
 
-    def __init__(self, header):
+    def __init__(self, header: Union[_GFFHeader_1_6, _GFFHeader_1_8]):
         """
 
         Parameters
@@ -1158,9 +1121,8 @@ class _GFFInterpreter1(_GFFInterpreter):
             raise ValueError(
                 'ImageType indicates a magnitude only image, which is incompatible with SICD')
 
-    def get_sicd(self):
-        def get_collection_info():
-            # type: () -> CollectionInfoType
+    def get_sicd(self) -> SICDType:
+        def get_collection_info() -> CollectionInfoType:
             core_name = self.header.image_name.replace(':', '_')
             return CollectionInfoType(
                 CoreName=core_name,
@@ -1169,8 +1131,7 @@ class _GFFInterpreter1(_GFFInterpreter):
                     ModeType='SPOTLIGHT'),
                 Classification='UNCLASSIFIED')
 
-        def get_image_creation():
-            # type: () -> ImageCreationType
+        def get_image_creation() -> ImageCreationType:
             from sarpy.__about__ import __version__
             from datetime import datetime
             return ImageCreationType(
@@ -1179,8 +1140,7 @@ class _GFFInterpreter1(_GFFInterpreter):
                 Site='Unknown',
                 Profile='sarpy {}'.format(__version__))
 
-        def get_image_data():
-            # type: () -> ImageDataType
+        def get_image_data() -> ImageDataType:
             return ImageDataType(
                 PixelType='RE32F_IM32F',
                 NumRows=num_rows,
@@ -1190,15 +1150,12 @@ class _GFFInterpreter1(_GFFInterpreter):
                 FirstCol=0,
                 SCPPixel=(scp_row, scp_col))
 
-        def get_geo_data():
-            # type: () -> GeoDataType
-
+        def get_geo_data() -> GeoDataType:
             return GeoDataType(
                 SCP=SCPType(
                     LLH=[self.header.srp_lat, self.header.srp_lon, self.header.srp_alt]))
 
-        def get_grid():
-            # type: () -> GridType
+        def get_grid() -> GridType:
             image_plane = 'GROUND' if self.header.image_plane == 0 else 'SLANT'
             # we presume that image_plane in [0, 1]
 
@@ -1221,7 +1178,7 @@ class _GFFInterpreter1(_GFFInterpreter):
                 DeltaK2=-0.5*row_bw,
                 WgtType=_get_wgt(
                     self.header.range_win_id if self.header.version == '1.8' else ''),
-                DeltaKCOAPoly=[[0, ], ]  # TODO: revisit this?
+                DeltaKCOAPoly=[[0, ], ]
             )
 
             col = DirParamType(
@@ -1233,7 +1190,7 @@ class _GFFInterpreter1(_GFFInterpreter):
                 DeltaK2=-0.5*col_bw,
                 WgtType=_get_wgt(
                     self.header.az_win_id if self.header.version == '1.8' else ''),
-                DeltaKCOAPoly=[[0, ], ]  # TODO: revisit this?
+                DeltaKCOAPoly=[[0, ], ]
             )
 
             return GridType(
@@ -1242,8 +1199,7 @@ class _GFFInterpreter1(_GFFInterpreter):
                 Row=row,
                 Col=col)
 
-        def get_scpcoa():
-            # type: () -> Union[None, SCPCOAType]
+        def get_scpcoa() -> SCPCOAType:
             side_of_track = 'L' if self.header.squint < 0 else 'R'
 
             apc_llh = numpy.array(
@@ -1279,39 +1235,35 @@ class _GFFInterpreter1(_GFFInterpreter):
             Grid=grid,
             SCPCOA=scpcoa)
 
-    def get_chipper(self):
+    def get_data_segment(self) -> DataSegment:
         if self.header.bits_per_phase not in [8, 16, 32]:
             raise ValueError('Got unexpected bits per phase {}'.format(self.header.bits_per_phase))
         if self.header.bits_per_magnitude not in [8, 16, 32]:
             raise ValueError('Got unexpected bits per phase {}'.format(self.header.bits_per_magnitude))
 
-        # creating a custom phase/magnitude data type
-        phase_dtype = numpy.dtype('{}u{}'.format(self.header.estr, int(self.header.bits_per_phase/8)))
-        magnitude_dtype = numpy.dtype('{}u{}'.format(self.header.estr, int(self.header.bits_per_magnitude/8)))
-        raw_dtype = numpy.dtype([('phase', phase_dtype), ('magnitude', magnitude_dtype)])
-
-        raw_bands = 1
-        output_bands = 1
-        output_dtype = 'complex64'
-        data_size = (self.header.range_count, self.header.azimuth_count)
+        raw_dtype = numpy.dtype('{}u{}'.format(self.header.estr, int(self.header.bits_per_phase/8)))
+        raw_shape = (self.header.range_count, self.header.azimuth_count, 2)
+        reverse_axes = (0, 1)
         if self.header.row_major:
-            symmetry = (True, True, True)
+            transpose_axes = (1, 0, 2)
+            formatted_shape = (raw_shape[1], raw_shape[0])
         else:
-            symmetry = (True, True, False)
-        data_offset = self.header.header_length
+            transpose_axes = None
+            formatted_shape = raw_shape[:2]
+
         if self.header.image_type == 1:
             # phase/magnitude which is integer
-            transform_data = phase_amp_int_to_complex()
-            return BIPChipper(
-                self.header.file_object, raw_dtype, data_size, raw_bands, output_bands, output_dtype,
-                symmetry=symmetry, transform_data=transform_data,
-                data_offset=data_offset, limit_to_raw_bands=None)
+            return NumpyMemmapSegment(
+                self.header.file_object, self.header.header_length,
+                raw_dtype, raw_shape, formatted_dtype='complex64', formatted_shape=formatted_shape,
+                reverse_axes=reverse_axes, transpose_axes=transpose_axes,
+                format_function=ComplexFormatFunction(raw_dtype, order='PM', band_dimension=2),
+                close_file=True)
         else:
             raise ValueError('Got unsupported image type `{}`'.format(self.header.image_type))
 
 
-def _get_numpy_dtype(data_type_int):
-    # type: (int) -> str
+def _get_numpy_dtype(data_type_int: int) -> str:
     if data_type_int == 0:
         return 'u1'
     elif data_type_int == 1:
@@ -1341,7 +1293,7 @@ class _GFFInterpreter2(_GFFInterpreter):
     Extractor of SICD structure and parameters from GFFHeader_2 object
     """
 
-    def __init__(self, header):
+    def __init__(self, header: _GFFHeader_2):
         """
 
         Parameters
@@ -1357,9 +1309,8 @@ class _GFFInterpreter2(_GFFInterpreter):
                 'which is not supported for a complex image'.format(
                     self.header.gsat_img.pixelFormat.numComponents))
 
-    def get_sicd(self):
-        def get_collection_info():
-            # type: () -> CollectionInfoType
+    def get_sicd(self) -> SICDType:
+        def get_collection_info() -> CollectionInfoType:
             core_name = self.header.ap_info.phName  # TODO: double check this...
             return CollectionInfoType(
                 CollectorName=self.header.ap_info.missionText,
@@ -1369,8 +1320,7 @@ class _GFFInterpreter2(_GFFInterpreter):
                     ModeType='SPOTLIGHT'),
                 Classification='UNCLASSIFIED')
 
-        def get_image_creation():
-            # type: () -> ImageCreationType
+        def get_image_creation() -> ImageCreationType:
             from sarpy.__about__ import __version__
             application = '{} {}'.format(self.header.gsat_img.imageCreator, self.header.ap_info.swVerNum)
             date_time = None  # todo: really?
@@ -1380,9 +1330,7 @@ class _GFFInterpreter2(_GFFInterpreter):
                 Site='Unknown',
                 Profile='sarpy {}'.format(__version__))
 
-        def get_image_data():
-            # type: () -> ImageDataType
-
+        def get_image_data() -> ImageDataType:
             pix_data_type = self.header.gsat_img.pixDataType
             amp_table = None
             if pix_data_type == 12:
@@ -1405,12 +1353,10 @@ class _GFFInterpreter2(_GFFInterpreter):
                 FirstCol=0,
                 SCPPixel=(scp_row, scp_col))
 
-        def get_geo_data():
-            # type: () -> GeoDataType
+        def get_geo_data() -> GeoDataType:
             return GeoDataType(SCP=SCPType(ECF=scp))
 
-        def get_grid():
-            # type: () -> GridType
+        def get_grid() -> GridType:
             image_plane = 'GROUND' if self.header.geo_info.imagePlane == 0 else 'SLANT'
             # we presume that image_plane in [0, 1]
 
@@ -1477,15 +1423,13 @@ class _GFFInterpreter2(_GFFInterpreter):
                 Row=row,
                 Col=col)
 
-        def get_scpcoa():
-            # type: () -> SCPCOAType
+        def get_scpcoa() -> SCPCOAType:
             return SCPCOAType(
                 ARPPos=arp_pos,
                 ARPVel=arp_vel,
                 SCPTime=0.5*collect_duration)
 
-        def get_timeline():
-            # type: () -> TimelineType
+        def get_timeline() -> TimelineType:
             try:
                 # only exists for APINFO version 3 and above
                 ipp_end = self.header.ap_info.numPhaseHistories
@@ -1502,8 +1446,7 @@ class _GFFInterpreter2(_GFFInterpreter):
                 CollectDuration=collect_duration,
                 IPP=ipp)
 
-        def get_radar_collection():
-            # type: () -> RadarCollectionType
+        def get_radar_collection() -> RadarCollectionType:
 
             try:
                 sample_rate = self.header.ap_info.adSampleFreq
@@ -1521,8 +1464,7 @@ class _GFFInterpreter2(_GFFInterpreter):
                 TxPolarization=tx_pol,
                 RcvChannels=rcv_channels)
 
-        def get_image_formation():
-            # type: () -> ImageFormationType
+        def get_image_formation() -> ImageFormationType:
             return ImageFormationType(
                 RcvChanProc=RcvChanProcType(ChanIndices=[1, ]),
                 TxRcvPolarizationProc=tx_rcv_pol,
@@ -1537,7 +1479,7 @@ class _GFFInterpreter2(_GFFInterpreter):
                 AzAutofocus='NO',
                 RgAutofocus='NO')
 
-        def repair_scpcoa():
+        def repair_scpcoa() -> None:
             # call after deriving the sicd fields
             if out_sicd.SCPCOA.GrazeAng is None:
                 out_sicd.SCPCOA.GrazeAng = self.header.ap_info.grazingAngle
@@ -1546,7 +1488,7 @@ class _GFFInterpreter2(_GFFInterpreter):
             if out_sicd.SCPCOA.SideOfTrack is None:
                 out_sicd.SCPCOA.SideOfTrack = 'L' if self.header.ap_info.squintAngle < 0 else 'R'
 
-        def populate_radiometric():
+        def populate_radiometric() -> None:
             # call after deriving the sicd fields
             rcs_constant = self.header.if_info.imgCalParam**2
             radiometric = RadiometricType(RCSSFPoly=[[rcs_constant, ]])
@@ -1614,23 +1556,22 @@ class _GFFInterpreter2(_GFFInterpreter):
         out_sicd.populate_rniirs(override=False)
         return out_sicd
 
-    def _get_size_and_symmetry(self):
-        # type: () -> ((int, int), (bool, bool, bool))
+    def _get_size_and_symmetry(self) -> Tuple[Tuple[int, int], Tuple[int, ...], bool]:
         if self.header.gsat_img.pixOrder == 0:
             # in range consecutive order, opposite from a SICD
             data_size = (self.header.gsat_img.azPixels, self.header.gsat_img.rangePixels)
-            symmetry = (True, True, True)
+            reverse_axes = (0, 1)
+            transpose_axes = True
         elif self.header.gsat_img.pixOrder == 1:
             # in azimuth consecutive order, like a SICD
             data_size = (self.header.gsat_img.rangePixels, self.header.gsat_img.azPixels)
-            symmetry = (True, True, False)
+            reverse_axes = (0, 1)
+            transpose_axes = False
         else:
             raise ValueError('Got unexpected pixel order `{}`'.format(self.header.gsat_img.pixOrder))
-        return data_size, symmetry
+        return data_size, reverse_axes, transpose_axes
 
-    def _check_image_validity(self, band_order):
-        # type: (str) -> None
-
+    def _check_image_validity(self, band_order: str) -> None:
         if self.header.gsat_img.pixelFormat.numComponents != 2:
             raise ValueError(
                 'Got unexpected number of components `{}`'.format(
@@ -1646,8 +1587,7 @@ class _GFFInterpreter2(_GFFInterpreter):
                     'The GFF image is compressed using jpeg or jpeg 2000 compression, '
                     'and decompression requires the PIL library')
 
-    def _extract_zlib_image(self):
-        # type: () -> str
+    def _extract_zlib_image(self) -> str:
         if self.header.gsat_img.imageCompressionScheme != 2:
             raise ValueError('The image is not zlib compressed')
         self.header.file_object.seek(self.header.image_offset, os.SEEK_SET)
@@ -1661,12 +1601,15 @@ class _GFFInterpreter2(_GFFInterpreter):
         logger.info('Filled cached file {}'.format(path_name))
         return path_name
 
-    def _extract_pil_image(self, band_order, data_size):
-        # type: (str, (int, int)) -> str
+    def _extract_pil_image(
+            self,
+            band_order: str,
+            data_size: Tuple[int, int]) -> str:
         if band_order == 'sequential':
             raise ValueError(
                 'GFF with sequential bands and jpeg or jpeg 2000 compression currently unsupported.')
         our_memmap = MemMap(self.header.file_object.name, self.header.image_header.size, self.header.image_offset)
+        # noinspection PyUnresolvedReferences
         img = PIL.Image.open(our_memmap)  # this is a lazy operation
         # dump the extracted image data out to a temp file
         fi, path_name = mkstemp(suffix='.sarpy_cache', text=False)
@@ -1685,30 +1628,25 @@ class _GFFInterpreter2(_GFFInterpreter):
         logger.info('Filled cached file {}'.format(path_name))
         return path_name
 
-    def _get_interleaved_chipper(self):
+    def _get_interleaved_segment(self) -> DataSegment:
         complex_domain = _get_complex_domain_code(self.header.gsat_img.pixelFormat.cmplxDomain)
+        if complex_domain not in ['IQ', 'QI', 'MP', 'PM']:
+            raise ValueError('Got unsupported complex domain `{}`'.format(complex_domain))
 
-        dtype0 = _get_numpy_dtype(self.header.gsat_img.pixelFormat.comp0_dataType)
-        dtype1 = _get_numpy_dtype(self.header.gsat_img.pixelFormat.comp1_dataType)
+        if self.header.gsat_img.pixelFormat.comp0_dataType != self.header.gsat_img.pixelFormat.comp1_dataType:
+            raise ValueError(
+                'GFF with interleaved bands with the two components of different data types.\n\t'
+                'This is not currently unsupported.')
+        raw_dtype = _get_numpy_dtype(self.header.gsat_img.pixelFormat.comp0_dataType)
 
-        raw_bands = 1
-        output_bands = 1
-        output_dtype = 'complex64'
-        data_size, symmetry = self._get_size_and_symmetry()
-        if complex_domain == 'IQ':
-            raw_dtype = numpy.dtype([('real', dtype0), ('imag', dtype1)])
-            transform_data = I_Q_to_complex()
-        elif complex_domain == 'QI':
-            raw_dtype = numpy.dtype([('imag', dtype0), ('real', dtype1)])
-            transform_data = I_Q_to_complex()
-        elif complex_domain == 'MP':
-            raw_dtype = numpy.dtype([('magnitude', dtype0), ('phase', dtype1)])
-            transform_data = phase_amp_int_to_complex()
-        elif complex_domain == 'PM':
-            raw_dtype = numpy.dtype([('phase', dtype0), ('magnitude', dtype1)])
-            transform_data = phase_amp_int_to_complex()
+        data_size, reverse_axes, transpose = self._get_size_and_symmetry()
+        raw_shape = data_size + (2, )
+        if transpose:
+            transpose_axes = (1, 0, 2)
+            formatted_shape = (data_size[1], data_size[0])
         else:
-            raise ValueError('Got unexpected complex domain `{}`'.format(complex_domain))
+            transpose_axes = None
+            formatted_shape = data_size
 
         image_compression_scheme = self.header.gsat_img.imageCompressionScheme
         if image_compression_scheme == 0:
@@ -1725,32 +1663,36 @@ class _GFFInterpreter2(_GFFInterpreter):
             data_offset = 0
         else:
             raise ValueError('Got unhandled image compression scheme code `{}`'.format(image_compression_scheme))
-        return BIPChipper(
-            the_file, raw_dtype, data_size, raw_bands, output_bands, output_dtype,
-            symmetry=symmetry, transform_data=transform_data,
-            data_offset=data_offset, limit_to_raw_bands=None)
 
-    def _get_sequential_chipper(self):
-        image_compression_scheme = self.header.gsat_img.imageCompressionScheme
+        return NumpyMemmapSegment(
+            the_file, data_offset, raw_dtype, raw_shape,
+            formatted_dtype='complex64', formatted_shape=formatted_shape,
+            reverse_axes=reverse_axes, transpose_axes=transpose_axes,
+            format_function=ComplexFormatFunction(raw_dtype, complex_domain, band_dimension=2))
+
+    def _get_sequential_segment(self) -> DataSegment:
         complex_domain = _get_complex_domain_code(self.header.gsat_img.pixelFormat.cmplxDomain)
+        if complex_domain not in ['IQ', 'QI', 'MP', 'PM']:
+            raise ValueError('Got unsupported complex domain `{}`'.format(complex_domain))
 
         if self.header.gsat_img.pixelFormat.comp0_dataType != self.header.gsat_img.pixelFormat.comp1_dataType:
             raise ValueError(
                 'GFF with sequential bands has the two components with different data types.\n\t'
-                'This is currently unsupported.')
+                'This is not currently unsupported.')
 
         raw_dtype = numpy.dtype(_get_numpy_dtype(self.header.gsat_img.pixelFormat.comp0_dataType))
-        raw_bands = 1
-        data_size, symmetry = self._get_size_and_symmetry()
-
-        band_size = data_size[0]*data_size[1]*raw_dtype.itemsize
-        if complex_domain in ['IQ', 'QI']:
-            transform_data = 'complex'
-        elif complex_domain in ['MP', 'PM']:
-            transform_data = phase_amp_seq_to_complex()
+        data_size, reverse_axes, transpose = self._get_size_and_symmetry()
+        raw_shape = (2, ) + data_size
+        if reverse_axes is not None:
+            reverse_axes = tuple(1+entry for entry in reverse_axes)
+        if transpose:
+            transpose_axes = (2, 1, 0)
+            formatted_shape = (data_size[1], data_size[0])
         else:
-            raise ValueError('Got unexpected complex domain `{}`'.format(complex_domain))
+            transpose_axes = (1, 2, 0)
+            formatted_shape = data_size
 
+        image_compression_scheme = self.header.gsat_img.imageCompressionScheme
         if image_compression_scheme == 0:
             # no compression
             the_file = self.header.file_object
@@ -1761,40 +1703,39 @@ class _GFFInterpreter2(_GFFInterpreter):
         else:
             raise ValueError('Unhandled image compression scheme `{}`'.format(image_compression_scheme))
 
-        if complex_domain in ['IQ', 'MP']:
-            chippers = (
-                BIPChipper(
-                    the_file, raw_dtype, data_size, raw_bands, raw_bands, raw_dtype,
-                    symmetry=symmetry, transform_data=None,
-                    data_offset=main_offset, limit_to_raw_bands=None),
-                BIPChipper(
-                    the_file, raw_dtype, data_size, raw_bands, raw_bands, raw_dtype,
-                    symmetry=symmetry, transform_data=None,
-                    data_offset=main_offset+band_size, limit_to_raw_bands=None))
-        else:
-            # construct as IQ/MP order
-            chippers = (
-                BIPChipper(
-                    the_file, raw_dtype, data_size, raw_bands, raw_bands, raw_dtype,
-                    symmetry=symmetry, transform_data=None,
-                    data_offset=main_offset+band_size, limit_to_raw_bands=None),
-                BIPChipper(
-                    the_file, raw_dtype, data_size, raw_bands, raw_bands, raw_dtype,
-                    symmetry=symmetry, transform_data=None,
-                    data_offset=main_offset, limit_to_raw_bands=None))
+        return NumpyMemmapSegment(
+            the_file, main_offset, raw_dtype, raw_shape,
+            formatted_dtype='complex64', formatted_shape=formatted_shape,
+            reverse_axes=reverse_axes, transpose_axes=transpose_axes,
+            format_function=ComplexFormatFunction(raw_dtype, complex_domain, band_dimension=0))
 
-        return BSQChipper(chippers, raw_dtype, transform_data=transform_data)
-
-    def get_chipper(self):
+    def get_data_segment(self) -> DataSegment:
         band_order = _get_band_order(self.header.gsat_img.pixelFormat.cmplxDomain)
         self._check_image_validity(band_order)
 
         if band_order == 'interleaved':
-            return self._get_interleaved_chipper()
+            return self._get_interleaved_segment()
         elif band_order == 'sequential':
-            return self._get_sequential_chipper()
+            return self._get_sequential_segment()
         else:
             raise ValueError('Unhandled band order `{}`'.format(band_order))
+
+    def clean_up(self) -> None:
+        try:
+            if self._cached_files is not None:
+                for fil in self._cached_files:
+                    if os.path.exists(fil):
+                        # noinspection PyBroadException
+                        try:
+                            os.remove(fil)
+                            logger.info('Deleted cached file {}'.format(fil))
+                        except Exception:
+                            logger.error(
+                                'Error in attempt to delete cached file {}.\n\t'
+                                'Manually delete this file'.format(fil), exc_info=True)
+            self._cached_files = None
+        except AttributeError:
+            return
 
     def __del__(self):
         """
@@ -1805,111 +1746,7 @@ class _GFFInterpreter2(_GFFInterpreter):
         None
         """
 
-        for fil in self._cached_files:
-            if os.path.exists(fil):
-                # noinspection PyBroadException
-                try:
-                    os.remove(fil)
-                    logger.info('Deleted cached file {}'.format(fil))
-                except Exception:
-                    logger.error(
-                        'Error in attempt to delete cached file {}.\n\t'
-                        'Manually delete this file'.format(fil), exc_info=True)
-
-
-####################
-# formatting functions properly reading the data
-
-def phase_amp_seq_to_complex():
-    """
-    This constructs the function to convert from phase/magnitude format data,
-    assuming that data type is simple with two bands, to complex64 data.
-
-    Returns
-    -------
-    callable
-    """
-
-    def converter(data):
-        if not isinstance(data, numpy.ndarray):
-            raise TypeError(
-                _requires_array_text.format(type(data)))
-
-        if len(data.shape) != 3 and data.shape[2] != 2:
-            raise ValueError(_requires_3darray_text.format(data.shape))
-
-        if data.dtype.name not in ['uint8', 'uint16', 'uint32', 'uint64']:
-            raise ValueError(
-                'Requires a numpy.ndarray of unsigned integer type.')
-
-        bit_depth = data.dtype.itemsize*8
-
-        out = numpy.zeros(data.shape[:2] + (1, ), dtype=numpy.complex64)
-        mag = data[:, :, 0]
-        theta = data[:, :, 1]*(2*numpy.pi/(1 << bit_depth))
-        out[:, :, 0].real = mag*numpy.cos(theta)
-        out[:, :, 0].imag = mag*numpy.sin(theta)
-        return out
-    return converter
-
-
-def phase_amp_int_to_complex():
-    """
-    This constructs the function to convert from phase/magnitude or magnitude/phase
-    format data, assuming that the data type is custom with a single band, to complex64 data.
-
-    Returns
-    -------
-    callable
-    """
-
-    def converter(data):
-        if not isinstance(data, numpy.ndarray):
-            raise TypeError(
-                _requires_array_text.format(type(data)))
-
-        if len(data.shape) != 3 and data.shape[2] != 1:
-            raise ValueError(_requires_3darray_text.format(data.shape))
-
-        if data.dtype['phase'].name not in ['uint8', 'uint16', 'uint32', 'uint64'] or \
-                data.dtype['magnitude'].name not in ['uint8', 'uint16', 'uint32', 'uint64']:
-            raise ValueError(
-                'Requires a numpy.ndarray of composite dtype with phase and magnitude '
-                'of unsigned integer type.')
-
-        bit_depth = data.dtype['phase'].itemsize*8
-        out = numpy.zeros(data.shape, dtype=numpy.complex64)
-        mag = data['magnitude']
-        theta = data['phase']*(2*numpy.pi/(1 << bit_depth))
-        out[:].real = mag*numpy.cos(theta)
-        out[:].imag = mag*numpy.sin(theta)
-        return out
-    return converter
-
-
-def I_Q_to_complex():
-    """
-    For simple consistency, this constructs the function to simply convert from
-    I/Q or Q/I format data of a given bit-depth to complex64 data.
-
-    Returns
-    -------
-    callable
-    """
-
-    def converter(data):
-        if not isinstance(data, numpy.ndarray):
-            raise TypeError(
-                _requires_array_text.format(type(data)))
-
-        if len(data.shape) != 3 and data.shape[2] != 1:
-            raise ValueError(_requires_3darray_text.format(data.shape))
-
-        out = numpy.zeros(data.shape, dtype='complex64')
-        out.real = data['real']
-        out.imag = data['imag']
-        return out
-    return converter
+        self.clean_up()
 
 
 ####################
@@ -1921,7 +1758,7 @@ class GFFDetails(object):
         '_endianness', '_major_version', '_minor_version',
         '_header', '_interpreter')
 
-    def __init__(self, file_name):
+    def __init__(self, file_name: str):
         """
 
         Parameters
@@ -1934,6 +1771,7 @@ class GFFDetails(object):
         self._minor_version = None
         self._header = None
         self._close_after = True
+        self._interpreter = None
 
         if not os.path.isfile(file_name):
             raise SarpyIOError('Path {} is not a file'.format(file_name))
@@ -1950,7 +1788,7 @@ class GFFDetails(object):
         self._initialize()
 
     @property
-    def file_name(self):
+    def file_name(self) -> str:
         """
         str: the file name
         """
@@ -1958,15 +1796,16 @@ class GFFDetails(object):
         return self._file_name
 
     @property
-    def endianness(self):
+    def endianness(self) -> str:
         """
-        str: The endian format of the GFF storage. Returns '<' if little-endian or '>' if big endian.
+        str: The endian format of the GFF storage. Returns '<' if little-endian
+        or '>' if big endian.
         """
 
         return self._endianness
 
     @property
-    def major_version(self):
+    def major_version(self) -> int:
         """
         int: The major GFF version number
         """
@@ -1974,7 +1813,7 @@ class GFFDetails(object):
         return self._major_version
 
     @property
-    def minor_version(self):
+    def minor_version(self) -> int:
         """
         int: The minor GFF version number
         """
@@ -1982,7 +1821,7 @@ class GFFDetails(object):
         return self._minor_version
 
     @property
-    def version(self):
+    def version(self) -> str:
         """
         str: The GFF version number
         """
@@ -1990,7 +1829,7 @@ class GFFDetails(object):
         return '{}.{}'.format(self._major_version, self._minor_version)
 
     @property
-    def header(self):
+    def header(self) -> Union[_GFFHeader_1_6, _GFFHeader_1_8, _GFFHeader_2]:
         """
         The GFF header object.
 
@@ -2002,7 +1841,7 @@ class GFFDetails(object):
         return self._header
 
     @property
-    def interpreter(self):
+    def interpreter(self) -> _GFFInterpreter:
         """
         The GFF interpreter object.
 
@@ -2013,7 +1852,7 @@ class GFFDetails(object):
 
         return self._interpreter
 
-    def _initialize(self):
+    def _initialize(self) -> None:
         """
         Initialize the various elements
         """
@@ -2051,7 +1890,7 @@ class GFFDetails(object):
         else:
             raise ValueError('Got unhandled GFF version `{}`'.format(version))
 
-    def get_sicd(self):
+    def get_sicd(self) -> SICDType:
         """
         Gets the sicd structure.
 
@@ -2062,35 +1901,41 @@ class GFFDetails(object):
 
         return self._interpreter.get_sicd()
 
-    def get_chipper(self):
+    def get_data_segment(self) -> DataSegment:
         """
-        Gets the chipper for reading data.
+        Gets the data segment.
 
         Returns
         -------
-        BIPChipper
+        DataSegment
         """
 
-        return self._interpreter.get_chipper()
+        return self._interpreter.get_data_segment()
+
+    def close(self):
+        try:
+            if self._close_after:
+                self._file_object.close()
+            if self._interpreter is not None:
+                self._interpreter.clean_up()
+            self._interpreter = None
+        except AttributeError:
+            pass
 
     def __del__(self):
-        if self._close_after:
-            self._close_after = False
-            # noinspection PyBroadException
-            try:
-                self._file_object.close()
-            except Exception:
-                pass
+        self.close()
 
 
-class GFFReader(BaseReader, SICDTypeReader):
+class GFFReader(SICDTypeReader):
     """
-    Gets a reader type object for GFF files
+    A GFF (Sandia format) reader implementation.
+
+    **Changed in version 1.3.0** for reading changes.
     """
 
     __slots__ = ('_gff_details', )
 
-    def __init__(self, gff_details):
+    def __init__(self, gff_details: Union[str, GFFDetails]):
         """
 
         Parameters
@@ -2105,15 +1950,14 @@ class GFFReader(BaseReader, SICDTypeReader):
             raise TypeError('The input argument for a GFFReader must be a '
                             'filename or GFFDetails object')
         self._gff_details = gff_details
+
         sicd = gff_details.get_sicd()
-        chipper = gff_details.get_chipper()
-        SICDTypeReader.__init__(self, sicd)
-        BaseReader.__init__(self, chipper, reader_type="SICD")
+        data_segment = gff_details.get_data_segment()
+        SICDTypeReader.__init__(self, data_segment, sicd, close_segments=True)
         self._check_sizes()
 
     @property
-    def gff_details(self):
-        # type: () -> GFFDetails
+    def gff_details(self) -> GFFDetails:
         """
         GFFDetails: The details object.
         """
@@ -2124,12 +1968,41 @@ class GFFReader(BaseReader, SICDTypeReader):
     def file_name(self):
         return self.gff_details.file_name
 
+    def close(self) -> None:
+        SICDTypeReader.close(self)
+        if self._gff_details is not None:
+            self._gff_details.close()
+        self._gff_details = None
+
     def __del__(self):
-        # noinspection PyBroadException
-        try:
-            del self._chipper  # you have to explicitly delete and garbage collect the chipper to delete any temp file
-            if callable(gc):
-                gc.collect()
-            del self._gff_details
-        except Exception:
-            pass
+        self.close()
+
+
+########
+# base expected functionality for a module with an implemented Reader
+
+def is_a(file_name: str) -> Optional[GFFReader]:
+    """
+    Tests whether a given file_name corresponds to a Cosmo Skymed file. Returns a reader instance, if so.
+
+    Parameters
+    ----------
+    file_name : str|BinaryIO
+        the file_name to check
+
+    Returns
+    -------
+    CSKReader|None
+        `CSKReader` instance if Cosmo Skymed file, `None` otherwise
+    """
+
+    if is_file_like(file_name):
+        return None
+
+    try:
+        gff_details = GFFDetails(file_name)
+        logger.info('File {} is determined to be a GFF version {} file.'.format(
+            file_name, gff_details.version))
+        return GFFReader(gff_details)
+    except SarpyIOError:
+        return None

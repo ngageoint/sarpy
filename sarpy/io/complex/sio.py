@@ -10,51 +10,24 @@ import os
 import struct
 import logging
 import re
-from typing import Union, Dict, Tuple
+from typing import Union, Dict, Tuple, Optional, BinaryIO
 
 import numpy
 
-from sarpy.io.general.base import BaseReader, BIPChipper, BIPWriter, SarpyIOError
 from sarpy.io.complex.base import SICDTypeReader
 from sarpy.io.complex.sicd_elements.blocks import RowColType
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd_elements.ImageData import ImageDataType, FullImageType
-from sarpy.io.complex.sicd import complex_to_amp_phase, complex_to_int, amp_phase_to_complex
-from sarpy.io.general.utils import is_file_like
+
+from sarpy.io.general.base import BaseWriter, SarpyIOError
+from sarpy.io.general.data_segment import NumpyArraySegment, NumpyMemmapSegment
+from sarpy.io.general.format_function import ComplexFormatFunction
+from sarpy.io.general.utils import is_file_like, is_real_file
 from sarpy.io.xml.base import parse_xml_from_string
 
 logger = logging.getLogger(__name__)
 
 _unsupported_pix_size = 'Got unsupported sio data type/pixel size = `{}`'
-
-
-########
-# base expected functionality for a module with an implemented Reader
-
-def is_a(file_name):
-    """
-    Tests whether a given file_name corresponds to a SIO file. Returns a reader instance, if so.
-
-    Parameters
-    ----------
-    file_name : str
-        the file_name to check
-
-    Returns
-    -------
-    SIOReader|None
-        `SIOReader` instance if SIO file, `None` otherwise
-    """
-
-    if is_file_like(file_name):
-        return None
-
-    try:
-        sio_details = SIODetails(file_name)
-        logger.info('File {} is determined to be a SIO file.'.format(file_name))
-        return SIOReader(sio_details)
-    except SarpyIOError:
-        return None
 
 
 ###########
@@ -63,7 +36,7 @@ def is_a(file_name):
 class SIODetails(object):
     __slots__ = (
         '_file_name', '_magic_number', '_head', '_user_data', '_data_offset',
-        '_caspr_data', '_symmetry', '_sicd')
+        '_caspr_data', '_reverse_axes', '_transpose_axes', '_sicd')
 
     # NB: there are really just two types of SIO file (with user_data and without),
     #   with endian-ness layered on top
@@ -71,12 +44,13 @@ class SIODetails(object):
         0xFF017FFE: '>', 0xFE7F01FF: '<',  # no user data
         0xFF027FFD: '>', 0xFD7F02FF: '<'}  # with user data
 
-    def __init__(self, file_name):
+    def __init__(self, file_name: str):
         self._file_name = file_name
         self._user_data = None
         self._data_offset = 20
         self._caspr_data = None
-        self._symmetry = (False, False, False)
+        self._reverse_axes = None
+        self._transpose_axes = None
         self._sicd = None
 
         if not os.path.isfile(file_name):
@@ -97,45 +71,49 @@ class SIODetails(object):
             self._head = init_head
 
     @property
-    def file_name(self):  # type: () -> str
+    def file_name(self) -> str:
         return self._file_name
-
-    @property
-    def symmetry(self):  # type: () -> Tuple[bool, bool, bool]
-        return self._symmetry
 
     @property
     def data_offset(self):  # type: () -> int
         return self._data_offset
 
     @property
-    def data_size(self):  # type: () -> Union[None, Tuple[int, int]]
+    def raw_data_size(self) -> Optional[Tuple[int, ...]]:
         if self._head is None:
             return None
         rows, cols = self._head[:2]
-        if self._symmetry[0]:
-            return cols, rows
-        else:
-            return rows, cols
+        return int(rows), int(cols), 2
 
     @property
-    def data_type(self):  # type: () -> Union[None, str]
+    def formatted_data_size(self) -> Union[None, Tuple[int, ...]]:
+        if self._head is None:
+            return None
+        rows, cols = self._head[:2]
+        if self._transpose_axes is not None:
+            return int(cols), int(rows)
+        else:
+            return int(rows), int(cols)
+
+    @property
+    def raw_data_type(self):  # type: () -> Union[None, str]
         # head[2] = (2X = vector, 1X = complex/scalar, 0X = real/scalar), where
         #   X = (1 = unsigned int, 2 = signed int, 3 = float, (4=double? I would guess)
         # head[3] = pixel size in bytes (2*bit depth for complex, or band*bit depth for vector)
         pixel_size = self._head[3]
+        endian = self.ENDIAN[self._magic_number]
         # we require (for sicd) that either head[2:] is [13, 8], [12, 4], [11, 2]
         if pixel_size == 8:
-            return 'float32'
+            return '{}f4'.format(endian)
         elif pixel_size == 4:
-            return 'int16'
+            return '{}i2'.format(endian)
         elif pixel_size == 2:
-            return 'uint8'
+            return '{}u1'.format(endian)
         else:
             raise ValueError(_unsupported_pix_size.format(self._head[2:]))
 
     @property
-    def pixel_type(self):  # type: () -> Union[None, str]
+    def pixel_type(self) -> str:
         if self._head[2] == 13 and self._head[3] == 8:
             return 'RE32F_IM32F'
         elif self._head[2] == 12 and self._head[3] == 4:
@@ -144,6 +122,9 @@ class SIODetails(object):
             return 'AMP8I_PHS8I'
         else:
             raise ValueError(_unsupported_pix_size.format(self._head[2:]))
+
+    def get_symmetry(self) -> Tuple[Optional[Tuple[int, ...]], Optional[Tuple[int, ...]]]:
+        return self._reverse_axes, self._transpose_axes
 
     def _read_user_data(self):
         if self._user_data is not None:
@@ -190,7 +171,7 @@ class SIODetails(object):
                 'does not match the actual file size ({})'.format(
                     self._file_name, exp_file_size, act_file_size))
 
-    def _find_caspr_data(self):
+    def _find_caspr_data(self) -> None:
         def find_caspr():
             dir_name, fil_name = os.path.split(self._file_name)
             file_stem = os.path.splitext(fil_name)
@@ -247,11 +228,12 @@ class SIODetails(object):
         if illum_dir is None:
             return
         elif illum_dir == 'left':
-            self._symmetry = (True, False, True)
+            self._reverse_axes = (0, )
+            self._transpose_axes = (1, 0, 2)
         elif illum_dir != 'top':
             raise ValueError('unhandled illumination direction {}'.format(illum_dir))
 
-    def get_sicd(self):
+    def get_sicd(self) -> SICDType:
         """
         Extract the SICD details.
 
@@ -278,7 +260,7 @@ class SIODetails(object):
             self._sicd.derive()
         else:
             # otherwise, we populate a really minimal sicd structure
-            num_rows, num_cols = self.data_size
+            num_rows, num_cols = self.formatted_data_size
             self._sicd = SICDType(ImageData=ImageDataType(NumRows=num_rows,
                                                           NumCols=num_cols,
                                                           FirstRow=0,
@@ -294,7 +276,10 @@ class SIODetails(object):
 #######
 #  The actual reading implementation
 
-class SIOReader(BaseReader, SICDTypeReader):
+class SIOReader(SICDTypeReader):
+    """
+    **Changed in version 1.3.0** for reading changes.
+    """
     __slots__ = ('_sio_details', )
 
     def __init__(self, sio_details):
@@ -313,25 +298,27 @@ class SIOReader(BaseReader, SICDTypeReader):
                             'SIODetails object.')
         self._sio_details = sio_details
         sicd_meta = sio_details.get_sicd()
-        if sicd_meta.ImageData.PixelType == 'AMP8I_PHS8I':
-            transform_data = amp_phase_to_complex(sicd_meta.ImageData.AmpTable)
-        else:
-            transform_data = 'COMPLEX'
-        raw_bands = 2
-        output_bands = 1
-        output_dtype = 'complex64'
-        chipper = BIPChipper(sio_details.file_name, sio_details.data_type, sio_details.data_size,
-                             raw_bands, output_bands, output_dtype,
-                             symmetry=sio_details.symmetry, transform_data=transform_data,
-                             data_offset=sio_details.data_offset)
 
-        SICDTypeReader.__init__(self, sicd_meta)
-        BaseReader.__init__(self, chipper, reader_type="SICD")
+        if sicd_meta.ImageData.PixelType == 'AMP8I_PHS8I':
+            format_function = ComplexFormatFunction(
+                sio_details.raw_data_type, order='MP', band_dimension=-1,
+                magnitude_lookup_table=sicd_meta.ImageData.AmpTable)
+        else:
+            format_function = ComplexFormatFunction(
+                sio_details.raw_data_type, order='IQ', band_dimension=-1)
+        reverse_axes, transpose_axes = sio_details.get_symmetry()
+        data_segment = NumpyMemmapSegment(
+            sio_details.file_name, sio_details.data_offset,
+            sio_details.raw_data_type, sio_details.raw_data_size,
+            'complex64', sio_details.formatted_data_size,
+            reverse_axes=reverse_axes, transpose_axes=transpose_axes,
+            format_function=format_function, mode='r', close_file=True)
+
+        SICDTypeReader.__init__(self, data_segment, sicd_meta, close_segments=True)
         self._check_sizes()
 
     @property
-    def sio_details(self):
-        # type: () -> SIODetails
+    def sio_details(self) -> SIODetails:
         """
         SIODetails: The sio details object.
         """
@@ -339,20 +326,62 @@ class SIOReader(BaseReader, SICDTypeReader):
         return self._sio_details
 
     @property
-    def file_name(self):
+    def file_name(self) -> str:
         return self.sio_details.file_name
+
+
+########
+# base expected functionality for a module with an implemented Reader
+
+def is_a(file_name: str) -> Optional[SIOReader]:
+    """
+    Tests whether a given file_name corresponds to a SIO file. Returns a reader instance, if so.
+
+    Parameters
+    ----------
+    file_name : str
+        the file_name to check
+
+    Returns
+    -------
+    SIOReader|None
+        `SIOReader` instance if SIO file, `None` otherwise
+    """
+
+    if is_file_like(file_name):
+        return None
+
+    try:
+        sio_details = SIODetails(file_name)
+        logger.info('File {} is determined to be a SIO file.'.format(file_name))
+        return SIOReader(sio_details)
+    except SarpyIOError:
+        return None
 
 
 #######
 #  The actual writing implementation
 
-class SIOWriter(BIPWriter):
-    def __init__(self, file_name, sicd_meta, user_data=None, check_older_version=False, check_existence=True):
+class SIOWriter(BaseWriter):
+    """
+    **Changed in version 1.3.0** for writing changes.
+    """
+
+    _slots__ = (
+        '_file_name', '_file_object', '_in_memory',
+        '_data_offset', '_data_written')
+
+    def __init__(self,
+                 file_object: Union[str, BinaryIO],
+                 sicd_meta: SICDType,
+                 user_data: Optional[Dict[str, str]]=None,
+                 check_older_version: bool=False,
+                 check_existence: bool=True):
         """
 
         Parameters
         ----------
-        file_name : str
+        file_object : str|BinaryIO
         sicd_meta : SICDType
         user_data : None|Dict[str, str]
         check_older_version : bool
@@ -362,53 +391,107 @@ class SIOWriter(BIPWriter):
             Should we check if the given file already exists, and raises an exception if so?
         """
 
-        if check_existence and os.path.exists(file_name):
-            raise SarpyIOError('Given file {} already exists, and a new SIO file cannot be created here.'.format(file_name))
+        self._data_written = True
+        if isinstance(file_object, str):
+            if check_existence and os.path.exists(file_object):
+                raise SarpyIOError('Given file {} already exists, and a new SIO file cannot be created here.'.format(file_object))
+            file_object = open(file_object, 'wb')
+
+        if not is_file_like(file_object):
+            raise ValueError('file_object requires a file path or BinaryIO object')
+
+        self._file_object = file_object
+        if is_real_file(file_object):
+            self._file_name = file_object.name
+            self._in_memory = False
+        else:
+            self._file_name = None
+            self._in_memory = True
 
         # choose magic number (with user data) and corresponding endian-ness
         magic_number = 0xFD7F02FF
         endian = SIODetails.ENDIAN[magic_number]
 
         # define basic image details
-        image_size = (sicd_meta.ImageData.NumRows, sicd_meta.ImageData.NumCols)
+        raw_shape = (sicd_meta.ImageData.NumRows, sicd_meta.ImageData.NumCols, 2)
         pixel_type = sicd_meta.ImageData.PixelType
         if pixel_type == 'RE32F_IM32F':
-            data_type = numpy.dtype('{}f4'.format(endian))
+            raw_dtype = numpy.dtype('{}f4'.format(endian))
             element_type = 13
             element_size = 8
-            transform_data = 'COMPLEX'
+            format_function = ComplexFormatFunction(raw_dtype, order='MP', band_dimension=2)
         elif pixel_type == 'RE16I_IM16I':
-            data_type = numpy.dtype('{}i2'.format(endian))
+            raw_dtype = numpy.dtype('{}i2'.format(endian))
             element_type = 12
             element_size = 4
-            transform_data = complex_to_int
+            format_function = ComplexFormatFunction(raw_dtype, order='MP', band_dimension=2)
         else:
-            data_type = numpy.dtype('{}u1'.format(endian))
+            raw_dtype = numpy.dtype('{}u1'.format(endian))
             element_type = 11
             element_size = 2
-            transform_data = complex_to_amp_phase(sicd_meta.ImageData.AmpTable)
+            format_function = ComplexFormatFunction(
+                raw_dtype, order='MP', band_dimension=2, magnitude_lookup_table=sicd_meta.ImageData.AmpTable)
+
         # construct the sio header
         header = numpy.array(
-            [magic_number, image_size[0], image_size[1], element_type, element_size],
+            [magic_number, raw_shape[0], raw_shape[1], element_type, element_size],
             dtype='>u4')
         # construct the user data - must be {str : str}
         if user_data is None:
             user_data = {}
         uh_args = sicd_meta.get_des_details(check_older_version)
         user_data['SICDMETA'] = sicd_meta.to_xml_string(tag='SICD', urn=uh_args['DESSHTN'])
-        data_offset = 20
-        with open(file_name, 'wb') as fi:
-            fi.write(struct.pack('{}5I'.format(endian), *header))
-            # write the user data - name size, name, value size, value
-            for name in user_data:
-                name_bytes = name.encode('utf-8')
-                fi.write(struct.pack('{}I'.format(endian), len(name_bytes)))
-                fi.write(struct.pack('{}{}s'.format(endian, len(name_bytes)), name_bytes))
-                val_bytes = user_data[name].encode('utf-8')
-                fi.write(struct.pack('{}I'.format(endian), len(val_bytes)))
-                fi.write(struct.pack('{}{}s'.format(endian, len(val_bytes)), val_bytes))
-                data_offset += 4 + len(name_bytes) + 4 + len(val_bytes)
-        # initialize the bip writer - we're ready to go
-        output_bands = 2
-        super(SIOWriter, self).__init__(file_name, image_size, data_type, output_bands,
-                                        transform_data=transform_data, data_offset=data_offset)
+
+        # write the initial things to the buffer
+        self._file_object.seek(0, os.SEEK_SET)
+        self._file_object.write(struct.pack('{}5I'.format(endian), *header))
+        # write the user data - name size, name, value size, value
+        for name in user_data:
+            name_bytes = name.encode('utf-8')
+            self._file_object.write(struct.pack('{}I'.format(endian), len(name_bytes)))
+            self._file_object.write(struct.pack('{}{}s'.format(endian, len(name_bytes)), name_bytes))
+            val_bytes = user_data[name].encode('utf-8')
+            self._file_object.write(struct.pack('{}I'.format(endian), len(val_bytes)))
+            self._file_object.write(struct.pack('{}{}s'.format(endian, len(val_bytes)), val_bytes))
+        self._data_offset = self._file_object.tell()
+        # initialize the single data segment
+        if self._in_memory:
+            underlying_array = numpy.full(raw_shape, fill_value=0, dtype=raw_dtype)
+            data_segment = NumpyArraySegment(
+                underlying_array, 'complex64', raw_shape[:2], format_function=format_function, mode='w')
+            self._data_written = False
+        else:
+            data_segment = NumpyMemmapSegment(
+                self._file_object, self._data_offset, raw_dtype, raw_shape,
+                'complex64', raw_shape[:2], format_function=format_function, mode='w', close_file=False)
+            self._data_written = True
+        BaseWriter.__init__(self, data_segment)
+
+    @property
+    def file_name(self) -> Optional[str]:
+        """
+        None|str: The file name, if feasible.
+        """
+
+        return self._file_name
+
+    def flush(self, force: bool=False) -> None:
+        BaseWriter.flush(self, force=force)
+        if self._data_written:
+            return
+
+        if force or self.data_segment[0].check_fully_written(warn=force):
+            self._file_object.seek(self._data_offset, os.SEEK_SET)
+            self._file_object.write(self.data_segment[0].get_raw_bytes(warn=False))
+
+    def close(self) -> None:
+        """
+        Completes any necessary final steps.
+        """
+
+        if not hasattr(self, '_closed') or self._closed:
+            return
+
+        self.flush(force=True)
+        BaseWriter.close(self)
+        self._file_object = None

@@ -1,8 +1,26 @@
 # Change Log
 
-SarPy follows a continuous release process, so there are lots of releases. Since 
-essentially every commit corresponds to a release, specific release points are 
-not being annotated in github.
+SarPy follows a continuous release process, so there are fairly frequent releases. 
+Since essentially every (squash merge) commit corresponds to a release, specific 
+release points are not being annotated in github.
+
+## [1.3.0] - 2022-06-01
+### Changed
+- The base reading and writing structures have been updated to enable reading and 
+writing data in both the natural use format of data (using `read()` or `write()`), 
+as well as the raw storage format (using `read_raw()` or `write_raw()`). 
+- kmz construction has been moved from the `sarpy.io.product` subpackage to the 
+`sarpy.visualization` subpackage.
+- The `sarpy.processing` subpackage has been restructured for clarity of purpose.
+This includes moving sidd production construction has been moved from the 
+`sarpy.io.product` subpackage to the `sarpy.processing.sidd` subpackage.
+
+### Added
+Implementations for DataSegment and FormatFunction for reading and writing 
+changes.
+
+# 1.3
+
 
 ## [1.2.70] - 2022-05-05
 ### Changed
@@ -211,7 +229,7 @@ given the presence of other RCS polynomials
 
 ### Fixed
 Account for noise and Radiometric SF poly changes due to subaperture and 
-weighting changes in sarpy.processing.normalize_sicd methods
+weighting changes in sarpy.processing.sicd.normalize_sicd methods
 
 ## [1.2.29] - 2021-10-15
 ### Fixed
@@ -262,7 +280,7 @@ producing a sicd/reader with reweighting and/or subaperture processing applied
 ### Changed
 - Adjustments of unit tests to skip versus fail missing tests for CPD validation. 
 - Refactors some elements of SICD window population to use the 
-sarpy.processing.windows module.
+sarpy.processing.sicd.windows module.
 
 ### Removed
 Drops stated support for Python 2.7
@@ -305,7 +323,7 @@ remains a work-in-progress.*
 
 ## [1.2.15] - 2021-09-08
 ### Added
-Creates sarpy.processing.windows module for more unified handling of commonly used
+Creates sarpy.processing.sicd.windows module for more unified handling of commonly used
 Fourier windowing definitions and functions
 
 ### Fixed

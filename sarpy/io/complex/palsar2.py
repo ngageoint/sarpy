@@ -9,14 +9,16 @@ __author__ = "Thomas McCullough"
 import logging
 import os
 import struct
-from typing import Union, Tuple, List
+from typing import Union, Tuple, List, Optional
 
 import numpy
 from numpy.polynomial import polynomial
 from scipy.constants import speed_of_light
 
-from sarpy.io.general.base import BaseChipper, SubsetChipper, BaseReader, BIPChipper, SarpyIOError
-
+from sarpy.io.general.base import SarpyIOError
+from sarpy.io.general.data_segment import DataSegment, NumpyMemmapSegment, \
+    SubsetSegment, BandAggregateSegment
+from sarpy.io.general.format_function import ComplexFormatFunction
 from sarpy.io.general.utils import get_seconds, parse_timestring, is_file_like
 
 from sarpy.io.complex.base import SICDTypeReader
@@ -40,35 +42,6 @@ from sarpy.io.complex.sicd_elements.ErrorStatistics import ErrorStatisticsType, 
 from sarpy.io.complex.utils import two_dim_poly_fit, fit_position_xvalidation
 
 logger = logging.getLogger(__name__)
-
-########
-# base expected functionality for a module with an implemented Reader
-
-
-def is_a(file_name):
-    """
-    Tests whether a given file_name corresponds to a PALSAR ALOS2file. Returns a reader instance, if so.
-
-    Parameters
-    ----------
-    file_name : str
-        the file_name to check
-
-    Returns
-    -------
-    PALSARReader|None
-        `PALSARReader` instance if PALSAR file, `None` otherwise
-    """
-
-    if is_file_like(file_name):
-        return None
-
-    try:
-        palsar_details = PALSARDetails(file_name)
-        logger.info('File {} is determined to be a PALSAR ALOS2 file.'.format(file_name))
-        return PALSARReader(palsar_details)
-    except (ImportError, SarpyIOError):
-        return None
 
 
 ##########
@@ -225,7 +198,7 @@ class _CommonElements3(_CommonElements2):
         'num_proc_rec', 'proc_len', 'num_cal_rec', 'cal_len',
         'num_gcp_rec', 'gcp_len', 'num_fac_data_rec', 'fac_data_len')
 
-    def __init__(self, fi):
+    def __init__(self, fi, facility_count: int):
         super(_CommonElements3, self).__init__(fi)
         self.num_map_rec = int(fi.read(6))  # type: int
         self.map_len = int(fi.read(6))  # type: int
@@ -256,15 +229,14 @@ class _CommonElements3(_CommonElements2):
         self.num_gcp_rec = int(fi.read(6))  # type: int
         self.gcp_len = int(fi.read(6))  # type: int
         fi.seek(60, os.SEEK_CUR)  # skip reserved fields
-        # the five data facility records
+        # the data facility records
         num_fac_data_rec = []
         fac_data_len = []
-        for i in range(5):
+        for i in range(facility_count):
             num_fac_data_rec.append(int(fi.read(6)))
             fac_data_len.append(int(fi.read(8)))
         self.num_fac_data_rec = tuple(num_fac_data_rec)  # type: Tuple[int]
         self.fac_data_len = tuple(fac_data_len)  # type: Tuple[int]
-
 
 ##########
 # IMG file interpretation
@@ -530,25 +502,27 @@ class _IMG_Elements(_CommonElements2):
         rcv_pol = 'H' if signal.rcv_pol == 0 else 'V'
         return tx_pol, rcv_pol
 
-    def construct_chipper(self, flip_pixels):
+    def construct_data_segment(self, flip_pixels):
         """
-        Construct the chipper associated with the IMG file.
+        Construct the data segment associated with the IMG file.
 
         Parameters
         ----------
         flip_pixels : bool
-            Should we flip in the pixel dimension?
+            Should we flip in the pixel (2nd raw) dimension?
 
         Returns
         -------
-        BaseChipper
+        DataSegment
         """
 
+        reverse_axes = (1, ) if flip_pixels else None
+
+        # TODO: handle the case where pixel_size == 8 and prefix_bytes % 8 == 4...
+
         pixel_size = self.num_bytes
-        raw_bands = 2
-        output_bands = 1
-        output_dtype = 'complex64'
-        transform_data = 'COMPLEX'
+        prefix_bytes = self.prefix_bytes
+        suffix_bytes = self.suffix_bytes
 
         if pixel_size == 8:
             sar_datatype_code = self.sar_datatype_code.strip()
@@ -561,28 +535,33 @@ class _IMG_Elements(_CommonElements2):
         else:
             raise ValueError('Got unhandled pixel size = {}'.format(pixel_size))
 
-        symmetry = (False, flip_pixels, True)
+        entry_pixel_size = int(pixel_size/2)
 
-        prefix_bytes = self.prefix_bytes
-        suffix_bytes = self.suffix_bytes
-        if (prefix_bytes % pixel_size) != 0:
-            raise ValueError('prefix size is not compatible with pixel size')
-        if (suffix_bytes % pixel_size) != 0:
-            raise ValueError('suffix size is not compatible with pixel size')
-        pref_cols = int(prefix_bytes/pixel_size)
-        suf_cols = int(suffix_bytes/pixel_size)
-        data_size = (self.num_lines, pref_cols + self.num_pixels + suf_cols)
-        if flip_pixels:
-            sub_start = suf_cols
-            sub_end = self.num_pixels+suf_cols
-        else:
-            sub_start = pref_cols
-            sub_end = self.num_pixels+pref_cols
+        if (prefix_bytes % entry_pixel_size) != 0:
+            raise ValueError(
+                'prefix size ({}) is not compatible with pixel size ({})'.format(prefix_bytes, pixel_size))
+        if (suffix_bytes % entry_pixel_size) != 0:
+            raise ValueError(
+                'suffix size ({}) is not compatible with pixel size ({})'.format(suffix_bytes, pixel_size))
+        pref_cols = int(prefix_bytes/entry_pixel_size)
+        suf_cols = int(suffix_bytes/entry_pixel_size)
 
-        p_chipper = BIPChipper(
-            self._file_name, raw_dtype, data_size, raw_bands, output_bands, output_dtype,
-            symmetry, transform_data, data_offset=self.rec_length)
-        return SubsetChipper(p_chipper, dim1bounds=(sub_start, sub_end), dim2bounds=(0, self.num_lines))
+        raw_shape = (self.num_lines, pref_cols + 2*self.num_pixels + suf_cols)
+        parent_data_segment = NumpyMemmapSegment(
+            self._file_name, self.rec_length, raw_dtype, raw_shape, mode='r', close_file=True)
+        real_subset_def = (slice(0, self.num_lines, 1), slice(pref_cols, pref_cols + 2*self.num_pixels, 2))
+        imag_subset_def = (slice(0, self.num_lines, 1), slice(pref_cols+1, pref_cols + 2*self.num_pixels, 2))
+
+        real_subset = SubsetSegment(parent_data_segment, real_subset_def, coordinate_basis='raw', close_parent=True)
+        imag_subset = SubsetSegment(parent_data_segment, imag_subset_def, coordinate_basis='raw', close_parent=True)
+
+        formatted_shape = real_subset.raw_shape[::-1]
+        return BandAggregateSegment(
+            (real_subset, imag_subset), 2,
+            formatted_dtype='complex64', formatted_shape=formatted_shape,
+            reverse_axes=reverse_axes, transpose_axes=(1, 0, 2),
+            format_function=ComplexFormatFunction(raw_dtype, order='IQ', band_dimension=2),
+            close_children=True)
 
 
 ###########
@@ -620,6 +599,7 @@ class _LED_Data(_BaseElements):
         'num_annot')
 
     def __init__(self, fi):
+        start_loc = fi.tell()
         super(_LED_Data, self).__init__(fi)
         self.rec_seq = fi.read(4).decode('utf-8')  # type: str
         self.sar_id = fi.read(4).decode('utf-8')  # type: str
@@ -736,7 +716,7 @@ class _LED_Data(_BaseElements):
         fi.seek(28, os.SEEK_CUR)  # skip reserved fields
         self.incidence_ang = [float(fi.read(20)) for _ in range(6)]  # type: List[float]
         self.num_annot = float(fi.read(8))  # type: float
-        fi.seek(8 + 64*32 + 26, os.SEEK_CUR)  # skip reserved fields, for map projection?
+        fi.seek(start_loc + self.rec_length, os.SEEK_SET)  # skip reserved fields, for map projection?
 
 
 class _LED_Position(_BaseElements):
@@ -752,6 +732,7 @@ class _LED_Position(_BaseElements):
         'pts_pos', 'pts_vel', 'leap_sec')
 
     def __init__(self, fi):
+        start_pos = fi.tell()
         super(_LED_Position, self).__init__(fi)
         self.orb_elem = fi.read(32).decode('utf-8')  # type: str
         self.pos = numpy.array([float(fi.read(16)) for _ in range(3)], dtype='float64')  # type: numpy.ndarray
@@ -778,7 +759,7 @@ class _LED_Position(_BaseElements):
             self.pts_vel[i, :] = [float(fi.read(22)) for _ in range(3)]
         fi.seek(18, os.SEEK_CUR)  # skip reserved fields
         self.leap_sec = fi.read(1).decode('utf-8')  # type: str
-        fi.seek(579, os.SEEK_CUR)  # skip reserved fields
+        fi.seek(start_pos + self.rec_length, os.SEEK_SET)  # skip reserved fields
 
 
 class _LED_AttitudePoint(object):
@@ -818,11 +799,11 @@ class _LED_Attitude(_BaseElements):
         'num_pts', 'pts')
 
     def __init__(self, fi):
+        start_loc = fi.tell()
         super(_LED_Attitude, self).__init__(fi)
         self.num_pts = int(fi.read(4))  # type: int
         self.pts = [_LED_AttitudePoint(fi) for _ in range(self.num_pts)]
-        extra = self.rec_length - (16 + 120*self.num_pts)
-        fi.seek(extra, os.SEEK_CUR)  # skip remaining reserved
+        fi.seek(start_loc + self.rec_length, os.SEEK_SET)  # skip remaining reserved
 
 
 class _LED_Radiometric(_BaseElements):
@@ -834,6 +815,7 @@ class _LED_Radiometric(_BaseElements):
         'seq_num', 'num_pts', 'cal_factor', 'tx_distortion', 'rcv_distortion')
 
     def __init__(self, fi):
+        start_loc = fi.tell()
         super(_LED_Radiometric, self).__init__(fi)
         self.seq_num = int(fi.read(4))  # type: int
         self.num_pts = int(fi.read(4))  # type: int
@@ -846,8 +828,7 @@ class _LED_Radiometric(_BaseElements):
         for i in range(2):
             for j in range(2):
                 self.rcv_distortion[i, j] = complex(real=float(fi.read(16)), imag=float(fi.read(16)))
-        extra = self.rec_length - (12 + 24 + 16*2*4*2)
-        fi.seek(extra, os.SEEK_CUR)  # skip remaining reserved
+        fi.seek(start_loc + self.rec_length, os.SEEK_SET)  # skip remaining reserved
 
 
 class _LED_DataQuality(_BaseElements):
@@ -863,19 +844,20 @@ class _LED_DataQuality(_BaseElements):
         'distort_skew', 'orient_err', 'at_misreg_err', 'ct_misreg_err')
 
     def __init__(self, fi):
+        start_loc = fi.tell()
         super(_LED_DataQuality, self).__init__(fi)
         self.dq_rec_num = fi.read(4).decode('utf-8')  # type: str
         self.chan_id = fi.read(4).decode('utf-8')  # type: str
         self.date = fi.read(6).decode('utf-8')  # type: str
         self.num_chans = int(fi.read(4))  # type: int
-        self.islr = float(fi.read(16))  # type: float
-        self.pslr = float(fi.read(16))  # type: float
-        self.aar = float(fi.read(16))  # type: float
-        self.rar = float(fi.read(16))  # type: float
-        self.snr = float(fi.read(16))  # type: float
+        self.islr = _make_float(fi.read(16))  # type: float
+        self.pslr = _make_float(fi.read(16))  # type: float
+        self.aar = _make_float(fi.read(16))  # type: float
+        self.rar = _make_float(fi.read(16))  # type: float
+        self.snr = _make_float(fi.read(16))  # type: float
         self.ber = fi.read(16).decode('utf-8')  # type: str
-        self.sr_res = float(fi.read(16))  # type: float
-        self.az_res = float(fi.read(16))  # type: float
+        self.sr_res = _make_float(fi.read(16))  # type: float
+        self.az_res = _make_float(fi.read(16))  # type: float
         self.rad_res = fi.read(16).decode('utf-8')  # type: str
         self.dyn_rng = fi.read(16).decode('utf-8')  # type: str
         self.abs_cal_mag = fi.read(16).decode('utf-8')  # type: str
@@ -885,7 +867,7 @@ class _LED_DataQuality(_BaseElements):
         for i in range(self.num_chans):
             self.rel_cal_mag[i] = _make_float(fi.read(16))
             self.rel_cal_phs[i] = _make_float(fi.read(16))
-        fi.seek(480 - self.num_chans*32, os.SEEK_CUR)  # skip reserved
+        fi.seek(512 - self.num_chans*32, os.SEEK_CUR)  # skip reserved
         self.abs_err_at = fi.read(16).decode('utf-8')  # type: str
         self.abs_err_ct = fi.read(16).decode('utf-8')  # type: str
         self.distort_line = fi.read(16).decode('utf-8')  # type: str
@@ -896,13 +878,14 @@ class _LED_DataQuality(_BaseElements):
         for i in range(self.num_chans):
             self.at_misreg_err[i] = _make_float(fi.read(16))
             self.ct_misreg_err[i] = _make_float(fi.read(16))
-        this_size = 782 + 32*self.num_chans
-        fi.seek(self.rec_length-this_size, os.SEEK_CUR)  # skip reserved
+        fi.seek(start_loc + self.rec_length, os.SEEK_SET)  # skip reserved
 
 
 class _LED_Facility(_BaseElements):
     """
     The data quality summary in the LED file.
+
+    NOTE: this is too failure prone, and is functionally being skipped for now.
     """
 
     __slots__ = (
@@ -915,10 +898,14 @@ class _LED_Facility(_BaseElements):
         'latlon2pixel', 'latlon2line', 'origin_lat', 'origin_lon')
 
     def __init__(self, fi, parse_all=False):
+        start_loc = fi.tell()
         super(_LED_Facility, self).__init__(fi)
-        self.fac_seq_num = struct.unpack('>I', fi.read(4))[0]  # type: int
+        # self.rec_length = 5000  # I don't kow why it gets populated wrong?
+
+        # self.fac_seq_num = struct.unpack('>I', fi.read(4))[0]  # type: int
+        self.fac_seq_num = int(fi.read(4))  # type: int
         if not parse_all:
-            fi.seek(self.rec_length-16, os.SEEK_CUR)
+            fi.seek(start_loc + self.rec_length, os.SEEK_SET)
             return
 
         self.mapproj2pix = numpy.zeros((10, ), dtype='float64')  # type: numpy.ndarray
@@ -960,7 +947,7 @@ class _LED_Facility(_BaseElements):
 
         self.origin_lat = float(fi.read(20))  # type: float
         self.origin_lon = float(fi.read(20))  # type: float
-        fi.seek(1896, os.SEEK_CUR)  # skip empty fields
+        fi.seek(start_loc + self.rec_length, os.SEEK_SET)  # skip empty fields
 
 
 class _LED_Elements(_CommonElements3):
@@ -984,7 +971,7 @@ class _LED_Elements(_CommonElements3):
             raise SarpyIOError('file {} does not appear to be an LED file'.format(file_name))
         self._file_name = file_name  # type: str
         with open(self._file_name, 'rb') as fi:
-            super(_LED_Elements, self).__init__(fi)
+            _CommonElements3.__init__(self, fi, 5)
             fi.seek(230, os.SEEK_CUR)  # skip reserved fields
             self.data = _LED_Data(fi)  # type: _LED_Data
             if self.num_map_rec > 0:
@@ -995,8 +982,10 @@ class _LED_Elements(_CommonElements3):
             self.attitude = _LED_Attitude(fi)  # type: _LED_Attitude
             self.radiometric = _LED_Radiometric(fi)  # type: _LED_Radiometric
             self.data_quality = _LED_DataQuality(fi)  # type: _LED_DataQuality
-            self.facility = [_LED_Facility(fi, parse_all=False) for _ in range(4)]  # type: List[_LED_Facility]
-            self.facility.append(_LED_Facility(fi, parse_all=True))
+            facilities = []
+            for i in range(5):
+                facilities.append(_LED_Facility(fi, parse_all=False))
+            self.facility = facilities
 
     @property
     def file_name(self):
@@ -1044,7 +1033,7 @@ class _TRL_Elements(_CommonElements3):
             raise SarpyIOError('file {} does not appear to be an LED file'.format(file_name))
         self._file_name = file_name  # type: str
         with open(self._file_name, 'rb') as fi:
-            super(_TRL_Elements, self).__init__(fi)
+            _CommonElements3.__init__(self, fi, 5)
             self.num_low_res_rec = int(fi.read(6))  # type: int
             self.low_res = tuple([_TRL_LowResRecord(fi) for _ in range(self.num_low_res_rec)])
             fi.seek(720, os.SEEK_CUR)  # skip reserved data
@@ -1178,7 +1167,7 @@ class PALSARDetails(object):
     __slots__ = (
         '_file_name', '_img_elements', '_led_element', '_trl_element', '_vol_element')
 
-    def __init__(self, file_name):
+    def __init__(self, file_name: str):
         """
 
         Parameters
@@ -1187,7 +1176,7 @@ class PALSARDetails(object):
         """
 
         self._file_name = None
-        self._img_elements = None  # type: Union[None, Tuple[_IMG_Elements]]
+        self._img_elements = None  # type: Union[None, Tuple[_IMG_Elements, ...]]
         self._led_element = None  # type: Union[None, _LED_Elements]
         self._trl_element = None  # type: Union[None, _TRL_Elements]
         self._vol_element = None  # type: Union[None, _VOL_Elements]
@@ -1198,7 +1187,7 @@ class PALSARDetails(object):
                     'image file {} corresponds to part of a ScanSAR collect, '
                     'which is currently unsupported'.format(entry.file_name))
 
-    def _validate_filename(self, file_name):
+    def _validate_filename(self, file_name: str) -> None:
         """
         Validate the input path, and find the associated files.
 
@@ -1253,7 +1242,7 @@ class PALSARDetails(object):
         self._vol_element = _VOL_Elements(vol_files[0]) if len(vol_files) > 0 else None
 
     @property
-    def file_name(self):
+    def file_name(self) -> str:
         """
         str: The parent directory.
         """
@@ -1261,14 +1250,17 @@ class PALSARDetails(object):
         return self._file_name
 
     @property
-    def img_elements(self):
+    def img_elements(self) -> Tuple[_IMG_Elements, ...]:
         """
-        Tuple[_IMG_Elements]: The img elements
+        Tuple[_IMG_Elements, ...]: The img elements
         """
 
         return self._img_elements
 
-    def _get_sicd(self, index, tx_pols, tx_rcv_pols):
+    def _get_sicd(self,
+                  index: int,
+                  tx_pols: List[str],
+                  tx_rcv_pols: List[str]) -> SICDType:
         """
         Gets the SICD structure for image at `index`.
 
@@ -1283,10 +1275,14 @@ class PALSARDetails(object):
         SICDType
         """
 
-        def get_collection_info():
-            # type: () -> CollectionInfoType
-            collector_name = 'ALOS2' if self._vol_element.vol_set_id.startswith('ALOS2') else None
-            core_name = self._vol_element.texts[-1].scene_id[7:]
+        def get_collection_info() -> CollectionInfoType:
+            if self._led_element.data.scene_id.startswith('ALOS2'):
+                collector_name = 'ALOS2'
+            elif self._led_element.data.scene_id.startswith('STRIX'):
+                collector_name = self._led_element.data.scene_id[:6]
+            else:
+                collector_name = None
+            core_name = self._led_element.data.scene_id.strip()
             mode_id = self._vol_element.texts[-1].prod_id[8:11]
             mode_type = 'SPOTLIGHT' if mode_id == 'SBS' else 'STRIPMAP'
             return CollectionInfoType(
@@ -1296,8 +1292,7 @@ class PALSARDetails(object):
                 Classification='UNCLASSIFIED',
                 RadarMode=RadarModeType(ModeID=mode_id, ModeType=mode_type))
 
-        def get_image_creation():
-            # type: () -> ImageCreationType
+        def get_image_creation() -> ImageCreationType:
             from sarpy.__about__ import __version__
             the_date = self._vol_element.log_vol_create_date
             the_time = self._vol_element.log_vol_create_time
@@ -1315,8 +1310,7 @@ class PALSARDetails(object):
                                      Site=site,
                                      Profile='sarpy {}'.format(__version__))
 
-        def get_image_data():
-            # type: () -> ImageDataType
+        def get_image_data() -> ImageDataType:
             rows = img_element.num_pixels
             cols = img_element.num_lines
             if img_element.num_bytes == 8:
@@ -1341,19 +1335,20 @@ class PALSARDetails(object):
                 FullImage=(rows, cols),
                 SCPPixel=(scp_row, scp_col))
 
-        def get_geo_data():
-            # type: () -> GeoDataType
+        def get_geo_data() -> GeoDataType:
             # NB: lat/lon are expressed in 10-6 degrees
             scp_lat = 5e-7*(start_signal.lat_center + end_signal.lat_center)
             scp_lon = 5e-7*(start_signal.lon_center + end_signal.lon_center)
             return GeoDataType(SCP=SCPType(LLH=[scp_lat, scp_lon, 0.0]))
 
-        def get_timeline():
-            # type: () -> TimelineType
+        def get_timeline() -> TimelineType:
+            starting_usec = start_signal.usec if start_signal.usec != 0 else 1000*start_signal.msec
+            ending_usec = end_signal.usec if end_signal.usec != 0 else 1000*end_signal.msec
+
             start_time = numpy.datetime64('{0:04d}-01-01'.format(start_signal.year), 'us') + \
-                         (start_signal.day-1)*86400*1000000 + start_signal.usec
+                         numpy.timedelta64((start_signal.day-1)*86400*1000000 + starting_usec, 'us')
             end_time = numpy.datetime64('{0:04d}-01-01'.format(end_signal.year), 'us') + \
-                       (end_signal.day-1)*86400*1000000 + end_signal.usec
+                       numpy.timedelta64((end_signal.day-1)*86400*1000000 + ending_usec, 'us')
             duration = get_seconds(end_time, start_time, precision='us')
             # NB: I opt to calculate duration this way instead of subtracting usec directly,
             # just in case midnight UTC occurs during the collect
@@ -1367,12 +1362,11 @@ class PALSARDetails(object):
                                 IPPEnd=int(prf*duration),
                                 IPPPoly=[0, prf]), ])
 
-        def get_position():
-            # type: () -> PositionType
+        def get_position() -> PositionType:
             pos_element = led_element.position
             position_start = numpy.datetime64(
                 '{0:04d}-{1:02d}-{2:02d}'.format(pos_element.year, pos_element.month, pos_element.day), 'us') + \
-                             int(pos_element.sec*1000000)
+                             numpy.timedelta64(int(pos_element.sec*1000000), 'us')
             arp_pos = pos_element.pts_pos
             arp_vel = pos_element.pts_vel
             diff_time = get_seconds(position_start, timeline.CollectStart, precision='us')
@@ -1382,8 +1376,7 @@ class PALSARDetails(object):
                 times_s[mask], arp_pos[mask, :], arp_vel[mask, :], max_degree=8)
             return PositionType(ARPPoly=XYZPolyType(X=P_x, Y=P_y, Z=P_z))
 
-        def get_radar_collection():
-            # type: () -> RadarCollectionType
+        def get_radar_collection() -> RadarCollectionType:
             data = led_element.data
             bw = data.bw_rng*1e3  # NB: bandwidth is given in strange units?
             tx_freq_min = center_frequency - bw*0.5  # NB: bandwidth is given in milliHz
@@ -1417,8 +1410,7 @@ class PALSARDetails(object):
                     ChanParametersType(TxRcvPolarization=tx_rcv_p, index=j+1)
                     for j, tx_rcv_p in enumerate(tx_rcv_pols)])
 
-        def get_image_formation():
-            # type: () -> ImageFormationType
+        def get_image_formation() -> ImageFormationType:
             az_autofocus = 'GLOBAL' if led_element.data.autofocus_flg.strip() == 'YES' else 'NO'
             tx_min_freq = radar_collection.TxFrequency.Min
             tx_max_freq = radar_collection.TxFrequency.Max
@@ -1435,13 +1427,11 @@ class PALSARDetails(object):
                 RcvChanProc=RcvChanProcType(NumChanProc=1,
                                             ChanIndices=[index+1, ]))
 
-        def get_radiometric():
-            # type: () -> RadiometricType
+        def get_radiometric() -> RadiometricType:
             sigma_zero = 10**(0.1*(led_element.radiometric.cal_factor - 32))
             return RadiometricType(SigmaZeroSFPoly=[[sigma_zero, ]])
 
-        def get_error_stats():
-            # type: () -> ErrorStatisticsType
+        def get_error_stats() -> ErrorStatisticsType:
             pos_element = led_element.position
             range_bias = 1e-2
             # NB: there is a comment in the matlab code for range bias error:
@@ -1449,16 +1439,15 @@ class PALSARDetails(object):
             return ErrorStatisticsType(
                 Components=ErrorComponentsType(
                     PosVelErr=PosVelErrType(Frame='RIC_ECF',
-                                            P1=pos_element.rad_pos_err,
-                                            P2=pos_element.at_pos_err,
-                                            P3=pos_element.ct_pos_err,
-                                            V1=pos_element.rad_vel_err,
-                                            V2=pos_element.at_vel_err,
-                                            V3=pos_element.ct_vel_err),
+                                            P1=pos_element.rad_pos_err if numpy.isfinite(pos_element.rad_pos_err) else None,
+                                            P2=pos_element.at_pos_err if numpy.isfinite(pos_element.at_pos_err) else None,
+                                            P3=pos_element.ct_pos_err if numpy.isfinite(pos_element.ct_pos_err) else None,
+                                            V1=pos_element.rad_vel_err if numpy.isfinite(pos_element.rad_vel_err) else None,
+                                            V2=pos_element.at_vel_err if numpy.isfinite(pos_element.at_vel_err) else None,
+                                            V3=pos_element.ct_vel_err if numpy.isfinite(pos_element.ct_vel_err) else None),
                     RadarSensor=RadarSensorErrorType(RangeBias=range_bias)))
 
-        def get_grid_and_rma():
-            # type: () -> (GridType, RMAType)
+        def get_grid_and_rma() -> Tuple[GridType, RMAType]:
             data = led_element.data
             dop_bw = data.bw_az
             ss_zd_s = 1000.0/data.prf
@@ -1521,7 +1510,7 @@ class PALSARDetails(object):
                 Sgn=-1,
                 KCtr=2.0/data.wavelength,
                 ImpRespBW=2e3*data.bw_rng/speed_of_light,
-                ImpRespWid=led_element.data_quality.sr_res,
+                ImpRespWid=led_element.data_quality.sr_res if numpy.isfinite(led_element.data_quality.sr_res) else None,
                 DeltaKCOAPoly=Poly2DType(Coefs=[[0, ], ]),
                 WgtType=row_wgt)
             col = DirParamType(
@@ -1529,7 +1518,7 @@ class PALSARDetails(object):
                 Sgn=-1,
                 KCtr=0,
                 ImpRespBW=dop_bw*ss_zd_s/data.line_spacing,
-                ImpRespWid=led_element.data_quality.az_res,
+                ImpRespWid=led_element.data_quality.az_res if numpy.isfinite(led_element.data_quality.az_res) else None,
                 DeltaKCOAPoly=Poly2DType(Coefs=dop_centroid*ss_zd_s/data.line_spacing),
                 WgtType=col_wgt)
             t_grid = GridType(
@@ -1552,7 +1541,7 @@ class PALSARDetails(object):
                 INCA=inca)
             return t_grid, t_rma
 
-        def adjust_scp():
+        def adjust_scp() -> None:
             scp_pixel = sicd.ImageData.SCPPixel.get_array()
             scp_ecf = sicd.project_image_to_ground(scp_pixel)
             sicd.update_scp(scp_ecf, coord_system='ECF')
@@ -1599,7 +1588,7 @@ class PALSARDetails(object):
         sicd.derive()
         return sicd
 
-    def get_sicd_collection(self):
+    def get_sicd_collection(self) -> List[SICDType]:
         """
         Gets the sicd structure collection.
 
@@ -1618,12 +1607,14 @@ class PALSARDetails(object):
             tx_pols.append(txp)
             tx_rcv_pols.append('{}:{}'.format(txp, rcvp))
 
-        return tuple([self._get_sicd(index, tx_pols, tx_rcv_pols) for index, _ in enumerate(self._img_elements)])
+        return [self._get_sicd(index, tx_pols, tx_rcv_pols) for index, _ in enumerate(self._img_elements)]
 
 
-class PALSARReader(BaseReader, SICDTypeReader):
+class PALSARReader(SICDTypeReader):
     """
-    The reader object for the PALSAR ALOS2 file package.
+    A PALSAR ALOS2 SLC file package reader implementation.
+
+    **Changed in version 1.3.0** for reading changes.
     """
 
     __slots__ = (
@@ -1647,17 +1638,45 @@ class PALSARReader(BaseReader, SICDTypeReader):
         self._palsar_details = palsar_details  # type: PALSARDetails
 
         sicds = self._palsar_details.get_sicd_collection()
-        chippers = []
+        data_segments = []
         data_sizes = []
         for sicd, img_details in zip(sicds, self._palsar_details.img_elements):
             data_sizes.append((sicd.ImageData.NumCols, sicd.ImageData.NumRows))
-            chippers.append(img_details.construct_chipper(sicd.SCPCOA.SideOfTrack == 'L'))
+            data_segments.append(img_details.construct_data_segment(sicd.SCPCOA.SideOfTrack == 'L'))
 
-        SICDTypeReader.__init__(self, tuple(sicds))
-        BaseReader.__init__(self, tuple(chippers), reader_type="SICD")
+        SICDTypeReader.__init__(self, data_segments, sicds, close_segments=True)
         self._check_sizes()
 
     @property
-    def file_name(self):
-        # type: () -> str
+    def file_name(self) -> str:
         return self._palsar_details.file_name
+
+########
+# base expected functionality for a module with an implemented Reader
+
+
+def is_a(file_name: str) -> Optional[PALSARReader]:
+    """
+    Tests whether a given file_name corresponds to a PALSAR ALOS2file. Returns a reader instance, if so.
+
+    Parameters
+    ----------
+    file_name : str
+        the file_name to check
+
+    Returns
+    -------
+    PALSARReader|None
+        `PALSARReader` instance if PALSAR file, `None` otherwise
+    """
+
+    if is_file_like(file_name):
+        return None
+
+    try:
+        palsar_details = PALSARDetails(file_name)
+        logger.info('File {} is determined to be a PALSAR ALOS2 file.'.format(file_name))
+        return PALSARReader(palsar_details)
+    except (ImportError, SarpyIOError):
+        return None
+

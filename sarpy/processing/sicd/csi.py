@@ -11,7 +11,7 @@ Examples
 
     from matplotlib import pyplot
     from sarpy.io.complex.converter import open_complex
-    from sarpy.processing.csi import CSICalculator
+    from sarpy.processing.sicd.csi import CSICalculator
     from sarpy.visualization.remap import Density
 
     # open a sicd type file
@@ -45,14 +45,17 @@ Examples
 __classification__ = "UNCLASSIFIED"
 __author__ = 'Thomas McCullough'
 
+from typing import Union, Tuple, Optional, Sequence
+
 import numpy
 
-from sarpy.processing.fft_base import FFTCalculator, fft, ifft, fftshift
+from sarpy.processing.sicd.fft_base import FFTCalculator, fft, ifft, fftshift
 from sarpy.io.complex.base import SICDTypeReader
 from sarpy.io.complex.utils import get_fetch_block_size
+from sarpy.io.general.slice_parsing import get_slice_result_size
 
 
-def filter_map_construction(siz):
+def filter_map_construction(siz: Union[int, float]) -> numpy.ndarray:
     """
     Provides the RGB filter array for sub-aperture processing.
 
@@ -90,7 +93,12 @@ def filter_map_construction(siz):
     return out
 
 
-def csi_array(array, dimension=0, platform_direction='R', fill=1, filter_map=None):
+def csi_array(
+        array: numpy.ndarray,
+        dimension: int = 0,
+        platform_direction: str = 'R',
+        fill: Union[int, float] = 1,
+        filter_map: Optional[numpy.ndarray] = None) -> numpy.ndarray:
     """
     Creates a color subaperture array from a complex array.
 
@@ -186,8 +194,12 @@ class CSICalculator(FFTCalculator):
     the amount of data which must be fetched.
     """
 
-
-    def __init__(self, reader, dimension=0, index=0, block_size=50):
+    def __init__(
+            self,
+            reader: Union[str, SICDTypeReader],
+            dimension: int = 0,
+            index: int = 0,
+            block_size: Union[None, int, float] = 50):
         """
 
         Parameters
@@ -205,7 +217,10 @@ class CSICalculator(FFTCalculator):
         super(CSICalculator, self).__init__(
             reader, dimension=dimension, index=index, block_size=block_size)
 
-    def get_fetch_block_size(self, start_element, stop_element):
+    def get_fetch_block_size(
+            self,
+            start_element: int,
+            stop_element: int) -> int:
         """
         Gets the fetch block size for the given full resolution section.
         This assumes that the fetched data will be 24 bytes per pixel, in
@@ -223,25 +238,40 @@ class CSICalculator(FFTCalculator):
 
         return get_fetch_block_size(start_element, stop_element, self.block_size_in_bytes, bands=3)
 
-    def _full_row_resolution(self, row_range, col_range, filter_map=None):
+    def _full_row_resolution(
+            self,
+            row_range: Union[slice, Tuple[int, int, int]],
+            col_range: Union[slice, Tuple[int, int, int]],
+            filter_map: Optional[numpy.ndarray] = None) -> numpy.ndarray:
         data = super(CSICalculator, self)._full_row_resolution(row_range, col_range)
         return csi_array(
             data, dimension=0, platform_direction=self._platform_direction,
             filter_map=filter_map)
 
-    def _full_column_resolution(self, row_range, col_range, filter_map=None):
+    def _full_column_resolution(
+            self,
+            row_range: Union[slice, Tuple[int, int, int]],
+            col_range: Union[slice, Tuple[int, int, int]],
+            filter_map: Optional[numpy.ndarray] = None) -> numpy.ndarray:
         data = super(CSICalculator, self)._full_column_resolution(row_range, col_range)
         return csi_array(
             data, dimension=1, platform_direction=self._platform_direction,
             filter_map=filter_map)
 
-    def _prepare_output(self, row_range, col_range):
-        row_count = int((row_range[1] - row_range[0]) / float(row_range[2]))
-        col_count = int((col_range[1] - col_range[0]) / float(col_range[2]))
+    def _prepare_output(
+            self,
+            row_range: Union[slice, Tuple[int, int, int]],
+            col_range: Union[slice, Tuple[int, int, int]]) -> numpy.ndarray:
+        if isinstance(row_range, Sequence):
+            row_range = slice(*row_range)
+        if isinstance(col_range, Sequence):
+            col_range = slice(*col_range)
+        row_count = get_slice_result_size(row_range)
+        col_count = get_slice_result_size(col_range)
         out_size = (row_count, col_count, 3)
         return numpy.zeros(out_size, dtype=numpy.float64)
 
-    def __getitem__(self, item):
+    def __getitem__(self, item) -> numpy.ndarray:
         """
         Fetches the csi data based on the input slice.
 
@@ -257,45 +287,60 @@ class CSICalculator(FFTCalculator):
         if self._fill is None:
             raise ValueError('Unable to proceed unless the index and dimension are set.')
 
-        def get_dimension_details(the_range):
-            full_count = abs(int(the_range[1] - the_range[0]))
-            the_snip = -1 if the_range[2] < 0 else 1
+        def get_dimension_details(the_range: Union[slice, Tuple[int, int, int]]):
+            if isinstance(the_range, Sequence):
+                start, stop, step = the_range
+            elif isinstance(the_range, slice):
+                start = the_range.start
+                stop = the_range.stop
+                step = the_range.step
+            else:
+                raise TypeError('Got unexpected range input {}'.format(the_range))
+
+            full_count = abs(int(stop - start))
+            the_snip = -1 if step < 0 else 1
             t_filter_map = filter_map_construction(full_count/self.fill)
-            t_block_size = self.get_fetch_block_size(the_range[0], the_range[1])
-            t_full_range = (the_range[0], the_range[1], the_snip)
+            t_block_size = self.get_fetch_block_size(start, stop)
+            t_full_range = (start, stop, the_snip)
             return t_filter_map, t_block_size, t_full_range
 
         # parse the slicing to ensure consistent structure
         row_range, col_range, _ = self._parse_slicing(item)
+
+
         if self.dimension == 0:
             # we will proceed fetching full row resolution
             filter_map, row_block_size, this_row_range = get_dimension_details(row_range)
             # get our block definitions
             column_blocks, result_blocks = self.extract_blocks(col_range, row_block_size)
+            # noinspection PyTypeChecker
             if len(column_blocks) == 1:
                 # it's just a single block
                 csi = self._full_row_resolution(this_row_range, col_range, filter_map)
-                return csi[::abs(row_range[2]), :, :]
+                return csi[::abs(row_range.step), :, :]
             else:
                 # prepare the output space
                 out = self._prepare_output(row_range, col_range)
+                # noinspection PyTypeChecker
                 for this_column_range, result_range in zip(column_blocks, result_blocks):
                     csi = self._full_row_resolution(this_row_range, this_column_range, filter_map)
-                    out[:, result_range[0]:result_range[1], :] = csi[::abs(row_range[2]), :, :]
+                    out[:, result_range[0]:result_range[1], :] = csi[::abs(row_range.step), :, :]
                 return out
         else:
             # we will proceed fetching full column resolution
             filter_map, column_block_size, this_col_range = get_dimension_details(col_range)
             # get our block definitions
             row_blocks, result_blocks = self.extract_blocks(row_range, column_block_size)
+            # noinspection PyTypeChecker
             if len(row_blocks) == 1:
                 # it's just a single block
                 csi = self._full_column_resolution(row_range, this_col_range, filter_map)
-                return csi[:, ::abs(col_range[2]), :]
+                return csi[:, ::abs(col_range.step), :]
             else:
                 # prepare the output space
                 out = self._prepare_output(row_range, col_range)
+                # noinspection PyTypeChecker
                 for this_row_range, result_range in zip(row_blocks, result_blocks):
                     csi = self._full_column_resolution(this_row_range, this_col_range, filter_map)
-                    out[result_range[0]:result_range[1], :, :] = csi[:, ::abs(col_range[2]), :]
+                    out[result_range[0]:result_range[1], :, :] = csi[:, ::abs(col_range.step), :]
                 return out

@@ -13,7 +13,7 @@ from collections import OrderedDict
 import copy
 import re
 from io import StringIO
-from typing import Dict
+from typing import Dict, Optional
 
 import numpy
 
@@ -35,7 +35,7 @@ DEFAULT_STRICT = False
 # dom helper functions
 
 
-def get_node_value(nod):
+def get_node_value(nod: ElementTree.Element) -> Optional[str]:
     """
     XML parsing helper for extracting text value from an ElementTree Element. No error checking performed.
 
@@ -60,7 +60,10 @@ def get_node_value(nod):
         return val
 
 
-def create_new_node(doc, tag, parent=None):
+def create_new_node(
+        doc: ElementTree.ElementTree,
+        tag: str,
+        parent: Optional[ElementTree.Element]=None) -> ElementTree.Element:
     """
     XML ElementTree node creation helper function.
 
@@ -82,14 +85,18 @@ def create_new_node(doc, tag, parent=None):
         parent = doc.getroot()  # what if there is no root?
     if parent is None:
         element = ElementTree.Element(tag)
-        # noinspection PyProtectedMember
+        # noinspection PyProtectedMember, PyUnresolvedReferences
         doc._setroot(element)
         return element
     else:
         return ElementTree.SubElement(parent, tag)
 
 
-def create_text_node(doc, tag, value, parent=None):
+def create_text_node(
+        doc: ElementTree.ElementTree,
+        tag: str,
+        value: str,
+        parent: Optional[ElementTree.Element]=None) -> ElementTree.Element:
     """
     XML ElementTree text node creation helper function
 
@@ -115,7 +122,11 @@ def create_text_node(doc, tag, value, parent=None):
     return node
 
 
-def find_first_child(node, tag, xml_ns, ns_key):
+def find_first_child(
+        node: ElementTree.Element,
+        tag: str,
+        xml_ns: Optional[Dict[str, str]],
+        ns_key: Optional[str]) -> ElementTree.Element:
     """
     Finds the first child node
 
@@ -125,6 +136,10 @@ def find_first_child(node, tag, xml_ns, ns_key):
     tag : str
     xml_ns : None|dict
     ns_key : None|str
+
+    Returns
+    -------
+    ElementTree.Element
     """
 
     if xml_ns is None:

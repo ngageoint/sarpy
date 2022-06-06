@@ -1,7 +1,7 @@
-Change detection package elements (sarpy.io.other_image.change_detection)
+KMZ product creation elements (sarpy.visualization.kmz_product_creation)
 =====================================================================
 
-.. automodule:: sarpy.io.other_image.change_detection
+.. automodule:: sarpy.visualization.kmz_product_creation
     :members:
     :show-inheritance:
     :inherited-members:

@@ -5,29 +5,39 @@ Base structures for received signal data readers and usage
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
-from typing import Union, Tuple
+from typing import Union, Tuple, Sequence, Dict, Optional
 
 import numpy
 
-from sarpy.io.general.base import AbstractReader
+from sarpy.io.general.base import BaseReader
+from sarpy.io.general.data_segment import DataSegment
 from sarpy.io.received.crsd1_elements.CRSD import CRSDType as CRSDType1_0
 
 
-class CRSDTypeReader(AbstractReader):
+class CRSDTypeReader(BaseReader):
     """
-    An abstract class for ensuring common CRSD functionality.
+    A class for ensuring common CRSD reading functionality.
 
-    This is intended to be used solely in conjunction with implementing a
-    legitimate reader.
+    **Updated in version 1.3.0** for reading changes.
     """
 
-    def __init__(self, crsd_meta):
+    def __init__(self,
+                 data_segment: Union[None, DataSegment, Sequence[DataSegment]],
+                 crsd_meta: Union[None, CRSDType1_0],
+                 close_segments: bool=True,
+                 delete_files: Union[None, str, Sequence[str]]=None):
         """
 
         Parameters
         ----------
+        data_segment : None|DataSegment|Sequence[DataSegment]
         crsd_meta : None|CRSDType1_0
-            `None`, the CRSD metadata object
+            The CRSD metadata object
+        close_segments : bool
+            Call segment.close() for each data segment on reader.close()?
+        delete_files : None|Sequence[str]
+            Any temp files which should be cleaned up on reader.close()?
+            This will occur after closing segments.
         """
 
         if crsd_meta is None:
@@ -38,17 +48,20 @@ class CRSDTypeReader(AbstractReader):
             raise TypeError(
                 'The crsd_meta must be of type CRSDType, got `{}`'.format(type(crsd_meta)))
 
+        BaseReader.__init__(
+            self, data_segment, reader_type='CRSD', close_segments=close_segments, delete_files=delete_files)
+
     @property
-    def crsd_meta(self):
-        # type: () -> Union[None, CRSDType1_0]
+    def crsd_meta(self) -> Union[None, CRSDType1_0]:
         """
         None|CRSDType1_0: the crsd meta_data.
         """
 
         return self._crsd_meta
 
-    def read_support_array(self, index, dim1_range, dim2_range):
-        # type: (Union[int, str], Union[None, int, Tuple[int, int], Tuple[int, int, int]], Union[None, int, Tuple[int, int], Tuple[int, int, int]]) -> numpy.ndarray
+    def read_support_array(self,
+                           index: Union[int, str],
+                           *ranges: Sequence[Union[None, int, Tuple[int, ...], slice]]) -> numpy.ndarray:
         """
         Read the support array.
 
@@ -56,12 +69,8 @@ class CRSDTypeReader(AbstractReader):
         ----------
         index : int|str
             The support array integer index.
-        dim1_range : None|int|Tuple[int, int]|Tuple[int, int, int]
-            The row data selection of the form `[start, [stop, [stride]]]`, and
-            `None` defaults to all rows (i.e. `(0, NumRows, 1)`)
-        dim2_range : None|int|Tuple[int, int]|Tuple[int, int, int]
-            The column data selection of the form `[start, [stop, [stride]]]`, and
-            `None` defaults to all rows (i.e. `(0, NumCols, 1)`)
+        ranges : Sequence[None|int|Tuple[int, ...]|slice]
+            The slice definition appropriate for support array usage.
 
         Returns
         -------
@@ -73,9 +82,9 @@ class CRSDTypeReader(AbstractReader):
             If called on a reader which doesn't support this.
         """
 
-        raise TypeError('Class {} does not provide support arrays'.format(type(self)))
+        raise NotImplementedError
 
-    def read_support_block(self):
+    def read_support_block(self) -> Dict[str, numpy.ndarray]:
         """
         Reads the entirety of support block(s).
 
@@ -85,20 +94,25 @@ class CRSDTypeReader(AbstractReader):
             Dictionary of `numpy.ndarray` containing the support arrays.
         """
 
-        raise TypeError('Class {} does not provide support arrays'.format(type(self)))
+        raise NotImplementedError
 
-    def read_pvp_variable(self, variable, index, the_range=None):
+    def read_pvp_variable(
+            self,
+            variable: str,
+            index: Union[int, str],
+            the_range: Union[None, int, Tuple[int, ...], slice]=None) -> Optional[numpy.ndarray]:
         """
-        Read the vector parameter for the given `variable` and CPHD channel.
+        Read the vector parameter for the given `variable` and CRSD channel.
 
         Parameters
         ----------
         variable : str
         index : int|str
             The channel index or identifier.
-        the_range : None|int|List[int]|Tuple[int]
-            The indices for the vector parameter. `None` returns all, otherwise
-            a slice in the (non-traditional) form `([start, [stop, [stride]]])`.
+        the_range : None|int|Tuple[int, ...]|slice
+            The indices for the vector parameter. `None` returns all,
+            a integer returns the single value at that location, otherwise
+            the input determines a slice.
 
         Returns
         -------
@@ -108,7 +122,10 @@ class CRSDTypeReader(AbstractReader):
 
         raise NotImplementedError
 
-    def read_pvp_array(self, index, the_range=None):
+    def read_pvp_array(
+            self,
+            index: Union[int, str],
+            the_range: Union[None, int, Tuple[int, ...], slice]=None) -> numpy.ndarray:
         """
         Read the PVP array from the requested channel.
 
@@ -116,9 +133,10 @@ class CRSDTypeReader(AbstractReader):
         ----------
         index : int|str
             The support array integer index (of cphd.Data.Channels list) or identifier.
-        the_range : None|int|List[int]|Tuple[int]
-            The indices for the vector parameter. `None` returns all, otherwise
-            a slice in the (non-traditional) form `([start, [stop, [stride]]])`.
+        the_range : None|int|Tuple[int, ...]|slice
+            The indices for the vector parameter. `None` returns all,
+            a integer returns the single value at that location, otherwise
+            the input determines a slice.
 
         Returns
         -------
@@ -127,26 +145,40 @@ class CRSDTypeReader(AbstractReader):
 
         raise NotImplementedError
 
-    def read_pvp_block(self):
+    def read_pvp_block(self) -> Dict[str, numpy.ndarray]:
         """
         Reads the entirety of the PVP block(s).
 
         Returns
         -------
         Dict[str, numpy.ndarray]
-            Dictionary of `numpy.ndarray` containing the PVP arrays.
+            Dictionary containing the PVP arrays.
         """
 
         raise NotImplementedError
 
-    def read_signal_block(self):
+    def read_signal_block(self) -> Dict[str, numpy.ndarray]:
         """
-        Reads the entirety of signal block(s).
+        Reads the entirety of signal block(s), with data formatted as complex64
+        (after accounting for AmpSF).
 
         Returns
         -------
         Dict[str, numpy.ndarray]
-            Dictionary of `numpy.ndarray` containing the support arrays.
+            Dictionary of `numpy.ndarray` containing the signal arrays.
+        """
+
+        raise NotImplementedError
+
+    def read_signal_block_raw(self) -> Dict[str, numpy.ndarray]:
+        """
+        Reads the entirety of signal block(s), with data formatted in file
+        storage format (no converting to complex, no consideration of AmpSF).
+
+        Returns
+        -------
+        Dict[str, numpy.ndarray]
+            Dictionary of `numpy.ndarray` containing the signal arrays.
         """
 
         raise NotImplementedError

@@ -464,3 +464,25 @@ class ProductDisplayType(Serializable):
         self.MonitorCompensationApplied = MonitorCompensationApplied
         self.DisplayExtensions = DisplayExtensions
         super(ProductDisplayType, self).__init__(**kwargs)
+
+    def get_pixel_size(self) -> int:
+        """
+        Gets the raw size per pixel, in bytes.
+
+        Returns
+        -------
+        int
+        """
+
+        if self.PixelType == 'MONO8I':
+            return 1
+        elif self.PixelType == 'MONO8LU':
+            return 1
+        elif self.PixelType == 'MONO16I':
+            return 2
+        elif self.PixelType == 'RGB8LU':
+            return 1
+        elif self.PixelType == 'RGB24I':
+            return 3
+        else:
+            raise ValueError('Got unhandled pixel type `{}`'.format(self.PixelType))

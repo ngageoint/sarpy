@@ -1522,7 +1522,7 @@ def image_to_ground_hae(im_points, structure, block_size=50000,
 # Image-to-DEM
 
 def _do_dem_iteration(previous_ecf, previous_diff, this_ecf, this_diff):
-    mask = numpy.isfinite(this_diff) & (this_diff < 0)  # todo: skip NaN?
+    mask = numpy.isfinite(this_diff) & (this_diff < 0)
     if numpy.any(mask):
         d0 = (previous_diff[mask])
         d1 = numpy.abs(this_diff[mask])

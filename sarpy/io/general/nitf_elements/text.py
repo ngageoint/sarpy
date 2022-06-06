@@ -99,8 +99,8 @@ class TextSegmentHeader0(NITFElement):
     ENCRYP = _StringEnumDescriptor(
         'ENCRYP', True, 1, {'0'}, default_value='0',
         docstring='Encryption.')  # type: str
-    TXTFMT = _StringEnumDescriptor(
-        'TXTFMT', True, 3, {'', 'MTF', 'STA', 'UT1', 'U8S'}, default_value='',
+    TXTFMT = _StringDescriptor(
+        'TXTFMT', True, 3, default_value='',
         docstring='Text Format. This field shall contain a valid three character code '
                   'indicating the format or type of text data. Valid codes are :code:`MTF` to '
                   'indicate USMTF (Refer to MIL-STD-6040 for examples of the USMTF format), '

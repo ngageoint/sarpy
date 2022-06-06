@@ -13,4 +13,3 @@ File reading and writing elements (sarpy.io)
     DEM/index
     xml/index
     kml
-    other_image/index

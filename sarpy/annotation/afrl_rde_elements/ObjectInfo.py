@@ -926,7 +926,7 @@ class TheObjectType(Serializable):
         else:
             max_size = self.Size.get_max_diameter()
             if max_size == 0:
-                max_size = 10.0  # todo: fix this...
+                max_size = 10.0
             row_size = max_size/sicd.Grid.Row.SS
             col_size = max_size/sicd.Grid.Col.SS
         # check bounding information
