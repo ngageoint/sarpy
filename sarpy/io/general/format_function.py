@@ -925,10 +925,13 @@ class SingleLUTFormatFunction(FormatFunction):
             raise ValueError('requires a numpy.ndarray, got {}'.format(type(lookup_table)))
         if lookup_table.dtype.name != 'uint8':
             raise ValueError('requires a numpy.ndarray of uint8 dtype, got {}'.format(lookup_table.dtype))
+        if lookup_table.ndim == 2 and lookup_table.shape[1] == 1:
+            lookup_table = numpy.reshape(lookup_table, (-1, ))
         self._lookup_table = lookup_table
 
-        FormatFunction.__init__(self, raw_shape=raw_shape, formatted_shape=formatted_shape,
-                                reverse_axes=reverse_axes, transpose_axes=transpose_axes)
+        FormatFunction.__init__(
+            self, raw_shape=raw_shape, formatted_shape=formatted_shape,
+            reverse_axes=reverse_axes, transpose_axes=transpose_axes)
 
     @property
     def lookup_table(self) -> numpy.ndarray:
@@ -1009,7 +1012,7 @@ class SingleLUTFormatFunction(FormatFunction):
             raise ValueError('requires a numpy.ndarray of uint8 or uint16 dtype, '
                              'got {}'.format(array.dtype.name))
 
-        if len(array.shape) == 2:
+        if array.ndim != 2:
             raise ValueError('Requires a two-dimensional numpy.ndarray, got shape {}'.format(array.shape))
         temp = numpy.reshape(array, (-1, ))
         out = self.lookup_table[temp]
