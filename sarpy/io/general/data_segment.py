@@ -990,7 +990,7 @@ class SubsetSegment(DataSegment):
 
     __slots__ = (
         '_parent', '_formatted_subset_definition', '_raw_subset_definition',
-        '_original_formatted_indices', '_original_raw_indices',
+        '_original_formatted_indices', '_original_raw_indices', '_squeeze',
         '_close_parent', '_pixels_written', '_expected_pixels_written')
 
     def __init__(
@@ -998,6 +998,7 @@ class SubsetSegment(DataSegment):
             parent: DataSegment,
             subset_definition: Tuple[slice, ...],
             coordinate_basis: str,
+            squeeze: bool = True,
             close_parent: bool = True):
         """
         Parameters
@@ -1007,6 +1008,8 @@ class SubsetSegment(DataSegment):
         coordinate_basis : str
             The coordinate basis for the subset definition, it should be one of
             `('raw', 'formatted')`.
+        squeeze: bool
+            Eliminate the dimensions that are size 1 in the subset?
         close_parent : bool
             Call parent.close() when close is called?
         """
@@ -1017,6 +1020,7 @@ class SubsetSegment(DataSegment):
         self._original_raw_indices = None
         self._formatted_subset_definition = None
         self._raw_subset_definition = None
+        self._squeeze = squeeze
         self._parent = parent
 
         raw_shape, formatted_shape = self._validate_subset_definition(
@@ -1101,7 +1105,7 @@ class SubsetSegment(DataSegment):
 
         for index, entry in enumerate(form_def):
             this_size = get_slice_result_size(entry)
-            if this_size == 1:
+            if self._squeeze and this_size == 1:
                 logger.info('Entry at index {} of subset definition yields a single entry'.format(index))
                 original_indices.append(-1)
             else:
@@ -1114,7 +1118,7 @@ class SubsetSegment(DataSegment):
 
         for index, entry in enumerate(raw_def):
             this_size = get_slice_result_size(entry)
-            if this_size == 1:
+            if self._squeeze and this_size == 1:
                 logger.info('Raw slice at index {} of subset definition yields a single entry'.format(index))
                 raw_indices.append(-1)
             else:
@@ -1228,7 +1232,7 @@ class SubsetSegment(DataSegment):
             data = self.parent.read_raw(norm_subscript, squeeze=False)
             use_shape = []
             for check, size in zip(self._original_raw_indices, data.shape):
-                if check != -1:
+                if not self._squeeze or check != -1:
                     use_shape.append(size)
             if squeeze:
                 return numpy.squeeze(data)
@@ -1250,7 +1254,7 @@ class SubsetSegment(DataSegment):
             data = self.parent.read(norm_subscript, squeeze=False)
             use_shape = []
             for check, size in zip(self._original_formatted_indices, data.shape):
-                if check != -1:
+                if not self._squeeze or check != -1:
                     use_shape.append(size)
             if squeeze:
                 return numpy.squeeze(data)
