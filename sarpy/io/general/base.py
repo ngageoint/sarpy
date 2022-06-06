@@ -247,7 +247,7 @@ class BaseReader(object):
         Tuple[Tuple[int, ...], ...]
         """
 
-        return (self.data_size,) if self.image_count == 1 else self.data_size
+        return (self.data_size, ) if self.image_count == 1 else self.data_size
 
     @property
     def raw_data_size(self) -> Union[Tuple[int, ...], Tuple[Tuple[int, ...]]]:
@@ -270,7 +270,7 @@ class BaseReader(object):
         Tuple[Tuple[int, ...], ...]
         """
 
-        return (self.data_size,) if self.image_count == 1 else self.data_size
+        return (self.data_size, ) if self.image_count == 1 else self.data_size
 
     @property
     def files_to_delete_on_close(self) -> List[str]:
