@@ -7,10 +7,13 @@ It also permits converting complex data from any form which can be read to a fil
 SICD or SIO format.
 """
 
+__classification__ = 'UNCLASSIFIED'
+
 
 def open(*args, **kwargs):
     from .converter import open_complex
     return open_complex(*args, **kwargs)
+
 
 def convert(*args, **kwargs):
     from .converter import conversion_utility
