@@ -4,7 +4,11 @@ SarPy follows a continuous release process, so there are fairly frequent release
 Since essentially every (squash merge) commit corresponds to a release, specific 
 release points are not being annotated in github.
 
-## [1.3.0] - 2022-06-01
+## [1.3.1] - 2022-06-08
+### Fixed
+Resolved type-hinting bug for missing optional h5py dependency.
+
+## [1.3.0] - 2022-06-06
 ### Changed
 - The base reading and writing structures have been updated to enable reading and 
 writing data in both the natural use format of data (using `read()` or `write()`), 
