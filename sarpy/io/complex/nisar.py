@@ -41,6 +41,13 @@ from sarpy.io.general.data_segment import HDF5DatasetSegment
 from sarpy.io.general.format_function import ComplexFormatFunction
 from sarpy.io.general.utils import get_seconds, parse_timestring, is_file_like, is_hdf5, h5py
 
+if h5py is None:
+    h5pyFile = None
+    h5pyGroup = None
+    h5pyDataset = None
+else:
+    from h5py import File as h5pyFile, Group as h5pyGroup, Dataset as h5pyDataset
+
 logger = logging.getLogger(__name__)
 
 
@@ -127,7 +134,7 @@ class NISARDetails(object):
         return self._file_name
 
     @staticmethod
-    def _get_frequency_list(hf: h5py.File) -> List[str]:
+    def _get_frequency_list(hf: h5pyFile) -> List[str]:
         """
         Gets the list of frequencies.
 
@@ -143,7 +150,7 @@ class NISARDetails(object):
         return _get_string_list(hf['/science/LSAR/identification/listOfFrequencies'][:])
 
     @staticmethod
-    def _get_collection_times(hf: h5py.File) -> Tuple[numpy.datetime64, numpy.datetime64, float]:
+    def _get_collection_times(hf: h5pyFile) -> Tuple[numpy.datetime64, numpy.datetime64, float]:
         """
         Gets the collection start and end times, and inferred duration.
 
@@ -166,7 +173,7 @@ class NISARDetails(object):
 
     @staticmethod
     def _get_zero_doppler_data(
-            hf: h5py.File,
+            hf: h5pyFile,
             base_sicd: SICDType) -> Tuple[numpy.ndarray, float, numpy.ndarray, numpy.ndarray]:
         """
         Gets zero-doppler parameters.
@@ -201,7 +208,7 @@ class NISARDetails(object):
         grid_zd_time = ds[:] + get_seconds(ref_time, base_sicd.Timeline.CollectStart, precision='ns')
         return zd_time, ss_az_s, grid_r, grid_zd_time
 
-    def _get_base_sicd(self, hf: h5py.File) -> SICDType:
+    def _get_base_sicd(self, hf: h5pyFile) -> SICDType:
         """
         Defines the base SICD object, to be refined with further details.
 
@@ -344,7 +351,7 @@ class NISARDetails(object):
 
     @staticmethod
     def _get_freq_specific_sicd(
-            gp: h5py.Group,
+            gp: h5pyGroup,
             base_sicd: SICDType) -> Tuple[SICDType, List[str], List[str], float]:
         """
         Gets the frequency specific sicd.
@@ -416,8 +423,8 @@ class NISARDetails(object):
 
     @staticmethod
     def _get_pol_specific_sicd(
-            hf: h5py.File,
-            ds: h5py.Dataset,
+            hf: h5pyFile,
+            ds: h5pyDataset,
             base_sicd: SICDType,
             pol_name: str,
             freq_name: str,
@@ -542,7 +549,7 @@ class NISARDetails(object):
             return coords_rg_2d_t, coords_az_2d_t
 
         def define_radiometric() -> None:
-            def get_poly(ds: h5py.Dataset, name: str) -> Optional[Poly2DType]:
+            def get_poly(ds: h5pyDataset, name: str) -> Optional[Poly2DType]:
                 array = ds[:]
                 fill = ds.attrs['_FillValue']
                 boolc = (array != fill)

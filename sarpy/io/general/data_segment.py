@@ -20,6 +20,12 @@ from sarpy.io.general.slice_parsing import verify_subscript, get_slice_result_si
     get_subscript_result_size
 from sarpy.io.general.utils import h5py, is_file_like
 
+if h5py is not None:
+    from h5py import File as h5pyFile, Dataset as h5pyDataset
+else:
+    h5pyFile = None
+    h5pyDataset = None
+
 logger = logging.getLogger(__name__)
 
 
@@ -757,7 +763,7 @@ class DataSegment(object):
 
         raise NotImplementedError
 
-    def get_raw_bytes(self, warn: bool=True) -> Union[bytes, Tuple]:
+    def get_raw_bytes(self, warn: bool = True) -> Union[bytes, Tuple]:
         """
         This returns the bytes for the underlying raw data.
 
@@ -950,11 +956,10 @@ class ReorientationSegment(DataSegment):
         self._verify_write_raw_details(data)
 
         subscript = _infer_subscript_for_write(data, start_indices, subscript, self.raw_shape)
-        parent_data = self.format_function.inverse(data, subscript)
         parent_form_subscript = self.format_function.transform_formatted_slice(subscript)
         self.parent.write(data, subscript=parent_form_subscript, **kwargs)
 
-    def get_raw_bytes(self, warn: bool=True) -> Union[bytes, Tuple]:
+    def get_raw_bytes(self, warn: bool = True) -> Union[bytes, Tuple]:
         self._validate_closed()
         return self.parent.get_raw_bytes(warn=warn)
 
@@ -1305,7 +1310,7 @@ class SubsetSegment(DataSegment):
         self.parent.write_raw(data, subscript=parent_subscript, **kwargs)
         self._update_pixels_written(data.size)
 
-    def get_raw_bytes(self, warn: bool=True) -> Union[bytes, Tuple]:
+    def get_raw_bytes(self, warn: bool = True) -> Union[bytes, Tuple]:
         """
         This returns the bytes for the underlying raw data **of the parent segment.**
 
@@ -1607,7 +1612,7 @@ class BandAggregateSegment(DataSegment):
             self.children[index].write(
                 data[band_subscript], subscript=child_subscript, **kwargs)
 
-    def get_raw_bytes(self, warn: bool=True) -> Union[bytes, Tuple]:
+    def get_raw_bytes(self, warn: bool = True) -> Union[bytes, Tuple]:
         self._validate_closed()
         return tuple(entry.get_raw_bytes(warn=warn) for entry in self.children)
 
@@ -1874,7 +1879,7 @@ class BlockAggregateSegment(DataSegment):
             if use_block:
                 child.write(data[tuple(data_subscript)], subscript=tuple(child_subscript), **kwargs)
 
-    def get_raw_bytes(self, warn: bool=True) -> Union[bytes, Tuple]:
+    def get_raw_bytes(self, warn: bool = True) -> Union[bytes, Tuple]:
         self._validate_closed()
         return tuple(entry.get_raw_bytes(warn=warn) for entry in self.children)
 
@@ -2042,7 +2047,7 @@ class NumpyArraySegment(DataSegment):
         self._underlying_array[subscript] = data
         self._update_pixels_written(data.size)
 
-    def get_raw_bytes(self, warn: bool=False) -> Union[bytes, Tuple]:
+    def get_raw_bytes(self, warn: bool = False) -> Union[bytes, Tuple]:
         self._validate_closed()
         if warn and not self.check_fully_written(warn=True):
             logger.error(
@@ -2184,8 +2189,8 @@ class HDF5DatasetSegment(DataSegment):
 
     def __init__(
             self,
-            file_object: Union[str, h5py.File],
-            data_set: Union[str, h5py.Dataset],
+            file_object: Union[str, h5pyFile],
+            data_set: Union[str, h5pyDataset],
             formatted_dtype: Optional[Union[str, numpy.dtype]] = None,
             formatted_shape: Optional[Tuple[int, ...]] = None,
             reverse_axes: Optional[Union[int, Sequence[int]]] = None,
@@ -2255,7 +2260,7 @@ class HDF5DatasetSegment(DataSegment):
         self._close_file = bool(value)
 
     @property
-    def file_object(self) -> h5py.File:
+    def file_object(self) -> h5pyFile:
         return self._file_object
 
     def _set_file_object(self, value) -> None:
@@ -2266,7 +2271,7 @@ class HDF5DatasetSegment(DataSegment):
         self._file_object = value
 
     @property
-    def data_set(self) -> h5py.Dataset:
+    def data_set(self) -> h5pyDataset:
         return self._data_set
 
     def _set_data_set(self, value) -> None:
@@ -2315,7 +2320,7 @@ class HDF5DatasetSegment(DataSegment):
             **kwargs):
         raise NotImplementedError
 
-    def get_raw_bytes(self, warn: bool=True) -> Union[bytes, Tuple]:
+    def get_raw_bytes(self, warn: bool = True) -> Union[bytes, Tuple]:
         raise NotImplementedError
 
     def check_fully_written(self, warn: bool = False) -> bool:
@@ -2483,7 +2488,7 @@ class FileReadDataSegment(DataSegment):
             raise ValueError('I/O Error, functionality requires mode == "w"')
         raise NotImplementedError
 
-    def get_raw_bytes(self, warn: bool=True) -> Union[bytes, Tuple]:
+    def get_raw_bytes(self, warn: bool = True) -> Union[bytes, Tuple]:
         raise NotImplementedError
 
     def check_fully_written(self, warn: bool = False) -> bool:
