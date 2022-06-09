@@ -2465,7 +2465,7 @@ class FileReadDataSegment(DataSegment):
         data = numpy.frombuffer(data, self._raw_dtype, rows*pixel_per_row)
         data = numpy.reshape(data, (rows, ) + self.raw_shape[1:])
         # extract our data
-        out = data[(init_slice, ) + subscript[1:]]
+        out = data[(slice(None, None, 1), ) + subscript[1:]]
         out = numpy.reshape(out, out_shape)
         if init_reverse:
             out = numpy.flip(out, axis=0)
