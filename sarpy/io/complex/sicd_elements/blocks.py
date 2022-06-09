@@ -1331,13 +1331,13 @@ class XYZPolyType(Serializable, Arrayable):
     _required = _fields
     # descriptors
     X = SerializableDescriptor(
-        'X', Poly1DType, _required, strict=True,
+        'X', Poly1DType, _required, strict=False,
         docstring='The polynomial for the X coordinate.')  # type: Poly1DType
     Y = SerializableDescriptor(
-        'Y', Poly1DType, _required, strict=True,
+        'Y', Poly1DType, _required, strict=False,
         docstring='The polynomial for the Y coordinate.')  # type: Poly1DType
     Z = SerializableDescriptor(
-        'Z', Poly1DType, _required, strict=True,
+        'Z', Poly1DType, _required, strict=False,
         docstring='The polynomial for the Z coordinate.')  # type: Poly1DType
 
     def __init__(self, X=None, Y=None, Z=None, **kwargs):
