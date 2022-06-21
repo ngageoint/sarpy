@@ -492,7 +492,7 @@ class TSXDetails(object):
 
             row_ss = 0.5*float(self._find_main('./productInfo/imageDataInfo/imageRaster/rowSpacing').text)*speed_of_light
             row_bw = 2*float(self._find_main('./processing/processingParameter/rangeLookBandwidth').text)/speed_of_light
-            row_win_name = self._find_main('./processing/processingParameter/rangeWindowID').text
+            row_win_name = self._find_main('./processing/processingParameter/rangeWindowID').text.upper()
             row_wgt_type = WgtTypeType(WindowName=row_win_name)
             if row_win_name == 'HAMMING':
                 row_wgt_type.Parameters = {
@@ -508,7 +508,7 @@ class TSXDetails(object):
                 WgtType=row_wgt_type)
 
             col_ss = float(self._find_main('./productSpecific/complexImageInfo/projectedSpacingAzimuth').text)
-            col_win_name = self._find_main('./processing/processingParameter/azimuthWindowID').text
+            col_win_name = self._find_main('./processing/processingParameter/azimuthWindowID').text.upper()
             col_wgt_type = WgtTypeType(WindowName=col_win_name)
             if col_win_name == 'HAMMING':
                 col_wgt_type.Parameters = {
