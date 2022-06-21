@@ -4,6 +4,10 @@ SarPy follows a continuous release process, so there are fairly frequent release
 Since essentially every (squash merge) commit corresponds to a release, specific 
 release points are not being annotated in github.
 
+## [1.3.3] - 2022-06-20
+### Fixed
+Resolved bug in TerraSAR-X window weighting determination.
+
 ## [1.3.2] - 2022-06-09
 ### Fixed
 Resolved bug in data segment for reading from remote data source.
