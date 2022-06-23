@@ -237,8 +237,8 @@ class DwellTimesType(Serializable):
     COD Time and Dwell Time polynomials over the image area.
     """
 
-    _fields = ('CODId', 'DwellId')
-    _required = _fields
+    _fields = ('CODId', 'DwellId', 'DTAId', 'UseDTA')
+    _required = ('CODId', 'DwellId')
     # descriptors
     CODId = StringDescriptor(
         'CODId', _required, strict=DEFAULT_STRICT,
@@ -248,14 +248,22 @@ class DwellTimesType(Serializable):
         'DwellId', _required, strict=DEFAULT_STRICT,
         docstring='Identifier of the Dwell Time polynomial that maps reference '
                   'surface position to dwell time.')  # type: str
+    DTAId = StringDescriptor(
+        'DTAId', _required, strict=DEFAULT_STRICT,
+        docstring='')  # type: Optional[str]
+    UseDTA = BooleanDescriptor(
+        'UseDTA', _required, strict=DEFAULT_STRICT,
+        docstring='')  # type: Optional[bool]
 
-    def __init__(self, CODId=None, DwellId=None, **kwargs):
+    def __init__(self, CODId=None, DwellId=None, DTAId=None, UseDTA=None, **kwargs):
         """
 
         Parameters
         ----------
         CODId : str
         DwellId : str
+        DTAId : None|str
+        UseDTA : None|bool
         kwargs
         """
 
@@ -265,6 +273,8 @@ class DwellTimesType(Serializable):
             self._xml_ns_key = kwargs['_xml_ns_key']
         self.CODId = CODId
         self.DwellId = DwellId
+        self.DTAId = DTAId
+        self.UseDTA = UseDTA
         super(DwellTimesType, self).__init__(**kwargs)
 
 

@@ -139,7 +139,7 @@ class PerVectorParameterXYZ(Serializable):
         return 'X=F8;Y=F8;Z=F8;'
 
 
-class PerVectorParameterDCXDCY(Serializable):
+class PerVectorParameterEB(Serializable):
     _fields = ('Offset', 'Size', 'Format')
     _required = ('Offset', )
     # descriptors
@@ -161,7 +161,7 @@ class PerVectorParameterDCXDCY(Serializable):
         if '_xml_ns_key' in kwargs:
             self._xml_ns_key = kwargs['_xml_ns_key']
         self.Offset = Offset
-        super(PerVectorParameterDCXDCY, self).__init__(**kwargs)
+        super(PerVectorParameterEB, self).__init__(**kwargs)
 
     @property
     def Size(self):
@@ -234,21 +234,21 @@ class TxAntennaType(Serializable):
         'TxACY', PerVectorParameterXYZ, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PerVectorParameterXYZ
     TxEB = SerializableDescriptor(
-        'TxEB', PerVectorParameterDCXDCY, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: PerVectorParameterDCXDCY
+        'TxEB', PerVectorParameterEB, _required, strict=DEFAULT_STRICT,
+        docstring='')  # type: PerVectorParameterEB
 
     def __init__(
             self,
             TxACX: PerVectorParameterXYZ = None,
             TxACY: PerVectorParameterXYZ = None,
-            TxEB: PerVectorParameterDCXDCY = None,
+            TxEB: PerVectorParameterEB = None,
             **kwargs):
         """
         Parameters
         ----------
         TxACX : PerVectorParameterXYZ
         TxACY : PerVectorParameterXYZ
-        TxEB : PerVectorParameterDCXDCY
+        TxEB : PerVectorParameterEB
         """
 
         if '_xml_ns' in kwargs:
@@ -271,21 +271,21 @@ class RcvAntennaType(Serializable):
         'RcvACY', PerVectorParameterXYZ, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PerVectorParameterXYZ
     RcvEB = SerializableDescriptor(
-        'RcvEB', PerVectorParameterDCXDCY, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: PerVectorParameterDCXDCY
+        'RcvEB', PerVectorParameterEB, _required, strict=DEFAULT_STRICT,
+        docstring='')  # type: PerVectorParameterEB
 
     def __init__(
             self,
             RcvACX: Optional[PerVectorParameterXYZ] = None,
             RcvACY: Optional[PerVectorParameterXYZ] = None,
-            RcvEB: Optional[PerVectorParameterDCXDCY] = None,
+            RcvEB: Optional[PerVectorParameterEB] = None,
             **kwargs):
         """
         Parameters
         ----------
         RcvACX : PerVectorParameterXYZ
         RcvACY : PerVectorParameterXYZ
-        RcvEB : PerVectorParameterDCXDCY
+        RcvEB : PerVectorParameterEB
         """
 
         if '_xml_ns' in kwargs:
