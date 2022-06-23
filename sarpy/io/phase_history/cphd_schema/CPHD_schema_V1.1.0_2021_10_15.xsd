@@ -216,6 +216,8 @@
          <xs:enumeration value="Y"/>
          <xs:enumeration value="V"/>
          <xs:enumeration value="H"/>
+         <xs:enumeration value="S"/>
+         <xs:enumeration value="E"/>
          <xs:enumeration value="RHC"/>
          <xs:enumeration value="LHC"/>
          <xs:enumeration value="UNSPECIFIED"/>
