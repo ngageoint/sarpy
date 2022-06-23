@@ -4,6 +4,13 @@ SarPy follows a continuous release process, so there are fairly frequent release
 Since essentially every (squash merge) commit corresponds to a release, specific 
 release points are not being annotated in github.
 
+## [1.3.4] - 2022-06-23
+### Changed
+- Added SICD version 1.3.0 information, and set the default SICD version number 
+accordingly.
+- Added CPHD version 1.1.0 changes, and set the default CPHD version number 
+accordingly.
+
 ## [1.3.3] - 2022-06-20
 ### Fixed
 Resolved bug in TerraSAR-X window weighting determination.

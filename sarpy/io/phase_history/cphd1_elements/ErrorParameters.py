@@ -5,7 +5,7 @@ The error parameters type definition.
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
-from typing import Union
+from typing import Union, Optional
 
 from sarpy.io.xml.base import Serializable, ParametersCollection
 from sarpy.io.xml.descriptors import FloatDescriptor, SerializableDescriptor, \
@@ -117,25 +117,31 @@ class BistaticRadarSensorType(Serializable):
     Error statistics for a single radar platform.
     """
 
-    _fields = ('ClockFreqSF', 'CollectionStartTime')
+    _fields = ('DelayBias', 'ClockFreqSF', 'CollectionStartTime')
     _required = ('CollectionStartTime', )
-    _numeric_format = {'ClockFreqSF': FLOAT_FORMAT, 'CollectionStartTime': FLOAT_FORMAT}
+    _numeric_format = {
+        'DelayBias': FLOAT_FORMAT, 'ClockFreqSF': FLOAT_FORMAT,
+        'CollectionStartTime': FLOAT_FORMAT}
     # descriptors
+    DelayBias = FloatDescriptor(
+        'DelayBias', _required, strict=DEFAULT_STRICT,
+        docstring='')  # type: Optional[float]
     ClockFreqSF = FloatDescriptor(
         'ClockFreqSF', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='Payload clock frequency scale factor standard deviation, '
-                  r'where :math:`SF = (\Delta f)/f_0`.')  # type: float
+                  r'where :math:`SF = (\Delta f)/f_0`.')  # type: Optional[float]
     CollectionStartTime = FloatDescriptor(
         'CollectionStartTime', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='Collection Start time error standard deviation, '
                   'in seconds.')  # type: float
 
-    def __init__(self, ClockFreqSF=None, CollectionStartTime=None, **kwargs):
+    def __init__(self, DelayBias=None, ClockFreqSF=None, CollectionStartTime=None, **kwargs):
         """
 
         Parameters
         ----------
-        ClockFreqSF : float
+        DelayBias : None|float
+        ClockFreqSF : None|float
         CollectionStartTime : float
         kwargs
         """
@@ -144,6 +150,7 @@ class BistaticRadarSensorType(Serializable):
             self._xml_ns = kwargs['_xml_ns']
         if '_xml_ns_key' in kwargs:
             self._xml_ns_key = kwargs['_xml_ns_key']
+        self.DelayBias = DelayBias
         self.ClockFreqSF = ClockFreqSF
         self.CollectionStartTime = CollectionStartTime
         super(BistaticRadarSensorType, self).__init__(**kwargs)

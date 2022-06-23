@@ -14,7 +14,8 @@ import numpy
 
 from sarpy.geometry import point_projection
 from sarpy.io.complex.naming.utils import get_sicd_name
-from sarpy.io.complex.sicd_schema import get_urn_details, get_specification_identifier
+from sarpy.io.complex.sicd_schema import get_urn_details, get_default_tuple, \
+    get_default_version_string, get_specification_identifier, WRITABLE_VERSIONS
 
 from sarpy.io.xml.base import Serializable, parse_xml_from_file, parse_xml_from_string
 from sarpy.io.xml.descriptors import SerializableDescriptor
@@ -45,12 +46,13 @@ logger = logging.getLogger(__name__)
 #########
 # Module variables
 _SICD_SPECIFICATION_IDENTIFIER = get_specification_identifier()
-_SICD_DEFAULT_TUPLE = (1, 2, 1)
-_SICD_VERSION_DEFAULT = '{}.{}.{}'.format(*_SICD_DEFAULT_TUPLE)
+_SICD_DEFAULT_TUPLE = get_default_tuple()
+_SICD_VERSION_DEFAULT = get_default_version_string()
 _SICD_SPEC_DETAILS = {
-    key: {'namespace': 'urn:SICD:{}'.format(key),
-           'details': get_urn_details('urn:SICD:{}'.format(key))}
-    for key in ['1.1.0', '1.2.1', '1.3.0']}
+    key: {
+        'namespace': 'urn:SICD:{}'.format(key),
+        'details': get_urn_details(key)}
+    for key in WRITABLE_VERSIONS}
 
 
 class SICDType(Serializable):

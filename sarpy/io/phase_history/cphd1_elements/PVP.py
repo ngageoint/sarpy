@@ -5,7 +5,7 @@ The Per Vector parameters (PVP) definition.
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
-from typing import Union, List
+from typing import Union, List, Tuple, Optional
 
 import numpy
 
@@ -139,6 +139,47 @@ class PerVectorParameterXYZ(Serializable):
         return 'X=F8;Y=F8;Z=F8;'
 
 
+class PerVectorParameterDCXDCY(Serializable):
+    _fields = ('Offset', 'Size', 'Format')
+    _required = ('Offset', )
+    # descriptors
+    Offset = IntegerDescriptor(
+        'Offset', _required, strict=DEFAULT_STRICT, bounds=(0, None),
+        docstring='The offset value.')  # type: int
+
+    def __init__(self, Offset=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        Offset : int
+        kwargs
+        """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
+        self.Offset = Offset
+        super(PerVectorParameterDCXDCY, self).__init__(**kwargs)
+
+    @property
+    def Size(self):
+        """
+        int: The size of the vector, constant value 2 here.
+        """
+
+        return 2
+
+    @property
+    def Format(self):
+        """
+        str: The format of the vector data, constant value 'DCX=F8;DCY=F8;' here.
+        """
+
+        return 'DCX=F8;DCY=F8;'
+
+
 class UserDefinedPVPType(Serializable):
     """
     A user defined PVP structure.
@@ -183,12 +224,87 @@ class UserDefinedPVPType(Serializable):
         super(UserDefinedPVPType, self).__init__(**kwargs)
 
 
+class TxAntennaType(Serializable):
+    _fields = ('TxACX', 'TxACY', 'TxEB')
+    _required = _fields
+    TxACX = SerializableDescriptor(
+        'TxACX', PerVectorParameterXYZ, _required, strict=DEFAULT_STRICT,
+        docstring='')  # type: PerVectorParameterXYZ
+    TxACY = SerializableDescriptor(
+        'TxACY', PerVectorParameterXYZ, _required, strict=DEFAULT_STRICT,
+        docstring='')  # type: PerVectorParameterXYZ
+    TxEB = SerializableDescriptor(
+        'TxEB', PerVectorParameterDCXDCY, _required, strict=DEFAULT_STRICT,
+        docstring='')  # type: PerVectorParameterDCXDCY
+
+    def __init__(
+            self,
+            TxACX: PerVectorParameterXYZ = None,
+            TxACY: PerVectorParameterXYZ = None,
+            TxEB: PerVectorParameterDCXDCY = None,
+            **kwargs):
+        """
+        Parameters
+        ----------
+        TxACX : PerVectorParameterXYZ
+        TxACY : PerVectorParameterXYZ
+        TxEB : PerVectorParameterDCXDCY
+        """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
+        self.TxACX = TxACX
+        self.TxACY = TxACY
+        self.TxEB = TxEB
+        super(TxAntennaType, self).__init__(**kwargs)
+
+
+class RcvAntennaType(Serializable):
+    _fields = ('RcvACX', 'RcvACY', 'RcvEB')
+    _required = _fields
+    RcvACX = SerializableDescriptor(
+        'RcvACX', PerVectorParameterXYZ, _required, strict=DEFAULT_STRICT,
+        docstring='')  # type: PerVectorParameterXYZ
+    RcvACY = SerializableDescriptor(
+        'RcvACY', PerVectorParameterXYZ, _required, strict=DEFAULT_STRICT,
+        docstring='')  # type: PerVectorParameterXYZ
+    RcvEB = SerializableDescriptor(
+        'RcvEB', PerVectorParameterDCXDCY, _required, strict=DEFAULT_STRICT,
+        docstring='')  # type: PerVectorParameterDCXDCY
+
+    def __init__(
+            self,
+            RcvACX: Optional[PerVectorParameterXYZ] = None,
+            RcvACY: Optional[PerVectorParameterXYZ] = None,
+            RcvEB: Optional[PerVectorParameterDCXDCY] = None,
+            **kwargs):
+        """
+        Parameters
+        ----------
+        RcvACX : PerVectorParameterXYZ
+        RcvACY : PerVectorParameterXYZ
+        RcvEB : PerVectorParameterDCXDCY
+        """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
+        self.RcvACX = RcvACX
+        self.RcvACY = RcvACY
+        self.RcvEB = RcvEB
+        super(RcvAntennaType, self).__init__(**kwargs)
+
+
 class PVPType(Serializable):
     _fields = (
         'TxTime', 'TxPos', 'TxVel', 'RcvTime', 'RcvPos', 'RcvVel',
         'SRPPos', 'AmpSF', 'aFDOP', 'aFRR1', 'aFRR2', 'FX1', 'FX2',
         'FXN1', 'FXN2', 'TOA1', 'TOA2', 'TOAE1', 'TOAE2', 'TDTropoSRP',
-        'TDIonoSRP', 'SC0', 'SCSS', 'SIGNAL', 'AddedPVP')
+        'TDIonoSRP', 'SC0', 'SCSS', 'SIGNAL',
+        'TxAntenna', 'RcvAntenna', 'AddedPVP')
     _required = (
         'TxTime', 'TxPos', 'TxVel', 'RcvTime', 'RcvPos', 'RcvVel',
         'SRPPos', 'aFDOP', 'aFRR1', 'aFRR2', 'FX1', 'FX2',
@@ -267,18 +383,46 @@ class PVPType(Serializable):
     SIGNAL = SerializableDescriptor(
         'SIGNAL', PerVectorParameterI8, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PerVectorParameterI8
+    TxAntenna = SerializableDescriptor(
+        'TxAntenna', TxAntennaType, _required, strict=DEFAULT_STRICT,
+        docstring='')  # type: Optional[TxAntennaType]
+    RcvAntenna = SerializableDescriptor(
+        'RcvAntenna', RcvAntennaType, _required, strict=DEFAULT_STRICT,
+        docstring='')  # type: Optional[RcvAntennaType]
     AddedPVP = SerializableListDescriptor(
         'AddedPVP', UserDefinedPVPType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: Union[None, List[UserDefinedPVPType]]
 
-    def __init__(self, TxTime=None, TxPos=None, TxVel=None,
-                 RcvTime=None, RcvPos=None, RcvVel=None,
-                 SRPPos=None, AmpSF=None,
-                 aFDOP=None, aFRR1=None, aFRR2=None,
-                 FX1=None, FX2=None, FXN1=None, FXN2=None,
-                 TOA1=None, TOA2=None, TOAE1=None, TOAE2=None,
-                 TDTropoSRP=None, TDIonoSRP=None, SC0=None, SCSS=None,
-                 SIGNAL=None, AddedPVP=None, **kwargs):
+    def __init__(
+            self,
+            TxTime: PerVectorParameterF8 = None,
+            TxPos: PerVectorParameterXYZ = None,
+            TxVel: PerVectorParameterXYZ = None,
+            RcvTime: PerVectorParameterF8 = None,
+            RcvPos: PerVectorParameterXYZ = None,
+            RcvVel: PerVectorParameterXYZ = None,
+            SRPPos: PerVectorParameterXYZ = None,
+            AmpSF: Optional[PerVectorParameterF8] = None,
+            aFDOP: PerVectorParameterF8 = None,
+            aFRR1: PerVectorParameterF8 = None,
+            aFRR2: PerVectorParameterF8 = None,
+            FX1: PerVectorParameterF8 = None,
+            FX2: PerVectorParameterF8 = None,
+            FXN1: Optional[PerVectorParameterF8] = None,
+            FXN2: Optional[PerVectorParameterF8] = None,
+            TOA1: PerVectorParameterF8 = None,
+            TOA2: PerVectorParameterF8 = None,
+            TOAE1: Optional[PerVectorParameterF8] = None,
+            TOAE2: Optional[PerVectorParameterF8] = None,
+            TDTropoSRP: PerVectorParameterF8 = None,
+            TDIonoSRP: Optional[PerVectorParameterF8] = None,
+            SC0: PerVectorParameterF8 = None,
+            SCSS: PerVectorParameterF8 = None,
+            SIGNAL: Optional[PerVectorParameterI8] = None,
+            TxAntenna: Optional[TxAntennaType] = None,
+            RcvAntenna: Optional[RcvAntennaType] = None,
+            AddedPVP: Optional[List[UserDefinedPVPType]] = None,
+            **kwargs):
         """
 
         Parameters
@@ -307,9 +451,12 @@ class PVPType(Serializable):
         SC0 : PerVectorParameterF8
         SCSS : PerVectorParameterF8
         SIGNAL : None|PerVectorParameterI8
+        TxAntenna : None|TxAntennaType
+        RcvAntenna : None|RcvAntennaType
         AddedPVP : None|List[UserDefinedPVPType]
         kwargs
         """
+
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
         if '_xml_ns_key' in kwargs:
@@ -338,6 +485,8 @@ class PVPType(Serializable):
         self.SC0 = SC0
         self.SCSS = SCSS
         self.SIGNAL = SIGNAL
+        self.TxAntenna = TxAntenna
+        self.RcvAntenna = RcvAntenna
         self.AddedPVP = AddedPVP
         super(PVPType, self).__init__(**kwargs)
 
@@ -351,10 +500,15 @@ class PVPType(Serializable):
         """
 
         out = 0
-        for fld in self._fields[:-1]:
+        for fld in self._fields[:-3]:
             val = getattr(self, fld)
             if val is not None:
                 out += val.Size*8
+        for fld in ['TxAntenna', 'RcvAntenna']:
+            val = getattr(self, fld)
+            assert(isinstance(val, TxAntennaType))
+            if val is not None:
+                out += (3 + 3 + 2)*8
         if self.AddedPVP is not None:
             for entry in self.AddedPVP:
                 out += entry.Size*8
@@ -372,20 +526,32 @@ class PVPType(Serializable):
 
         Returns
         -------
-        None|(int, int, str)
+        None|Tuple[int, int, str]
         """
 
-        if field in self._fields[:-1]:
-            val = getattr(self, field)
-            if val is None:
+        def get_return(the_val) -> Union[None, Tuple[int, int, str]]:
+            if the_val is None:
                 return None
-            return val.Offset*8, val.Size*8, homogeneous_dtype(val.Format).char
+            return the_val.Offset*8, the_val.Size*8, homogeneous_dtype(the_val.Format).char
+
+        if field in self._fields[:-3]:
+            return get_return(getattr(self, field))
+        elif field in ['TxACX', 'TxACY', 'TxEB']:
+            if self.TxAntenna is None:
+                return None
+            else:
+                return get_return(getattr(self.TxAntenna, field))
+        elif field in ['RcvACX', 'RcvACY', 'RcvEB']:
+            if self.RcvAntenna is None:
+                return None
+            else:
+                return get_return(getattr(self.RcvAntenna, field))
         else:
             if self.AddedPVP is None:
                 return None
             for val in self.AddedPVP:
                 if field == val.Name:
-                    return val.Offset*8, val.Size*8, homogeneous_dtype(val.Format).char
+                    return get_return(val)
             return None
 
     def get_vector_dtype(self):
@@ -408,6 +574,18 @@ class PVPType(Serializable):
             val = getattr(self, fld)
             if val is None:
                 continue
+            elif fld == 'TxAntenna':
+                for t_fld in ['TxACX', 'TxACY', 'TxEB']:
+                    t_val = getattr(val, t_fld)
+                    names.append(t_fld)
+                    formats.append(binary_format_string_to_dtype(t_val.Format))
+                    offsets.append(t_val.Offset*bytes_per_word)
+            elif fld == 'RcvAntenna':
+                for t_fld in ['RcvACX', 'RcvACY', 'RcvEB']:
+                    t_val = getattr(val, t_fld)
+                    names.append(t_fld)
+                    formats.append(binary_format_string_to_dtype(t_val.Format))
+                    offsets.append(t_val.Offset*bytes_per_word)
             elif fld == 'AddedPVP':
                 for entry in val:
                     assert isinstance(entry, UserDefinedPVPType)

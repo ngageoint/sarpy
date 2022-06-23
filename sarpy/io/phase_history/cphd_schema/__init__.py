@@ -14,15 +14,23 @@ _the_directory = os.path.split(__file__)[0]
 
 urn_mapping = {
     'urn:CPHD:0.3.0': {
+        'tuple': (0, 3, 0),
         'version': '0.3',
         'release': '0.3.0',
         'date': ''},
     'urn:CPHD:1.0.1': {
+        'tuple': (1, 0, 1),
         'version': '1.0',
         'release': '1.0.1',
         'date': '2018-05-21T00:00:00Z',
         'schema': os.path.join(_the_directory, 'CPHD_schema_V1.0.1_2018_05_21.xsd')},
+    'urn:CPHD:1.1.0': {
+        'tuple': (1, 1, 0),
+        'version': '1.1',
+        'release': '1.1.0',
+        'date': '2022-06-09T00:00:00Z'},
 }
+WRITABLE_VERSIONS = ('1.0.1', '1.1.0')
 
 
 def check_urn(urn_string: str) -> str:
@@ -104,4 +112,4 @@ def get_versions() -> List[str]:
     List[str]
     """
 
-    return list(sorted(urn_mapping.keys()))
+    return list(sorted(urn_mapping.keys(), key=lambda x: urn_mapping[x]['tuple']))

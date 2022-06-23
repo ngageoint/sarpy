@@ -6,8 +6,9 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 from xml.etree import ElementTree
+from typing import Union, List, Tuple, Optional
 
-from typing import Union, List
+import numpy
 
 from sarpy.io.xml.base import Serializable, ParametersCollection, get_node_value
 from sarpy.io.xml.descriptors import FloatDescriptor, StringDescriptor, StringEnumDescriptor, \
@@ -45,8 +46,16 @@ class SupportArrayCore(Serializable):
         'YSS', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='')  # type: float
 
-    def __init__(self, Identifier=None, ElementFormat=None, X0=None, Y0=None,
-                 XSS=None, YSS=None, NODATA=None, **kwargs):
+    def __init__(
+            self,
+            Identifier: str = None,
+            ElementFormat: str = None,
+            X0: float = None,
+            Y0: float = None,
+            XSS: float = None,
+            YSS: float = None,
+            NODATA: str = None,
+            **kwargs):
         """
 
         Parameters
@@ -76,7 +85,7 @@ class SupportArrayCore(Serializable):
         super(SupportArrayCore, self).__init__(**kwargs)
 
     @property
-    def NODATA(self):
+    def NODATA(self) -> Optional[str]:
         """
         None|str: The no data hex string value.
         """
@@ -84,7 +93,7 @@ class SupportArrayCore(Serializable):
         return self._NODATA
 
     @NODATA.setter
-    def NODATA(self, value):
+    def NODATA(self, value: Optional[str]):
         if value is None:
             self._NODATA = None
             return
@@ -103,7 +112,7 @@ class SupportArrayCore(Serializable):
         else:
             raise TypeError('Got unexpected type {}'.format(type(value)))
 
-    def get_nodata_as_int(self):
+    def get_nodata_as_int(self) -> Optional[int]:
         """
         Get the no data value as an integer value.
 
@@ -117,7 +126,7 @@ class SupportArrayCore(Serializable):
 
         raise NotImplementedError
 
-    def get_nodata_as_float(self):
+    def get_nodata_as_float(self) -> Optional[float]:
         """
         Gets the no data value as a floating point value.
 
@@ -131,13 +140,14 @@ class SupportArrayCore(Serializable):
 
         raise NotImplementedError
 
-    def get_numpy_format(self):
+    def get_numpy_format(self) -> Tuple[numpy.dtype, int]:
         """
         Convert the element format to a numpy dtype (including endianness) and depth.
 
         Returns
         -------
-        numpy.dtype, int
+        data: numpy.dtype
+        depth: int
         """
 
         return homogeneous_dtype(self.ElementFormat, return_length=True)
@@ -156,8 +166,16 @@ class IAZArrayType(SupportArrayCore):
         'ElementFormat', ('IAZ=F4;', ), _required, strict=DEFAULT_STRICT, default_value='IAZ=F4;',
         docstring='The data element format.')  # type: str
 
-    def __init__(self, Identifier=None, ElementFormat='IAZ=F4;', X0=None, Y0=None, XSS=None, YSS=None,
-                 NODATA=None, **kwargs):
+    def __init__(
+            self,
+            Identifier: str = None,
+            ElementFormat: str = 'IAZ=F4;',
+            X0: float = None,
+            Y0: float = None,
+            XSS: float = None,
+            YSS: float = None,
+            NODATA: str = None,
+            **kwargs):
         """
 
         Parameters
@@ -191,8 +209,16 @@ class AntGainPhaseType(SupportArrayCore):
         'ElementFormat', ('Gain=F4;Phase=F4;', ), _required, strict=DEFAULT_STRICT, default_value='Gain=F4;Phase=F4;',
         docstring='The data element format.')  # type: str
 
-    def __init__(self, Identifier=None, ElementFormat='Gain=F4;Phase=F4;', X0=None,
-                 Y0=None, XSS=None, YSS=None, NODATA=None, **kwargs):
+    def __init__(
+            self,
+            Identifier: str = None,
+            ElementFormat: str = 'Gain=F4;Phase=F4;',
+            X0: float = None,
+            Y0: float = None,
+            XSS: float = None,
+            YSS: float = None,
+            NODATA: str = None,
+            **kwargs):
         """
 
         Parameters
@@ -207,6 +233,48 @@ class AntGainPhaseType(SupportArrayCore):
         """
 
         super(AntGainPhaseType, self).__init__(
+            Identifier=Identifier, ElementFormat=ElementFormat, X0=X0, Y0=Y0,
+            XSS=XSS, YSS=YSS, NODATA=NODATA, **kwargs)
+
+
+class DwellTimeArrayType(SupportArrayCore):
+    """
+    Array of COD times (sec) and Dwell Times (sec) for points on reference surface.
+    Array coordinates are image area coordinates (IAX, IAY)
+    """
+
+    _fields = ('Identifier', 'ElementFormat', 'X0', 'Y0', 'XSS', 'YSS', 'NODATA')
+    _required = ('Identifier', 'ElementFormat', 'X0', 'Y0', 'XSS', 'YSS')
+    # descriptors
+    ElementFormat = StringEnumDescriptor(
+        'ElementFormat', ('COD=F4;DT=F4;', ), _required, strict=DEFAULT_STRICT,
+        default_value='COD=F4;DT=F4;',
+        docstring='The data element format.')  # type: str
+
+    def __init__(
+            self,
+            Identifier: str = None,
+            ElementFormat: str = 'COD=F4;DT=F4;',
+            X0: float = None,
+            Y0: float = None,
+            XSS: float = None,
+            YSS: float = None,
+            NODATA: str = None,
+            **kwargs):
+        """
+
+        Parameters
+        ----------
+        Identifier : str
+        X0 : float
+        Y0 : float
+        XSS : float
+        YSS : float
+        NODATA : str
+        kwargs
+        """
+
+        super(DwellTimeArrayType, self).__init__(
             Identifier=Identifier, ElementFormat=ElementFormat, X0=X0, Y0=Y0,
             XSS=XSS, YSS=YSS, NODATA=NODATA, **kwargs)
 
@@ -279,11 +347,12 @@ class SupportArrayType(Serializable):
     grid coordinates.
     """
 
-    _fields = ('IAZArray', 'AntGainPhase', 'AddedSupportArray')
+    _fields = ('IAZArray', 'AntGainPhase', 'DwellTimeArray', 'AddedSupportArray')
     _required = ()
     _collections_tags = {
         'IAZArray': {'array': False, 'child_tag': 'IAZArray'},
         'AntGainPhase': {'array': False, 'child_tag': 'AntGainPhase'},
+        'DwellTimeArray': {'array': False, 'child_tag': 'DwellTimeArray'},
         'AddedSupportArray': {'array': False, 'child_tag': 'AddedSupportArray'}}
     # descriptors
     IAZArray = SerializableListDescriptor(
@@ -296,18 +365,30 @@ class SupportArrayType(Serializable):
         docstring='Antenna arrays with values are antenna gain and phase expressed in dB '
                   'and cycles. Array coordinates are direction cosines with respect to '
                   'the ACF (DCX, DCY).')  # type: Union[None, List[AntGainPhaseType]]
+    DwellTimeArray = SerializableListDescriptor(
+        'DwellTimeArray', DwellTimeArrayType, _collections_tags, _required, strict=DEFAULT_STRICT,
+        docstring='Array of COD times (sec) and Dwell Times (sec) for points on '
+                  'reference surface. Array coordinates are image area '
+                  'coordinates (IAX, IAY).')  # type: Union[None, List[DwellTimeArrayType]]
     AddedSupportArray = SerializableListDescriptor(
         'AddedSupportArray', AddedSupportArrayType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Additional arrays (two-dimensional), where the content and format and units of each '
                   'element are user defined.')  # type: Union[None, List[AddedSupportArrayType]]
 
-    def __init__(self, IAZArray=None, AntGainPhase=None, AddedSupportArray=None, **kwargs):
+    def __init__(
+            self,
+            IAZArray: Optional[List[IAZArrayType]] = None,
+            AntGainPhase: Optional[List[AntGainPhaseType]] = None,
+            DwellTimeArray: Optional[List[DwellTimeArrayType]] = None,
+            AddedSupportArray: Optional[List[AddedSupportArrayType]] = None,
+            **kwargs):
         """
 
         Parameters
         ----------
         IAZArray : None|List[IAZArrayType]
         AntGainPhase : None|List[AntGainPhaseType]
+        DwellTimeArray : None|List[DwellTimeArrayType]
         AddedSupportArray : None|List[AddedSupportArrayType]
         kwargs
         """
@@ -318,10 +399,13 @@ class SupportArrayType(Serializable):
             self._xml_ns_key = kwargs['_xml_ns_key']
         self.IAZArray = IAZArray
         self.AntGainPhase = AntGainPhase
+        self.DwellTimeArray = DwellTimeArray
         self.AddedSupportArray = AddedSupportArray
         super(SupportArrayType, self).__init__(**kwargs)
 
-    def find_support_array(self, identifier):
+    def find_support_array(
+            self,
+            identifier: str) -> Union[IAZArrayType, AntGainPhaseType, DwellTimeArrayType, AddedSupportArrayType]:
         """
         Find and return the details for support array associated with the given identifier.
 
@@ -331,7 +415,7 @@ class SupportArrayType(Serializable):
 
         Returns
         -------
-        IAZArrayType|AntGainPhaseType|AddedSupportArrayType
+        IAZArrayType|AntGainPhaseType|DwellTimeArrayType|AddedSupportArrayType
         """
 
         if self.IAZArray is not None:
@@ -341,6 +425,11 @@ class SupportArrayType(Serializable):
 
         if self.AntGainPhase is not None:
             for entry in self.AntGainPhase:
+                if entry.Identifier == identifier:
+                    return entry
+
+        if self.DwellTimeArray is not None:
+            for entry in self.DwellTimeArray:
                 if entry.Identifier == identifier:
                     return entry
 

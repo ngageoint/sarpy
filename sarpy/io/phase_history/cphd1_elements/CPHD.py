@@ -32,12 +32,19 @@ from .ErrorParameters import ErrorParametersType
 from .ProductInfo import ProductInfoType
 from .GeoInfo import GeoInfoType
 
+from sarpy.io.phase_history.cphd_schema import get_urn_details, WRITABLE_VERSIONS
 
 #########
 # Module variables
-_CPHD_SPECIFICATION_VERSION = '1.0.1'
-_CPHD_SPECIFICATION_DATE = '2018-05-21T00:00:00Z'
-_CPHD_SPECIFICATION_NAMESPACE = 'http://api.nsgreg.nga.mil/schema/cphd/1.0.1'
+_CPHD_SPEC_DETAILS = {
+    key: {
+        'namespace': 'urn:CPHD:{}'.format(key),
+        'details': get_urn_details(key)}
+    for key in WRITABLE_VERSIONS}
+
+_CPHD_DEFAULT_TUPLE = (1, 1, 0)
+_CPHD_DEFAULT_VERSION = '{}.{}.{}'.format(*_CPHD_DEFAULT_TUPLE)
+_CPHD_SPECIFICATION_NAMESPACE = 'http://api.nsgreg.nga.mil/schema/cphd/{}'.format(_CPHD_DEFAULT_VERSION)
 _CPHD_SECTION_TERMINATOR = b'\f\n'
 
 
@@ -170,7 +177,7 @@ class CPHDHeader(CPHDHeaderBase):
         """
         Forms a CPHD file header string (not including the section terminator) from populated attributes.
         """
-        return ('CPHD/{}\n'.format(_CPHD_SPECIFICATION_VERSION)
+        return ('CPHD/{}\n'.format(_CPHD_DEFAULT_VERSION)
                 + ''.join(["{} := {}\n".format(f, getattr(self, f))
                            for f in self._fields if getattr(self, f) is not None]))
 
