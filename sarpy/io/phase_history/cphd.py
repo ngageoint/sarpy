@@ -273,7 +273,7 @@ class CPHDDetails(object):
 
         if self.cphd_version.startswith('0.3'):
             self._cphd_header = CPHDHeader0_3.from_file_object(self._file_object)
-        elif self.cphd_version.startswith('1.0'):
+        elif self.cphd_version.startswith('1.0') or self.cphd_version.startswith('1.1'):
             self._cphd_header = CPHDHeader1_0.from_file_object(self._file_object)
         else:
             raise ValueError(_unhandled_version_text.format(self.cphd_version))
@@ -286,7 +286,7 @@ class CPHDDetails(object):
         xml = self.get_cphd_bytes()
         if self.cphd_version.startswith('0.3'):
             the_type = CPHDType0_3
-        elif self.cphd_version.startswith('1.0'):
+        elif self.cphd_version.startswith('1.0') or self.cphd_version.startswith('1.1'):
             the_type = CPHDType1_0
         else:
             raise ValueError(_unhandled_version_text.format(self.cphd_version))
@@ -311,7 +311,7 @@ class CPHDDetails(object):
             # extract the xml data
             self.file_object.seek(header.XML_BYTE_OFFSET, os.SEEK_SET)
             xml = self.file_object.read(header.XML_DATA_SIZE)
-        elif self.cphd_version.startswith('1.0'):
+        elif self.cphd_version.startswith('1.0') or self.cphd_version.startswith('1.1'):
             assert isinstance(header, CPHDHeader1_0)
             # extract the xml data
             self.file_object.seek(header.XML_BLOCK_BYTE_OFFSET, os.SEEK_SET)
@@ -334,15 +334,16 @@ class CPHDDetails(object):
         self.close()
 
 
-def _validate_cphd_details(cphd_details: Union[str, CPHDDetails],
-                           version: Optional[str]=None) -> CPHDDetails:
+def _validate_cphd_details(
+        cphd_details: Union[str, CPHDDetails],
+        version: Union[None, str, Sequence[str]]=None) -> CPHDDetails:
     """
     Validate the input argument.
 
     Parameters
     ----------
     cphd_details : str|CPHDDetails
-    version : None|str
+    version : None|str|Sequence[str]
 
     Returns
     -------
@@ -362,10 +363,22 @@ def _validate_cphd_details(cphd_details: Union[str, CPHDDetails],
     if not isinstance(cphd_details, CPHDDetails):
         raise TypeError('cphd_details is required to be a file path to a CPHD file '
                         'or CPHDDetails, got type {}'.format(cphd_details))
+    if version is not None:
+        if isinstance(version, str) and not cphd_details.cphd_version.startswith(version):
+            raise ValueError(
+                'This CPHD file is required to be version {},\n\t'
+                'got {}'.format(version, cphd_details.cphd_version))
+        else:
+            val = False
+            for entry in version:
+                if cphd_details.cphd_version.startswith(entry):
+                    val = True
+                    break
+            if not val:
+                raise ValueError(
+                    'This CPHD file is required to be one of version {},\n\t'
+                    'got {}'.format(version, cphd_details.cphd_version))
 
-    if version is not None and not cphd_details.cphd_version.startswith(version):
-        raise ValueError('This CPHD file is required to be version {}, '
-                         'got {}'.format(version, cphd_details.cphd_version))
     return cphd_details
 
 
@@ -396,7 +409,7 @@ class CPHDReader(CPHDTypeReader):
 
         if cphd_details.cphd_version.startswith('0.3'):
             return object.__new__(CPHDReader0_3)
-        elif cphd_details.cphd_version.startswith('1.0'):
+        elif cphd_details.cphd_version.startswith('1.0') or cphd_details.cphd_version.startswith('1.1'):
             return object.__new__(CPHDReader1_0)
         else:
             raise ValueError('Got unhandled CPHD version {}'.format(cphd_details.cphd_version))
@@ -465,6 +478,7 @@ class CPHDReader1_0(CPHDReader):
 
     **Updated in version 1.3.0** for reading changes.
     """
+    _allowed_versions = ('1.0', '1.1')
 
     def __new__(cls, *args, **kwargs):
         # we must override here, to avoid recursion with
@@ -482,7 +496,7 @@ class CPHDReader1_0(CPHDReader):
         self._channel_map = None  # type: Union[None, Dict[str, int]]
         self._pvp_memmap = None  # type: Union[None, Dict[str, numpy.ndarray]]
         self._support_array_memmap = None  # type: Union[None, Dict[str, numpy.ndarray]]
-        self._cphd_details = _validate_cphd_details(cphd_details, version='1.0')
+        self._cphd_details = _validate_cphd_details(cphd_details, version=self._allowed_versions)
 
         CPHDTypeReader.__init__(self, None, self._cphd_details.cphd_meta)
         # set data segments after setting up the pvp information, because

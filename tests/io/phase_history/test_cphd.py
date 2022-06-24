@@ -8,11 +8,12 @@ import numpy.testing
 from sarpy.io.phase_history.cphd import CPHDReader, CPHDReader0_3, CPHDReader1_0, CPHDWriter1_0
 from sarpy.io.phase_history.converter import open_phase_history
 import sarpy.consistency.cphd_consistency
-from sarpy.io.phase_history.cphd_schema import get_schema_path
+from sarpy.io.phase_history.cphd_schema import get_schema_path, get_default_version_string
 
 from tests import parse_file_entry
 
-DEFAULT_SCHEMA = get_schema_path('1.0.1')
+DEFAULT_VERSION = get_default_version_string()
+DEFAULT_SCHEMA = get_schema_path(DEFAULT_VERSION)
 
 cphd_file_types = {}
 

@@ -7,8 +7,10 @@ __author__ = "Thomas McCullough"
 
 import os
 import re
-from typing import List, Dict
+from typing import List, Dict, Tuple
 
+
+_CPHD_DEFAULT_TUPLE = (1, 1, 0)
 
 _the_directory = os.path.split(__file__)[0]
 
@@ -32,6 +34,36 @@ urn_mapping = {
         'schema': os.path.join(_the_directory, 'CPHD_schema_V1.1.0_2022_06_23.xsd')},
 }
 WRITABLE_VERSIONS = ('1.0.1', '1.1.0')
+
+# validate the defined paths
+for key, entry in urn_mapping.items():
+    schema_path = entry.get('schema', None)
+    if schema_path is not None and not os.path.exists(schema_path):
+        raise ValueError('`{}` has nonexistent schema path {}'.format(key, schema_path))
+
+
+def get_default_tuple() -> Tuple[int, int, int]:
+    """
+    Get the default CPHD version tuple.
+
+    Returns
+    -------
+    Tuple[int, int, int]
+    """
+
+    return _CPHD_DEFAULT_TUPLE
+
+
+def get_default_version_string() -> str:
+    """
+    Get the default CPHD version string.
+
+    Returns
+    -------
+    str
+    """
+
+    return '{}.{}.{}'.format(*_CPHD_DEFAULT_TUPLE)
 
 
 def check_urn(urn_string: str) -> str:
