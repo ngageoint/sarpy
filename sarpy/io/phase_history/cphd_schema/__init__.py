@@ -7,7 +7,7 @@ __author__ = "Thomas McCullough"
 
 import os
 import re
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Union
 
 
 _CPHD_DEFAULT_TUPLE = (1, 1, 0)
@@ -64,6 +64,12 @@ def get_default_version_string() -> str:
     """
 
     return '{}.{}.{}'.format(*_CPHD_DEFAULT_TUPLE)
+
+
+def get_namespace(version: Union[str, Tuple[int, int, int]]) -> str:
+    if isinstance(version, (list, tuple)):
+        version = '{}.{}.{}'.format(version[0], version[1], version[2])
+    return 'http://api.nsgreg.nga.mil/schema/cphd/{}'.format(version)
 
 
 def check_urn(urn_string: str) -> str:

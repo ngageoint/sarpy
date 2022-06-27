@@ -22,11 +22,11 @@ from sarpy.io.general.format_function import ComplexFormatFunction
 from sarpy.io.general.slice_parsing import verify_subscript, verify_slice
 
 from sarpy.io.phase_history.base import CPHDTypeReader
-# noinspection PyProtectedMember
-from sarpy.io.phase_history.cphd1_elements.CPHD import CPHDType as CPHDType1_0, \
-    CPHDHeader as CPHDHeader1_0, _CPHD_SECTION_TERMINATOR
+from sarpy.io.phase_history.cphd1_elements.CPHD import CPHDType as CPHDType1, \
+    CPHDHeader as CPHDHeader1_0, CPHD_SECTION_TERMINATOR
 from sarpy.io.phase_history.cphd0_3_elements.CPHD import CPHDType as CPHDType0_3, \
     CPHDHeader as CPHDHeader0_3
+from sarpy.io.phase_history.cphd_schema import get_namespace, get_default_tuple
 
 logger = logging.getLogger(__name__)
 
@@ -235,9 +235,9 @@ class CPHDDetails(object):
         return self._cphd_version
 
     @property
-    def cphd_meta(self) -> Union[CPHDType1_0, CPHDType0_3]:
+    def cphd_meta(self) -> Union[CPHDType1, CPHDType0_3]:
         """
-        CPHDType1_0|CPHDType0_3: The CPHD metadata object, which is version dependent.
+        CPHDType1|CPHDType0_3: The CPHD metadata object, which is version dependent.
         """
 
         return self._cphd_meta
@@ -287,7 +287,7 @@ class CPHDDetails(object):
         if self.cphd_version.startswith('0.3'):
             the_type = CPHDType0_3
         elif self.cphd_version.startswith('1.0') or self.cphd_version.startswith('1.1'):
-            the_type = CPHDType1_0
+            the_type = CPHDType1
         else:
             raise ValueError(_unhandled_version_text.format(self.cphd_version))
 
@@ -336,7 +336,7 @@ class CPHDDetails(object):
 
 def _validate_cphd_details(
         cphd_details: Union[str, CPHDDetails],
-        version: Union[None, str, Sequence[str]]=None) -> CPHDDetails:
+        version: Union[None, str, Sequence[str]] = None) -> CPHDDetails:
     """
     Validate the input argument.
 
@@ -446,13 +446,13 @@ class CPHDReader(CPHDTypeReader):
             self,
             variable: str,
             index: Union[int, str],
-            the_range: Union[None, int, Tuple[int, ...], slice]=None) -> Optional[numpy.ndarray]:
+            the_range: Union[None, int, Tuple[int, ...], slice] = None) -> Optional[numpy.ndarray]:
         raise NotImplementedError
 
     def read_pvp_array(
             self,
             index: Union[int, str],
-            the_range: Union[None, int, Tuple[int, ...], slice]=None) -> numpy.ndarray:
+            the_range: Union[None, int, Tuple[int, ...], slice] = None) -> numpy.ndarray:
         raise NotImplementedError
 
     def read_pvp_block(self) -> Dict[Union[int, str], numpy.ndarray]:
@@ -508,9 +508,9 @@ class CPHDReader1_0(CPHDReader):
         BaseReader.__init__(self, data_segments, reader_type='CPHD')
 
     @property
-    def cphd_meta(self) -> CPHDType1_0:
+    def cphd_meta(self) -> CPHDType1:
         """
-        CPHDType1_0: The CPHD structure.
+        CPHDType1: The CPHD structure.
         """
 
         return self._cphd_meta
@@ -695,7 +695,7 @@ class CPHDReader1_0(CPHDReader):
             self,
             variable: str,
             index: Union[int, str],
-            the_range: Union[None, int, Tuple[int, ...], slice]=None) -> Optional[numpy.ndarray]:
+            the_range: Union[None, int, Tuple[int, ...], slice] = None) -> Optional[numpy.ndarray]:
         index_key = self._validate_index_key(index)
         the_memmap = self._pvp_memmap[index_key]
         the_slice = verify_slice(the_range, the_memmap.shape[0])
@@ -707,25 +707,29 @@ class CPHDReader1_0(CPHDReader):
     def read_pvp_array(
             self,
             index: Union[int, str],
-            the_range: Union[None, int, Tuple[int, ...], slice]=None) -> numpy.ndarray:
+            the_range: Union[None, int, Tuple[int, ...], slice] = None) -> numpy.ndarray:
         index_key = self._validate_index_key(index)
         the_memmap = self._pvp_memmap[index_key]
         the_slice = verify_slice(the_range, the_memmap.shape[0])
         return numpy.copy(the_memmap[the_slice])
 
     def read_pvp_block(self) -> Dict[str, numpy.ndarray]:
-        return {chan.Identifier: self.read_pvp_array(chan.Identifier) for chan in self.cphd_meta.Data.Channels}
+        return {chan.Identifier: self.read_pvp_array(chan.Identifier)
+                for chan in self.cphd_meta.Data.Channels}
 
     def read_signal_block(self) -> Dict[str, numpy.ndarray]:
-        return {chan.Identifier: numpy.copy(self.read(index=chan.Identifier)) for chan in self.cphd_meta.Data.Channels}
+        return {chan.Identifier: numpy.copy(self.read(index=chan.Identifier))
+                for chan in self.cphd_meta.Data.Channels}
 
     def read_signal_block_raw(self) -> Dict[Union[int, str], numpy.ndarray]:
-        return {chan.Identifier: numpy.copy(self.read_raw(index=chan.Identifier)) for chan in self.cphd_meta.Data.Channels}
+        return {chan.Identifier: numpy.copy(self.read_raw(index=chan.Identifier))
+                for chan in self.cphd_meta.Data.Channels}
 
-    def read_chip(self,
-             *ranges: Sequence[Union[None, int, Tuple[int, ...], slice]],
-             index: Union[int, str]=0,
-             squeeze: bool=True) -> numpy.ndarray:
+    def read_chip(
+            self,
+            *ranges: Sequence[Union[None, int, Tuple[int, ...], slice]],
+            index: Union[int, str] = 0,
+            squeeze: bool = True) -> numpy.ndarray:
         """
         This is identical to :meth:`read`, and presented for backwards compatibility.
 
@@ -746,10 +750,11 @@ class CPHDReader1_0(CPHDReader):
 
         return self.__call__(*ranges, index=index, raw=False, squeeze=squeeze)
 
-    def read(self,
-             *ranges: Sequence[Union[None, int, Tuple[int, ...], slice]],
-             index: Union[int, str]=0,
-             squeeze: bool=True) -> numpy.ndarray:
+    def read(
+            self,
+            *ranges: Sequence[Union[None, int, Tuple[int, ...], slice]],
+            index: Union[int, str] = 0,
+            squeeze: bool = True) -> numpy.ndarray:
         """
         Read formatted data from the given data segment. Note this is an alias to the
         :meth:`__call__` called as
@@ -775,10 +780,11 @@ class CPHDReader1_0(CPHDReader):
 
         return self.__call__(*ranges, index=index, raw=False, squeeze=squeeze)
 
-    def read_raw(self,
-                 *ranges: Sequence[Union[None, int, Tuple[int, ...], slice]],
-                 index: Union[int, str]=0,
-                 squeeze: bool=True) -> numpy.ndarray:
+    def read_raw(
+            self,
+            *ranges: Sequence[Union[None, int, Tuple[int, ...], slice]],
+            index: Union[int, str] = 0,
+            squeeze: bool = True) -> numpy.ndarray:
         """
         Read raw data from the given data segment. Note this is an alias to the
         :meth:`__call__` called as
@@ -804,11 +810,12 @@ class CPHDReader1_0(CPHDReader):
 
         return self.__call__(*ranges, index=index, raw=True, squeeze=squeeze)
 
-    def __call__(self,
-                 *ranges: Sequence[Union[None, int, slice]],
-                 index: int=0,
-                 raw: bool=False,
-                 squeeze: bool=True) -> numpy.ndarray:
+    def __call__(
+            self,
+            *ranges: Sequence[Union[None, int, slice]],
+            index: int = 0,
+            raw: bool = False,
+            squeeze: bool = True) -> numpy.ndarray:
         index = self._validate_index(index)
         return BaseReader.__call__(self, *ranges, index=index, raw=raw, squeeze=squeeze)
 
@@ -924,7 +931,7 @@ class CPHDReader0_3(CPHDReader):
             self,
             variable: str,
             index: int,
-            the_range: Union[None, int, Tuple[int, ...], slice]=None) -> Optional[numpy.ndarray]:
+            the_range: Union[None, int, Tuple[int, ...], slice] = None) -> Optional[numpy.ndarray]:
         int_index = self._validate_index(index)
         the_memmap = self._pvp_memmap[int_index]
         the_slice = verify_slice(the_range, the_memmap.shape[0])
@@ -936,7 +943,7 @@ class CPHDReader0_3(CPHDReader):
     def read_pvp_array(
             self,
             index: int,
-            the_range: Union[None, int, Tuple[int, ...], slice]=None) -> numpy.ndarray:
+            the_range: Union[None, int, Tuple[int, ...], slice] = None) -> numpy.ndarray:
         int_index = self._validate_index(index)
         the_memmap = self._pvp_memmap[int_index]
         the_slice = verify_slice(the_range, the_memmap.shape[0])
@@ -960,11 +967,12 @@ class CPHDReader0_3(CPHDReader):
     def read_signal_block_raw(self) -> Dict[int, numpy.ndarray]:
         return {chan: self.read_raw(index=chan) for chan in range(self.cphd_meta.Data.NumCPHDChannels)}
 
-    def __call__(self,
-                 *ranges: Sequence[Union[None, int, slice]],
-                 index: int=0,
-                 raw: bool=False,
-                 squeeze: bool=True) -> numpy.ndarray:
+    def __call__(
+            self,
+            *ranges: Sequence[Union[None, int, slice]],
+            index: int = 0,
+            raw: bool = False,
+            squeeze: bool = True) -> numpy.ndarray:
         index = self._validate_index(index)
         return BaseReader.__call__(self, *ranges, index=index, raw=raw, squeeze=squeeze)
 
@@ -1096,7 +1104,7 @@ class CPHDWritingDetails(object):
         '_channel_map', '_support_map',
         '_pvp_details', '_support_details', '_signal_details')
 
-    def __init__(self, meta: CPHDType1_0):
+    def __init__(self, meta: CPHDType1, check_older_version: bool = False):
 
         self._header = None
         self._header_written = False
@@ -1108,7 +1116,7 @@ class CPHDWritingDetails(object):
         self._signal_details = None
 
         self.meta = meta
-        self._header = self.meta.make_file_header()
+        self._set_header(check_older_version)
 
         # initialize the information for the pvp, support, and signal details
         self._populate_pvp_details()
@@ -1119,10 +1127,22 @@ class CPHDWritingDetails(object):
     def header(self) -> CPHDHeader1_0:
         return self._header
 
+    def _set_header(self, check_older_version: bool):
+        if check_older_version:
+            use_version_tuple = self.meta.version_required()
+        else:
+            use_version_tuple = get_default_tuple()
+        use_version_string = '{}.{}.{}'.format(*use_version_tuple)
+        self._header = self.meta.make_file_header(use_version=use_version_string)
+
     @property
-    def meta(self) -> CPHDType1_0:
+    def use_version(self) -> str:
+        return self.header.use_version()
+
+    @property
+    def meta(self) -> CPHDType1:
         """
-        CPHDType1_0: The metadata
+        CPHDType1: The metadata
         """
 
         return self._meta
@@ -1131,8 +1151,8 @@ class CPHDWritingDetails(object):
     def meta(self, value):
         if self._meta is not None:
             raise ValueError('meta is read only once initialized.')
-        if not isinstance(value, CPHDType1_0):
-            raise TypeError('meta must be of type {}'.format(CPHDType1_0))
+        if not isinstance(value, CPHDType1):
+            raise TypeError('meta must be of type {}'.format(CPHDType1))
         self._meta = value
 
     def _populate_pvp_details(self) -> None:
@@ -1190,13 +1210,19 @@ class CPHDWritingDetails(object):
     def support_map(self) -> Optional[Dict[str, int]]:
         return self._support_map
 
-    def _write_items(self, details: Optional[Sequence[ElementDetails]], file_object: BinaryIO) -> None:
+    def _write_items(
+            self,
+            details: Optional[Sequence[ElementDetails]],
+            file_object: BinaryIO) -> None:
         if details is None:
             return
         for index, entry in enumerate(details):
             entry.write_item(file_object)
 
-    def _verify_item_written(self, details: Optional[Sequence[ElementDetails]], name: str) -> None:
+    def _verify_item_written(
+            self,
+            details: Optional[Sequence[ElementDetails]],
+            name: str) -> None:
         if details is None:
             return
 
@@ -1204,7 +1230,10 @@ class CPHDWritingDetails(object):
             if not entry.item_written:
                 logger.error('{} data at index {} not written'.format(name, index))
 
-    def write_header(self, file_object: BinaryIO, overwrite: bool = False) -> None:
+    def write_header(
+            self,
+            file_object: BinaryIO,
+            overwrite: bool = False) -> None:
         """
         Write the header.The file object will be advanced to the end of the
         block, if writing occurs.
@@ -1224,11 +1253,11 @@ class CPHDWritingDetails(object):
             return
 
         file_object.write(self.header.to_string().encode())
-        file_object.write(_CPHD_SECTION_TERMINATOR)
+        file_object.write(CPHD_SECTION_TERMINATOR)
         # write xml
         file_object.seek(self.header.XML_BLOCK_BYTE_OFFSET, os.SEEK_SET)
-        file_object.write(self.meta.to_xml_bytes())
-        file_object.write(_CPHD_SECTION_TERMINATOR)
+        file_object.write(self.meta.to_xml_bytes(urn=get_namespace(self.use_version)))
+        file_object.write(CPHD_SECTION_TERMINATOR)
         self._header_written = True
 
     def write_all_populated_items(self, file_object: BinaryIO) -> None:
@@ -1274,16 +1303,20 @@ class CPHDWriter1_0(BaseWriter):
 
     def __init__(self,
                  file_object: Union[str, BinaryIO],
-                 meta: Optional[CPHDType1_0] = None,
+                 meta: Optional[CPHDType1] = None,
                  writing_details: Optional[CPHDWritingDetails] = None,
-                 check_existence: bool=True):
+                 check_older_version: bool = False,
+                 check_existence: bool = True):
         """
 
         Parameters
         ----------
         file_object : str|BinaryIO
-        meta : None|CPHDType1_0
+        meta : None|CPHDType1
         writing_details : None|CPHDWritingDetails
+        check_older_version : bool
+            Try to create an older version CPHD for compliance with other
+            NGA applications
         check_existence : bool
             Should we check if the given file already exists, and raises an exception if so?
         """
@@ -1310,7 +1343,7 @@ class CPHDWriter1_0(BaseWriter):
         if meta is None and writing_details is None:
             raise ValueError('One of meta or writing_details must be provided.')
         if writing_details is None:
-            writing_details = self._writing_details_type(meta)
+            writing_details = self._writing_details_type(meta, check_older_version=check_older_version)
         self.writing_details = writing_details
 
         self._pvp_memmaps = None  # type: Optional[Dict[str, numpy.ndarray]]
@@ -1320,7 +1353,6 @@ class CPHDWriter1_0(BaseWriter):
         self._closed = False
 
         data_segment = self._initialize_data()
-        # data_segment = self._prepare_for_writing()
         BaseWriter.__init__(self, data_segment)
 
     @property
@@ -1340,9 +1372,9 @@ class CPHDWriter1_0(BaseWriter):
         return self._file_name
 
     @property
-    def meta(self) -> CPHDType1_0:
+    def meta(self) -> CPHDType1:
         """
-        CPHDType1_0: The metadata
+        CPHDType1: The metadata
         """
 
         return self.writing_details.meta
@@ -1680,10 +1712,11 @@ class CPHDWriter1_0(BaseWriter):
         for identifier, array in signal_block.items():
             self.write_raw(array, index=identifier)
 
-    def write_file(self,
-                   pvp_block: Dict[Union[int, str], numpy.ndarray],
-                   signal_block: Dict[Union[int, str], numpy.ndarray],
-                   support_block: Optional[Dict[Union[int, str], numpy.ndarray]]=None):
+    def write_file(
+            self,
+            pvp_block: Dict[Union[int, str], numpy.ndarray],
+            signal_block: Dict[Union[int, str], numpy.ndarray],
+            support_block: Optional[Dict[Union[int, str], numpy.ndarray]] = None):
         """
         Write the blocks to the file.
 
@@ -1705,10 +1738,11 @@ class CPHDWriter1_0(BaseWriter):
             self.write_support_block(support_block)
         self.write_signal_block(signal_block)
 
-    def write_file_raw(self,
-                   pvp_block: Dict[Union[int, str], numpy.ndarray],
-                   signal_block: Dict[Union[int, str], numpy.ndarray],
-                   support_block: Optional[Dict[Union[int, str], numpy.ndarray]]=None):
+    def write_file_raw(
+            self,
+            pvp_block: Dict[Union[int, str], numpy.ndarray],
+            signal_block: Dict[Union[int, str], numpy.ndarray],
+            support_block: Optional[Dict[Union[int, str], numpy.ndarray]] = None):
         """
         Write the blocks to the file.
 
@@ -1730,33 +1764,37 @@ class CPHDWriter1_0(BaseWriter):
             self.write_support_block(support_block)
         self.write_signal_block_raw(signal_block)
 
-    def write_chip(self,
-              data: numpy.ndarray,
-              start_indices: Union[None, int, Tuple[int, ...]] = None,
-              subscript: Union[None, Tuple[slice, ...]] = None,
-              index: Union[int, str]=0) -> None:
+    def write_chip(
+            self,
+            data: numpy.ndarray,
+            start_indices: Union[None, int, Tuple[int, ...]] = None,
+            subscript: Union[None, Tuple[slice, ...]] = None,
+            index: Union[int, str] = 0) -> None:
         self.__call__(data, start_indices=start_indices, subscript=subscript, index=index, raw=False)
 
-    def write(self,
-              data: numpy.ndarray,
-              start_indices: Union[None, int, Tuple[int, ...]] = None,
-              subscript: Union[None, Tuple[slice, ...]] = None,
-              index: Union[int, str]=0) -> None:
+    def write(
+            self,
+            data: numpy.ndarray,
+            start_indices: Union[None, int, Tuple[int, ...]] = None,
+            subscript: Union[None, Tuple[slice, ...]] = None,
+            index: Union[int, str] = 0) -> None:
         self.__call__(data, start_indices=start_indices, subscript=subscript, index=index, raw=False)
 
-    def write_raw(self,
-              data: numpy.ndarray,
-              start_indices: Union[None, int, Tuple[int, ...]]=None,
-              subscript: Union[None, Tuple[slice, ...]]=None,
-              index: Union[int, str]=0) -> None:
+    def write_raw(
+            self,
+            data: numpy.ndarray,
+            start_indices: Union[None, int, Tuple[int, ...]] = None,
+            subscript: Union[None, Tuple[slice, ...]] = None,
+            index: Union[int, str] = 0) -> None:
         self.__call__(data, start_indices=start_indices, subscript=subscript, index=index, raw=False)
 
-    def __call__(self,
-                 data: numpy.ndarray,
-                 start_indices: Union[None, int, Tuple[int, ...]]=None,
-                 subscript: Union[None, Tuple[slice, ...]]=None,
-                 index: Union[int, str]=0,
-                 raw: bool=False) -> None:
+    def __call__(
+            self,
+            data: numpy.ndarray,
+            start_indices: Union[None, int, Tuple[int, ...]] = None,
+            subscript: Union[None, Tuple[slice, ...]] = None,
+            index: Union[int, str] = 0,
+            raw: bool = False) -> None:
         int_index = self._validate_channel_index(index)
 
         identifier = self._validate_channel_key(index)

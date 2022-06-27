@@ -439,3 +439,9 @@ class SupportArrayType(Serializable):
                     return entry
 
         raise KeyError('Identifier {} not associated with a support array.'.format(identifier))
+
+    def version_required(self) -> Tuple[int, int, int]:
+        required = (1, 0, 1)
+        if self.DwellTimeArray is not None:
+            required = max(required, (1, 1, 0))
+        return required

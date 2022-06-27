@@ -597,3 +597,9 @@ class PVPType(Serializable):
                 formats.append(binary_format_string_to_dtype(val.Format))
                 offsets.append(val.Offset*bytes_per_word)
         return numpy.dtype({'names': names, 'formats': formats, 'offsets': offsets})
+
+    def version_required(self) -> Tuple[int, int, int]:
+        required = (1, 0, 1)
+        if self.TxAntenna is not None or self.RcvAntenna is not None:
+            required = max(required, (1, 1, 0))
+        return required

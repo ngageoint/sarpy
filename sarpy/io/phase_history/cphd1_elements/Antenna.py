@@ -5,7 +5,7 @@ The Antenna type definition.
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
-from typing import Union, List, Optional
+from typing import Union, List, Tuple, Optional
 
 import numpy
 
@@ -23,8 +23,8 @@ class AntCoordFrameType(Serializable):
     (ACF) as function of time.
     """
 
-    _fields = ('Identifier', 'XAxisPoly', 'YAxisPoly')
-    _required = _fields
+    _fields = ('Identifier', 'XAxisPoly', 'YAxisPoly', 'UseACFPVP')
+    _required = ('Identifier', 'XAxisPoly', 'YAxisPoly')
     # descriptors
     Identifier = StringDescriptor(
         'Identifier', _required, strict=DEFAULT_STRICT,
@@ -37,8 +37,17 @@ class AntCoordFrameType(Serializable):
         'YAxisPoly', XYZPolyType, _required, strict=DEFAULT_STRICT,
         docstring='Antenna Y-Axis unit vector in ECF coordinates as a function '
                   'of time.')  # type: XYZPolyType
+    UseACFPVP = BooleanDescriptor(
+        'UseACFPVP', _required, strict=DEFAULT_STRICT,
+        docstring='')  # type: bool
 
-    def __init__(self, Identifier=None, XAxisPoly=None, YAxisPoly=None, **kwargs):
+    def __init__(
+            self,
+            Identifier: str = None,
+            XAxisPoly: XYZPolyType = None,
+            YAxisPoly: XYZPolyType = None,
+            UseACFPVP: Optional[bool] = None,
+            **kwargs):
         """
 
         Parameters
@@ -46,6 +55,7 @@ class AntCoordFrameType(Serializable):
         Identifier : str
         XAxisPoly : XYZPolyType
         YAxisPoly : XYZPolyType
+        UseACFPVP : None|bool
         kwargs
         """
 
@@ -56,7 +66,14 @@ class AntCoordFrameType(Serializable):
         self.Identifier = Identifier
         self.XAxisPoly = XAxisPoly
         self.YAxisPoly = YAxisPoly
+        self.UseACFPVP = UseACFPVP
         super(AntCoordFrameType, self).__init__(**kwargs)
+
+    def version_required(self) -> Tuple[int, int, int]:
+        required = (1, 0, 1)
+        if self.UseACFPVP is not None:
+            required = max(required, (1, 1, 0))
+        return required
 
 
 class AntPhaseCenterType(Serializable):
@@ -345,6 +362,12 @@ class EBType(Serializable):
             return None
         return numpy.array([self.DCXPoly(t), self.DCYPoly(t)])
 
+    def version_required(self) -> Tuple[int, int, int]:
+        required = (1, 0, 1)
+        if self.UseEBPVP is not None:
+            required = max(required, (1, 1, 0))
+        return required
+
 
 class GainPhasePolyType(Serializable):
     """A container for the Gain and Phase Polygon definitions."""
@@ -418,6 +441,12 @@ class GainPhasePolyType(Serializable):
 
         self.GainPoly.minimize_order()
         self.PhasePoly.minimize_order()
+
+    def version_required(self) -> Tuple[int, int, int]:
+        required = (1, 0, 1)
+        if self.AntGPid is not None:
+            required = max(required, (1, 1, 0))
+        return required
 
 
 class AntPatternType(Serializable):
@@ -542,6 +571,18 @@ class AntPatternType(Serializable):
         self.GainPhaseArray = GainPhaseArray
         super(AntPatternType, self).__init__(**kwargs)
 
+    def version_required(self) -> Tuple[int, int, int]:
+        required = (1, 0, 1)
+        for fld in ['EB', 'Array', 'Element']:
+            val = getattr(self, fld)
+            if val is not None:
+                required = max(required, val.version_required())
+        if self.EBFreqShiftSF is not None or \
+                self.MLFreqDilationSF is not None or \
+                self.AntPolRef is not None:
+            required = (required, (1, 1, 0))
+        return required
+
 
 class AntennaType(Serializable):
     """
@@ -620,3 +661,10 @@ class AntennaType(Serializable):
         if self.AntPattern is None:
             return 0
         return len(self.AntPattern)
+
+    def version_required(self) -> Tuple[int, int, int]:
+        required = (1, 0, 1)
+        if self.AntCoordFrame is not None:
+            for entry in self.AntCoordFrame:
+                required = max(required, entry.version_required())
+        return required

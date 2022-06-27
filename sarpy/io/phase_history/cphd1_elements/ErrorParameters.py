@@ -5,7 +5,7 @@ The error parameters type definition.
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
-from typing import Union, Optional
+from typing import Union, Tuple, Optional
 
 from sarpy.io.xml.base import Serializable, ParametersCollection
 from sarpy.io.xml.descriptors import FloatDescriptor, SerializableDescriptor, \
@@ -155,6 +155,12 @@ class BistaticRadarSensorType(Serializable):
         self.CollectionStartTime = CollectionStartTime
         super(BistaticRadarSensorType, self).__init__(**kwargs)
 
+    def version_required(self) -> Tuple[int, int, int]:
+        required = (1, 0, 1)
+        if self.DelayBias is not None:
+            required = max(required, (1, 1, 0))
+        return required
+
 
 class MonostaticType(Serializable):
     """
@@ -241,6 +247,12 @@ class PlatformType(Serializable):
         self.RadarSensor = RadarSensor
         super(PlatformType, self).__init__(**kwargs)
 
+    def version_required(self) -> Tuple[int, int, int]:
+        required = (1, 0, 1)
+        if self.RadarSensor is not None:
+            required = max(required, self.RadarSensor.version_required())
+        return required
+
 
 class BistaticType(Serializable):
     """
@@ -281,6 +293,14 @@ class BistaticType(Serializable):
         self.AddedParameters = AddedParameters
         super(BistaticType, self).__init__(**kwargs)
 
+    def version_required(self) -> Tuple[int, int, int]:
+        required = (1, 0, 1)
+        for fld in ['TxPlatform', 'RcvPlatform']:
+            val = getattr(self, fld)
+            if val is not None:
+                required = max(required, val.version_required())
+        return required
+
 
 class ErrorParametersType(Serializable):
     """
@@ -317,3 +337,9 @@ class ErrorParametersType(Serializable):
         self.Monostatic = Monostatic
         self.Bistatic = Bistatic
         super(ErrorParametersType, self).__init__(**kwargs)
+
+    def version_required(self) -> Tuple[int, int, int]:
+        required = (1, 0, 1)
+        if self.Bistatic is not None:
+            required = max(required, self.Bistatic.version_required())
+        return required

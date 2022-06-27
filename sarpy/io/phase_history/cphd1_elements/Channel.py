@@ -5,7 +5,7 @@ The Channel definition.
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
-from typing import Union, List, Optional
+from typing import Union, List, Tuple, Optional
 
 import numpy
 
@@ -143,6 +143,16 @@ class PolarizationType(Serializable):
         self.RcvPolRef = RcvPolRef
         super(PolarizationType, self).__init__(**kwargs)
 
+    def version_required(self) -> Tuple[int, int, int]:
+        required = (1, 0, 1)
+        for fld in ['TxPol', 'RcvPol']:
+            val = getattr(self, fld)
+            if val is not None and val in ['S', 'E']:
+                required = max(required, (1, 1, 0))
+        if self.TxPolRef is not None or self.RcvPolRef is not None:
+            required = max(required, (1, 1, 0))
+        return required
+
 
 class LFMEclipseType(Serializable):
     """
@@ -276,6 +286,12 @@ class DwellTimesType(Serializable):
         self.DTAId = DTAId
         self.UseDTA = UseDTA
         super(DwellTimesType, self).__init__(**kwargs)
+
+    def version_required(self) -> Tuple[int, int, int]:
+        if self.DTAId is not None or self.UseDTA is not None:
+            return (1, 1, 0)
+        else:
+            return (1, 0, 1)
 
 
 class AntennaType(Serializable):
@@ -620,6 +636,14 @@ class ChannelParametersType(Serializable):
         self.NoiseLevel = NoiseLevel
         super(ChannelParametersType, self).__init__(**kwargs)
 
+    def version_required(self) -> Tuple[int, int, int]:
+        required = (1, 0, 1)
+        if self.Polarization is not None:
+            required = max(required, self.Polarization.version_required())
+        if self.DwellTimes is not None:
+            required = max(required, self.DwellTimes.version_required())
+        return required
+
 
 class ChannelType(Serializable):
     """
@@ -659,8 +683,15 @@ class ChannelType(Serializable):
         'AddedParameters', _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Additional free form parameters.')  # type: Union[None, ParametersCollection]
 
-    def __init__(self, RefChId=None, FXFixedCPHD=None, TOAFixedCPHD=None,
-                 SRPFixedCPHD=None, Parameters=None, AddedParameters=None, **kwargs):
+    def __init__(
+            self,
+            RefChId: str = None,
+            FXFixedCPHD: bool = None,
+            TOAFixedCPHD: bool = None,
+            SRPFixedCPHD: bool = None,
+            Parameters: List[ChannelParametersType] = None,
+            AddedParameters: Optional[ParametersCollection] = None,
+            **kwargs):
         """
 
         Parameters
@@ -670,7 +701,7 @@ class ChannelType(Serializable):
         TOAFixedCPHD : bool
         SRPFixedCPHD : bool
         Parameters : List[ChannelParametersType]
-        AddedParameters
+        AddedParameters : None|ParametersCollection
         kwargs
         """
 
@@ -685,3 +716,10 @@ class ChannelType(Serializable):
         self.Parameters = Parameters
         self.AddedParameters = AddedParameters
         super(ChannelType, self).__init__(**kwargs)
+
+    def version_required(self) -> Tuple[int, int, int]:
+        required = (1, 0, 1)
+        if self.Parameters is not None:
+            for entry in self.Parameters:
+                required = max(required, entry.version_required())
+        return required
