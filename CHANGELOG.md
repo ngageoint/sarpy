@@ -10,6 +10,7 @@ release points are not being annotated in github.
 accordingly.
 - Added CPHD version 1.1.0 changes, and set the default CPHD version number 
 accordingly.
+- Set the stage for anticipated CRSD changes.
 
 ## [1.3.3] - 2022-06-20
 ### Fixed
