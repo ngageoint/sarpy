@@ -20,15 +20,17 @@ from sarpy.io.general.slice_parsing import verify_subscript, verify_slice
 
 from sarpy.io.phase_history.cphd import CPHDWritingDetails, CPHDWriter1_0, \
     AmpScalingFunction
-from sarpy.io.received.crsd1_elements.CRSD import CRSDType, CRSDHeader
+
+from sarpy.io.received.crsd1_elements.CRSD import CRSDType, CRSDHeader, \
+    CRSD_SECTION_TERMINATOR
 from sarpy.io.received.base import CRSDTypeReader
+from sarpy.io.received.crsd_schema import get_namespace, get_default_tuple
 
 logger = logging.getLogger(__name__)
 
 _unhandled_version_text = 'Got unhandled CRSD version number `{}`'
 _missing_channel_identifier_text = 'Cannot find CRSD channel for identifier `{}`'
 _index_range_text = 'index must be in the range `[0, {})`'
-
 
 
 #########
@@ -685,6 +687,14 @@ class CRSDWritingDetails(CPHDWritingDetails):
     def header(self) -> CRSDHeader:
         return self._header
 
+    def _set_header(self, check_older_version: bool):
+        if check_older_version:
+            use_version_tuple = self.meta.version_required()
+        else:
+            use_version_tuple = get_default_tuple()
+        use_version_string = '{}.{}.{}'.format(*use_version_tuple)
+        self._header = self.meta.make_file_header(use_version=use_version_string)
+
     @property
     def meta(self) -> CRSDType:
         """
@@ -701,6 +711,36 @@ class CRSDWritingDetails(CPHDWritingDetails):
             raise TypeError('meta must be of type {}'.format(CRSDType))
         self._meta = value
 
+    def write_header(
+            self,
+            file_object: BinaryIO,
+            overwrite: bool = False) -> None:
+        """
+        Write the header.The file object will be advanced to the end of the
+        block, if writing occurs.
+
+        Parameters
+        ----------
+        file_object : BinaryIO
+        overwrite : bool
+            Overwrite, if previously written?
+
+        Returns
+        -------
+        None
+        """
+
+        if self._header_written and not overwrite:
+            return
+
+        file_object.write(self.header.to_string().encode())
+        file_object.write(CRSD_SECTION_TERMINATOR)
+        # write xml
+        file_object.seek(self.header.XML_BLOCK_BYTE_OFFSET, os.SEEK_SET)
+        file_object.write(self.meta.to_xml_bytes(urn=get_namespace(self.use_version)))
+        file_object.write(CRSD_SECTION_TERMINATOR)
+        self._header_written = True
+
 
 class CRSDWriter1_0(CPHDWriter1_0):
     """
@@ -710,11 +750,12 @@ class CRSDWriter1_0(CPHDWriter1_0):
     """
     _writing_details_type = CRSDWritingDetails
 
-    def __init__(self,
-                 file_object: Union[str, BinaryIO],
-                 meta: Optional[CRSDType] = None,
-                 writing_details: Optional[CRSDWritingDetails] = None,
-                 check_existence: bool=True):
+    def __init__(
+            self,
+            file_object: Union[str, BinaryIO],
+            meta: Optional[CRSDType] = None,
+            writing_details: Optional[CRSDWritingDetails] = None,
+            check_existence: bool = True):
         """
 
         Parameters
@@ -753,3 +794,4 @@ class CRSDWriter1_0(CPHDWriter1_0):
         """
 
         return self.writing_details.meta
+
