@@ -838,7 +838,7 @@ class SICDType(Serializable):
             return self.CollectionInfo.CoreName
         return 'Unknown_Sicd{}'.format(product_number)
 
-    def requires_version_number(self):
+    def version_required(self):
         """
         What SICD version is required for valid support?
 
@@ -848,12 +848,10 @@ class SICDType(Serializable):
         """
 
         required = (1, 1, 0)
-        if self.ImageFormation is not None:
-            required = max(required, self.ImageFormation.version_required())
-        if self.RadarCollection is not None:
-            required = max(required, self.RadarCollection.version_required())
-        if self.ErrorStatistics is not None:
-            required = max(required, self.ImageFormation.version_required())
+        for fld in self._fields:
+            val = getattr(self, fld)
+            if val is not None and hasattr(val, 'version_required'):
+                required = max(required, val.version_required())
         return required
 
     def get_des_details(self, check_older_version=False):
@@ -871,7 +869,7 @@ class SICDType(Serializable):
         dict
         """
 
-        required_version = self.requires_version_number()
+        required_version = self.version_required()
         if required_version > _SICD_DEFAULT_TUPLE or check_older_version:
             info = _SICD_SPEC_DETAILS['{}.{}.{}'.format(*required_version)]
         else:

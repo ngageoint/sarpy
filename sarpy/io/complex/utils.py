@@ -24,11 +24,12 @@ def two_dim_poly_fit(
         x: numpy.ndarray,
         y: numpy.ndarray,
         z: numpy.ndarray,
-        x_order: int=2,
-        y_order: int=2,
-        x_scale: float=1.,
-        y_scale: float=1.,
-        rcond: Optional[float]=None) -> Tuple[numpy.ndarray, numpy.ndarray, int, numpy.ndarray]:
+        x_order: int = 2,
+        y_order: int = 2,
+        x_scale: float = 1.,
+        y_scale: float = 1.,
+        rcond: Optional[float] = None) -> Tuple[
+            numpy.ndarray, numpy.ndarray, int, numpy.ndarray]:
     """
     Perform fit of data to two-dimensional polynomial.
 
@@ -83,8 +84,8 @@ def two_dim_poly_fit(
     if isinstance(residuals, (numpy.ndarray, numpy.number)):
         residuals /= float(x.size)
     sol = numpy.power(x_scale, numpy.arange(x_order+1))[:, numpy.newaxis] * \
-          numpy.reshape(sol, (x_order+1, y_order+1)) * \
-          numpy.power(y_scale, numpy.arange(y_order+1))
+        numpy.reshape(sol, (x_order+1, y_order+1)) * \
+        numpy.power(y_scale, numpy.arange(y_order+1))
     return sol, residuals, rank, sing_values
 
 
@@ -167,7 +168,8 @@ def fit_position_xvalidation(
         time_array: numpy.ndarray,
         position_array: numpy.ndarray,
         velocity_array: numpy.ndarray,
-        max_degree: int=5) -> Tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray]:
+        max_degree: int = 5) -> Tuple[
+            numpy.ndarray, numpy.ndarray, numpy.ndarray]:
     """
     Empirically fit the polynomials for the X, Y, Z ECF position array, using cross
     validation with the velocity array to determine the best fit degree up to a
@@ -209,8 +211,9 @@ def fit_position_xvalidation(
     if max_degree < 1:
         raise ValueError('max_degree must be at least 1.')
     if max_degree > 10:
-        logger.warning('max_degree greater than 10 for polynomial fitting may lead\n\t'
-                        'to poorly conditioned (i.e. badly behaved) fit.')
+        logger.warning(
+            'max_degree greater than 10 for polynomial fitting may lead\n\t'
+            'to poorly conditioned (i.e. badly behaved) fit.')
 
     deg = 1
     prev_vel_error = numpy.inf
@@ -307,14 +310,17 @@ def get_physical_coordinates(
     """
 
     return get_im_physical_coords(row_value, the_sicd.Grid, the_sicd.ImageData, 'row'), \
-           get_im_physical_coords(col_value, the_sicd.Grid, the_sicd.ImageData, 'col')
-
+        get_im_physical_coords(col_value, the_sicd.Grid, the_sicd.ImageData, 'col')
 
 
 ###################
 # helper functions
 
-def get_fetch_block_size(start_element, stop_element, block_size_in_bytes, bands=1):
+def get_fetch_block_size(
+        start_element: int,
+        stop_element: int,
+        block_size_in_bytes: int,
+        bands: int = 1):
     """
     Gets the appropriate block size, given fetch parameters and constraints.
 

@@ -178,6 +178,7 @@ def _infer_subscript_for_write(
             'does not match data.shape `{}`'.format(subscript, result_shape, data.shape))
     return subscript
 
+
 def extract_string_from_subscript(
         subscript: Union[None, int, slice, Tuple]) -> Tuple[Union[None, int, slice, Sequence], Tuple[str, ...]]:
     """

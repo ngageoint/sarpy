@@ -631,18 +631,21 @@ class ComplexFormatFunction(FormatFunction):
         self._order = value
         if self._order in ['IQ', 'QI']:
             if self._raw_dtype.name not in [
-                'int8', 'int16', 'int32', 'float16', 'float32', 'float64']:
+                    'int8', 'int16', 'int32', 'float16', 'float32', 'float64']:
                 raise ValueError(
                     'order is {}, and raw_dtype ({}, {}) must be one of '
-                    'int8, int16, int32, float16, float32, or float64'.format(self._order, self._raw_dtype, self._raw_dtype.name))
+                    'int8, int16, int32, float16, float32, or float64'.format(
+                        self._order, self._raw_dtype, self._raw_dtype.name))
         elif self._order in ['MP', 'PM']:
             if self._raw_dtype.name not in [
-                'uint8', 'uint16', 'uint32', 'float16', 'float32', 'float64']:
+                    'uint8', 'uint16', 'uint32', 'float16', 'float32', 'float64']:
                 raise ValueError(
                     'order is {}, and raw_dtype must be one of '
-                    'uint8, uint16, uint32, float16, float32, or float64'.format(self._order))
+                    'uint8, uint16, uint32, float16, float32, or float64'.format(
+                        self._order))
         else:
-            raise ValueError('Got unhandled ordering value `{}`'.format(self._order))
+            raise ValueError('Got unhandled ordering value `{}`'.format(
+                self._order))
 
     def validate_shapes(self) -> None:
         self._verify_shapes_set()
@@ -664,23 +667,29 @@ class ComplexFormatFunction(FormatFunction):
         if self.raw_ndim == self.formatted_ndim:
             if after_mapping_shape != self.formatted_shape:
                 raise ValueError(
-                    'Input_shape `{}`, transpose_axes `{}`, band dimension `{}` yields expected output shape `{}`\n\t'
+                    'Input_shape `{}`, transpose_axes `{}`, band dimension `{}` '
+                    'yields expected output shape `{}`\n\t'
                     'got formatted_shape `{}`'.format(
-                        self.raw_shape, self.transpose_axes, self.band_dimension, after_mapping_shape, self.formatted_shape))
+                        self.raw_shape, self.transpose_axes, self.band_dimension,
+                        after_mapping_shape, self.formatted_shape))
         elif self.raw_ndim == self.formatted_ndim + 1:
             reduced_shape = [entry for entry in after_mapping_shape]
             reduced_shape.pop(self.band_dimension)
             reduced_shape = tuple(reduced_shape)
             if reduced_shape != self.formatted_shape:
                 raise ValueError(
-                    'Input_shape `{}`, transpose_axes `{}`, band dimension `{}` yields expected output shape `{}`\n\t'
+                    'Input_shape `{}`, transpose_axes `{}`, band dimension `{}` '
+                    'yields expected output shape `{}`\n\t'
                     'got formatted_shape `{}`'.format(
-                        self.raw_shape, self.transpose_axes, self.band_dimension, reduced_shape, self.formatted_shape))
+                        self.raw_shape, self.transpose_axes, self.band_dimension,
+                        reduced_shape, self.formatted_shape))
         else:
             raise ValueError(
-                'Input_shape `{}`, transpose_axes `{}`, band dimension `{}` yields expected output shape `{}`\n\t'
+                'Input_shape `{}`, transpose_axes `{}`, band dimension `{}` '
+                'yields expected output shape `{}`\n\t'
                 'got formatted_shape `{}`'.format(
-                    self.raw_shape, self.transpose_axes, self.band_dimension, arranged_shape, self.formatted_shape))
+                    self.raw_shape, self.transpose_axes, self.band_dimension,
+                    arranged_shape, self.formatted_shape))
 
     def transform_formatted_slice(
             self,

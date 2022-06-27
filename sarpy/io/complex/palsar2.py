@@ -116,7 +116,7 @@ class _BaseElements(object):
 
         the_bytes = fi.read(12)
         self.rec_num, self.rec_subtype1, self.rec_type, self.rec_subtype2, self.rec_subtype3, \
-        self.rec_length = struct.unpack('>IBBBBI', the_bytes)  # type: int, int, int, int, int, int
+            self.rec_length = struct.unpack('>IBBBBI', the_bytes)  # type: int, int, int, int, int, int
 
 
 # Elements common to most individual record types?
@@ -126,7 +126,7 @@ class _BaseElements2(_BaseElements):
     def __init__(self, fi):
         super(_BaseElements2, self).__init__(fi)
         self.ascii_ebcdic = fi.read(2).decode('utf-8')  # type: str
-        fi.seek(2, os.SEEK_CUR) # skip reserved field
+        fi.seek(2, os.SEEK_CUR)  # skip reserved field
 
 
 # Elements common to IMG, LED, TRL, and VOL
@@ -238,6 +238,7 @@ class _CommonElements3(_CommonElements2):
         self.num_fac_data_rec = tuple(num_fac_data_rec)  # type: Tuple[int]
         self.fac_data_len = tuple(fac_data_len)  # type: Tuple[int]
 
+
 ##########
 # IMG file interpretation
 
@@ -293,8 +294,8 @@ class _IMG_SignalElements(_BaseElements):
             struct.unpack('>iiii', fi.read(4*4))  # type: int, int, int, int
         self.usec = struct.unpack('>Q', fi.read(8))[0]  # type: int
         self.gain, self.invalid_flg, self.elec_ele, self.mech_ele, \
-        self.elec_squint, self.mech_squint, self.slant_rng, self.window_position = \
-            struct.unpack('>iiiiiiii', fi.read(8*4)) # type: int, int, int, int, int, int, int, int
+            self.elec_squint, self.mech_squint, self.slant_rng, self.window_position = \
+            struct.unpack('>iiiiiiii', fi.read(8*4))  # type: int, int, int, int, int, int, int, int
         fi.seek(4, os.SEEK_CUR)  # skip reserved fields
         # prefix data - platform reference information
         self.pos_update_flg, self.plat_lat, self.plat_lon, self.plat_alt, self.grnd_spd = \
@@ -436,7 +437,7 @@ class _IMG_Elements(_CommonElements2):
             raise KeyError('index {} must be in range [0, {})'.format(index, self.num_data_rec))
         # find offset for the given record, and traverse to it
         record_offset = self.rec_length + \
-                        (self.prefix_bytes + self.num_pixels*self.num_bytes + self.suffix_bytes)*index
+            (self.prefix_bytes + self.num_pixels*self.num_bytes + self.suffix_bytes)*index
         # go to the start of the given record
         fi.seek(record_offset, os.SEEK_SET)
         return _IMG_SignalElements(fi)
@@ -463,10 +464,13 @@ class _IMG_Elements(_CommonElements2):
                 self._parse_signal(fi, 0),
                 self._parse_signal(fi, self.num_data_rec-1))
         elif file_id in ['C', 'D']:
-            raise ValueError('IMG file {} appears to be a product image, not a level 1.1 product'.format(self._file_name))
+            raise ValueError(
+                'IMG file {} appears to be a product image,\n\t'
+                'not a level 1.1 product'.format(self._file_name))
         else:
-            raise ValueError('Got unhandled file_id {} in IMG file {}'.format(
-                self.file_id, self._file_name))
+            raise ValueError(
+                'Got unhandled file_id {} in IMG file {}'.format(
+                    self.file_id, self._file_name))
 
     @property
     def file_name(self):
@@ -483,8 +487,8 @@ class _IMG_Elements(_CommonElements2):
         """
 
         return len(self.scansar_num_bursts.strip()) != 0 or \
-               len(self.scansar_num_lines.strip()) != 0 or \
-               len(self.scansar_num_overlap.strip()) != 0
+            len(self.scansar_num_lines.strip()) != 0 or \
+            len(self.scansar_num_overlap.strip()) != 0
 
     def get_polarizations(self):
         """
@@ -517,8 +521,6 @@ class _IMG_Elements(_CommonElements2):
         """
 
         reverse_axes = (1, ) if flip_pixels else None
-
-        # TODO: handle the case where pixel_size == 8 and prefix_bytes % 8 == 4...
 
         pixel_size = self.num_bytes
         prefix_bytes = self.prefix_bytes
@@ -1208,7 +1210,7 @@ class PALSARDetails(object):
         if os.path.isfile(file_name):
             the_dir = os.path.split(file_name)[0]
         elif os.path.isdir(file_name):
-           the_dir = file_name
+            the_dir = file_name
         else:
             raise ValueError('path {} is neither a directory or file'.format(file_name))
         self._file_name = the_dir
@@ -1320,7 +1322,7 @@ class PALSARDetails(object):
             else:
                 raise ValueError('Unsupported pixel size {}'.format(img_element.num_bytes))
             scp_row = led_element.data.ctr_pixel
-            if  led_element.data.clock_angle > 0:
+            if led_element.data.clock_angle > 0:
                 # right looking
                 scp_col = led_element.data.ctr_line
             else:
@@ -1346,9 +1348,9 @@ class PALSARDetails(object):
             ending_usec = end_signal.usec if end_signal.usec != 0 else 1000*end_signal.msec
 
             start_time = numpy.datetime64('{0:04d}-01-01'.format(start_signal.year), 'us') + \
-                         numpy.timedelta64((start_signal.day-1)*86400*1000000 + starting_usec, 'us')
+                numpy.timedelta64((start_signal.day-1)*86400*1000000 + starting_usec, 'us')
             end_time = numpy.datetime64('{0:04d}-01-01'.format(end_signal.year), 'us') + \
-                       numpy.timedelta64((end_signal.day-1)*86400*1000000 + ending_usec, 'us')
+                numpy.timedelta64((end_signal.day-1)*86400*1000000 + ending_usec, 'us')
             duration = get_seconds(end_time, start_time, precision='us')
             # NB: I opt to calculate duration this way instead of subtracting usec directly,
             # just in case midnight UTC occurs during the collect
@@ -1366,7 +1368,7 @@ class PALSARDetails(object):
             pos_element = led_element.position
             position_start = numpy.datetime64(
                 '{0:04d}-{1:02d}-{2:02d}'.format(pos_element.year, pos_element.month, pos_element.day), 'us') + \
-                             numpy.timedelta64(int(pos_element.sec*1000000), 'us')
+                numpy.timedelta64(int(pos_element.sec*1000000), 'us')
             arp_pos = pos_element.pts_pos
             arp_vel = pos_element.pts_vel
             diff_time = get_seconds(position_start, timeline.CollectStart, precision='us')
@@ -1438,13 +1440,14 @@ class PALSARDetails(object):
             #   "Don't know this.  Just put a small number."
             return ErrorStatisticsType(
                 Components=ErrorComponentsType(
-                    PosVelErr=PosVelErrType(Frame='RIC_ECF',
-                                            P1=pos_element.rad_pos_err if numpy.isfinite(pos_element.rad_pos_err) else None,
-                                            P2=pos_element.at_pos_err if numpy.isfinite(pos_element.at_pos_err) else None,
-                                            P3=pos_element.ct_pos_err if numpy.isfinite(pos_element.ct_pos_err) else None,
-                                            V1=pos_element.rad_vel_err if numpy.isfinite(pos_element.rad_vel_err) else None,
-                                            V2=pos_element.at_vel_err if numpy.isfinite(pos_element.at_vel_err) else None,
-                                            V3=pos_element.ct_vel_err if numpy.isfinite(pos_element.ct_vel_err) else None),
+                    PosVelErr=PosVelErrType(
+                        Frame='RIC_ECF',
+                        P1=pos_element.rad_pos_err if numpy.isfinite(pos_element.rad_pos_err) else None,
+                        P2=pos_element.at_pos_err if numpy.isfinite(pos_element.at_pos_err) else None,
+                        P3=pos_element.ct_pos_err if numpy.isfinite(pos_element.ct_pos_err) else None,
+                        V1=pos_element.rad_vel_err if numpy.isfinite(pos_element.rad_vel_err) else None,
+                        V2=pos_element.at_vel_err if numpy.isfinite(pos_element.at_vel_err) else None,
+                        V3=pos_element.ct_vel_err if numpy.isfinite(pos_element.ct_vel_err) else None),
                     RadarSensor=RadarSensorErrorType(RangeBias=range_bias)))
 
         def get_grid_and_rma() -> Tuple[GridType, RMAType]:
@@ -1466,7 +1469,7 @@ class PALSARDetails(object):
             dop_poly_rng = Poly1DType(Coefs=data.xt_dop)
             dop_centroid = numpy.zeros((3, 3), dtype='float64')
             dop_centroid[0, 0] = dop_poly_rng(scp_row) + dop_poly_az(pal_scp_col) - \
-                                 0.5*(dop_poly_rng.Coefs[0] + dop_poly_az.Coefs[0])
+                0.5*(dop_poly_rng.Coefs[0] + dop_poly_az.Coefs[0])
             col_scale = data.line_spacing if data.clock_angle > 0 else -data.line_spacing
             dop_poly_az_shifted = dop_poly_az.shift(pal_scp_col, alpha=col_scale, return_poly=False)
             dop_poly_rng_shifted = dop_poly_rng.shift(scp_row, alpha=data.pixel_spacing, return_poly=False)
@@ -1482,7 +1485,8 @@ class PALSARDetails(object):
             vel_ca = position.ARPPoly.derivative_eval(time_ca_poly[0], der_order=1)
             vm_ca_sq = numpy.sum(vel_ca*vel_ca)
             r_ca = numpy.array([r_ca_scp, 1], dtype='float64')
-            drate_sf_poly = -polynomial.polymul(dop_rate_poly_rng_scaled, r_ca)*speed_of_light/(2*center_frequency*vm_ca_sq)
+            drate_sf_poly = -polynomial.polymul(
+                dop_rate_poly_rng_scaled, r_ca)*speed_of_light/(2*center_frequency*vm_ca_sq)
 
             # construct the TimeCOAPoly
             poly_order = 2
@@ -1679,4 +1683,3 @@ def is_a(file_name: str) -> Optional[PALSARReader]:
         return PALSARReader(palsar_details)
     except (ImportError, SarpyIOError):
         return None
-
