@@ -176,6 +176,7 @@ class CRSDHeader(CRSDHeaderBase):
         self._use_version = _CRSD_DEFAULT_VERSION if use_version is None else use_version
         super(CRSDHeader, self).__init__()
 
+    @property
     def use_version(self) -> str:
         return self._use_version
 

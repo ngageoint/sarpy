@@ -173,6 +173,7 @@ class CPHDHeader(CPHDHeaderBase):
         self._use_version = _CPHD_DEFAULT_VERSION if use_version is None else use_version
         super(CPHDHeader, self).__init__()
 
+    @property
     def use_version(self) -> str:
         return self._use_version
 

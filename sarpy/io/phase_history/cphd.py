@@ -1137,7 +1137,7 @@ class CPHDWritingDetails(object):
 
     @property
     def use_version(self) -> str:
-        return self.header.use_version()
+        return self.header.use_version
 
     @property
     def meta(self) -> CPHDType1:
