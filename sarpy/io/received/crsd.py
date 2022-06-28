@@ -18,7 +18,7 @@ from sarpy.io.general.base import BaseReader, SarpyIOError
 from sarpy.io.general.data_segment import DataSegment, NumpyMemmapSegment
 from sarpy.io.general.slice_parsing import verify_subscript, verify_slice
 
-from sarpy.io.phase_history.cphd import CPHDWritingDetails, CPHDWriter1_0, \
+from sarpy.io.phase_history.cphd import CPHDWritingDetails, CPHDWriter1, \
     AmpScalingFunction
 
 from sarpy.io.received.crsd1_elements.CRSD import CRSDType, CRSDHeader, \
@@ -44,7 +44,7 @@ class CRSDDetails(object):
     __slots__ = (
         '_file_name', '_file_object', '_close_after', '_crsd_version', '_crsd_header', '_crsd_meta')
 
-    def __init__(self, file_object):
+    def __init__(self, file_object: Union[str, BinaryIO]):
         """
 
         Parameters
@@ -86,8 +86,7 @@ class CRSDDetails(object):
         self._extract_crsd()
 
     @property
-    def file_name(self):
-        # type: () -> str
+    def file_name(self) -> str:
         """
         str: The CRSD filename.
         """
@@ -95,7 +94,7 @@ class CRSDDetails(object):
         return self._file_name
 
     @property
-    def file_object(self):
+    def file_object(self) -> BinaryIO:
         """
         BinaryIO: The binary file object
         """
@@ -103,8 +102,7 @@ class CRSDDetails(object):
         return self._file_object
 
     @property
-    def crsd_version(self):
-        # type: () -> str
+    def crsd_version(self) -> str:
         """
         str: The CRSD version.
         """
@@ -112,8 +110,7 @@ class CRSDDetails(object):
         return self._crsd_version
 
     @property
-    def crsd_header(self):
-        # type: () -> CRSDHeader
+    def crsd_header(self) -> CRSDHeader:
         """
         CRSDHeader: The CRSD header object
         """
@@ -121,15 +118,14 @@ class CRSDDetails(object):
         return self._crsd_header
 
     @property
-    def crsd_meta(self):
-        # type: () -> CRSDType
+    def crsd_meta(self) -> CRSDType:
         """
         CRSDType: The CRSD structure, which is version dependent.
         """
 
         return self._crsd_meta
 
-    def _extract_version(self):
+    def _extract_version(self) -> None:
         """
         Extract the version number from the file. This will advance the file
         object to the end of the initial header line.
@@ -145,32 +141,32 @@ class CRSDDetails(object):
         crsd_version = parts[1].strip().decode('utf-8')
         self._crsd_version = crsd_version
 
-    def _extract_header(self):
+    def _extract_header(self) -> None:
         """
         Extract the header from the file. The file object is assumed to be advanced
         to the header location. This will advance to the file object to the end of
         the header section.
         """
 
-        if self.crsd_version.startswith('1.0'):
+        if self.crsd_version.startswith('1.'):
             self._crsd_header = CRSDHeader.from_file_object(self._file_object)
         else:
             raise ValueError(_unhandled_version_text.format(self.crsd_version))
 
-    def _extract_crsd(self):
+    def _extract_crsd(self) -> None:
         """
         Extract and interpret the CRSD structure from the file.
         """
 
         xml = self.get_crsd_bytes()
-        if self.crsd_version.startswith('1.0'):
+        if self.crsd_version.startswith('1.'):
             the_type = CRSDType
         else:
             raise ValueError(_unhandled_version_text.format(self.crsd_version))
 
         self._crsd_meta = the_type.from_xml_string(xml)
 
-    def get_crsd_bytes(self):
+    def get_crsd_bytes(self) -> bytes:
         """
         Extract the (uninterpreted) bytes representation of the CRSD structure.
 
@@ -183,7 +179,7 @@ class CRSDDetails(object):
         if header is None:
             raise ValueError('No crsd_header populated.')
 
-        if self.crsd_version.startswith('1.0'):
+        if self.crsd_version.startswith('1.'):
             assert isinstance(header, CRSDHeader)
             # extract the xml data
             self._file_object.seek(header.XML_BLOCK_BYTE_OFFSET, os.SEEK_SET)
@@ -202,14 +198,16 @@ class CRSDDetails(object):
                 pass
 
 
-def _validate_crsd_details(crsd_details, version=None):
+def _validate_crsd_details(
+        crsd_details: Union[str, CRSDDetails],
+        version: Union[None, str, Sequence[str]] = None) -> CRSDDetails:
     """
     Validate the input argument.
 
     Parameters
     ----------
     crsd_details : str|CRSDDetails
-    version : None|str
+    version : None|str|Sequence[str]
 
     Returns
     -------
@@ -224,9 +222,21 @@ def _validate_crsd_details(crsd_details, version=None):
                         'or CRSDDetails, got type {}'.format(crsd_details))
 
     if version is not None:
-        if not crsd_details.crsd_version.startswith(version):
-            raise ValueError('This CRSD file is required to be version {}, '
-                             'got {}'.format(version, crsd_details.crsd_version))
+        if isinstance(version, str) and not crsd_details.crsd_version.startswith(version):
+            raise ValueError(
+                'This CRSD file is required to be version {},\n\t'
+                'got {}'.format(version, crsd_details.crsd_version))
+        else:
+            val = False
+            for entry in version:
+                if crsd_details.crsd_version.startswith(entry):
+                    val = True
+                    break
+            if not val:
+                raise ValueError(
+                    'This CRSD file is required to be one of version {},\n\t'
+                    'got {}'.format(version, crsd_details.crsd_version))
+
     return crsd_details
 
 
@@ -251,8 +261,8 @@ class CRSDReader(CRSDTypeReader):
             raise ValueError('File like object input not supported for CRSD reading at this time.')
         crsd_details = _validate_crsd_details(args[0])
 
-        if crsd_details.crsd_version.startswith('1.0'):
-            return object.__new__(CRSDReader1_0)
+        if crsd_details.crsd_version.startswith('1.'):
+            return object.__new__(CRSDReader1)
         else:
             raise ValueError('Got unhandled CRSD version {}'.format(crsd_details.crsd_version))
 
@@ -322,19 +332,22 @@ class CRSDReader(CRSDTypeReader):
             del self._crsd_details
 
 
-class CRSDReader1_0(CRSDReader):
+class CRSDReader1(CRSDReader):
     """
-    The CRSD version 1.0 reader.
+    The CRSD version 1 reader.
 
     **Updated in version 1.3.0** for reading changes.
     """
+    _allowed_versions = ('1.0', )
 
     def __new__(cls, *args, **kwargs):
         # we must override here, to avoid recursion with
         # the CRSDReader parent
         return object.__new__(cls)
 
-    def __init__(self, crsd_details: Union[str, CRSDDetails]):
+    def __init__(
+            self,
+            crsd_details: Union[str, CRSDDetails]):
         """
 
         Parameters
@@ -346,7 +359,7 @@ class CRSDReader1_0(CRSDReader):
         self._support_array_map = None  # type: Union[None, Dict[str, int]]
         self._pvp_memmap = None  # type: Union[None, Dict[str, numpy.ndarray]]
         self._support_array_memmap = None  # type: Union[None, Dict[str, numpy.ndarray]]
-        self._crsd_details = _validate_crsd_details(crsd_details, version='1.0')
+        self._crsd_details = _validate_crsd_details(crsd_details, version=self._allowed_versions)
 
         CRSDTypeReader.__init__(self, None, self._crsd_details.crsd_meta)
         # set data segments after setting up the pvp information, because
@@ -436,7 +449,7 @@ class CRSDReader1_0(CRSDReader):
             self._pvp_memmap[entry.Identifier] = numpy.memmap(
                 self.crsd_details.file_name, dtype=pvp_dtype, mode='r', offset=offset, shape=shape)
 
-    def _create_support_array_memmaps(self):
+    def _create_support_array_memmaps(self) -> None:
         """
         Helper method which creates the support array mem_maps.
 
@@ -462,7 +475,7 @@ class CRSDReader1_0(CRSDReader):
             self._support_array_memmap[entry.Identifier] = numpy.memmap(
                 self.crsd_details.file_name, dtype=dtype, mode='r', offset=offset, shape=shape)
 
-    def _validate_index(self, index):
+    def _validate_index(self, index: Union[int, str]) -> int:
         """
         Get corresponding integer index for CRSD channel.
 
@@ -514,7 +527,10 @@ class CRSDReader1_0(CRSDReader):
                 raise ValueError(_index_range_text.format(crsd_meta.Data.NumCRSDChannels))
             return crsd_meta.Data.Channels[int_index].Identifier
 
-    def read_support_array(self, index: Union[int, str], *ranges):
+    def read_support_array(
+            self,
+            index: Union[int, str],
+            *ranges) -> numpy.ndarray:
         # find the support array identifier
         if isinstance(index, int):
             the_entry = self.crsd_meta.Data.SupportArrays[index]
@@ -531,7 +547,7 @@ class CRSDReader1_0(CRSDReader):
         subscript = verify_subscript(ranges, the_memmap.shape)
         return numpy.copy(the_memmap[subscript])
 
-    def read_support_block(self):
+    def read_support_block(self) -> Dict:
         if self.crsd_meta.Data.SupportArrays:
             return {
                 sa.Identifier: self.read_support_array(sa.Identifier)
@@ -565,8 +581,8 @@ class CRSDReader1_0(CRSDReader):
 
     def read_chip(self,
              *ranges: Sequence[Union[None, int, Tuple[int, ...], slice]],
-             index: Union[int, str]=0,
-             squeeze: bool=True) -> numpy.ndarray:
+             index: Union[int, str] = 0,
+             squeeze: bool = True) -> numpy.ndarray:
         """
         This is identical to :meth:`read`, and presented for backwards compatibility.
 
@@ -589,8 +605,8 @@ class CRSDReader1_0(CRSDReader):
 
     def read(self,
              *ranges: Sequence[Union[None, int, Tuple[int, ...], slice]],
-             index: Union[int, str]=0,
-             squeeze: bool=True) -> numpy.ndarray:
+             index: Union[int, str] = 0,
+             squeeze: bool = True) -> numpy.ndarray:
         """
         Read formatted data from the given data segment. Note this is an alias to the
         :meth:`__call__` called as
@@ -618,8 +634,8 @@ class CRSDReader1_0(CRSDReader):
 
     def read_raw(self,
                  *ranges: Sequence[Union[None, int, Tuple[int, ...], slice]],
-                 index: Union[int, str]=0,
-                 squeeze: bool=True) -> numpy.ndarray:
+                 index: Union[int, str] = 0,
+                 squeeze: bool = True) -> numpy.ndarray:
         """
         Read raw data from the given data segment. Note this is an alias to the
         :meth:`__call__` called as
@@ -647,9 +663,9 @@ class CRSDReader1_0(CRSDReader):
 
     def __call__(self,
                  *ranges: Sequence[Union[None, int, slice]],
-                 index: int=0,
-                 raw: bool=False,
-                 squeeze: bool=True) -> numpy.ndarray:
+                 index: int = 0,
+                 raw: bool = False,
+                 squeeze: bool = True) -> numpy.ndarray:
         index = self._validate_index(index)
         return BaseReader.__call__(self, *ranges, index=index, raw=raw, squeeze=squeeze)
 
@@ -665,7 +681,7 @@ def is_a(file_name: str) -> Optional[CRSDReader]:
 
     Returns
     -------
-    CRSDReader1_0|None
+    CRSDReader1|None
         Appropriate `CRSDReader` instance if CRSD file, `None` otherwise
     """
 
@@ -704,7 +720,7 @@ class CRSDWritingDetails(CPHDWritingDetails):
         return self._meta
 
     @meta.setter
-    def meta(self, value):
+    def meta(self, value: CRSDType):
         if self._meta is not None:
             raise ValueError('meta is read only once initialized.')
         if not isinstance(value, CRSDType):
@@ -742,9 +758,9 @@ class CRSDWritingDetails(CPHDWritingDetails):
         self._header_written = True
 
 
-class CRSDWriter1_0(CPHDWriter1_0):
+class CRSDWriter1(CPHDWriter1):
     """
-    The CRSD version 1.0 writer.
+    The CRSD version 1 writer.
 
     **Updated in version 1.3.0** for writing changes.
     """
@@ -767,7 +783,7 @@ class CRSDWriter1_0(CPHDWriter1_0):
             Should we check if the given file already exists, and raises an exception if so?
         """
 
-        CPHDWriter1_0.__init__(
+        CPHDWriter1.__init__(
             self, file_object, meta=meta, writing_details=writing_details,
             check_existence=check_existence)
 
@@ -776,7 +792,7 @@ class CRSDWriter1_0(CPHDWriter1_0):
         return self._writing_details
 
     @writing_details.setter
-    def writing_details(self, value):
+    def writing_details(self, value: CRSDWritingDetails):
         if self._writing_details is not None:
             raise ValueError('writing_details is read-only')
         if not isinstance(value, CRSDWritingDetails):

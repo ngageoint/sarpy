@@ -1,6 +1,6 @@
 """
-Module for reading and writing CPHD files. Support reading CPHD version 0.3 and 1.0
-and writing version 1.0.
+Module for reading and writing CPHD files. Support reading CPHD version 0.3 and 1
+and writing version 1.
 """
 
 __classification__ = "UNCLASSIFIED"
@@ -23,7 +23,7 @@ from sarpy.io.general.slice_parsing import verify_subscript, verify_slice
 
 from sarpy.io.phase_history.base import CPHDTypeReader
 from sarpy.io.phase_history.cphd1_elements.CPHD import CPHDType as CPHDType1, \
-    CPHDHeader as CPHDHeader1_0, CPHD_SECTION_TERMINATOR
+    CPHDHeader as CPHDHeader1, CPHD_SECTION_TERMINATOR
 from sarpy.io.phase_history.cphd0_3_elements.CPHD import CPHDType as CPHDType0_3, \
     CPHDHeader as CPHDHeader0_3
 from sarpy.io.phase_history.cphd_schema import get_namespace, get_default_tuple
@@ -243,9 +243,9 @@ class CPHDDetails(object):
         return self._cphd_meta
 
     @property
-    def cphd_header(self) -> Union[CPHDHeader1_0, CPHDHeader0_3]:
+    def cphd_header(self) -> Union[CPHDHeader1, CPHDHeader0_3]:
         """
-        CPHDHeader1_0|CPHDHeader0_3: The CPHD header object, which is version dependent.
+        CPHDHeader1|CPHDHeader0_3: The CPHD header object, which is version dependent.
         """
 
         return self._cphd_header
@@ -273,8 +273,8 @@ class CPHDDetails(object):
 
         if self.cphd_version.startswith('0.3'):
             self._cphd_header = CPHDHeader0_3.from_file_object(self._file_object)
-        elif self.cphd_version.startswith('1.0') or self.cphd_version.startswith('1.1'):
-            self._cphd_header = CPHDHeader1_0.from_file_object(self._file_object)
+        elif self.cphd_version.startswith('1.'):
+            self._cphd_header = CPHDHeader1.from_file_object(self._file_object)
         else:
             raise ValueError(_unhandled_version_text.format(self.cphd_version))
 
@@ -286,7 +286,7 @@ class CPHDDetails(object):
         xml = self.get_cphd_bytes()
         if self.cphd_version.startswith('0.3'):
             the_type = CPHDType0_3
-        elif self.cphd_version.startswith('1.0') or self.cphd_version.startswith('1.1'):
+        elif self.cphd_version.startswith('1.'):
             the_type = CPHDType1
         else:
             raise ValueError(_unhandled_version_text.format(self.cphd_version))
@@ -311,8 +311,8 @@ class CPHDDetails(object):
             # extract the xml data
             self.file_object.seek(header.XML_BYTE_OFFSET, os.SEEK_SET)
             xml = self.file_object.read(header.XML_DATA_SIZE)
-        elif self.cphd_version.startswith('1.0') or self.cphd_version.startswith('1.1'):
-            assert isinstance(header, CPHDHeader1_0)
+        elif self.cphd_version.startswith('1.'):
+            assert isinstance(header, CPHDHeader1)
             # extract the xml data
             self.file_object.seek(header.XML_BLOCK_BYTE_OFFSET, os.SEEK_SET)
             xml = self.file_object.read(header.XML_BLOCK_SIZE)
@@ -409,8 +409,8 @@ class CPHDReader(CPHDTypeReader):
 
         if cphd_details.cphd_version.startswith('0.3'):
             return object.__new__(CPHDReader0_3)
-        elif cphd_details.cphd_version.startswith('1.0') or cphd_details.cphd_version.startswith('1.1'):
-            return object.__new__(CPHDReader1_0)
+        elif cphd_details.cphd_version.startswith('1.'):
+            return object.__new__(CPHDReader1)
         else:
             raise ValueError('Got unhandled CPHD version {}'.format(cphd_details.cphd_version))
 
@@ -431,9 +431,9 @@ class CPHDReader(CPHDTypeReader):
         return self.cphd_details.cphd_version
 
     @property
-    def cphd_header(self) -> Union[CPHDHeader1_0, CPHDHeader0_3]:
+    def cphd_header(self) -> Union[CPHDHeader1, CPHDHeader0_3]:
         """
-        CPHDHeader1_0|CPHDHeader0_3: The CPHD header object, which is version dependent.
+        CPHDHeader1|CPHDHeader0_3: The CPHD header object, which is version dependent.
         """
 
         return self.cphd_details.cphd_header
@@ -472,9 +472,9 @@ class CPHDReader(CPHDTypeReader):
             del self._cphd_details
 
 
-class CPHDReader1_0(CPHDReader):
+class CPHDReader1(CPHDReader):
     """
-    The CPHD version 1.0 reader.
+    The CPHD version 1 reader.
 
     **Updated in version 1.3.0** for reading changes.
     """
@@ -516,9 +516,9 @@ class CPHDReader1_0(CPHDReader):
         return self._cphd_meta
 
     @property
-    def cphd_header(self) -> CPHDHeader1_0:
+    def cphd_header(self) -> CPHDHeader1:
         """
-        CPHDHeader1_0: The CPHD header object.
+        CPHDHeader1: The CPHD header object.
         """
 
         return self.cphd_details.cphd_header
@@ -664,9 +664,10 @@ class CPHDReader1_0(CPHDReader):
                 raise ValueError(_index_range_text.format(cphd_meta.Data.NumCPHDChannels))
             return cphd_meta.Data.Channels[int_index].Identifier
 
-    def read_support_array(self,
-                           index: Union[int, str],
-                           *ranges: Sequence[Union[None, int, Tuple[int, ...], slice]]) -> numpy.ndarray:
+    def read_support_array(
+            self,
+            index: Union[int, str],
+            *ranges: Sequence[Union[None, int, Tuple[int, ...], slice]]) -> numpy.ndarray:
         # find the support array identifier
         if isinstance(index, int):
             the_entry = self.cphd_meta.Data.SupportArrays[index]
@@ -1025,7 +1026,7 @@ class ElementDetails(object):
         return self._item_offset
 
     @item_offset.setter
-    def item_offset(self, value) -> None:
+    def item_offset(self, value: int) -> None:
         value = int(value)
         if self._item_offset is not None and self._item_offset != value:
             raise ValueError("item_offset is read only after being initially defined.")
@@ -1060,7 +1061,7 @@ class ElementDetails(object):
         return self._item_written
 
     @item_written.setter
-    def item_written(self, value):
+    def item_written(self, value: bool):
         value = bool(value)
         if self._item_written and not value:
             raise ValueError(
@@ -1124,7 +1125,7 @@ class CPHDWritingDetails(object):
         self._populate_signal_details()
 
     @property
-    def header(self) -> CPHDHeader1_0:
+    def header(self) -> CPHDHeader1:
         return self._header
 
     def _set_header(self, check_older_version: bool):
@@ -1288,9 +1289,9 @@ class CPHDWritingDetails(object):
         self._verify_item_written(self.signal_details, 'signal')
 
 
-class CPHDWriter1_0(BaseWriter):
+class CPHDWriter1(BaseWriter):
     """
-    The CPHD version 1.0 writer.
+    The CPHD version 1 writer.
 
     **Updated in version 1.3.0** for writing changes.
     """
@@ -1301,12 +1302,13 @@ class CPHDWriter1_0(BaseWriter):
         '_pvp_memmaps', '_support_memmaps', '_signal_data_segments',
         '_can_write_regular_data')
 
-    def __init__(self,
-                 file_object: Union[str, BinaryIO],
-                 meta: Optional[CPHDType1] = None,
-                 writing_details: Optional[CPHDWritingDetails] = None,
-                 check_older_version: bool = False,
-                 check_existence: bool = True):
+    def __init__(
+            self,
+            file_object: Union[str, BinaryIO],
+            meta: Optional[CPHDType1] = None,
+            writing_details: Optional[CPHDWritingDetails] = None,
+            check_older_version: bool = False,
+            check_existence: bool = True):
         """
 
         Parameters

@@ -5,7 +5,7 @@ import tempfile
 import unittest
 
 import numpy.testing
-from sarpy.io.received.crsd import CRSDReader, CRSDReader1_0, CRSDWriter1_0
+from sarpy.io.received.crsd import CRSDReader, CRSDReader1, CRSDWriter1
 from sarpy.io.received.converter import open_received
 from sarpy.io.received.crsd_schema import get_schema_path
 
@@ -58,7 +58,7 @@ def generic_io_test(instance, test_file, reader_type_string, reader_type):
 
     with instance.subTest(msg='Fetch data_sizes and sidds for type {} and file {}'.format(reader_type_string, test_file)):
         data_sizes = reader.get_data_size_as_tuple()
-        if isinstance(reader, CRSDReader1_0):
+        if isinstance(reader, CRSDReader1):
             elements = reader.crsd_meta.Data.Channels
         else:
             raise TypeError('Got unhandled reader type {}'.format(type(reader)))
@@ -96,7 +96,7 @@ def generic_io_test(instance, test_file, reader_type_string, reader_type):
             test_pvp = reader.read_pvp_variable('TxTime', i, the_range=(0, 10, 2))
             instance.assertEqual(test_pvp.shape, (5, ), msg='Unexpected pvp strided slice fetch size')
 
-    if isinstance(reader, CRSDReader1_0):
+    if isinstance(reader, CRSDReader1):
         generic_writer_test(reader)
 
     del reader
@@ -110,7 +110,7 @@ def generic_writer_test(crsd_reader):
         read_signal = crsd_reader.read_signal_block()
 
         # write the crsd file
-        with CRSDWriter1_0(written_crsd.name, crsd_reader.crsd_meta, check_existence=False) as writer:
+        with CRSDWriter1(written_crsd.name, crsd_reader.crsd_meta, check_existence=False) as writer:
             writer.write_file(read_pvp, read_signal, read_support)
 
         # reread the newly written data
