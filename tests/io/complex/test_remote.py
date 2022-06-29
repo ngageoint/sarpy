@@ -11,15 +11,15 @@ try:
 except ImportError:
     smart_open = None
 
-
+file_object = None
 if smart_open is not None:
     try:
         file_object = smart_open.open(
             'https://six-library.s3.amazonaws.com/sicd_example_RMA_RGZERO_RE32F_IM32F_cropped_multiple_image_segments.nitf',
             mode='rb',  # must be opened in binary mode
-            buffering=4 * 1024 * 1024)  # it has been observed that setting a manual buffer size may help
+            buffering=4*1024*1024)  # it has been observed that setting a manual buffer size may help
     except Exception:
-        file_object = None
+        pass
 
 
 class TestRemoteSICD(unittest.TestCase):

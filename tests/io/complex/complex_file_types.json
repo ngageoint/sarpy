@@ -11,7 +11,7 @@
     {"path":  "RCM_NITF/RCM2_OK1052792_PK1058939_1_FSL26_20200305_233203_HH_HV_SLC", "path_type":  "relative"}],
   "RadarSat-2": [
     {"path":  "RS2/RS2_C0RS2_OK117768_PK1033407_DK972895_FQ20_20200227_101203_HH_VV_HV_VH_SLC", "path_type":  "relative"},
-    {"path":  "RS2_C0RS2_OK117671_PK1032788_DK972278_SLA17_20200204_144812_HH_SLC", "path_type":  "relative"}],
+    {"path":  "RS2/RS2_C0RS2_OK117671_PK1032788_DK972278_SLA17_20200204_144812_HH_SLC", "path_type":  "relative"}],
   "Sentinel-1": [
     {"path":  "sentinel/S1A_IW_SLC__1SDH_20200201T141253_20200201T141321_031060_03917E_BAA7.SAFE", "path_type":  "relative"}],
   "TerraSAR-X": [

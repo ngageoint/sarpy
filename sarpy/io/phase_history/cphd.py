@@ -1328,7 +1328,7 @@ class CPHDWriter1(BaseWriter):
         if isinstance(file_object, str):
             if check_existence and os.path.exists(file_object):
                 raise SarpyIOError(
-                    'Given file {} already exists, and a new NITF file cannot be created here.'.format(file_object))
+                    'Given file {} already exists, and a new CPHD file cannot be created here.'.format(file_object))
             file_object = open(file_object, 'wb')
 
         if not is_file_like(file_object):
