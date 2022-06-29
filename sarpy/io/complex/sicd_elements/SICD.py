@@ -8,6 +8,7 @@ __author__ = "Thomas McCullough"
 
 import logging
 from copy import deepcopy
+import re
 from collections import OrderedDict
 
 import numpy
@@ -832,11 +833,10 @@ class SICDType(Serializable):
         """
 
         sugg_name = get_sicd_name(self, product_number)
-        if sugg_name is not None:
-            return sugg_name
-        elif self.CollectionInfo.CoreName is not None:
-            return self.CollectionInfo.CoreName
-        return 'Unknown_Sicd{}'.format(product_number)
+        if sugg_name is None:
+            sugg_name = self.CollectionInfo.CoreName if self.CollectionInfo.CoreName is not None else \
+                'Unknown_Sicd{}'.format(product_number)
+        return re.sub(':', '_', sugg_name)
 
     def version_required(self):
         """
