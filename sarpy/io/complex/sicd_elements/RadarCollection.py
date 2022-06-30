@@ -6,7 +6,7 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
-from typing import List, Union
+from typing import List, Union, Optional, Dict
 import logging
 
 import numpy
@@ -29,13 +29,14 @@ import sarpy.geometry.geocoords as geocoords
 logger = logging.getLogger(__name__)
 
 
-def get_band_name(freq):
+def get_band_name(freq: float) -> str:
     """
     Gets the band names associated with the given frequency (in Hz).
 
     Parameters
     ----------
     freq : float
+        The frequency in Hz.
 
     Returns
     -------
@@ -86,7 +87,11 @@ class TxFrequencyType(Serializable, Arrayable):
         'Max', _required, strict=DEFAULT_STRICT,
         docstring='The transmit maximum frequency in Hz.')  # type: float
 
-    def __init__(self, Min=None, Max=None, **kwargs):
+    def __init__(
+            self,
+            Min: float = None,
+            Max: float = None,
+            **kwargs):
         """
 
         Parameters
@@ -104,7 +109,7 @@ class TxFrequencyType(Serializable, Arrayable):
         super(TxFrequencyType, self).__init__(**kwargs)
 
     @property
-    def center_frequency(self):
+    def center_frequency(self) -> Optional[float]:
         """
         None|float: The center frequency
         """
@@ -113,13 +118,13 @@ class TxFrequencyType(Serializable, Arrayable):
             return None
         return 0.5*(self.Min + self.Max)
 
-    def _apply_reference_frequency(self, reference_frequency):
+    def _apply_reference_frequency(self, reference_frequency: float):
         if self.Min is not None:
             self.Min += reference_frequency
         if self.Max is not None:
             self.Max += reference_frequency
 
-    def _basic_validity_check(self):
+    def _basic_validity_check(self) -> bool:
         condition = super(TxFrequencyType, self)._basic_validity_check()
         if self.Min is not None and self.Max is not None and self.Max < self.Min:
             self.log_validity_error(
@@ -127,7 +132,7 @@ class TxFrequencyType(Serializable, Arrayable):
             condition = False
         return condition
 
-    def get_band_abbreviation(self):
+    def get_band_abbreviation(self) -> str:
         """
         Gets the band abbreviation for the suggested name.
 
@@ -139,7 +144,7 @@ class TxFrequencyType(Serializable, Arrayable):
         band_name = get_band_name(self.center_frequency)
         return band_name + '_'*(3 - len(band_name))
 
-    def get_array(self, dtype=numpy.float64):
+    def get_array(self, dtype=numpy.float64) -> numpy.ndarray:
         """
         Gets an array representation of the data.
 
@@ -157,7 +162,7 @@ class TxFrequencyType(Serializable, Arrayable):
         return numpy.array([self.Min, self.Max], dtype=dtype)
 
     @classmethod
-    def from_array(cls, array):
+    def from_array(cls, array: Union[numpy.ndarray, list, tuple]):
         """
         Create from an array type entry.
 
@@ -224,9 +229,20 @@ class WaveformParametersType(Serializable):
     index = IntegerDescriptor(
         'index', _required, strict=False, docstring="The array index.")  # type: int
 
-    def __init__(self, TxPulseLength=None, TxRFBandwidth=None, TxFreqStart=None, TxFMRate=None,
-                 RcvDemodType=None, RcvWindowLength=None, ADCSampleRate=None, RcvIFBandwidth=None,
-                 RcvFreqStart=None, RcvFMRate=None, index=None, **kwargs):
+    def __init__(
+            self,
+            TxPulseLength: Optional[float] = None,
+            TxRFBandwidth: Optional[float] = None,
+            TxFreqStart: Optional[float] = None,
+            TxFMRate: Optional[float] = None,
+            RcvDemodType: Optional[float] = None,
+            RcvWindowLength: Optional[float] = None,
+            ADCSampleRate: Optional[float] = None,
+            RcvIFBandwidth: Optional[float] = None,
+            RcvFreqStart: Optional[float] = None,
+            RcvFMRate: Optional[float] = None,
+            index: int = None,
+            **kwargs):
         """
 
         Parameters
@@ -265,7 +281,7 @@ class WaveformParametersType(Serializable):
         super(WaveformParametersType, self).__init__(**kwargs)
 
     @property
-    def RcvDemodType(self):  # type: () -> Union[None, str]
+    def RcvDemodType(self) -> Optional[str]:
         """
         str: READ ONLY. Receive demodulation used when Linear FM waveform is
         used on transmit. This value is derived form the value of `RcvFMRate`.
@@ -285,14 +301,14 @@ class WaveformParametersType(Serializable):
             return 'STRETCH'
 
     @property
-    def RcvFMRate(self):  # type: () -> Union[None, float]
+    def RcvFMRate(self) -> Optional[float]:
         """
         float: Receive FM rate in Hz/sec. Also, determines the value of `RcvDemodType`. **Optional.**
         """
         return self._RcvFMRate
 
     @RcvFMRate.setter
-    def RcvFMRate(self, value):
+    def RcvFMRate(self, value: Optional[float]):
         if value is None:
             self._RcvFMRate = None
         else:
@@ -305,7 +321,7 @@ class WaveformParametersType(Serializable):
                     'The value has been set to None.'.format(value, type(e), e))
                 self._RcvFMRate = None
 
-    def _basic_validity_check(self):
+    def _basic_validity_check(self) -> bool:
         valid = super(WaveformParametersType, self)._basic_validity_check()
         return valid
 
@@ -325,7 +341,7 @@ class WaveformParametersType(Serializable):
         if self.TxFMRate is not None and self.TxRFBandwidth is not None and self.TxPulseLength is None:
             self.TxPulseLength = self.TxRFBandwidth/self.TxFMRate
 
-    def _apply_reference_frequency(self, reference_frequency):
+    def _apply_reference_frequency(self, reference_frequency: float):
         if self.TxFreqStart is not None:
             self.TxFreqStart += reference_frequency
         if self.RcvFreqStart is not None:
@@ -351,7 +367,12 @@ class TxStepType(Serializable):
         'index', _required, strict=DEFAULT_STRICT,
         docstring='The step index')  # type: int
 
-    def __init__(self, WFIndex=None, TxPolarization=None, index=None, **kwargs):
+    def __init__(
+            self,
+            WFIndex: Optional[int] = None,
+            TxPolarization: Optional[str] = None,
+            index: int = None,
+            **kwargs):
         """
 
         Parameters
@@ -391,7 +412,12 @@ class ChanParametersType(Serializable):
     index = IntegerDescriptor(
         'index', _required, strict=DEFAULT_STRICT, docstring='The parameter index')  # type: int
 
-    def __init__(self, TxRcvPolarization=None, RcvAPCIndex=None, index=None, **kwargs):
+    def __init__(
+            self,
+            TxRcvPolarization: Optional[str] = None,
+            RcvAPCIndex: Optional[int] = None,
+            index: int = None,
+            **kwargs):
         """
 
         Parameters
@@ -411,7 +437,7 @@ class ChanParametersType(Serializable):
         self.index = index
         super(ChanParametersType, self).__init__(**kwargs)
 
-    def get_transmit_polarization(self):
+    def get_transmit_polarization(self) -> Optional[str]:
         if self.TxRcvPolarization is None:
             return None
         elif self.TxRcvPolarization in ['OTHER', 'UNKNOWN']:
@@ -419,7 +445,7 @@ class ChanParametersType(Serializable):
         else:
             return self.TxRcvPolarization.split(':')[0]
 
-    def version_required(self):
+    def version_required(self) -> Tuple[int, int, int]:
         """
         What SICD version is required?
 
@@ -451,7 +477,13 @@ class ReferencePointType(Serializable):
         'name', _required, strict=DEFAULT_STRICT,
         docstring='The reference point name.')  # type: str
 
-    def __init__(self, ECF=None, Line=None, Sample=None, name=None, **kwargs):
+    def __init__(
+            self,
+            ECF: Union[XYZType, numpy.ndarray, list, tuple] = None,
+            Line: float = None,
+            Sample: float = None,
+            name: Optional[str] = None,
+            **kwargs):
         """
 
         Parameters
@@ -493,7 +525,13 @@ class XDirectionType(Serializable):
         'FirstLine', _required, strict=DEFAULT_STRICT,
         docstring='The first line index.')  # type: int
 
-    def __init__(self, UVectECF=None, LineSpacing=None, NumLines=None, FirstLine=None, **kwargs):
+    def __init__(
+            self,
+            UVectECF: Union[XYZType, numpy.ndarray, list, tuple] = None,
+            LineSpacing: int = None,
+            NumLines: int = None,
+            FirstLine: int = None,
+            **kwargs):
         """
 
         Parameters
@@ -535,7 +573,13 @@ class YDirectionType(Serializable):
         'FirstSample', _required, strict=DEFAULT_STRICT,
         docstring='The first sample index.')  # type: int
 
-    def __init__(self, UVectECF=None, SampleSpacing=None, NumSamples=None, FirstSample=None, **kwargs):
+    def __init__(
+            self,
+            UVectECF: Union[XYZType, numpy.ndarray, list, tuple] = None,
+            SampleSpacing: float = None,
+            NumSamples: int = None,
+            FirstSample: int = None,
+            **kwargs):
         """
 
         Parameters
@@ -583,8 +627,15 @@ class SegmentArrayElement(Serializable):
         'index', _required, strict=DEFAULT_STRICT,
         docstring='The array index.')  # type: int
 
-    def __init__(self, StartLine=None, StartSample=None, EndLine=None, EndSample=None,
-                 Identifier=None, index=None, **kwargs):
+    def __init__(
+            self,
+            StartLine: int = None,
+            StartSample: int = None,
+            EndLine: int = None,
+            EndSample: int = None,
+            Identifier: str = None,
+            index: int = None,
+            **kwargs):
         """
 
         Parameters
@@ -636,7 +687,14 @@ class ReferencePlaneType(Serializable):
         'Orientation', _ORIENTATION_VALUES, _required, strict=DEFAULT_STRICT,
         docstring='Describes the shadow intent of the display plane.')  # type: str
 
-    def __init__(self, RefPt=None, XDir=None, YDir=None, SegmentList=None, Orientation=None, **kwargs):
+    def __init__(
+            self,
+            RefPt: ReferencePointType = None,
+            XDir: XDirectionType = None,
+            YDir: YDirectionType = None,
+            SegmentList: Union[SerializableArray, List[SegmentArrayElement]] = None,
+            Orientation: Optional[str] = None,
+            **kwargs):
         """
 
         Parameters
@@ -659,7 +717,7 @@ class ReferencePlaneType(Serializable):
         self.Orientation = Orientation
         super(ReferencePlaneType, self).__init__(**kwargs)
 
-    def get_ecf_corner_array(self):
+    def get_ecf_corner_array(self) -> numpy.ndarray:
         """
         Use the XDir and YDir definitions to return the corner points in ECF coordinates as a `4x3` array.
 
@@ -702,7 +760,11 @@ class AreaType(Serializable):
         'Plane', ReferencePlaneType, _required, strict=DEFAULT_STRICT,
         docstring='A rectangular area in a geo-located display plane.')  # type: ReferencePlaneType
 
-    def __init__(self, Corner=None, Plane=None, **kwargs):
+    def __init__(
+            self,
+            Corner: Union[SerializableCPArray, List[LatLonHAECornerRestrictionType], numpy.ndarray, list, tuple] = None,
+            Plane: ReferencePlaneType = None,
+            **kwargs):
         """
 
         Parameters
@@ -775,7 +837,7 @@ class RadarCollectionType(Serializable):
         'TxSequence', TxStepType, _collections_tags, _required, strict=DEFAULT_STRICT, minimum_length=1,
         docstring='The transmit sequence parameters array. If present, indicates the transmit signal steps through '
                   'a repeating sequence of waveforms and/or polarizations. '
-                  'One step per Inter-Pulse Period.')  # type: Union[SerializableArray, List[TxStepType]]
+                  'One step per Inter-Pulse Period.')  # type: Union[None, SerializableArray, List[TxStepType]]
     RcvChannels = SerializableArrayDescriptor(
         'RcvChannels', ChanParametersType, _collections_tags,
         _required, strict=DEFAULT_STRICT, minimum_length=1,
@@ -787,9 +849,17 @@ class RadarCollectionType(Serializable):
         'Parameters', _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='A parameters collections.')  # type: ParametersCollection
 
-    def __init__(self, TxFrequency=None, RefFreqIndex=None, Waveform=None,
-                 TxPolarization=None, TxSequence=None, RcvChannels=None,
-                 Area=None, Parameters=None, **kwargs):
+    def __init__(
+            self,
+            TxFrequency: TxFrequencyType = None,
+            RefFreqIndex: Optional[int] = None,
+            Waveform: Union[None, SerializableArray, List[WaveformParametersType]] = None,
+            TxPolarization: str = None,
+            TxSequence: Union[None, SerializableArray, List[TxStepType]] = None,
+            RcvChannels: Union[SerializableArray, List[ChanParametersType]] = None,
+            Area: Optional[AreaType] = None,
+            Parameters: Union[None, ParametersCollection, Dict] = None,
+            **kwargs):
         """
 
         Parameters

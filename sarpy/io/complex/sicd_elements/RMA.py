@@ -6,7 +6,7 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
-from typing import Union
+from typing import Union, Optional
 
 import numpy
 from numpy.linalg import norm
@@ -41,7 +41,12 @@ class RMRefType(Serializable):
         'DopConeAngRef', _required, strict=DEFAULT_STRICT,
         docstring='Reference Doppler Cone Angle in degrees.')  # type: float
 
-    def __init__(self, PosRef=None, VelRef=None, DopConeAngRef=None, **kwargs):
+    def __init__(
+            self,
+            PosRef: Union[XYZType, numpy.ndarray, list, tuple] = None,
+            VelRef: Union[XYZType, numpy.ndarray, list, tuple] = None,
+            DopConeAngRef: float = None,
+            **kwargs):
         """
 
         Parameters
@@ -105,8 +110,15 @@ class INCAType(Serializable):
         
         *Note:* Only used for Stripmap and Dynamic Stripmap.""")  # type: bool
 
-    def __init__(self, TimeCAPoly=None, R_CA_SCP=None, FreqZero=None, DRateSFPoly=None,
-                 DopCentroidPoly=None, DopCentroidCOA=None, **kwargs):
+    def __init__(
+            self,
+            TimeCAPoly: Union[Poly1DType, numpy.ndarray, list, tuple] = None,
+            R_CA_SCP: float = None,
+            FreqZero: float = None,
+            DRateSFPoly: Union[Poly2DType, numpy.ndarray, list, tuple] = None,
+            DopCentroidPoly: Union[None, Poly2DType, numpy.ndarray, list, tuple] = None,
+            DopCentroidCOA: bool = None,
+            **kwargs):
         """
 
         Parameters
@@ -132,7 +144,7 @@ class INCAType(Serializable):
         self.DopCentroidCOA = DopCentroidCOA
         super(INCAType, self).__init__(**kwargs)
 
-    def _apply_reference_frequency(self, reference_frequency):
+    def _apply_reference_frequency(self, reference_frequency: float):
         if self.FreqZero is not None:
             self.FreqZero += reference_frequency
 
@@ -167,7 +179,13 @@ class RMAType(Serializable):
         'INCA', INCAType, _required, strict=DEFAULT_STRICT,
         docstring='Parameters for *Imaging Near Closest Approach (INCA)* image description.')  # type: INCAType
 
-    def __init__(self, RMAlgoType=None, RMAT=None, RMCR=None, INCA=None, **kwargs):
+    def __init__(
+            self,
+            RMAlgoType: str = None,
+            RMAT: Optional[RMRefType] = None,
+            RMCR: Optional[RMRefType] = None,
+            INCA: Optional[INCAType] = None,
+            **kwargs):
         """
 
         Parameters
@@ -190,7 +208,7 @@ class RMAType(Serializable):
         super(RMAType, self).__init__(**kwargs)
 
     @property
-    def ImageType(self):  # type: () -> Union[None, str]
+    def ImageType(self) -> Optional[str]:
         """
         str: READ ONLY attribute. Identifies the specific RM image type / metadata type supplied. This is determined by
         returning the (first) attribute among `'RMAT', 'RMCR', 'INCA'` which is populated. `None` will be returned if
@@ -250,7 +268,7 @@ class RMAType(Serializable):
             if self.INCA.FreqZero is None:
                 self.INCA.FreqZero = _get_center_frequency(RadarCollection, ImageFormation)
 
-    def _apply_reference_frequency(self, reference_frequency):
+    def _apply_reference_frequency(self, reference_frequency: float):
         """
         If the reference frequency is used, adjust the necessary fields accordingly.
         Expected to be called by SICD parent.

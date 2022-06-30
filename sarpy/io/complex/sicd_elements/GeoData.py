@@ -8,7 +8,7 @@ __author__ = "Thomas McCullough"
 
 from collections import OrderedDict
 from xml.etree import ElementTree
-from typing import List, Union, Dict
+from typing import List, Union, Dict, Sequence, Optional
 
 import numpy
 
@@ -56,17 +56,25 @@ class GeoInfoType(Serializable):
         docstring='A geographic polygon (array) with WGS-84 coordinates.'
     )  # type: Union[SerializableArray, List[LatLonArrayElementType]]
 
-    def __init__(self, name=None, Descriptions=None, Point=None, Line=None, Polygon=None, GeoInfos=None, **kwargs):
+    def __init__(
+            self,
+            name: str = None,
+            Descriptions: Union[None, ParametersCollection, Dict] = None,
+            Point=None,
+            Line=None,
+            Polygon=None,
+            GeoInfos=None,
+            **kwargs):
         """
 
         Parameters
         ----------
         name : str
-        Descriptions : ParametersCollection|dict
-        Point : LatLonRestrictionType|numpy.ndarray|list|tuple
-        Line : SerializableArray|List[LatLonArrayElementType]|numpy.ndarray|list|tuple
-        Polygon : SerializableArray|List[LatLonArrayElementType]|numpy.ndarray|list|tuple
-        GeoInfos : Dict[GeoInfoTpe]
+        Descriptions : None|ParametersCollection|dict
+        Point : None|LatLonRestrictionType|numpy.ndarray|list|tuple
+        Line : None|SerializableArray|List[LatLonArrayElementType]|numpy.ndarray|list|tuple
+        Polygon : None|SerializableArray|List[LatLonArrayElementType]|numpy.ndarray|list|tuple
+        GeoInfos : None|Sequence[GeoInfoTpe]
         kwargs
         """
 
@@ -93,7 +101,7 @@ class GeoInfoType(Serializable):
         super(GeoInfoType, self).__init__(**kwargs)
 
     @property
-    def FeatureType(self):  # type: () -> Union[None, str]
+    def FeatureType(self) -> Optional[str]:
         """
         str: READ ONLY attribute. Identifies the feature type among. This is determined by
         returning the (first) attribute among `Point`, `Line`, `Polygon` which is populated.
@@ -113,7 +121,7 @@ class GeoInfoType(Serializable):
 
         return self._GeoInfos
 
-    def getGeoInfo(self, key):
+    def getGeoInfo(self, key: str):
         """
         Get GeoInfo(s) with name attribute == `key`.
 
@@ -134,7 +142,7 @@ class GeoInfoType(Serializable):
 
         Parameters
         ----------
-        value : GeoInfoType
+        value : GeoInfoType|Dict
 
         Returns
         -------
@@ -152,7 +160,7 @@ class GeoInfoType(Serializable):
         else:
             raise TypeError('Trying to set GeoInfo element with unexpected type {}'.format(type(value)))
 
-    def _validate_features(self):
+    def _validate_features(self) -> bool:
         if self.Line is not None and self.Line.size < 2:
             self.log_validity_error('GeoInfo has a Line feature with {} points defined.'.format(self.Line.size))
             return False
@@ -161,7 +169,7 @@ class GeoInfoType(Serializable):
             return False
         return True
 
-    def _basic_validity_check(self):
+    def _basic_validity_check(self) -> bool:
         condition = super(GeoInfoType, self)._basic_validity_check()
         return condition & self._validate_features()
 
@@ -200,7 +208,11 @@ class SCPType(Serializable):
     _ECF = None
     _LLH = None
 
-    def __init__(self, ECF=None, LLH=None, **kwargs):
+    def __init__(
+            self,
+            ECF: Union[None, XYZType, numpy.ndarray, tuple, list] = None,
+            LLH: Union[None, LatLonHAERestrictionType, numpy.ndarray, tuple, list] = None,
+            **kwargs):
         """
         To avoid the potential of inconsistent state, ECF and LLH are not simultaneously
         used. If ECF is provided, it is used to populate LLH. Otherwise, if LLH is provided,
@@ -224,7 +236,7 @@ class SCPType(Serializable):
         super(SCPType, self).__init__(**kwargs)
 
     @property
-    def ECF(self):  # type: () -> XYZType
+    def ECF(self) -> XYZType:
         """
         XYZType: The ECF coordinates.
         """
@@ -238,7 +250,7 @@ class SCPType(Serializable):
             self._LLH = LatLonHAERestrictionType.from_array(ecf_to_geodetic(self._ECF.get_array()))
 
     @property
-    def LLH(self):  # type: () -> LatLonHAERestrictionType
+    def LLH(self) -> LatLonHAERestrictionType:
         """
         LatLonHAERestrictionType: The WGS-84 coordinates.
         """
@@ -251,7 +263,7 @@ class SCPType(Serializable):
             self._LLH = parse_serializable(value, 'LLH', self, LatLonHAERestrictionType)
             self._ECF = XYZType.from_array(geodetic_to_ecf(self._LLH.get_array(order='LAT')))
 
-    def get_image_center_abbreviation(self):
+    def get_image_center_abbreviation(self) -> str:
         """
         Gets the center coordinate abbreviation for the suggested name.
 
@@ -297,7 +309,14 @@ class GeoDataType(Serializable):
         docstring='The full image array includes both valid data and some zero filled pixels.'
     )  # type: Union[SerializableArray, List[LatLonArrayElementType]]
 
-    def __init__(self, EarthModel='WGS_84', SCP=None, ImageCorners=None, ValidData=None, GeoInfos=None, **kwargs):
+    def __init__(
+            self,
+            EarthModel: str = 'WGS_84',
+            SCP: SCPType = None,
+            ImageCorners=None,
+            ValidData=None,
+            GeoInfos: List[GeoInfoType] = None,
+            **kwargs):
         """
 
         Parameters
@@ -344,14 +363,14 @@ class GeoDataType(Serializable):
         pass
 
     @property
-    def GeoInfos(self):
+    def GeoInfos(self) -> List[GeoInfoType]:
         """
         List[GeoInfoType]: list of GeoInfos.
         """
 
         return self._GeoInfos
 
-    def getGeoInfo(self, key):
+    def getGeoInfo(self, key: str) -> List[GeoInfoType]:
         """
         Get the GeoInfo(s) with name attribute == `key`
 
@@ -366,7 +385,7 @@ class GeoDataType(Serializable):
 
         return [entry for entry in self._GeoInfos if entry.name == key]
 
-    def setGeoInfo(self, value):
+    def setGeoInfo(self, value: [GeoInfoType, Dict]):
         """
         Add the given GeoInfo to the GeoInfos list.
 
@@ -413,6 +432,6 @@ class GeoDataType(Serializable):
             out['GeoInfos'] = [entry.to_dict(check_validity=check_validity, strict=strict) for entry in self._GeoInfos]
         return out
 
-    def _basic_validity_check(self):
+    def _basic_validity_check(self) -> bool:
         condition = super(GeoDataType, self)._basic_validity_check()
         return condition

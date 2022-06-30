@@ -5,6 +5,8 @@ The PFAType definition.
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
+from typing import Union, Optional, Tuple
+
 import numpy
 from numpy.linalg import norm
 from numpy.polynomial import polynomial
@@ -36,7 +38,11 @@ class STDeskewType(Serializable):
                   '(cycles) polynomial function of image range coordinate *(variable 1)* and '
                   'azimuth coordinate *(variable 2)*.')  # type: Poly2DType
 
-    def __init__(self, Applied=None, STDSPhasePoly=None, **kwargs):
+    def __init__(
+            self,
+            Applied: bool = None,
+            STDSPhasePoly: Union[Poly2DType, numpy.ndarray, list, tuple] = None,
+            **kwargs):
         """
 
         Parameters
@@ -110,9 +116,19 @@ class PFAType(Serializable):
         'STDeskew', STDeskewType, _required, strict=DEFAULT_STRICT,
         docstring='Parameters to describe image domain slow time *(ST)* Deskew processing.')  # type: STDeskewType
 
-    def __init__(self, FPN=None, IPN=None, PolarAngRefTime=None, PolarAngPoly=None,
-                 SpatialFreqSFPoly=None, Krg1=None, Krg2=None, Kaz1=None, Kaz2=None,
-                 STDeskew=None, **kwargs):
+    def __init__(
+            self,
+            FPN: Union[XYZType, numpy.ndarray, list, tuple] = None,
+            IPN: Union[XYZType, numpy.ndarray, list, tuple] = None,
+            PolarAngRefTime: float = None,
+            PolarAngPoly: Union[Poly1DType, numpy.ndarray, list, tuple] = None,
+            SpatialFreqSFPoly: Union[Poly1DType, numpy.ndarray, list, tuple] = None,
+            Krg1: float = None,
+            Krg2: float = None,
+            Kaz1: float = None,
+            Kaz2: float = None,
+            STDeskew: Optional[STDeskewType] = None,
+            **kwargs):
         """
 
         Parameters
@@ -144,7 +160,11 @@ class PFAType(Serializable):
         self.STDeskew = STDeskew
         super(PFAType, self).__init__(**kwargs)
 
-    def pfa_polar_coords(self, Position, SCP, times):
+    def pfa_polar_coords(
+            self,
+            Position,
+            SCP: numpy.ndarray,
+            times: Union[float, int, numpy.ndarray]) -> Tuple[Union[float, numpy.ndarray], Union[float, numpy.ndarray]]:
         """
         Calculate the PFA parameters necessary for mapping phase history to polar coordinates.
 
@@ -303,7 +323,7 @@ class PFAType(Serializable):
             cond = False
         return cond
 
-    def _basic_validity_check(self):
+    def _basic_validity_check(self) -> bool:
         condition = super(PFAType, self)._basic_validity_check()
         condition &= self._check_polar_ang_ref()
         return condition
