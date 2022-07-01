@@ -1035,7 +1035,7 @@ def ground_to_image(
         structure,
         tolerance: float = 1e-2,
         max_iterations: int = 10,
-        block_size: int = Optional[50000],
+        block_size: Optional[int] = 50000,
         use_structure_coa: bool = True,
         **coa_args) -> Tuple[numpy.ndarray, Union[numpy.ndarray, float], Union[numpy.ndarray, int]]:
     """

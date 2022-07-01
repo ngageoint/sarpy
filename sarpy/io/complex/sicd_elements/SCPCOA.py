@@ -7,7 +7,7 @@ __author__ = "Thomas McCullough"
 
 
 import logging
-from typing import Union, Optional
+from typing import Union, Optional, Tuple
 
 import numpy
 from numpy.linalg import norm

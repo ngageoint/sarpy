@@ -127,7 +127,7 @@ class MatchInfoType(Serializable):
 
     def __init__(
             self,
-            MatchTypes: List[MatchTypes] = None,
+            MatchTypes: List[MatchType] = None,
             **kwargs):
         """
 

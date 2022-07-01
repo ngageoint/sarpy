@@ -148,7 +148,7 @@ class SICDType(Serializable):
             SCPCOA: SCPCOAType = None,
             Radiometric: Optional[RadiometricType] = None,
             Antenna: Optional[AntennaType] = None,
-            ErrorStatistics: Optional[ErrorStatistics] = None,
+            ErrorStatistics: Optional[ErrorStatisticsType] = None,
             MatchInfo: Optional[MatchInfoType] = None,
             RgAzComp: Optional[RgAzCompType] = None,
             PFA: Optional[PFAType] = None,
@@ -931,6 +931,7 @@ class SICDType(Serializable):
         """
 
         required_version = self.version_required()
+        # noinspection PyTypeChecker
         if required_version > _SICD_DEFAULT_TUPLE or check_older_version:
             info = _SICD_SPEC_DETAILS['{}.{}.{}'.format(*required_version)]
         else:

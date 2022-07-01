@@ -393,7 +393,7 @@ class ErrorComponentsType(Serializable):
             PosVelErr: PosVelErrType = None,
             RadarSensor: RadarSensorErrorType = None,
             TropoError: Optional[TropoErrorType] = None,
-            IonoError: Optional[IonoError] = None,
+            IonoError: Optional[IonoErrorType] = None,
             **kwargs):
         """
 
@@ -410,8 +410,10 @@ class ErrorComponentsType(Serializable):
             self._xml_ns = kwargs['_xml_ns']
         if '_xml_ns_key' in kwargs:
             self._xml_ns_key = kwargs['_xml_ns_key']
-        self.PosVelErr, self.RadarSensor = PosVelErr, RadarSensor
-        self.TropoError, self.IonoError = TropoError, IonoError
+        self.PosVelErr = PosVelErr
+        self.RadarSensor = RadarSensor
+        self.TropoError= TropoError
+        self.IonoError = IonoError
         super(ErrorComponentsType, self).__init__(**kwargs)
 
 

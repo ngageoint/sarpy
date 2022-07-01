@@ -371,7 +371,7 @@ class DirParamType(Serializable):
             self,
             x_coords: Optional[numpy.ndarray],
             y_coords: Optional[numpy.ndarray],
-            populate: bool = False) -> Tuple[float, float]:
+            populate: bool = False) -> Optional[Tuple[float, float]]:
         """
         The `DeltaK1` and `DeltaK2` parameters can be estimated from `DeltaKCOAPoly`, if necessary.
         This should likely be called by the `GridType` parent.
@@ -392,7 +392,7 @@ class DirParamType(Serializable):
         """
 
         if self.ImpRespBW is None or self.SS is None:
-            return  # nothing can be done
+            return  None  # nothing can be done
 
         if self.DeltaKCOAPoly is not None and x_coords is not None:
             deltaks = self.DeltaKCOAPoly(x_coords, y_coords)

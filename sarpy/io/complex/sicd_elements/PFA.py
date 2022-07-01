@@ -164,7 +164,8 @@ class PFAType(Serializable):
             self,
             Position,
             SCP: numpy.ndarray,
-            times: Union[float, int, numpy.ndarray]) -> Tuple[Union[float, numpy.ndarray], Union[float, numpy.ndarray]]:
+            times: Union[float, int, numpy.ndarray]) -> Tuple[
+                Union[None, float, numpy.ndarray], Union[None, float, numpy.ndarray]]:
         """
         Calculate the PFA parameters necessary for mapping phase history to polar coordinates.
 
@@ -176,10 +177,11 @@ class PFAType(Serializable):
 
         Returns
         -------
-        (numpy.ndarray, numpy.ndarray)|(float, float)
-            `(k_a, k_sf)`, where `k_a` is polar angle, and `k_sf` is spatial
-            frequency scale factor. The shape of the output array (or scalar) will
-            match the shape of the `times` array (or scalar).
+        k_a : None|float|numpy.ndarray
+            The polar angle
+        k_sf : None|float|numpy.ndarray
+            The spatial frequency scale factor. The shape of the return arrays
+            will match the shape of the `times` array (or scalar).
         """
 
         def project_to_image_plane(points):

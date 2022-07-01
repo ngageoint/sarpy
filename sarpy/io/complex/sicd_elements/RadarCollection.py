@@ -6,7 +6,7 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
-from typing import List, Union, Optional, Dict
+from typing import List, Union, Optional, Dict, Tuple
 import logging
 
 import numpy

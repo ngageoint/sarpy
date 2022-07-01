@@ -7,6 +7,7 @@ __author__ = "Thomas McCullough"
 
 
 import logging
+from typing import Union
 
 import numpy
 from numpy.linalg import norm
@@ -44,7 +45,7 @@ class RgAzCompType(Serializable):
     def __init__(
             self,
             AzSF: float = None,
-            KazPoly: float = None,
+            KazPoly: Union[Poly1DType, numpy.ndarray, list, tuple] = None,
             **kwargs):
         """
 
