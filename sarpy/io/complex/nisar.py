@@ -166,8 +166,12 @@ class NISARDetails(object):
         duration : float
         """
 
-        start_time = parse_timestring(_stringify(hf['/science/LSAR/identification/zeroDopplerStartTime'][()]), precision='ns')
-        end_time = parse_timestring(_stringify(hf['/science/LSAR/identification/zeroDopplerEndTime'][()]), precision='ns')
+        start_time = parse_timestring(
+            _stringify(hf['/science/LSAR/identification/zeroDopplerStartTime'][()]),
+            precision='ns')
+        end_time = parse_timestring(
+            _stringify(hf['/science/LSAR/identification/zeroDopplerEndTime'][()]),
+            precision='ns')
         duration = get_seconds(end_time, start_time, precision='ns')
         return start_time, end_time, duration
 
@@ -263,7 +267,8 @@ class NISARDetails(object):
 
             llh = numpy.zeros((3, ), dtype=numpy.float64)
             llh[0:2] = numpy.mean(lats_lons, axis=0)
-            llh[2] = numpy.mean(hf['/science/LSAR/SLC/metadata/processingInformation/parameters/referenceTerrainHeight'][:])
+            llh[2] = numpy.mean(
+                hf['/science/LSAR/SLC/metadata/processingInformation/parameters/referenceTerrainHeight'][:])
             return GeoDataType(SCP=SCPType(LLH=llh))
 
         def get_grid() -> GridType:
@@ -278,7 +283,7 @@ class NISARDetails(object):
             win_name = 'UNIFORM' if numpy.all(row_wgt == row_wgt[0]) else 'UNKNOWN'
             row = DirParamType(
                 Sgn=-1,
-                DeltaKCOAPoly=[[0,]],
+                DeltaKCOAPoly=[[0, ], ],
                 WgtFunct=numpy.cast[numpy.float64](row_wgt),
                 WgtType=WgtTypeType(WindowName=win_name))
 
@@ -517,7 +522,7 @@ class NISARDetails(object):
             t_sicd.Grid.Col.ImpRespBW = min(abs(dop_bw*ss_az_s), 1)/t_sicd.Grid.Col.SS
             t_sicd.RMA.INCA.TimeCAPoly = [scp_ca_time, ss_az_s/t_sicd.Grid.Col.SS]
 
-            #TimeCOAPoly/DopCentroidPoly/DeltaKCOAPoly
+            # TimeCOAPoly/DopCentroidPoly/DeltaKCOAPoly
             coords_az_m = (grid_zd_time - scp_ca_time)*t_sicd.Grid.Col.SS/ss_az_s
 
             # cerate the 2d grids
@@ -616,7 +621,11 @@ class NISARDetails(object):
         t_sicd.populate_rniirs(override=False)
         return t_sicd, shape, dtype
 
-    def get_sicd_collection(self) -> Tuple[Dict[str, SICDType], Dict[str, Tuple[Tuple[int, ...], numpy.dtype]], Optional[Tuple[int, ...]], Optional[Tuple[int, ...]]]:
+    def get_sicd_collection(self) -> Tuple[
+            Dict[str, SICDType],
+            Dict[str, Tuple[Tuple[int, ...], numpy.dtype]],
+            Optional[Tuple[int, ...]],
+            Optional[Tuple[int, ...]]]:
         """
         Get the sicd collection for the bands.
 

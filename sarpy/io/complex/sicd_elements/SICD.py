@@ -8,13 +8,16 @@ __author__ = "Thomas McCullough"
 
 import logging
 from copy import deepcopy
+import re
 from collections import OrderedDict
+from typing import Optional, Dict, Union, Tuple
 
 import numpy
 
 from sarpy.geometry import point_projection
 from sarpy.io.complex.naming.utils import get_sicd_name
-from sarpy.io.complex.sicd_schema import get_urn_details, get_specification_identifier
+from sarpy.io.complex.sicd_schema import get_urn_details, get_default_tuple, \
+    get_default_version_string, get_specification_identifier, WRITABLE_VERSIONS
 
 from sarpy.io.xml.base import Serializable, parse_xml_from_file, parse_xml_from_string
 from sarpy.io.xml.descriptors import SerializableDescriptor
@@ -45,12 +48,13 @@ logger = logging.getLogger(__name__)
 #########
 # Module variables
 _SICD_SPECIFICATION_IDENTIFIER = get_specification_identifier()
-_SICD_DEFAULT_TUPLE = (1, 2, 1)
-_SICD_VERSION_DEFAULT = '{}.{}.{}'.format(*_SICD_DEFAULT_TUPLE)
+_SICD_DEFAULT_TUPLE = get_default_tuple()
+_SICD_VERSION_DEFAULT = get_default_version_string()
 _SICD_SPEC_DETAILS = {
-    key: {'namespace': 'urn:SICD:{}'.format(key),
-           'details': get_urn_details('urn:SICD:{}'.format(key))}
-    for key in ['1.1.0', '1.2.1', '1.3.0']}
+    key: {
+        'namespace': 'urn:SICD:{}'.format(key),
+        'details': get_urn_details(key)}
+    for key in WRITABLE_VERSIONS}
 
 
 class SICDType(Serializable):
@@ -69,10 +73,12 @@ class SICDType(Serializable):
     # descriptors
     CollectionInfo = SerializableDescriptor(
         'CollectionInfo', CollectionInfoType, _required, strict=False,
-        docstring='General information about the collection.')  # type: CollectionInfoType
+        docstring='General information about the '
+                  'collection.')  # type: CollectionInfoType
     ImageCreation = SerializableDescriptor(
         'ImageCreation', ImageCreationType, _required, strict=False,
-        docstring='General information about the image creation.')  # type: ImageCreationType
+        docstring='General information about the image '
+                  'creation.')  # type: Optional[ImageCreationType]
     ImageData = SerializableDescriptor(
         'ImageData', ImageDataType, _required, strict=False,  # it is senseless to not have this element
         docstring='The image pixel data.')  # type: ImageDataType
@@ -99,37 +105,55 @@ class SICDType(Serializable):
         docstring='*Center of Aperture (COA)* for the *Scene Center Point (SCP)*.')  # type: SCPCOAType
     Radiometric = SerializableDescriptor(
         'Radiometric', RadiometricType, _required, strict=False,
-        docstring='The radiometric calibration parameters.')  # type: RadiometricType
+        docstring='The radiometric calibration '
+                  'parameters.')  # type: Optional[RadiometricType]
     Antenna = SerializableDescriptor(
         'Antenna', AntennaType, _required, strict=False,
-        docstring='Parameters that describe the antenna illumination patterns during the collection.'
-    )  # type: AntennaType
+        docstring='Parameters that describe the antenna illumination patterns '
+                  'during the collection.')  # type: Optional[AntennaType]
     ErrorStatistics = SerializableDescriptor(
         'ErrorStatistics', ErrorStatisticsType, _required, strict=False,
-        docstring='Parameters used to compute error statistics within the *SICD* sensor model.'
-    )  # type: ErrorStatisticsType
+        docstring='Parameters used to compute error statistics within the '
+                  '*SICD* sensor model.')  # type: Optional[ErrorStatisticsType]
     MatchInfo = SerializableDescriptor(
         'MatchInfo', MatchInfoType, _required, strict=False,
         docstring='Information about other collections that are matched to the '
                   'current collection. The current collection is the collection '
-                  'from which this *SICD* product was generated.')  # type: MatchInfoType
+                  'from which this *SICD* product was '
+                  'generated.')  # type: Optional[MatchInfoType]
     RgAzComp = SerializableDescriptor(
         'RgAzComp', RgAzCompType, _required, strict=False,
-        docstring='Parameters included for a *Range, Doppler* image.')  # type: RgAzCompType
+        docstring='Parameters included for a *Range, Doppler* '
+                  'image.')  # type: Optional[RgAzCompType]
     PFA = SerializableDescriptor(
         'PFA', PFAType, _required, strict=False,
         docstring='Parameters included when the image is formed using the '
-                  '*Polar Formation Algorithm (PFA)*.')  # type: PFAType
+                  '*Polar Formation Algorithm (PFA)*.')  # type: Optional[PFAType]
     RMA = SerializableDescriptor(
         'RMA', RMAType, _required, strict=False,
         docstring='Parameters included when the image is formed using the '
-                  '*Range Migration Algorithm (RMA)*.')  # type: RMAType
+                  '*Range Migration Algorithm (RMA)*.')  # type: Optional[RMAType]
 
-    def __init__(self, CollectionInfo=None, ImageCreation=None, ImageData=None,
-                 GeoData=None, Grid=None, Timeline=None, Position=None, RadarCollection=None,
-                 ImageFormation=None, SCPCOA=None, Radiometric=None, Antenna=None,
-                 ErrorStatistics=None, MatchInfo=None,
-                 RgAzComp=None, PFA=None, RMA=None, **kwargs):
+    def __init__(
+            self,
+            CollectionInfo: CollectionInfoType = None,
+            ImageCreation: Optional[ImageCreationType] = None,
+            ImageData: ImageDataType = None,
+            GeoData: GeoDataType = None,
+            Grid: GridType = None,
+            Timeline: TimelineType = None,
+            Position: PositionType = None,
+            RadarCollection: RadarCollectionType = None,
+            ImageFormation: ImageFormationType = None,
+            SCPCOA: SCPCOAType = None,
+            Radiometric: Optional[RadiometricType] = None,
+            Antenna: Optional[AntennaType] = None,
+            ErrorStatistics: Optional[ErrorStatisticsType] = None,
+            MatchInfo: Optional[MatchInfoType] = None,
+            RgAzComp: Optional[RgAzCompType] = None,
+            PFA: Optional[PFAType] = None,
+            RMA: Optional[RMAType] = None,
+            **kwargs):
         """
 
         Parameters
@@ -197,7 +221,7 @@ class SICDType(Serializable):
         return self._coa_projection
 
     @property
-    def NITF(self):
+    def NITF(self) -> Optional[Dict]:
         """
         Optional dictionary of NITF header information, pertains only to subsequent
         SICD file writing.
@@ -210,7 +234,7 @@ class SICDType(Serializable):
         return self._NITF
 
     @property
-    def ImageFormType(self):  # type: () -> str
+    def ImageFormType(self) -> str:
         """
         str: *READ ONLY* Identifies the specific image formation type supplied. This is determined by
         returning the (first) attribute among `RgAzComp`, `PFA`, `RMA` which is populated. `OTHER` will be returned if
@@ -222,7 +246,10 @@ class SICDType(Serializable):
                 return attribute
         return 'OTHER'
 
-    def update_scp(self, point, coord_system='ECF'):
+    def update_scp(
+            self,
+            point: Union[numpy.ndarray, list, tuple],
+            coord_system: str = 'ECF'):
         """
         Modify the SCP point, and modify the associated SCPCOA fields.
 
@@ -251,12 +278,12 @@ class SICDType(Serializable):
         if self.SCPCOA is not None:
             self.SCPCOA.rederive(self.Grid, self.Position, self.GeoData)
 
-    def _basic_validity_check(self):
+    def _basic_validity_check(self) -> bool:
         condition = super(SICDType, self)._basic_validity_check()
         condition &= detailed_validation_checks(self)
         return condition
 
-    def is_valid(self, recursive=False, stack=False):
+    def is_valid(self, recursive: bool = False, stack: bool = False) -> bool:
         all_required = self._basic_validity_check()
         if not recursive:
             return all_required
@@ -264,7 +291,7 @@ class SICDType(Serializable):
         valid_children = self._recursive_validity_check(stack=stack)
         return all_required & valid_children
 
-    def define_geo_image_corners(self, override=False):
+    def define_geo_image_corners(self, override: bool = False) -> None:
         """
         Defines the GeoData image corner points (if possible), if they are not already defined.
 
@@ -287,7 +314,7 @@ class SICDType(Serializable):
 
         self.GeoData.ImageCorners = corner_coords
 
-    def define_geo_valid_data(self):
+    def define_geo_valid_data(self) -> None:
         """
         Defines the GeoData valid data corner points (if possible), if they are not already defined.
 
@@ -306,7 +333,7 @@ class SICDType(Serializable):
         except AttributeError:
             pass
 
-    def derive(self):
+    def derive(self) -> None:
         """
         Populates any potential derived data in the SICD structure. This should get called after reading an XML,
         or as a user desires.
@@ -395,7 +422,7 @@ class SICDType(Serializable):
             # noinspection PyProtectedMember
             self.Radiometric._derive_parameters(self.Grid, self.SCPCOA)
 
-    def get_transmit_band_name(self):
+    def get_transmit_band_name(self) -> str:
         """
         Gets the processed transmit band name.
 
@@ -408,7 +435,7 @@ class SICDType(Serializable):
             return 'UN'
         return self.ImageFormation.get_transmit_band_name()
 
-    def get_processed_polarization_abbreviation(self):
+    def get_processed_polarization_abbreviation(self) -> str:
         """
         Gets the processed polarization abbreviation (two letters).
 
@@ -421,7 +448,7 @@ class SICDType(Serializable):
             return 'UN'
         return self.ImageFormation.get_polarization_abbreviation()
 
-    def get_processed_polarization(self):
+    def get_processed_polarization(self) -> str:
         """
         Gets the processed polarization.
 
@@ -434,7 +461,7 @@ class SICDType(Serializable):
             return 'UN'
         return self.ImageFormation.get_polarization()
 
-    def apply_reference_frequency(self, reference_frequency):
+    def apply_reference_frequency(self, reference_frequency: float) -> None:
         """
         If the reference frequency is used, adjust the necessary fields accordingly.
 
@@ -466,7 +493,7 @@ class SICDType(Serializable):
             # noinspection PyProtectedMember
             self.RMA._apply_reference_frequency(reference_frequency)
 
-    def get_ground_resolution(self):
+    def get_ground_resolution(self) -> Tuple[float, float]:
         """
         Gets the ground resolution for the sicd.
 
@@ -482,10 +509,10 @@ class SICDType(Serializable):
 
         row_ground = abs(float(row_ss/numpy.cos(graze)))
         col_ground = float(numpy.sqrt((numpy.tan(graze)*numpy.tan(twist)*row_ss)**2
-                                      + (col_ss/numpy.cos(twist))**2))
+            + (col_ss/numpy.cos(twist))**2))
         return row_ground, col_ground
 
-    def can_project_coordinates(self):
+    def can_project_coordinates(self) -> bool:
         """
         Determines whether the necessary elements are populated to permit projection
         between image and physical coordinates. If False, then the (first discovered)
@@ -641,8 +668,13 @@ class SICDType(Serializable):
         # logger.info('Consider calling sicd.define_coa_projection if the sicd structure is defined.')
         return True
 
-    def define_coa_projection(self, delta_arp=None, delta_varp=None, range_bias=None,
-                              adj_params_frame='ECF', overide=True):
+    def define_coa_projection(
+            self,
+            delta_arp: Union[None, numpy.ndarray, list, tuple] = None,
+            delta_varp: Union[None, numpy.ndarray, list, tuple] = None,
+            range_bias: Optional[float] = None,
+            adj_params_frame: str = 'ECF',
+            overide: bool = True) -> None:
         """
         Define the COAProjection object.
 
@@ -676,7 +708,10 @@ class SICDType(Serializable):
             self, delta_arp=delta_arp, delta_varp=delta_varp, range_bias=range_bias,
             adj_params_frame=adj_params_frame)
 
-    def project_ground_to_image(self, coords, **kwargs):
+    def project_ground_to_image(
+            self,
+            coords: Union[numpy.ndarray, list, tuple],
+            **kwargs) -> Tuple[numpy.ndarray, Union[numpy.ndarray, float], Union[numpy.ndarray, int]]:
         """
         Transforms a 3D ECF point to pixel (row/column) coordinates. This is
         implemented in accordance with the SICD Image Projections Description Document.
@@ -691,11 +726,13 @@ class SICDType(Serializable):
 
         Returns
         -------
-        Tuple[numpy.ndarray, float, int]
-            * `image_points` - the determined image point array, of size `N x 2`. Following
-              the SICD convention, he upper-left pixel is [0, 0].
-            * `delta_gpn` - residual ground plane displacement (m).
-            * `iterations` - the number of iterations performed.
+        image_points: numpy.ndarray
+            The determined image point array, of size `N x 2`. Following the
+            SICD convention, he upper-left pixel is [0, 0].
+        delta_gpn: numpy.ndarray|float
+            Residual ground plane displacement (m).
+        iterations: numpy.ndarray|int
+            The number of iterations performed.
 
         See Also
         --------
@@ -706,7 +743,11 @@ class SICDType(Serializable):
             kwargs['use_structure_coa'] = True
         return point_projection.ground_to_image(coords, self, **kwargs)
 
-    def project_ground_to_image_geo(self, coords, ordering='latlong', **kwargs):
+    def project_ground_to_image_geo(
+            self,
+            coords: Union[numpy.ndarray, list, tuple],
+            ordering: str = 'latlong',
+            **kwargs) -> Tuple[numpy.ndarray, Union[numpy.ndarray, float], Union[numpy.ndarray, int]]:
         """
         Transforms a 3D Lat/Lon/HAE point to pixel (row/column) coordinates. This is
         implemented in accordance with the SICD Image Projections Description Document.
@@ -725,11 +766,13 @@ class SICDType(Serializable):
 
         Returns
         -------
-        Tuple[numpy.ndarray, float, int]
-            * `image_points` - the determined image point array, of size `N x 2`. Following
-              the SICD convention, he upper-left pixel is [0, 0].
-            * `delta_gpn` - residual ground plane displacement (m).
-            * `iterations` - the number of iterations performed.
+        image_points: numpy.ndarray
+            The determined image point array, of size `N x 2`. Following the
+            SICD convention, he upper-left pixel is [0, 0].
+        delta_gpn: numpy.ndarray|float
+            Residual ground plane displacement (m).
+        iterations: numpy.ndarray|int
+            The number of iterations performed.
 
         See Also
         --------
@@ -740,7 +783,11 @@ class SICDType(Serializable):
             kwargs['use_structure_coa'] = True
         return point_projection.ground_to_image_geo(coords, self, ordering=ordering, **kwargs)
 
-    def project_image_to_ground(self, im_points, projection_type='HAE', **kwargs):
+    def project_image_to_ground(
+            self,
+            im_points: Union[numpy.ndarray, list, tuple],
+            projection_type: str = 'HAE',
+            **kwargs) -> numpy.ndarray:
         """
         Transforms image coordinates to ground plane ECF coordinate via the algorithm(s)
         described in SICD Image Projections document.
@@ -769,7 +816,12 @@ class SICDType(Serializable):
         return point_projection.image_to_ground(
             im_points, self, projection_type=projection_type, **kwargs)
 
-    def project_image_to_ground_geo(self, im_points, ordering='latlong', projection_type='HAE', **kwargs):
+    def project_image_to_ground_geo(
+            self,
+            im_points: Union[numpy.ndarray, list, tuple],
+            ordering: str = 'latlong',
+            projection_type: str = 'HAE',
+            **kwargs) -> numpy.ndarray:
         """
         Transforms image coordinates to ground plane WGS-84 coordinate via the algorithm(s)
         described in SICD Image Projections document.
@@ -800,7 +852,11 @@ class SICDType(Serializable):
         return point_projection.image_to_ground_geo(
             im_points, self, ordering=ordering, projection_type=projection_type, **kwargs)
 
-    def populate_rniirs(self, signal=None, noise=None, override=False):
+    def populate_rniirs(
+            self,
+            signal: Optional[float] = None,
+            noise: Optional[float] = None,
+            override: bool = False) -> None:
         """
         Given the signal and noise values (in sigma zero power units),
         calculate and populate an estimated RNIIRS value.
@@ -820,9 +876,15 @@ class SICDType(Serializable):
         from sarpy.processing.sicd.rgiqe import populate_rniirs_for_sicd
         populate_rniirs_for_sicd(self, signal=signal, noise=noise, override=override)
 
-    def get_suggested_name(self, product_number=1):
+    def get_suggested_name(
+            self,
+            product_number: int = 1) -> str:
         """
         Get the suggested name stem for the sicd and derived data.
+
+        Parameters
+        ----------
+        product_number : int
 
         Returns
         -------
@@ -830,13 +892,12 @@ class SICDType(Serializable):
         """
 
         sugg_name = get_sicd_name(self, product_number)
-        if sugg_name is not None:
-            return sugg_name
-        elif self.CollectionInfo.CoreName is not None:
-            return self.CollectionInfo.CoreName
-        return 'Unknown_Sicd{}'.format(product_number)
+        if sugg_name is None:
+            sugg_name = self.CollectionInfo.CoreName if self.CollectionInfo.CoreName is not None else \
+                'Unknown_Sicd{}'.format(product_number)
+        return re.sub(':', '_', sugg_name)
 
-    def requires_version_number(self):
+    def version_required(self) -> Tuple[int, int, int]:
         """
         What SICD version is required for valid support?
 
@@ -846,15 +907,15 @@ class SICDType(Serializable):
         """
 
         required = (1, 1, 0)
-        if self.ImageFormation is not None:
-            required = max(required, self.ImageFormation.version_required())
-        if self.RadarCollection is not None:
-            required = max(required, self.RadarCollection.version_required())
-        if self.ErrorStatistics is not None:
-            required = max(required, self.ImageFormation.version_required())
+        for fld in self._fields:
+            val = getattr(self, fld)
+            if val is not None and hasattr(val, 'version_required'):
+                required = max(required, val.version_required())
         return required
 
-    def get_des_details(self, check_older_version=False):
+    def get_des_details(
+            self,
+            check_older_version: bool = False) -> Dict:
         """
         Gets the correct current SICD DES subheader details.
 
@@ -869,7 +930,8 @@ class SICDType(Serializable):
         dict
         """
 
-        required_version = self.requires_version_number()
+        required_version = self.version_required()
+        # noinspection PyTypeChecker
         if required_version > _SICD_DEFAULT_TUPLE or check_older_version:
             info = _SICD_SPEC_DETAILS['{}.{}.{}'.format(*required_version)]
         else:
@@ -906,7 +968,10 @@ class SICDType(Serializable):
     def to_xml_string(self, urn=None, tag='SICD', check_validity=False, strict=DEFAULT_STRICT):
         return self.to_xml_bytes(urn=urn, tag=tag, check_validity=check_validity, strict=strict).decode('utf-8')
 
-    def create_subset_structure(self, row_bounds=None, column_bounds=None):
+    def create_subset_structure(
+            self,
+            row_bounds: Optional[Tuple[int, int]] = None,
+            column_bounds: Optional[Tuple[int, int]] = None):
         """
         Create a version of the SICD structure for a given subset.
 

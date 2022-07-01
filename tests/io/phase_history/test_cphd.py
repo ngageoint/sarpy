@@ -3,16 +3,18 @@ import os
 import json
 import tempfile
 import unittest
+import shutil
 
 import numpy.testing
-from sarpy.io.phase_history.cphd import CPHDReader, CPHDReader0_3, CPHDReader1_0, CPHDWriter1_0
+from sarpy.io.phase_history.cphd import CPHDReader, CPHDReader0_3, CPHDReader1, CPHDWriter1
 from sarpy.io.phase_history.converter import open_phase_history
 import sarpy.consistency.cphd_consistency
-from sarpy.io.phase_history.cphd_schema import get_schema_path
+from sarpy.io.phase_history.cphd_schema import get_schema_path, get_default_version_string
 
 from tests import parse_file_entry
 
-DEFAULT_SCHEMA = get_schema_path('1.0.1')
+DEFAULT_VERSION = get_default_version_string()
+DEFAULT_SCHEMA = get_schema_path(DEFAULT_VERSION)
 
 cphd_file_types = {}
 
@@ -59,7 +61,7 @@ def generic_io_test(instance, test_file, reader_type_string, reader_type):
 
     with instance.subTest(msg='Fetch data_sizes and sidds for type {} and file {}'.format(reader_type_string, test_file)):
         data_sizes = reader.get_data_size_as_tuple()
-        if isinstance(reader, CPHDReader1_0):
+        if isinstance(reader, CPHDReader1):
             elements = reader.cphd_meta.Data.Channels
         elif isinstance(reader, CPHDReader0_3):
             elements = reader.cphd_meta.Data.ArraySize
@@ -99,43 +101,48 @@ def generic_io_test(instance, test_file, reader_type_string, reader_type):
             test_pvp = reader.read_pvp_variable('TxTime', i, the_range=(0, 10, 2))
             instance.assertEqual(test_pvp.shape, (5, ), msg='Unexpected pvp strided slice fetch size')
 
-    if isinstance(reader, CPHDReader1_0):
-        generic_writer_test(reader)
+    # create a temp directory
+    temp_directory = tempfile.mkdtemp()
 
+    if isinstance(reader, CPHDReader1):
+        with instance.subTest(msg='cphd writer test'):
+            generic_writer_test(reader, temp_directory)
+
+    shutil.rmtree(temp_directory)
     del reader
 
 
-def generic_writer_test(cphd_reader):
-    with tempfile.NamedTemporaryFile() as written_cphd:
+def generic_writer_test(cphd_reader, the_directory):
+    written_cphd_name = os.path.join(the_directory, 'example_cphd.cphd')
 
-        read_support = cphd_reader.read_support_block()
-        read_pvp = cphd_reader.read_pvp_block()
-        read_signal = cphd_reader.read_signal_block()
+    read_support = cphd_reader.read_support_block()
+    read_pvp = cphd_reader.read_pvp_block()
+    read_signal = cphd_reader.read_signal_block()
 
-        # write the cphd file
-        with CPHDWriter1_0(written_cphd.name, cphd_reader.cphd_meta, check_existence=False) as writer:
-            writer.write_file(read_pvp, read_signal, read_support)
+    # write the cphd file
+    with CPHDWriter1(written_cphd_name, cphd_reader.cphd_meta, check_existence=False) as writer:
+        writer.write_file(read_pvp, read_signal, read_support)
 
-        # reread the newly written data
-        rereader = CPHDReader(written_cphd.name)
-        reread_support = rereader.read_support_block()
-        reread_pvp = rereader.read_pvp_block()
-        reread_signal = rereader.read_signal_block()
+    # reread the newly written data
+    rereader = CPHDReader(written_cphd_name)
+    reread_support = rereader.read_support_block()
+    reread_pvp = rereader.read_pvp_block()
+    reread_signal = rereader.read_signal_block()
 
-        # byte compare that the original data and re-read data are identical
-        assert read_support.keys() == reread_support.keys(), 'Support keys are not identical'
-        for support_key in reread_support:
-            numpy.testing.assert_array_equal(read_support[support_key], reread_support[support_key])
+    # byte compare that the original data and re-read data are identical
+    assert read_support.keys() == reread_support.keys(), 'Support keys are not identical'
+    for support_key in reread_support:
+        numpy.testing.assert_array_equal(read_support[support_key], reread_support[support_key])
 
-        assert reread_pvp.keys() == read_pvp.keys(), 'PVP keys are not identical'
-        for pvp_key in reread_pvp:
-            numpy.testing.assert_array_equal(read_pvp[pvp_key], reread_pvp[pvp_key])
+    assert reread_pvp.keys() == read_pvp.keys(), 'PVP keys are not identical'
+    for pvp_key in reread_pvp:
+        numpy.testing.assert_array_equal(read_pvp[pvp_key], reread_pvp[pvp_key])
 
-        assert read_signal.keys() == read_signal.keys(), 'Signal keys are not identical'
-        for signal_key in reread_signal:
-            numpy.testing.assert_array_equal(read_signal[signal_key], reread_signal[signal_key])
+    assert read_signal.keys() == read_signal.keys(), 'Signal keys are not identical'
+    for signal_key in reread_signal:
+        numpy.testing.assert_array_equal(read_signal[signal_key], reread_signal[signal_key])
 
-        assert not sarpy.consistency.cphd_consistency.main([written_cphd.name, '--schema', DEFAULT_SCHEMA, '--signal-data'])
+    assert not sarpy.consistency.cphd_consistency.main([written_cphd_name, '--schema', DEFAULT_SCHEMA, '--signal-data'])
 
 
 class TestCPHD(unittest.TestCase):

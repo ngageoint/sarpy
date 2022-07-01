@@ -6,7 +6,7 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
-from typing import List, Union
+from typing import List, Union, Optional
 
 import numpy
 
@@ -42,14 +42,20 @@ class PositionType(Serializable):
                   'Each polynomial has output in ECF, and represents a function of elapsed seconds since start of '
                   'collection.')  # type: Union[SerializableArray, List[XYZPolyAttributeType]]
 
-    def __init__(self, ARPPoly=None, GRPPoly=None, TxAPCPoly=None, RcvAPC=None, **kwargs):
+    def __init__(
+            self,
+            ARPPoly: XYZPolyType = None,
+            GRPPoly: Optional[XYZPolyType] = None,
+            TxAPCPoly: Optional[XYZPolyType] = None,
+            RcvAPC=None,
+            **kwargs):
         """
 
         Parameters
         ----------
         ARPPoly : XYZPolyType
-        GRPPoly : XYZPolyType
-        TxAPCPoly : XYZPolyType
+        GRPPoly : None|XYZPolyType
+        TxAPCPoly : None|XYZPolyType
         RcvAPC : SerializableArray|List[XYZPolyAttributeType]|list|tuple
         kwargs
         """
@@ -101,7 +107,7 @@ class PositionType(Serializable):
         coefs[:, 2] = acc
         self.ARPPoly = XYZPolyType(X=coefs[0, :], Y=coefs[1, :], Z=coefs[2, :])
 
-    def _basic_validity_check(self):
+    def _basic_validity_check(self) -> bool:
         condition = super(PositionType, self)._basic_validity_check()
         if self.ARPPoly is not None and \
                 (self.ARPPoly.X.order1 < 1 or self.ARPPoly.Y.order1 < 1 or self.ARPPoly.Z.order1 < 1):

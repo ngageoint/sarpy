@@ -151,8 +151,7 @@ Changes to sarpy for the sole purpose of supporting a Python version beyond
 end-of-life are unlikely to be considered.
 
 Information regarding any discovered bugs would be greatly appreciated, so please
-feel free to create a github issue. If more appropriate, **do not hesitate to 
-contact thomas.mccullough.ctr@nga.mil for assistance.**
+feel free to create a github issue. If more appropriate, contact wade.c.schwartzkopf@nga.mil.
 
 Pull Requests
 -------------

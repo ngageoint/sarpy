@@ -6,7 +6,7 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
-from typing import List, Union
+from typing import List, Union, Optional
 
 import numpy
 
@@ -34,7 +34,11 @@ class FullImageType(Serializable, Arrayable):
         'NumCols', _required, strict=True,
         docstring='Number of columns in the original full image product. May include zero pixels.')  # type: int
 
-    def __init__(self, NumRows=None, NumCols=None, **kwargs):
+    def __init__(
+            self,
+            NumRows: int = None,
+            NumCols: int = None,
+            **kwargs):
         """
 
         Parameters
@@ -51,7 +55,7 @@ class FullImageType(Serializable, Arrayable):
         self.NumRows, self.NumCols = NumRows, NumCols
         super(FullImageType, self).__init__(**kwargs)
 
-    def get_array(self, dtype=numpy.int64):
+    def get_array(self, dtype=numpy.int64) -> numpy.ndarray:
         """Gets an array representation of the class instance.
 
         Parameters
@@ -68,7 +72,7 @@ class FullImageType(Serializable, Arrayable):
         return numpy.array([self.NumRows, self.NumCols], dtype=dtype)
 
     @classmethod
-    def from_array(cls, array):
+    def from_array(cls, array: Union[numpy.ndarray, list, tuple]):
         """
         Create from an array type entry.
 
@@ -136,8 +140,18 @@ class ImageDataType(Serializable):
                   'Simple polygon encloses the valid data (may include some zero filled pixels for simplification). '
                   'Vertices in clockwise order.')  # type: Union[SerializableArray, List[RowColArrayElement]]
 
-    def __init__(self, PixelType=None, AmpTable=None, NumRows=None, NumCols=None,
-                 FirstRow=None, FirstCol=None, FullImage=None, SCPPixel=None, ValidData=None, **kwargs):
+    def __init__(
+            self,
+            PixelType: str = None,
+            AmpTable: Optional[numpy.ndarray] = None,
+            NumRows: int = None,
+            NumCols: int = None,
+            FirstRow: int = None,
+            FirstCol: int = None,
+            FullImage: Union[FullImageType, numpy.ndarray, list, tuple] = None,
+            SCPPixel: Union[RowColType, numpy.ndarray, list, tuple] = None,
+            ValidData=None,
+            **kwargs):
         """
 
         Parameters
@@ -167,7 +181,7 @@ class ImageDataType(Serializable):
         self.ValidData = ValidData
         super(ImageDataType, self).__init__(**kwargs)
 
-    def _check_valid_data(self):
+    def _check_valid_data(self) -> bool:
         if self.ValidData is None:
             return True
         if len(self.ValidData) < 2:
@@ -192,21 +206,24 @@ class ImageDataType(Serializable):
                 value = False
         return value
 
-    def _basic_validity_check(self):
+    def _basic_validity_check(self) -> bool:
         condition = super(ImageDataType, self)._basic_validity_check()
         if (self.PixelType == 'AMP8I_PHS8I') and (self.AmpTable is None):
-            self.log_validity_error("We have `PixelType='AMP8I_PHS8I'` and `AmpTable` is not defined for ImageDataType.")
+            self.log_validity_error(
+                "We have `PixelType='AMP8I_PHS8I'` and `AmpTable` is not defined for ImageDataType.")
             condition = False
         if (self.PixelType != 'AMP8I_PHS8I') and (self.AmpTable is not None):
-            self.log_validity_error("We have `PixelType != 'AMP8I_PHS8I'` and `AmpTable` is defined for ImageDataType.")
+            self.log_validity_error(
+                "We have `PixelType != 'AMP8I_PHS8I'` and `AmpTable` is defined for ImageDataType.")
             condition = False
         if (self.ValidData is not None) and (len(self.ValidData) < 3):
-            self.log_validity_error("We have `ValidData` defined with fewer than 3 entries.")
+            self.log_validity_error(
+                "We have `ValidData` defined with fewer than 3 entries.")
             condition = False
         condition &= self._check_valid_data()
         return condition
 
-    def get_valid_vertex_data(self, dtype=numpy.int64):
+    def get_valid_vertex_data(self, dtype=numpy.int64) -> Optional[numpy.ndarray]:
         """
         Gets an array of `[row, col]` indices defining the valid data. If this is not viable, then `None`
         will be returned.
@@ -228,7 +245,7 @@ class ImageDataType(Serializable):
             out[i, :] = entry.get_array(dtype=dtype)
         return out
 
-    def get_full_vertex_data(self, dtype=numpy.int64):
+    def get_full_vertex_data(self, dtype=numpy.int64) -> Optional[numpy.ndarray]:
         """
         Gets an array of `[row, col]` indices defining the full vertex data. If this is not viable, then `None`
         will be returned.

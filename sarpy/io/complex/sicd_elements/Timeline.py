@@ -6,7 +6,8 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
-from typing import List, Union
+from typing import List, Union, Optional
+from datetime import datetime, date
 
 import numpy
 
@@ -47,7 +48,15 @@ class IPPSetType(Serializable):
     index = IntegerDescriptor(
         'index', _required, strict=DEFAULT_STRICT, docstring='The element array index.')  # type: int
 
-    def __init__(self, TStart=None, TEnd=None, IPPStart=None, IPPEnd=None, IPPPoly=None, index=None, **kwargs):
+    def __init__(
+            self,
+            TStart: float = None,
+            TEnd: float = None,
+            IPPStart: int = None,
+            IPPEnd: int = None,
+            IPPPoly: Union[Poly1DType, numpy.ndarray, list, tuple] = None,
+            index: int = None,
+            **kwargs):
         """
 
         Parameters
@@ -71,7 +80,7 @@ class IPPSetType(Serializable):
         self.index = index
         super(IPPSetType, self).__init__(**kwargs)
 
-    def _basic_validity_check(self):
+    def _basic_validity_check(self) -> bool:
         condition = super(IPPSetType, self)._basic_validity_check()
         if self.TStart >= self.TEnd:
             self.log_validity_error(
@@ -116,14 +125,19 @@ class TimelineType(Serializable):
         'IPP', IPPSetType, _collections_tags, _required, strict=DEFAULT_STRICT, minimum_length=1,
         docstring="The Inter-Pulse Period (IPP) parameters array.")  # type: Union[SerializableArray, List[IPPSetType]]
 
-    def __init__(self, CollectStart=None, CollectDuration=None, IPP=None, **kwargs):
+    def __init__(
+            self,
+            CollectStart: Union[numpy.datetime64, datetime, date, str] = None,
+            CollectDuration: float = None,
+            IPP: Union[None, SerializableArray, List[IPPSetType]] = None,
+            **kwargs):
         """
 
         Parameters
         ----------
         CollectStart : numpy.datetime64|datetime|date|str
         CollectDuration : float
-        IPP : List[IPPSetType]
+        IPP : None|List[IPPSetType]
         kwargs
         """
 
@@ -137,7 +151,7 @@ class TimelineType(Serializable):
         super(TimelineType, self).__init__(**kwargs)
 
     @property
-    def CollectEnd(self):
+    def CollectEnd(self) -> Optional[numpy.datetime64]:
         """
         None|numpy.datetime64: The collection end time, inferred from `CollectEnd` and `CollectDuration`,
         provided that both are populated.
@@ -148,7 +162,7 @@ class TimelineType(Serializable):
 
         return self.CollectStart + numpy.timedelta64(int(self.CollectDuration*1e6), 'us')
 
-    def _check_ipp_consecutive(self):
+    def _check_ipp_consecutive(self) -> bool:
         if self.IPP is None or len(self.IPP) < 2:
             return True
         cond = True
@@ -165,7 +179,7 @@ class TimelineType(Serializable):
                     'IPP entry {} TEnd ({}) is greater than entry {} TStart ({})'.format(i, el1.TEnd, i+1, el2.TStart))
         return cond
 
-    def _check_ipp_times(self):
+    def _check_ipp_times(self) -> bool:
         if self.IPP is None:
             return True
 
@@ -191,7 +205,7 @@ class TimelineType(Serializable):
             cond = False
         return cond
 
-    def _basic_validity_check(self):
+    def _basic_validity_check(self) -> bool:
         condition = super(TimelineType, self)._basic_validity_check()
         condition &= self._check_ipp_consecutive()
         condition &= self._check_ipp_times()

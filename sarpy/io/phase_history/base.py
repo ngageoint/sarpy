@@ -23,11 +23,12 @@ class CPHDTypeReader(BaseReader):
     **Updated in version 1.3.0**
     """
 
-    def __init__(self,
-                 data_segment: Union[None, DataSegment, Sequence[DataSegment]],
-                 cphd_meta: Union[None, CPHDType1_0, CPHDType0_3],
-                 close_segments: bool=True,
-                 delete_files: Union[None, str, Sequence[str]]=None):
+    def __init__(
+            self,
+            data_segment: Union[None, DataSegment, Sequence[DataSegment]],
+            cphd_meta: Union[None, CPHDType1_0, CPHDType0_3],
+            close_segments: bool=True,
+            delete_files: Union[None, str, Sequence[str]]=None):
         """
 
         Parameters
@@ -61,9 +62,10 @@ class CPHDTypeReader(BaseReader):
 
         return self._cphd_meta
 
-    def read_support_array(self,
-                           index: Union[int, str],
-                           *ranges: Sequence[Union[None, int, Tuple[int, ...], slice]]) -> numpy.ndarray:
+    def read_support_array(
+            self,
+            index: Union[int, str],
+            *ranges: Sequence[Union[None, int, Tuple[int, ...], slice]]) -> numpy.ndarray:
         """
         Read the support array.
 

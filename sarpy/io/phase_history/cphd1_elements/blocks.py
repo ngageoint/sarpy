@@ -23,7 +23,7 @@ _array_type_text = 'Expected array to be numpy.ndarray, list, or tuple,\n\tgot `
 
 ###################
 # module variables
-POLARIZATION_TYPE = ('X', 'Y', 'V', 'H', 'RHC', 'LHC', 'UNSPECIFIED')
+POLARIZATION_TYPE = ('H', 'V', 'X', 'Y', 'S', 'E', 'RHC', 'LHC', 'UNSPECIFIED')
 
 
 class LSType(Serializable, Arrayable):

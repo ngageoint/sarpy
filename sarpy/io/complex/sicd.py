@@ -259,7 +259,7 @@ class SICDDetails(NITFDetails):
         # noinspection PyBroadException
         try:
             self._sicd_meta.derive()
-        except Exception as e:
+        except Exception:
             pass
         # TODO: account for the reference frequency offset situation
 
@@ -407,7 +407,9 @@ class SICDReader(NITFReader, SICDTypeReader):
         return True
 
     def find_image_segment_collections(self) -> Tuple[Tuple[int, ...]]:
-        return (tuple(index for index in range(len(self.nitf_details.img_headers)) if index not in self.unsupported_segments), )
+        return (
+            tuple(index for index in range(len(self.nitf_details.img_headers))
+                  if index not in self.unsupported_segments), )
 
 
 ########
@@ -575,7 +577,7 @@ class SICDWritingDetails(NITFWritingDetails):
             additional_des: Optional[Sequence[DESSubheaderManager]] = None,
             text_managers: Optional[Tuple[TextSubheaderManager, ...]] = None,
             res_managers: Optional[Tuple[RESSubheaderManager, ...]] = None,
-            check_older_version: bool=False):
+            check_older_version: bool = False):
         """
 
         Parameters
@@ -595,7 +597,7 @@ class SICDWritingDetails(NITFWritingDetails):
         self._security_tags = None
         self._sicd_meta = None
         self._set_sicd_meta(sicd_meta)
-        self._required_version = self.sicd_meta.requires_version_number()
+        self._required_version = self.sicd_meta.version_required()
         self._create_security_tags()
         self._row_limit = None
         self._set_row_limit(row_limit)
@@ -737,7 +739,10 @@ class SICDWritingDetails(NITFWritingDetails):
             Security=self.security_tags, CLEVEL=3, OSTAID=self._get_ostaid(),
             FDT=self._get_fdt(), FTITLE=self._get_ftitle(), FL=0)
 
-    def _create_image_segments(self) -> Tuple[Tuple[ImageSubheaderManager, ...], Tuple[Tuple[int, ...], ...], Tuple[Tuple[Tuple[int, ...], ...]]]:
+    def _create_image_segments(self) -> Tuple[
+            Tuple[ImageSubheaderManager, ...],
+            Tuple[Tuple[int, ...], ...],
+            Tuple[Tuple[Tuple[int, ...], ...]]]:
         image_managers = []
         basic_args = {
             'IREP': 'NODISPLY',
@@ -917,4 +922,3 @@ class SICDWriter(NITFWriter):
             return AmpLookupFunction(raw_dtype, self.sicd_meta.ImageData.AmpTable)
         return NITFWriter.get_format_function(
             self, raw_dtype, complex_order, lut, band_dimension, image_segment_index, **kwargs)
-

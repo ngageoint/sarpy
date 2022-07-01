@@ -1862,16 +1862,18 @@ class GFFDetails(object):
         if check == b'\x20':
             # this should be version 1.*, but we will verify
             self._file_object.seek(54, os.SEEK_SET)
-            endianness = struct.unpack('H', self._file_object.read(2))[0] # 0 if little endian
+            endianness = struct.unpack('H', self._file_object.read(2))[0]  # 0 if little endian
             estr = '<' if endianness == 0 else '>'
 
             self._file_object.seek(8, os.SEEK_SET)
-            self._minor_version, self._major_version = struct.unpack('{}HH'.format(estr), self._file_object.read(4))
+            self._minor_version, self._major_version = struct.unpack(
+                '{}HH'.format(estr), self._file_object.read(4))
         elif check == b'\x00':
             # this should be a version 2.*, but we will verify
             estr = '<'
             self._file_object.seek(16, os.SEEK_SET)
-            self._major_version, self._minor_version = struct.unpack('{}HH'.format(estr), self._file_object.read(4))
+            self._major_version, self._minor_version = struct.unpack(
+                '{}HH'.format(estr), self._file_object.read(4))
         else:
             raise ValueError('Got unexpected check byte')
 

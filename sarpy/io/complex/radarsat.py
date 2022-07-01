@@ -53,7 +53,7 @@ _unhandled_generation_text = 'Unhandled generation `{}`'
 ############
 # Helper functions
 
-def _parse_xml(file_name: str, without_ns: bool=False) -> ElementTree.Element:
+def _parse_xml(file_name: str, without_ns: bool = False) -> ElementTree.Element:
     if without_ns:
         with open(file_name, 'rb') as fi:
             xml_string = fi.read()
@@ -101,7 +101,7 @@ def _validate_segment_and_sicd(
 
 def _construct_tiff_segment(
         the_sicd: SICDType,
-        the_file : str,
+        the_file: str,
         reverse_axes: Union[None, int, Sequence[int]] = None,
         transpose_axes: Union[None, Tuple[int, ...]] = None):
     """
@@ -232,7 +232,9 @@ class RadarSatDetails(object):
         if not os.path.isfile(file_name):
             raise SarpyIOError('path {} does not exist or is not a file'.format(file_name))
         if os.path.split(file_name)[1] != 'product.xml':
-            raise SarpyIOError('The radarsat or rcm file is expected to be named product.xml, got path {}'.format(file_name))
+            raise SarpyIOError(
+                'The radarsat or rcm file is expected to be named product.xml,\n\t'
+                'got path {}'.format(file_name))
 
         self._file_name = file_name
         root_node = _parse_xml(file_name, without_ns=True)
@@ -243,8 +245,9 @@ class RadarSatDetails(object):
             './imageGenerationParameters/generalProcessingInformation/productType')
         product_type = 'None' if product_node is None else product_node.text.upper()
         if not ((satellite == 'RADARSAT-2' or satellite.startswith('RCM')) and product_type == 'SLC'):
-            raise SarpyIOError('File {} does not appear to be an SLC product for a RADARSAT-2 '
-                          'or RCM mission.'.format(file_name))
+            raise SarpyIOError(
+                'File {} does not appear to be an SLC product\n\t'
+                'for a RADARSAT-2 or RCM mission.'.format(file_name))
 
         self._root_node = root_node
         self._satellite = satellite
@@ -365,7 +368,7 @@ class RadarSatDetails(object):
         else:
             raise ValueError('unexpected generation {}'.format(self.generation))
 
-        lines =  []
+        lines = []
         samples = []
         llh_coords = numpy.zeros((len(tie_points), 3), dtype='float64')
         grid_row, grid_col = None, None
@@ -458,7 +461,8 @@ class RadarSatDetails(object):
         self._state_velocity = numpy.zeros((len(state_vectors), 3), dtype='float64')
 
         for i, state_vec in enumerate(state_vectors):
-            self._state_time[i] =  parse_timestring(state_vec.find('timeStamp').text, precision='us')
+            self._state_time[i] = parse_timestring(
+                state_vec.find('timeStamp').text, precision='us')
             self._state_position[i, :] = [
                 float(state_vec.find('xPosition').text),
                 float(state_vec.find('yPosition').text),
@@ -545,7 +549,8 @@ class RadarSatDetails(object):
             core_name = '{}{}{}'.format(date_str, self.generation, self._find('./sourceAttributes/imageId').text)
         elif self.generation == 'RCM':
             class_str = self._find('./securityAttributes/securityClassification').text.upper()
-            classification = _format_class_str(class_str) if radarsat_addin is None else radarsat_addin.extract_radarsat_sec(nitf, class_str)
+            classification = _format_class_str(class_str) if radarsat_addin is None else \
+                radarsat_addin.extract_radarsat_sec(nitf, class_str)
             core_name = '{}{}{}'.format(date_str, collector_name.replace('-', ''), start_time_dt.strftime('%H%M%S'))
         else:
             raise ValueError(_unhandled_generation_text.format(self.generation))
@@ -744,9 +749,11 @@ class RadarSatDetails(object):
         def get_timeline() -> TimelineType:
             pulse_parts = len(self._findall('./sourceAttributes/radarParameters/pulseBandwidth'))
             if self.generation == 'RS2':
-                pulse_rep_freq = float(self._find('./sourceAttributes/radarParameters/pulseRepetitionFrequency').text)
+                pulse_rep_freq = float(
+                    self._find('./sourceAttributes/radarParameters/pulseRepetitionFrequency').text)
             elif self.generation == 'RCM':
-                pulse_rep_freq = float(self._find('./sourceAttributes/radarParameters/prfInformation/pulseRepetitionFrequency').text)
+                pulse_rep_freq = float(
+                    self._find('./sourceAttributes/radarParameters/prfInformation/pulseRepetitionFrequency').text)
             else:
                 raise ValueError(_unhandled_generation_text.format(self.generation))
 
@@ -944,7 +951,7 @@ class RadarSatDetails(object):
                 raise ValueError('unhandled ModeType {}'.format(collection_info.RadarMode.ModeType))
             return RMAType(RMAlgoType='OMEGA_K', INCA=inca)
 
-        def get_radiometric()-> Optional[RadiometricType]:
+        def get_radiometric() -> Optional[RadiometricType]:
             def perform_radiometric_fit(component_file: str) -> numpy.ndarray:
                 comp_struct = _parse_xml(component_file, without_ns=(self.generation != 'RS2'))
                 comp_values = numpy.array(
@@ -955,7 +962,9 @@ class RadarSatDetails(object):
                 else:
                     # fit a 1-d polynomial in range
                     if self.generation == 'RS2':
-                        coords_rg = (numpy.arange(image_data.NumRows) - image_data.SCPPixel.Row + image_data.FirstRow) * grid.Row.SS
+                        coords_rg = \
+                            (numpy.arange(image_data.NumRows) - image_data.SCPPixel.Row + image_data.FirstRow)\
+                            * grid.Row.SS
                     elif self.generation == 'RCM':  # the rows are sub-sampled
                         start = int(comp_struct.find('./pixelFirstLutValue').text)
                         num_vs = int(comp_struct.find('./numberOfValues').text)
@@ -971,23 +980,28 @@ class RadarSatDetails(object):
             if self.generation == 'RS2':
                 beta_file = os.path.join(
                     base_path,
-                    self._find('./imageAttributes/lookupTable[@incidenceAngleCorrection="Beta Nought"]').text)
+                    self._find(
+                        './imageAttributes/lookupTable[@incidenceAngleCorrection="Beta Nought"]').text)
                 sigma_file = os.path.join(
                     base_path,
-                    self._find('./imageAttributes/lookupTable[@incidenceAngleCorrection="Sigma Nought"]').text)
+                    self._find(
+                        './imageAttributes/lookupTable[@incidenceAngleCorrection="Sigma Nought"]').text)
                 gamma_file = os.path.join(
                     base_path,
                     self._find('./imageAttributes/lookupTable[@incidenceAngleCorrection="Gamma"]').text)
             elif self.generation == 'RCM':
                 beta_file = os.path.join(
                     base_path, 'calibration',
-                    self._find('./imageReferenceAttributes/lookupTableFileName[@sarCalibrationType="Beta Nought"]').text)
+                    self._find(
+                        './imageReferenceAttributes/lookupTableFileName[@sarCalibrationType="Beta Nought"]').text)
                 sigma_file = os.path.join(
                     base_path, 'calibration',
-                    self._find('./imageReferenceAttributes/lookupTableFileName[@sarCalibrationType="Sigma Nought"]').text)
+                    self._find(
+                        './imageReferenceAttributes/lookupTableFileName[@sarCalibrationType="Sigma Nought"]').text)
                 gamma_file = os.path.join(
                     base_path, 'calibration',
-                    self._find('./imageReferenceAttributes/lookupTableFileName[@sarCalibrationType="Gamma"]').text)
+                    self._find(
+                        './imageReferenceAttributes/lookupTableFileName[@sarCalibrationType="Gamma"]').text)
             else:
                 raise ValueError(_unhandled_generation_text.format(self.generation))
 
@@ -1172,7 +1186,8 @@ class RadarSatDetails(object):
                 DeltaKCOAPoly=Poly2DType(Coefs=((0,),)), WgtType=row_wgt_type)
 
         def get_grid_col() -> DirParamType:
-            az_win = self._find('./imageGenerationParameters/sarProcessingInformation/azimuthWindow[@beam="{}"]'.format(beam))
+            az_win = self._find(
+                './imageGenerationParameters/sarProcessingInformation/azimuthWindow[@beam="{}"]'.format(beam))
             col_wgt_type = WgtTypeType(WindowName=az_win.find('./windowName').text.upper())
             if col_wgt_type.WindowName == 'KAISER':
                 col_wgt_type.Parameters = {'BETA': az_win.find('./windowCoefficient').text}
@@ -1232,7 +1247,8 @@ class RadarSatDetails(object):
                 IPP=[ipp, ])
 
         def get_image_formation() -> ImageFormationType:
-            pulse_parts = len(self._findall('./sourceAttributes/radarParameters/pulseBandwidth[@beam="{}"]'.format(beam)))
+            pulse_parts = len(
+                self._findall('./sourceAttributes/radarParameters/pulseBandwidth[@beam="{}"]'.format(beam)))
             return ImageFormationType(
                 # PRFScaleFactor for either polarimetric or multi-step, but not both.
                 RcvChanProc=RcvChanProcType(
@@ -1299,7 +1315,8 @@ class RadarSatDetails(object):
 
             # doppler centroid
             doppler_cent_coeffs = numpy.array(
-                [float(entry) for entry in dop_centroid_estimate_node.find('./dopplerCentroidCoefficients').text.split()],
+                [float(entry) for entry in
+                 dop_centroid_estimate_node.find('./dopplerCentroidCoefficients').text.split()],
                 dtype='float64')
             doppler_cent_ref_time = float(
                 dop_centroid_estimate_node.find('./dopplerCentroidReferenceTime').text)
@@ -1419,7 +1436,7 @@ class RadarSatDetails(object):
                 noise_poly = polynomial.polyfit(range_coords, noise_value, 2)
                 noise_level = NoiseLevelType_(
                     NoiseLevelType='ABSOLUTE',
-                    NoisePoly = Poly2DType(Coefs=numpy.reshape(noise_poly, (-1, 1))))
+                    NoisePoly=Poly2DType(Coefs=numpy.reshape(noise_poly, (-1, 1))))
 
             return RadiometricType(BetaZeroSFPoly=beta_zero_sf_poly,
                                    SigmaZeroSFPoly=sigma_zero_sf_poly,
@@ -1459,18 +1476,22 @@ class RadarSatDetails(object):
 
         # extract some common use doppler information
         num_of_pulses = int(
-            self._find('./sourceAttributes/radarParameters/numberOfPulseIntervalsPerDwell[@beam="{}"]'.format(beam)).text)
+            self._find(
+                './sourceAttributes/radarParameters/numberOfPulseIntervalsPerDwell[@beam="{}"]'.format(beam)).text)
         # NB: I am neglecting that prfInformation is provided separately for pols data because
         #   it appears identical
         pulse_rep_freq = float(
             self._find('./sourceAttributes'
                        '/radarParameters'
-                       '/prfInformation[@beam="{}"]'.format(beam)+
+                       '/prfInformation[@beam="{}"]'.format(beam) +
                        '/pulseRepetitionFrequency').text)
-        dop_rate_estimate_node = self._find('./dopplerRate/dopplerRateEstimate[@burst="{}"]'.format(burst))
-        dop_centroid_estimate_node = self._find('./dopplerCentroid/dopplerCentroidEstimate[@burst="{}"]'.format(burst))
+        dop_rate_estimate_node = self._find(
+            './dopplerRate/dopplerRateEstimate[@burst="{}"]'.format(burst))
+        dop_centroid_estimate_node = self._find(
+            './dopplerCentroid/dopplerCentroidEstimate[@burst="{}"]'.format(burst))
         dop_centroid_est_time = parse_timestring(
-            dop_centroid_estimate_node.find('./timeOfDopplerCentroidEstimate').text, precision='us')
+            dop_centroid_estimate_node.find(
+                './timeOfDopplerCentroidEstimate').text, precision='us')
         processing_time_span = (num_of_pulses - 1)/pulse_rep_freq  # in seconds
         collect_start = dop_centroid_est_time - int(0.5*(processing_time_span*1000000))
 

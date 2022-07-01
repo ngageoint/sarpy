@@ -134,7 +134,7 @@ def find_jpeg_delimiters(the_bytes: bytes) -> List[Tuple[int, int]]:
         end_block = the_bytes.find(end_pattern, next_location)
         if end_block == -1:
             raise ValueError('The new jpeg block {} does not contain the jpeg end delimiter'.format(len(out)))
-        next_location = end_block +2
+        next_location = end_block + 2
         out.append((0, next_location))
     return out
 
@@ -428,38 +428,38 @@ def _verify_image_segment_compatibility(
 
 def _correctly_order_image_segment_collection(
             image_headers: Sequence[Union[ImageSegmentHeader, ImageSegmentHeader0]]) -> Tuple[int, ...]:
-        """
-        Determines the proper order, based on IALVL, for a collection of entries
-        which will be assembled into a composite image.
+    """
+    Determines the proper order, based on IALVL, for a collection of entries
+    which will be assembled into a composite image.
 
-        Parameters
-        ----------
-        image_headers : Sequence[ImageSegmentHeader]
+    Parameters
+    ----------
+    image_headers : Sequence[ImageSegmentHeader]
 
-        Returns
-        -------
-        Tuple[int, ...]
+    Returns
+    -------
+    Tuple[int, ...]
 
-        Raises
-        ------
-        ValueError
-            If incompatible IALVL values collection
-        """
+    Raises
+    ------
+    ValueError
+        If incompatible IALVL values collection
+    """
 
-        collection = [(entry.IALVL, orig_index) for orig_index, entry in enumerate(image_headers)]
-        collection = sorted(collection, key=lambda x: x[0])   # (stable) order by IALVL
+    collection = [(entry.IALVL, orig_index) for orig_index, entry in enumerate(image_headers)]
+    collection = sorted(collection, key=lambda x: x[0])   # (stable) order by IALVL
 
-        if all(entry[0] == 0 for entry in collection):
-            # all IALVL is 0, and order doesn't matter
-            return tuple(range(len(image_headers)))
-        if all(entry0[0]+1 == entry1[0] for entry0, entry1 in zip(collection[:-1], collection[1:])):
-            # ordered, uninterupted sequence of IALVL values
-            return tuple(entry[1] for entry in collection)
+    if all(entry[0] == 0 for entry in collection):
+        # all IALVL is 0, and order doesn't matter
+        return tuple(range(len(image_headers)))
+    if all(entry0[0]+1 == entry1[0] for entry0, entry1 in zip(collection[:-1], collection[1:])):
+        # ordered, uninterupted sequence of IALVL values
+        return tuple(entry[1] for entry in collection)
 
-        raise ValueError(
-            'Collection of (IALVL, image segment index) has\n\t'
-            'neither all IALVL == 0, or an uninterrupted sequence of IALVL values.\n\t'
-            'See {}'.format(collection))
+    raise ValueError(
+        'Collection of (IALVL, image segment index) has\n\t'
+        'neither all IALVL == 0, or an uninterrupted sequence of IALVL values.\n\t'
+        'See {}'.format(collection))
 
 
 def _get_collection_element_coordinate_limits(
@@ -1720,8 +1720,8 @@ class NITFReader(BaseReader):
             # handle block padding situation
             row_start, row_end = block_bound[0], min(block_bound[1], image_header.NROWS)
             col_start, col_end = block_bound[2], min(block_bound[3], image_header.NCOLS)
-            mem_map[row_start: row_end, col_start:col_end] = numpy.asarray(img)[0:row_end - row_start,
-                                                             0:col_end - col_start]
+            mem_map[row_start: row_end, col_start:col_end] = \
+                numpy.asarray(img)[0:row_end - row_start, 0:col_end - col_start]
             next_jpeg_block += 1
 
         mem_map.flush()  # write all the data to the file
@@ -1833,8 +1833,8 @@ class NITFReader(BaseReader):
             # handle block padding situation
             row_start, row_end = block_bound[0], min(block_bound[1], image_header.NROWS)
             col_start, col_end = block_bound[2], min(block_bound[3], image_header.NCOLS)
-            mem_map[row_start:row_end, col_start:col_end] = numpy.asarray(img)[0:row_end - row_start,
-                                                             0:col_end - col_start]
+            mem_map[row_start:row_end, col_start:col_end] = \
+                numpy.asarray(img)[0:row_end - row_start, 0:col_end - col_start]
             next_jpeg_block += 1
 
         mem_map.flush()  # write all the data to the file
@@ -2066,7 +2066,8 @@ class NITFReader(BaseReader):
         else:
             if len(jpeg_delimiters) != len(block_bounds)*raw_bands:
                 raise ValueError(
-                    'Found different number of jpeg delimiters ({}) than blocks, bands ({}, {}) in image segment {}'.format(
+                    'Found different number of jpeg delimiters ({}) than blocks,\n\t'
+                    'bands ({}, {}) in image segment {}'.format(
                         len(jpeg_delimiters), len(block_bounds), raw_bands, image_segment_index))
             mask_offsets = numpy.reshape(
                 numpy.array([entry[0] for entry in jpeg_delimiters], dtype='int64'),
@@ -2151,7 +2152,8 @@ class NITFReader(BaseReader):
         else:
             block_offsets = numpy.zeros((raw_bands, len(block_bounds)), dtype='int64')
             for i in range(raw_bands):
-                block_offsets[i, :] = i*(block_size*len(block_bounds)) + numpy.arange(len(block_bounds), dtype='int64')*block_size
+                block_offsets[i, :] = i*(block_size*len(block_bounds)) + \
+                                      numpy.arange(len(block_bounds), dtype='int64')*block_size
 
         if not (isinstance(block_offsets, numpy.ndarray) and block_offsets.ndim == 2):
             raise ValueError('Got unexpected block offsets `{}`'.format(block_offsets))
@@ -2160,7 +2162,8 @@ class NITFReader(BaseReader):
             raise ValueError('Got mismatch between block definition and block offsets definition')
 
         block_offsets_flat = block_offsets.ravel()
-        final_block_ending = numpy.max(block_offsets_flat[block_offsets_flat != exclude_value]) + block_size + additional_offset
+        final_block_ending = numpy.max(block_offsets_flat[block_offsets_flat != exclude_value]) + \
+            block_size + additional_offset
         populated_ending = self.nitf_details.img_segment_sizes[image_segment_index]
         if final_block_ending != populated_ending:
             raise ValueError(
@@ -2168,13 +2171,13 @@ class NITFReader(BaseReader):
                 'for image segment {}'.format(
                     final_block_ending, populated_ending, image_segment_index))
 
-
         band_segments = []
         for band_number in range(raw_bands):
             band_raw_shape = _get_shape(image_header.NROWS, image_header.NCOLS, 1, band_dimension=2)
             data_segments = []
             child_arrangement = []
-            for block_index, (block_definition, block_offset) in enumerate(zip(block_bounds, block_offsets[band_number, :])):
+            for block_index, (block_definition, block_offset) in enumerate(
+                    zip(block_bounds, block_offsets[band_number, :])):
                 if block_offset == exclude_value:
                     continue  # just skip this, since it's masked out
 
@@ -2355,7 +2358,9 @@ class NITFReader(BaseReader):
                 'Got unsupported IMODE `{}` at image segment index `{}`'.format(
                     image_header.IMODE, image_segment_index))
         if image_segment_index in self._image_segment_data_segments:
-            logger.warning('Data segment for image segment index {} has already been created.'.format(image_segment_index))
+            logger.warning(
+                'Data segment for image segment index {} has already '
+                'been created.'.format(image_segment_index))
 
         self._image_segment_data_segments[image_segment_index] = out
         return out
@@ -3082,17 +3087,21 @@ class NITFWritingDetails(object):
             raise TypeError('image_segment_coordinates must be a tuple')
 
         if len(value) != len(self.image_segment_collections):
-            raise ValueError('Lengths of image_segment_collections and image_segment_coordinates must match')
+            raise ValueError(
+                'Lengths of image_segment_collections and image_segment_coordinates '
+                'must match')
 
         for coords, antic in zip(value, anticipated):
             if not isinstance(coords, tuple):
                 raise ValueError('image_segment_coordinates entries must be a tuple')
             if len(coords) != len(antic):
                 raise ValueError(
-                    'image_segment_collections entries and image_segment_coordinates entries must have matching lengths')
+                    'image_segment_collections entries and image_segment_coordinates '
+                    'entries must have matching lengths')
             if coords != antic:
                 raise ValueError(
-                    'image_segment_coordinates does not match the anticipated value\n\t{}\n\t{}'.format(value, anticipated))
+                    'image_segment_coordinates does not match the anticipated '
+                    'value\n\t{}\n\t{}'.format(value, anticipated))
         self._image_segment_coordinates = value
 
     @property
@@ -3859,7 +3868,8 @@ class NITFWriter(BaseWriter):
         # set the details in the image manager...
         self.image_managers[image_segment_index].item_size = final_block_ending - additional_offset
         if not self._in_memory:
-            self.image_managers[image_segment_index].item_written = True  # NB: it's written in principle by the data segment
+            self.image_managers[image_segment_index].item_written = True
+            # NB: it's written in principle by the data segment
 
         # determine output particulars
         if apply_format:
@@ -4025,7 +4035,8 @@ class NITFWriter(BaseWriter):
         if not self._in_memory:
             if image_manager.item_offset is None:
                 raise ValueError(
-                    'Performing file processing and item_offset unpopulated for image segment at index {}'.format(image_segment_index))
+                    'Performing file processing and item_offset unpopulated for '
+                    'image segment at index {}'.format(image_segment_index))
         if len(self._image_segment_data_segments) != image_segment_index:
             raise ValueError('data segments must be constructed in order.')
         image_header = image_manager.subheader

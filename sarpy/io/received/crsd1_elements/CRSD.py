@@ -31,13 +31,22 @@ from sarpy.io.phase_history.cphd1_elements.ProductInfo import ProductInfoType
 from sarpy.io.phase_history.cphd1_elements.GeoInfo import GeoInfoType
 from sarpy.io.complex.sicd_elements.MatchInfo import MatchInfoType
 
+from sarpy.io.phase_history.cphd_schema import get_urn_details, WRITABLE_VERSIONS, \
+    get_namespace, get_default_tuple
+
 
 #########
 # Module variables
-_CRSD_SPECIFICATION_VERSION = '1.0.0'
-_CRSD_SPECIFICATION_DATE = '2021-06-30T00:00:00Z'
-_CRSD_SPECIFICATION_NAMESPACE = 'http://api.nsgreg.nga.mil/schema/crsd/1.0.0'
-_CRSD_SECTION_TERMINATOR = b'\f\n'
+
+#########
+# Module variables
+_CRSD_SPEC_DETAILS = {
+    key: {'namespace': get_namespace(key), 'details': get_urn_details(key)}
+    for key in WRITABLE_VERSIONS}
+
+_CRSD_DEFAULT_TUPLE = get_default_tuple()
+_CRSD_DEFAULT_VERSION = '{}.{}.{}'.format(*_CRSD_DEFAULT_TUPLE)
+CRSD_SECTION_TERMINATOR = b'\f\n'
 
 
 #########
@@ -56,7 +65,7 @@ def _parse_crsd_header_field(line):
     None|(str, str)
     """
 
-    if line.startswith(_CRSD_SECTION_TERMINATOR):
+    if line.startswith(CRSD_SECTION_TERMINATOR):
         return None
     parts = line.split(b' := ')
     if len(parts) != 2:
@@ -152,7 +161,8 @@ class CRSDHeader(CRSDHeaderBase):
                  SUPPORT_BLOCK_SIZE=None, SUPPORT_BLOCK_BYTE_OFFSET=None,
                  PVP_BLOCK_SIZE=None, PVP_BLOCK_BYTE_OFFSET=None,
                  SIGNAL_BLOCK_SIZE=None, SIGNAL_BLOCK_BYTE_OFFSET=None,
-                 CLASSIFICATION='UNCLASSIFIED', RELEASE_INFO='UNRESTRICTED'):
+                 CLASSIFICATION='UNCLASSIFIED', RELEASE_INFO='UNRESTRICTED',
+                 use_version=None):
         self.XML_BLOCK_SIZE = XML_BLOCK_SIZE
         self.XML_BLOCK_BYTE_OFFSET = XML_BLOCK_BYTE_OFFSET
         self.SUPPORT_BLOCK_SIZE = SUPPORT_BLOCK_SIZE
@@ -163,13 +173,18 @@ class CRSDHeader(CRSDHeaderBase):
         self.SIGNAL_BLOCK_BYTE_OFFSET = SIGNAL_BLOCK_BYTE_OFFSET
         self.CLASSIFICATION = CLASSIFICATION
         self.RELEASE_INFO = RELEASE_INFO
+        self._use_version = _CRSD_DEFAULT_VERSION if use_version is None else use_version
         super(CRSDHeader, self).__init__()
+
+    @property
+    def use_version(self) -> str:
+        return self._use_version
 
     def to_string(self):
         """
         Forms a CRSD file header string (not including the section terminator) from populated attributes.
         """
-        return ('CRSD/{}\n'.format(_CRSD_SPECIFICATION_VERSION)
+        return ('CRSD/{}\n'.format(self.use_version)
                 + ''.join(["{} := {}\n".format(f, getattr(self, f))
                            for f in self._fields if getattr(self, f) is not None]))
 
@@ -372,14 +387,14 @@ class CRSDType(Serializable):
 
     def to_xml_bytes(self, urn=None, tag='CRSD', check_validity=False, strict=DEFAULT_STRICT):
         if urn is None:
-            urn = _CRSD_SPECIFICATION_NAMESPACE
+            urn = get_namespace(_CRSD_DEFAULT_VERSION)
         return super(CRSDType, self).to_xml_bytes(
             urn=urn, tag=tag, check_validity=check_validity, strict=strict)
 
     def to_xml_string(self, urn=None, tag='CRSD', check_validity=False, strict=DEFAULT_STRICT):
         return self.to_xml_bytes(urn=urn, tag=tag, check_validity=check_validity, strict=strict).decode('utf-8')
 
-    def make_file_header(self, xml_offset=1024):
+    def make_file_header(self, xml_offset=1024, use_version=None):
         """
         Forms a CRSD file header consistent with the information in the Data and CollectionID nodes.
 
@@ -389,42 +404,44 @@ class CRSDType(Serializable):
             Offset in bytes to the first byte of the XML block. If the provided value
             is not large enough to account for the length of the file header
             string, a larger value is chosen.
+        use_version : None|str
+            What version to use?
 
         Returns
         -------
-        header : sarpy.io.phase_history.cphd1_elements.CRSD.CRSDHeader
+        header : CRSDHeader
         """
 
-        _kvps = OrderedDict()
+        kwargs = OrderedDict()
+        kwargs['use_version'] = _CRSD_DEFAULT_VERSION if use_version is None else use_version
 
         def _align(val):
             align_to = 64
             return int(numpy.ceil(float(val)/align_to)*align_to)
 
-        _kvps['XML_BLOCK_SIZE'] = len(self.to_xml_string())
-        _kvps['XML_BLOCK_BYTE_OFFSET'] = xml_offset
-        block_end = _kvps['XML_BLOCK_BYTE_OFFSET'] + _kvps['XML_BLOCK_SIZE'] + len(_CRSD_SECTION_TERMINATOR)
+        kwargs['XML_BLOCK_SIZE'] = len(self.to_xml_string())
+        kwargs['XML_BLOCK_BYTE_OFFSET'] = xml_offset
+        block_end = kwargs['XML_BLOCK_BYTE_OFFSET'] + kwargs['XML_BLOCK_SIZE'] + len(CRSD_SECTION_TERMINATOR)
 
         if self.Data.NumSupportArrays > 0:
-            _kvps['SUPPORT_BLOCK_SIZE'] = self.Data.calculate_support_block_size()
-            _kvps['SUPPORT_BLOCK_BYTE_OFFSET'] = _align(block_end)
-            block_end = _kvps['SUPPORT_BLOCK_BYTE_OFFSET'] + _kvps['SUPPORT_BLOCK_SIZE']
+            kwargs['SUPPORT_BLOCK_SIZE'] = self.Data.calculate_support_block_size()
+            kwargs['SUPPORT_BLOCK_BYTE_OFFSET'] = _align(block_end)
+            block_end = kwargs['SUPPORT_BLOCK_BYTE_OFFSET'] + kwargs['SUPPORT_BLOCK_SIZE']
 
-        _kvps['PVP_BLOCK_SIZE'] = self.Data.calculate_pvp_block_size()
-        _kvps['PVP_BLOCK_BYTE_OFFSET'] = _align(block_end)
-        block_end = _kvps['PVP_BLOCK_BYTE_OFFSET'] + _kvps['PVP_BLOCK_SIZE']
+        kwargs['PVP_BLOCK_SIZE'] = self.Data.calculate_pvp_block_size()
+        kwargs['PVP_BLOCK_BYTE_OFFSET'] = _align(block_end)
+        block_end = kwargs['PVP_BLOCK_BYTE_OFFSET'] + kwargs['PVP_BLOCK_SIZE']
 
-        _kvps['SIGNAL_BLOCK_SIZE'] = self.Data.calculate_signal_block_size()
-        _kvps['SIGNAL_BLOCK_BYTE_OFFSET'] = _align(block_end)
-        _kvps['CLASSIFICATION'] = self.CollectionID.Classification
-        _kvps['RELEASE_INFO'] = self.CollectionID.ReleaseInfo
+        kwargs['SIGNAL_BLOCK_SIZE'] = self.Data.calculate_signal_block_size()
+        kwargs['SIGNAL_BLOCK_BYTE_OFFSET'] = _align(block_end)
+        kwargs['CLASSIFICATION'] = self.CollectionID.Classification
+        kwargs['RELEASE_INFO'] = self.CollectionID.ReleaseInfo
 
-        header = CRSDHeader(**_kvps)
+        header = CRSDHeader(**kwargs)
         header_str = header.to_string()
-        min_xml_offset = len(header_str) + len(_CRSD_SECTION_TERMINATOR)
-        if _kvps['XML_BLOCK_BYTE_OFFSET'] < min_xml_offset:
-            header = self.make_file_header(xml_offset=_align(min_xml_offset + 32))
-
+        min_xml_offset = len(header_str) + len(CRSD_SECTION_TERMINATOR)
+        if kwargs['XML_BLOCK_BYTE_OFFSET'] < min_xml_offset:
+            header = self.make_file_header(xml_offset=_align(min_xml_offset + 32), use_version=use_version)
         return header
 
     def get_pvp_dtype(self):
@@ -477,3 +494,19 @@ class CRSDType(Serializable):
         root_node, xml_ns = parse_xml_from_string(xml_string)
         ns_key = 'default' if 'default' in xml_ns else None
         return cls.from_node(root_node, xml_ns=xml_ns, ns_key=ns_key)
+
+    def version_required(self):
+        """
+        What CPHD version is required for valid support?
+
+        Returns
+        -------
+        tuple
+        """
+
+        required = (1, 0, 0)
+        for fld in self._fields:
+            val = getattr(self, fld)
+            if val is not None and hasattr(val, 'version_required'):
+                required = max(required, val.version_required())
+        return required

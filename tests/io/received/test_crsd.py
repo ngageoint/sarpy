@@ -3,9 +3,10 @@ import os
 import json
 import tempfile
 import unittest
+import shutil
 
 import numpy.testing
-from sarpy.io.received.crsd import CRSDReader, CRSDReader1_0, CRSDWriter1_0
+from sarpy.io.received.crsd import CRSDReader, CRSDReader1, CRSDWriter1
 from sarpy.io.received.converter import open_received
 from sarpy.io.received.crsd_schema import get_schema_path
 
@@ -58,7 +59,7 @@ def generic_io_test(instance, test_file, reader_type_string, reader_type):
 
     with instance.subTest(msg='Fetch data_sizes and sidds for type {} and file {}'.format(reader_type_string, test_file)):
         data_sizes = reader.get_data_size_as_tuple()
-        if isinstance(reader, CRSDReader1_0):
+        if isinstance(reader, CRSDReader1):
             elements = reader.crsd_meta.Data.Channels
         else:
             raise TypeError('Got unhandled reader type {}'.format(type(reader)))
@@ -96,33 +97,38 @@ def generic_io_test(instance, test_file, reader_type_string, reader_type):
             test_pvp = reader.read_pvp_variable('TxTime', i, the_range=(0, 10, 2))
             instance.assertEqual(test_pvp.shape, (5, ), msg='Unexpected pvp strided slice fetch size')
 
-    if isinstance(reader, CRSDReader1_0):
-        generic_writer_test(reader)
+    # create a temp directory
+    temp_directory = tempfile.mkdtemp()
 
+    if isinstance(reader, CRSDReader1):
+        with instance.subTest(msg='crsd writer test'):
+            generic_writer_test(reader, temp_directory)
+
+    shutil.rmtree(temp_directory)
     del reader
 
 
-def generic_writer_test(crsd_reader):
-    with tempfile.NamedTemporaryFile() as written_crsd:
+def generic_writer_test(crsd_reader, the_directory):
+    written_crsd_name = os.path.join(the_directory, 'example_crsd.crsd')
 
-        read_support = crsd_reader.read_support_block()
-        read_pvp = crsd_reader.read_pvp_block()
-        read_signal = crsd_reader.read_signal_block()
+    read_support = crsd_reader.read_support_block()
+    read_pvp = crsd_reader.read_pvp_block()
+    read_signal = crsd_reader.read_signal_block()
 
-        # write the crsd file
-        with CRSDWriter1_0(written_crsd.name, crsd_reader.crsd_meta, check_existence=False) as writer:
-            writer.write_file(read_pvp, read_signal, read_support)
+    # write the crsd file
+    with CRSDWriter1(written_crsd_name, crsd_reader.crsd_meta, check_existence=False) as writer:
+        writer.write_file(read_pvp, read_signal, read_support)
 
-        # reread the newly written data
-        rereader = CRSDReader(written_crsd.name)
-        reread_support = rereader.read_support_block()
-        reread_pvp = rereader.read_pvp_block()
-        reread_signal = rereader.read_signal_block()
+    # reread the newly written data
+    rereader = CRSDReader(written_crsd_name)
+    reread_support = rereader.read_support_block()
+    reread_pvp = rereader.read_pvp_block()
+    reread_signal = rereader.read_signal_block()
 
-        # byte compare that the original data and re-read data are identical
-        numpy.testing.assert_equal(read_support, reread_support)
-        numpy.testing.assert_equal(read_pvp, reread_pvp)
-        numpy.testing.assert_equal(read_signal, reread_signal)
+    # byte compare that the original data and re-read data are identical
+    numpy.testing.assert_equal(read_support, reread_support)
+    numpy.testing.assert_equal(read_pvp, reread_pvp)
+    numpy.testing.assert_equal(read_signal, reread_signal)
 
 
 class TestCRSD(unittest.TestCase):

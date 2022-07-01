@@ -27,7 +27,7 @@ import sarpy.consistency.consistency as con
 import sarpy.consistency.parsers as parsers
 import sarpy.io.phase_history.cphd1_elements.CPHD
 import sarpy.io.phase_history.cphd1_elements.utils as cphd1_utils
-from sarpy.io.phase_history.cphd_schema import get_schema_path
+from sarpy.io.phase_history.cphd_schema import get_schema_path, get_default_version_string
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +62,8 @@ except ImportError:
 
 
 INVALID_CHAR_REGEX = re.compile(r'\W')
-DEFAULT_SCHEMA = get_schema_path('1.0.1')
+DEFAULT_VERSION = '1.0.1'
+DEFAULT_SCHEMA = get_schema_path(DEFAULT_VERSION)
 
 
 def strip_namespace(root):
@@ -143,7 +144,7 @@ def read_header(file_handle):
 
     file_handle.seek(0, 0)
     version = file_handle.readline().decode()
-    assert version.startswith('CPHD/1.0')
+    assert version.startswith('CPHD/1.0') or version.startswith('CPHD/1.1')
 
     header = sarpy.io.phase_history.cphd1_elements.CPHD.CPHDHeader.from_file_object(file_handle)
     return {k:getattr(header, k) for k in header._fields if getattr(header, k) is not None}

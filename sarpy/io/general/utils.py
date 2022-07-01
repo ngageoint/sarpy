@@ -66,6 +66,7 @@ def is_real_file(the_input: BinaryIO) -> bool:
 
     if not hasattr(the_input, 'fileno'):
         return False
+    # noinspection PyBroadException
     try:
         fileno = the_input.fileno()
         return isinstance(fileno, int) and (fileno >= 0)
@@ -73,7 +74,7 @@ def is_real_file(the_input: BinaryIO) -> bool:
         return False
 
 
-def _fetch_initial_bytes(file_name: Union[str, BinaryIO], size: int) -> Union[None, bytes]:
+def _fetch_initial_bytes(file_name: Union[str, BinaryIO], size: int) -> Optional[bytes]:
     header = b''
     if is_file_like(file_name):
         current_location = file_name.tell()
@@ -202,7 +203,7 @@ def is_hdf5(file_name: Union[str, BinaryIO]) -> bool:
 
 ###########
 
-def parse_timestring(str_in: str, precision: str='us') -> numpy.datetime64:
+def parse_timestring(str_in: str, precision: str = 'us') -> numpy.datetime64:
     """
     Parse (naively) a timestring to numpy.datetime64 of the given precision.
 
@@ -222,9 +223,10 @@ def parse_timestring(str_in: str, precision: str='us') -> numpy.datetime64:
     return numpy.datetime64(str_in, precision)
 
 
-def get_seconds(dt1: numpy.datetime64,
-                dt2: numpy.datetime64,
-                precision: str='us') -> float:
+def get_seconds(
+        dt1: numpy.datetime64,
+        dt2: numpy.datetime64,
+        precision: str = 'us') -> float:
     """
     The number of seconds between two numpy.datetime64 elements.
 
@@ -258,7 +260,7 @@ def get_seconds(dt1: numpy.datetime64,
     return float((tdt1.astype('int64') - tdt2.astype('int64'))*scale)
 
 
-def calculate_md5(the_path: str, chunk_size: int=1024*1024) -> str:
+def calculate_md5(the_path: str, chunk_size: int = 1024*1024) -> str:
     """
     Calculate the md5 checksum of a given file defined by a path.
 

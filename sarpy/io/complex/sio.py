@@ -18,6 +18,7 @@ from sarpy.io.complex.base import SICDTypeReader
 from sarpy.io.complex.sicd_elements.blocks import RowColType
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd_elements.ImageData import ImageDataType, FullImageType
+from sarpy.io.complex.sicd import AmpLookupFunction
 
 from sarpy.io.general.base import BaseWriter, SarpyIOError
 from sarpy.io.general.data_segment import NumpyArraySegment, NumpyMemmapSegment
@@ -60,7 +61,8 @@ class SIODetails(object):
             self._magic_number = struct.unpack('I', fi.read(4))[0]
             endian = self.ENDIAN.get(self._magic_number, None)
             if endian is None:
-                raise SarpyIOError('File {} is not an SIO file. Got magic number {}'.format(file_name, self._magic_number))
+                raise SarpyIOError(
+                    'File {} is not an SIO file. Got magic number {}'.format(file_name, self._magic_number))
 
             # reader basic header - (rows, columns, data_type, pixel_size)?
             init_head = numpy.array(struct.unpack('{}4I'.format(endian), fi.read(16)), dtype=numpy.uint64)
@@ -300,9 +302,7 @@ class SIOReader(SICDTypeReader):
         sicd_meta = sio_details.get_sicd()
 
         if sicd_meta.ImageData.PixelType == 'AMP8I_PHS8I':
-            format_function = ComplexFormatFunction(
-                sio_details.raw_data_type, order='MP', band_dimension=-1,
-                magnitude_lookup_table=sicd_meta.ImageData.AmpTable)
+            format_function = AmpLookupFunction(sio_details.raw_data_type, sicd_meta.ImageData.AmpTable)
         else:
             format_function = ComplexFormatFunction(
                 sio_details.raw_data_type, order='IQ', band_dimension=-1)
@@ -371,12 +371,13 @@ class SIOWriter(BaseWriter):
         '_file_name', '_file_object', '_in_memory',
         '_data_offset', '_data_written')
 
-    def __init__(self,
-                 file_object: Union[str, BinaryIO],
-                 sicd_meta: SICDType,
-                 user_data: Optional[Dict[str, str]]=None,
-                 check_older_version: bool=False,
-                 check_existence: bool=True):
+    def __init__(
+            self,
+            file_object: Union[str, BinaryIO],
+            sicd_meta: SICDType,
+            user_data: Optional[Dict[str, str]] = None,
+            check_older_version: bool = False,
+            check_existence: bool = True):
         """
 
         Parameters
@@ -394,7 +395,9 @@ class SIOWriter(BaseWriter):
         self._data_written = True
         if isinstance(file_object, str):
             if check_existence and os.path.exists(file_object):
-                raise SarpyIOError('Given file {} already exists, and a new SIO file cannot be created here.'.format(file_object))
+                raise SarpyIOError(
+                    'Given file {} already exists,\n\t'
+                    'and a new SIO file cannot be created here.'.format(file_object))
             file_object = open(file_object, 'wb')
 
         if not is_file_like(file_object):
@@ -429,8 +432,7 @@ class SIOWriter(BaseWriter):
             raw_dtype = numpy.dtype('{}u1'.format(endian))
             element_type = 11
             element_size = 2
-            format_function = ComplexFormatFunction(
-                raw_dtype, order='MP', band_dimension=2, magnitude_lookup_table=sicd_meta.ImageData.AmpTable)
+            format_function = AmpLookupFunction(raw_dtype, sicd_meta.ImageData.AmpTable)
 
         # construct the sio header
         header = numpy.array(
@@ -475,7 +477,7 @@ class SIOWriter(BaseWriter):
 
         return self._file_name
 
-    def flush(self, force: bool=False) -> None:
+    def flush(self, force: bool = False) -> None:
         BaseWriter.flush(self, force=force)
         if self._data_written:
             return
