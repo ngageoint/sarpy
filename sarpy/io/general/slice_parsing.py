@@ -9,7 +9,7 @@ from typing import Union, Tuple, Sequence
 import numpy
 
 
-def validate_slice_int(the_int: int, bound: int, include=True):
+def validate_slice_int(the_int: int, bound: int, include: bool = True) -> int:
     """
     Ensure that the given integer makes sense as a slice entry, and move to
     a normalized form.
@@ -188,7 +188,7 @@ def get_slice_result_size(slice_in: slice) -> int:
 
 def get_subscript_result_size(
         subscript: Union[None, int, slice, Sequence[Union[int, slice, Tuple[int, ...]]]],
-        corresponding_shape: Tuple[int, ...]) -> (Tuple[slice, ...], Tuple[int, ...]):
+        corresponding_shape: Tuple[int, ...]) -> Tuple[Tuple[slice, ...], Tuple[int, ...]]:
     """
     Validate the given subscript against the corresponding shape, and also determine
     the shape of the resultant data reading result.

@@ -74,7 +74,7 @@ def is_real_file(the_input: BinaryIO) -> bool:
         return False
 
 
-def _fetch_initial_bytes(file_name: Union[str, BinaryIO], size: int) -> Union[None, bytes]:
+def _fetch_initial_bytes(file_name: Union[str, BinaryIO], size: int) -> Optional[bytes]:
     header = b''
     if is_file_like(file_name):
         current_location = file_name.tell()
@@ -223,9 +223,10 @@ def parse_timestring(str_in: str, precision: str = 'us') -> numpy.datetime64:
     return numpy.datetime64(str_in, precision)
 
 
-def get_seconds(dt1: numpy.datetime64,
-                dt2: numpy.datetime64,
-                precision: str = 'us') -> float:
+def get_seconds(
+        dt1: numpy.datetime64,
+        dt2: numpy.datetime64,
+        precision: str = 'us') -> float:
     """
     The number of seconds between two numpy.datetime64 elements.
 

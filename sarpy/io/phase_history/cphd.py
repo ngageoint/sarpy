@@ -92,6 +92,18 @@ class AmpScalingFunction(ComplexFormatFunction):
     def set_amplitude_scaling(
             self,
             array: Optional[numpy.ndarray]) -> None:
+        """
+        Set the amplitude scaling array.
+
+        Parameters
+        ----------
+        array : None|numpy.ndarray
+
+        Returns
+        -------
+        None
+        """
+
         if array is None:
             self._amplitude_scaling = None
             return
