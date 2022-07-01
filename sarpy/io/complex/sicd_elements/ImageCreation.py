@@ -6,7 +6,11 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
+from typing import Optional, Union
+
 import numpy
+
+from datetime import datetime, date
 
 from sarpy.io.xml.base import Serializable
 from sarpy.io.xml.descriptors import StringDescriptor, DateTimeDescriptor
@@ -35,7 +39,13 @@ class ImageCreationType(Serializable):
         'Profile', _required, strict=DEFAULT_STRICT,
         docstring='Identifies what profile was used to create this SICD product.')  # type: str
 
-    def __init__(self, Application=None, DateTime=None, Site=None, Profile=None, **kwargs):
+    def __init__(
+            self,
+            Application: Optional[str] = None,
+            DateTime: Union[None, numpy.datetime64, datetime, date, str] = None,
+            Site: Optional[str] = None,
+            Profile: Optional[str] = None,
+            **kwargs):
         """
 
         Parameters

@@ -17,7 +17,13 @@ from sarpy.geometry.geometry_elements import LinearRing
 ##############
 # RgAzComp image formation parameter checks
 
-def _rgazcomp_check_kaz_poly(RgAzComp, Timeline, Grid, SCPCOA, look, ARP_Vel):
+def _rgazcomp_check_kaz_poly(
+        RgAzComp,
+        Timeline,
+        Grid,
+        SCPCOA,
+        look,
+        ARP_Vel) -> bool:
     """
     Check the KAZ polynomial value.
 
@@ -62,7 +68,11 @@ def _rgazcomp_check_kaz_poly(RgAzComp, Timeline, Grid, SCPCOA, look, ARP_Vel):
     return cond
 
 
-def _rgazcomp_check_row_deltakcoa(RgAzComp, Grid, RadarCollection, ImageFormation):
+def _rgazcomp_check_row_deltakcoa(
+        RgAzComp,
+        Grid,
+        RadarCollection,
+        ImageFormation) -> bool:
     """
 
     Parameters
@@ -109,7 +119,9 @@ def _rgazcomp_check_row_deltakcoa(RgAzComp, Grid, RadarCollection, ImageFormatio
     return cond
 
 
-def _rgazcomp_check_col_deltacoa(RgAzComp, Grid):
+def _rgazcomp_check_col_deltacoa(
+        RgAzComp,
+        Grid) -> bool:
     """
 
     Parameters
@@ -145,7 +157,7 @@ def _rgazcomp_check_col_deltacoa(RgAzComp, Grid):
     return cond
 
 
-def _rgazcomp_checks(the_sicd):
+def _rgazcomp_checks(the_sicd) -> bool:
     """
     Perform the RgAzComp structure validation checks.
 
@@ -219,7 +231,7 @@ def _rgazcomp_checks(the_sicd):
 ##############
 # PFA image formation parameter checks
 
-def _pfa_check_kaz_krg(PFA, Grid):
+def _pfa_check_kaz_krg(PFA, Grid) -> bool:
     """
     Check the validity of the Kaz and Krg values.
 
@@ -292,7 +304,7 @@ def _pfa_check_kaz_krg(PFA, Grid):
     return cond
 
 
-def _pfa_check_polys(PFA, Position, Timeline, SCP):
+def _pfa_check_polys(PFA, Position, Timeline, SCP) -> bool:
     """
 
     Parameters
@@ -330,7 +342,7 @@ def _pfa_check_polys(PFA, Position, Timeline, SCP):
     return cond
 
 
-def _pfa_check_uvects(PFA, Position, Grid, SCP):
+def _pfa_check_uvects(PFA, Position, Grid, SCP) -> bool:
     """
 
     Parameters
@@ -376,7 +388,7 @@ def _pfa_check_uvects(PFA, Position, Grid, SCP):
     return cond
 
 
-def _pfa_check_stdeskew(PFA, Grid):
+def _pfa_check_stdeskew(PFA, Grid) -> bool:
     """
 
     Parameters
@@ -421,7 +433,11 @@ def _pfa_check_stdeskew(PFA, Grid):
     return cond
 
 
-def _pfa_check_kctr(PFA, RadarCollection, ImageFormation, Grid):
+def _pfa_check_kctr(
+        PFA,
+        RadarCollection,
+        ImageFormation,
+        Grid) -> bool:
     """
 
     Parameters
@@ -456,7 +472,7 @@ def _pfa_check_kctr(PFA, RadarCollection, ImageFormation, Grid):
     return cond
 
 
-def _pfa_check_image_plane(PFA, Grid, SCPCOA, SCP):
+def _pfa_check_image_plane(PFA, Grid, SCPCOA, SCP) -> bool:
     """
 
     Parameters
@@ -517,7 +533,10 @@ def _pfa_check_image_plane(PFA, Grid, SCPCOA, SCP):
     return cond
 
 
-def _pfa_check_polar_angle_consistency(PFA, CollectionInfo, ImageFormation):
+def _pfa_check_polar_angle_consistency(
+        PFA,
+        CollectionInfo,
+        ImageFormation) -> bool:
     """
 
     Parameters
@@ -548,7 +567,7 @@ def _pfa_check_polar_angle_consistency(PFA, CollectionInfo, ImageFormation):
     return cond
 
 
-def _pfa_checks(the_sicd):
+def _pfa_checks(the_sicd) -> bool:
     """
     Perform the PFA structure validation checks.
 
@@ -596,7 +615,12 @@ def _pfa_checks(the_sicd):
 ##############
 # PFA image formation parameter checks
 
-def _rma_check_rmat(RMA, Grid, GeoData, RadarCollection, ImageFormation):
+def _rma_check_rmat(
+        RMA,
+        Grid,
+        GeoData,
+        RadarCollection,
+        ImageFormation) -> bool:
     """
 
     Parameters
@@ -678,7 +702,12 @@ def _rma_check_rmat(RMA, Grid, GeoData, RadarCollection, ImageFormation):
     return cond
 
 
-def _rma_check_rmcr(RMA, Grid, GeoData, RadarCollection, ImageFormation):
+def _rma_check_rmcr(
+        RMA,
+        Grid,
+        GeoData,
+        RadarCollection,
+        ImageFormation) -> bool:
     """
 
     Parameters
@@ -757,7 +786,13 @@ def _rma_check_rmcr(RMA, Grid, GeoData, RadarCollection, ImageFormation):
     return cond
 
 
-def _rma_check_inca(RMA, Grid, GeoData, RadarCollection, CollectionInfo, Position):
+def _rma_check_inca(
+        RMA,
+        Grid,
+        GeoData,
+        RadarCollection,
+        CollectionInfo,
+        Position) -> bool:
     """
 
     Parameters
@@ -889,7 +924,7 @@ def _rma_check_inca(RMA, Grid, GeoData, RadarCollection, CollectionInfo, Positio
     return cond
 
 
-def _rma_checks(the_sicd):
+def _rma_checks(the_sicd) -> bool:
     """
     Perform the RMA structure validation checks.
 
@@ -916,7 +951,7 @@ def _rma_checks(the_sicd):
 ##############
 # SICD checks
 
-def _validate_scp_time(the_sicd):
+def _validate_scp_time(the_sicd) -> bool:
     """
     Validate the SCPTime.
 
@@ -944,7 +979,9 @@ def _validate_scp_time(the_sicd):
     return cond
 
 
-def _validate_image_form_parameters(the_sicd, alg_type):
+def _validate_image_form_parameters(
+        the_sicd,
+        alg_type: str) -> bool:
     """
     Validate the image formation parameter specifics.
 
@@ -1018,7 +1055,7 @@ def _validate_image_form_parameters(the_sicd, alg_type):
     return cond
 
 
-def _validate_image_formation(the_sicd):
+def _validate_image_formation(the_sicd) -> bool:
     """
     Validate the image formation.
 
@@ -1067,7 +1104,7 @@ def _validate_image_formation(the_sicd):
     return _validate_image_form_parameters(the_sicd, alg_types[0])
 
 
-def _validate_image_segment_id(the_sicd):
+def _validate_image_segment_id(the_sicd) -> bool:
     """
     Validate the image segment id.
 
@@ -1119,7 +1156,7 @@ def _validate_image_segment_id(the_sicd):
     return True
 
 
-def _validate_spotlight_mode(the_sicd):
+def _validate_spotlight_mode(the_sicd) -> bool:
     """
     Validate the spotlight mode situation.
 
@@ -1156,7 +1193,7 @@ def _validate_spotlight_mode(the_sicd):
     return True
 
 
-def _validate_valid_data(the_sicd):
+def _validate_valid_data(the_sicd) -> bool:
     """
     Check that either both ValidData fields are populated, or neither.
 
@@ -1183,7 +1220,7 @@ def _validate_valid_data(the_sicd):
     return True
 
 
-def _validate_polygons(the_sicd):
+def _validate_polygons(the_sicd) -> bool:
     """
     Checks that the polygons appear to be appropriate.
 
@@ -1258,7 +1295,7 @@ def _validate_polygons(the_sicd):
     return value
 
 
-def _validate_polarization(the_sicd):
+def _validate_polarization(the_sicd) -> bool:
     """
     Validate the polarization.
 
@@ -1288,7 +1325,7 @@ def _validate_polarization(the_sicd):
     return True
 
 
-def _check_deltak(the_sicd):
+def _check_deltak(the_sicd) -> bool:
     """
     Checks the deltak parameters.
 
@@ -1318,7 +1355,7 @@ def _check_deltak(the_sicd):
     return the_sicd.Grid.check_deltak(x_coords, y_coords)
 
 
-def _check_projection(the_sicd):
+def _check_projection(the_sicd) -> None:
     """
     Checks the projection ability.
 
@@ -1333,7 +1370,10 @@ def _check_projection(the_sicd):
             'In particular, no derived products can be produced.')
 
 
-def _validate_radiometric(Radiometric, Grid, SCPCOA):
+def _validate_radiometric(
+        Radiometric,
+        Grid,
+        SCPCOA) -> bool:
     """
     Validate the radiometric parameters.
 
@@ -1399,7 +1439,7 @@ def _validate_radiometric(Radiometric, Grid, SCPCOA):
     return cond
 
 
-def _check_radiometric_recommended(radiometric):
+def _check_radiometric_recommended(radiometric) -> None:
     """
     Checks the recommended fields for the radiometric object.
 
@@ -1422,7 +1462,7 @@ def _check_radiometric_recommended(radiometric):
             'are not easily available.')
 
 
-def _check_recommended_attributes(the_sicd):
+def _check_recommended_attributes(the_sicd) -> None:
     """
     Checks recommended attributes.
 
@@ -1457,7 +1497,7 @@ def _check_recommended_attributes(the_sicd):
             'this validation test, because a number tests could not be performed.')
 
 
-def detailed_validation_checks(the_sicd):
+def detailed_validation_checks(the_sicd) -> bool:
     """
     Assembles the suite of detailed sicd validation checks.
 

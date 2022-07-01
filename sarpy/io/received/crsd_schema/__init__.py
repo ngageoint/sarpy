@@ -7,8 +7,10 @@ __author__ = "Thomas McCullough"
 
 import os
 import re
-from typing import List, Dict
+from typing import List, Dict, Tuple, Union
 
+
+_CRSD_DEFAULT_TUPLE = (1, 0, 0)
 
 _the_directory = os.path.split(__file__)[0]
 
@@ -19,6 +21,43 @@ urn_mapping = {
         'date': '2021-06-12T00:00:00Z',
         'schema': os.path.join(_the_directory, 'CRSD_schema_V1.0.0_2021_06_12.xsd')},
 }
+WRITABLE_VERSIONS = ('1.0.0', )
+
+# validate the defined paths
+for key, entry in urn_mapping.items():
+    schema_path = entry.get('schema', None)
+    if schema_path is not None and not os.path.exists(schema_path):
+        raise ValueError('`{}` has nonexistent schema path {}'.format(key, schema_path))
+
+
+def get_default_tuple() -> Tuple[int, int, int]:
+    """
+    Get the default CRSD version tuple.
+
+    Returns
+    -------
+    Tuple[int, int, int]
+    """
+
+    return _CRSD_DEFAULT_TUPLE
+
+
+def get_default_version_string() -> str:
+    """
+    Get the default CRSD version string.
+
+    Returns
+    -------
+    str
+    """
+
+    return '{}.{}.{}'.format(*_CRSD_DEFAULT_TUPLE)
+
+
+def get_namespace(version: Union[str, Tuple[int, int, int]]) -> str:
+    if isinstance(version, (list, tuple)):
+        version = '{}.{}.{}'.format(version[0], version[1], version[2])
+    return 'http://api.nsgreg.nga.mil/schema/crsd/{}'.format(version)
 
 
 def check_urn(urn_string: str) -> str:

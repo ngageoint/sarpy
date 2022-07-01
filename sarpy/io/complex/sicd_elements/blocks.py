@@ -6,6 +6,7 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
+from typing import Union, Optional, Tuple
 from collections import OrderedDict
 
 import numpy
@@ -54,7 +55,12 @@ class XYZType(Serializable, Arrayable):
         'Z', _required, strict=True,
         docstring='The Z attribute. Assumed to ECF or other, similar coordinates.')  # type: float
 
-    def __init__(self, X=None, Y=None, Z=None, **kwargs):
+    def __init__(
+            self,
+            X: float = None,
+            Y: float = None,
+            Z: float = None,
+            **kwargs):
         """
         Parameters
         ----------
@@ -72,7 +78,7 @@ class XYZType(Serializable, Arrayable):
         super(XYZType, self).__init__(**kwargs)
 
     @classmethod
-    def from_array(cls, array):
+    def from_array(cls, array: Union[numpy.ndarray, list, tuple]):
         """
         Create from an array type entry.
 
@@ -94,7 +100,7 @@ class XYZType(Serializable, Arrayable):
             return cls(X=array[0], Y=array[1], Z=array[2])
         raise ValueError(_array_type_text.format(type(array)))
 
-    def get_array(self, dtype=numpy.float64):
+    def get_array(self, dtype=numpy.float64) -> numpy.ndarray:
         """
         Gets an array representation of the class instance.
 
@@ -125,7 +131,11 @@ class LatLonType(Serializable, Arrayable):
         'Lon', _required, strict=True,
         docstring='The longitude attribute. Assumed to be WGS-84 coordinates.')  # type: float
 
-    def __init__(self, Lat=None, Lon=None, **kwargs):
+    def __init__(
+            self,
+            Lat: float = None,
+            Lon: float = None,
+            **kwargs):
         """
         Parameters
         ----------
@@ -141,7 +151,10 @@ class LatLonType(Serializable, Arrayable):
         self.Lat, self.Lon = Lat, Lon
         super(LatLonType, self).__init__(**kwargs)
 
-    def get_array(self, dtype=numpy.float64, order='LAT'):
+    def get_array(
+            self,
+            dtype=numpy.float64,
+            order: str = 'LAT') -> numpy.ndarray:
         """
         Gets an array representation of the data.
 
@@ -151,6 +164,7 @@ class LatLonType(Serializable, Arrayable):
             Determines array order. 'LAT' yields [Lat, Lon], and anything else yields [Lon, Lat].
         dtype : str|numpy.dtype|numpy.number
             data type of the return
+        order : str
 
         Returns
         -------
@@ -164,7 +178,7 @@ class LatLonType(Serializable, Arrayable):
             return numpy.array([self.Lon, self.Lat], dtype=dtype)
 
     @classmethod
-    def from_array(cls, array):
+    def from_array(cls, array: Union[numpy.ndarray, list, tuple]):
         """
         Create from an array type entry.
 
@@ -186,7 +200,9 @@ class LatLonType(Serializable, Arrayable):
             return cls(Lat=array[0], Lon=array[1])
         raise ValueError(_array_type_text.format(type(array)))
 
-    def dms_format(self, frac_secs=False):
+    def dms_format(
+            self,
+            frac_secs: bool = False) -> Tuple[Tuple[int, int, int, str], Tuple[int, int, int, str]]:
         """
         Get degree-minutes-seconds representation.
         Parameters
@@ -224,7 +240,12 @@ class LatLonArrayElementType(LatLonType):
     index = IntegerDescriptor(
         'index', _required, strict=False, docstring="The array index")  # type: int
 
-    def __init__(self, Lat=None, Lon=None, index=None, **kwargs):
+    def __init__(
+            self,
+            Lat: float = None,
+            Lon: float = None,
+            index: int = None,
+            **kwargs):
         """
         Parameters
         ----------
@@ -242,7 +263,10 @@ class LatLonArrayElementType(LatLonType):
         super(LatLonArrayElementType, self).__init__(Lat=Lat, Lon=Lon, **kwargs)
 
     @classmethod
-    def from_array(cls, array, index=1):
+    def from_array(
+            cls,
+            array: Union[numpy.ndarray, list, tuple],
+            index: int = 1):
         """
         Create from an array type entry.
 
@@ -251,7 +275,8 @@ class LatLonArrayElementType(LatLonType):
         array: numpy.ndarray|list|tuple
             assumed [Lat, Lon]
         index : int
-            array index
+            (1 based) array index
+
         Returns
         -------
         LatLonArrayElementType
@@ -277,7 +302,11 @@ class LatLonRestrictionType(LatLonType):
         'Lon', 180.0, _required, strict=True,
         docstring='The longitude attribute. Assumed to be WGS-84 coordinates.')  # type: float
 
-    def __init__(self, Lat=None, Lon=None, **kwargs):
+    def __init__(
+            self,
+            Lat: float = None,
+            Lon: float = None,
+            **kwargs):
         """
         Parameters
         ----------
@@ -293,7 +322,7 @@ class LatLonRestrictionType(LatLonType):
         super(LatLonRestrictionType, self).__init__(Lat=Lat, Lon=Lon, **kwargs)
 
     @classmethod
-    def from_array(cls, array):
+    def from_array(cls, array: Union[numpy.ndarray, list, tuple]):
         """
         Create from an array type entry.
 
@@ -326,7 +355,12 @@ class LatLonHAEType(LatLonType):
         docstring='The Height Above Ellipsoid (in meters) attribute. Assumed to be '
                   'WGS-84 coordinates.')  # type: float
 
-    def __init__(self, Lat=None, Lon=None, HAE=None, **kwargs):
+    def __init__(
+            self,
+            Lat: float = None,
+            Lon: float = None,
+            HAE: float = None,
+            **kwargs):
         """
         Parameters
         ----------
@@ -343,7 +377,7 @@ class LatLonHAEType(LatLonType):
         self.HAE = HAE
         super(LatLonHAEType, self).__init__(Lat=Lat, Lon=Lon, **kwargs)
 
-    def get_array(self, dtype=numpy.float64, order='LAT'):
+    def get_array(self, dtype=numpy.float64, order='LAT') -> numpy.ndarray:
         """
         Gets an array representation of the data.
 
@@ -366,7 +400,7 @@ class LatLonHAEType(LatLonType):
             return numpy.array([self.Lon, self.Lat, self.HAE], dtype=dtype)
 
     @classmethod
-    def from_array(cls, array):
+    def from_array(cls, array: Union[numpy.ndarray, list, tuple]):
         """
         Create from an array type entry.
 
@@ -399,7 +433,12 @@ class LatLonHAERestrictionType(LatLonHAEType):
         'Lon', 180.0, _required, strict=True,
         docstring='The longitude attribute. Assumed to be WGS-84 coordinates.')  # type: float
 
-    def __init__(self, Lat=None, Lon=None, HAE=None, **kwargs):
+    def __init__(
+            self,
+            Lat: float = None,
+            Lon: float = None,
+            HAE: float = None,
+            **kwargs):
         """
         Parameters
         ----------
@@ -416,7 +455,7 @@ class LatLonHAERestrictionType(LatLonHAEType):
         super(LatLonHAERestrictionType, self).__init__(Lat=Lat, Lon=Lon, HAE=HAE, **kwargs)
 
     @classmethod
-    def from_array(cls, array):
+    def from_array(cls, array: Union[numpy.ndarray, list, tuple]):
         """
         Create from an array type entry.
 
@@ -450,7 +489,12 @@ class LatLonCornerType(LatLonType):
                   'the rectangle vertices wrt the frame of reference of the collector. '
                   'Should be 1-4, but 0-3 may be permissible.')  # type: int
 
-    def __init__(self, Lat=None, Lon=None, index=None, **kwargs):
+    def __init__(
+            self,
+            Lat: float = None,
+            Lon: float = None,
+            index: int = None,
+            **kwargs):
         """
         Parameters
         ----------
@@ -468,7 +512,10 @@ class LatLonCornerType(LatLonType):
         super(LatLonCornerType, self).__init__(Lat=Lat, Lon=Lon, **kwargs)
 
     @classmethod
-    def from_array(cls, array, index=1):
+    def from_array(
+            cls,
+            array: Union[numpy.ndarray, list, tuple],
+            index: int = 1):
         """
         Create from an array type entry.
 
@@ -477,7 +524,8 @@ class LatLonCornerType(LatLonType):
         array: numpy.ndarray|list|tuple
             assumed [Lat, Lon]
         index : int
-            array index
+            (1 based) array index
+
         Returns
         -------
         LatLonCornerType
@@ -503,7 +551,12 @@ class LatLonCornerStringType(LatLonType):
         'index', _CORNER_VALUES, _required, strict=False,
         docstring="The string index.")  # type: str
 
-    def __init__(self, Lat=None, Lon=None, index=None, **kwargs):
+    def __init__(
+            self,
+            Lat: float = None,
+            Lon: float = None,
+            index: str = None,
+            **kwargs):
         """
         Parameters
         ----------
@@ -521,16 +574,20 @@ class LatLonCornerStringType(LatLonType):
         super(LatLonCornerStringType, self).__init__(Lat=Lat, Lon=Lon, **kwargs)
 
     @classmethod
-    def from_array(cls, array, index='1:FRFC'):
+    def from_array(
+            cls,
+            array: Union[numpy.ndarray, list, tuple],
+            index: str = '1:FRFC'):
         """
         Create from an array type entry.
 
         Parameters
         ----------
         array: numpy.ndarray|list|tuple
-            assumed [Lat, Lon]
+            assumed `[Lat, Lon]`
         index : str
-            array index in  ('1:FRFC', '2:FRLC', '3:LRLC', '4:LRFC')
+            array index in  `('1:FRFC', '2:FRLC', '3:LRLC', '4:LRFC')`
+
         Returns
         -------
         LatLonCornerStringType
@@ -556,7 +613,13 @@ class LatLonHAECornerRestrictionType(LatLonHAERestrictionType):
                   'rectangle vertices wrt the frame of reference of the collector. '
                   'Should be 1-4, but 0-3 may be permissible.')  # type: int
 
-    def __init__(self, Lat=None, Lon=None, HAE=None, index=None, **kwargs):
+    def __init__(
+            self,
+            Lat: float = None,
+            Lon: float = None,
+            HAE: float = None,
+            index: int = None,
+            **kwargs):
         """
 
         Parameters
@@ -576,16 +639,20 @@ class LatLonHAECornerRestrictionType(LatLonHAERestrictionType):
         super(LatLonHAECornerRestrictionType, self).__init__(Lat=Lat, Lon=Lon, HAE=HAE, **kwargs)
 
     @classmethod
-    def from_array(cls, array, index=1):
+    def from_array(
+            cls,
+            array: Union[numpy.ndarray, list, tuple],
+            index: int = 1):
         """
         Create from an array type entry.
 
         Parameters
         ----------
         array: numpy.ndarray|list|tuple
-            assumed [Lat, Lon, HAE]
+            assumed `[Lat, Lon, HAE]`
         index : int
-            array index
+            (1 based) array index
+
         Returns
         -------
         LatLonHAECornerRestrictionType
@@ -609,7 +676,13 @@ class LatLonHAECornerStringType(LatLonHAEType):
     index = StringEnumDescriptor(
         'index', _CORNER_VALUES, _required, strict=False, docstring="The string index.")  # type: str
 
-    def __init__(self, Lat=None, Lon=None, HAE=None, index=None, **kwargs):
+    def __init__(
+            self,
+            Lat: float = None,
+            Lon: float = None,
+            HAE: float = None,
+            index: str = None,
+            **kwargs):
         """
         Parameters
         ----------
@@ -628,16 +701,19 @@ class LatLonHAECornerStringType(LatLonHAEType):
         super(LatLonHAECornerStringType, self).__init__(Lat=Lat, Lon=Lon, HAE=HAE, **kwargs)
 
     @classmethod
-    def from_array(cls, array, index='1:FRFC'):
+    def from_array(
+            cls,
+            array: Union[numpy.ndarray, list, tuple],
+            index: str = '1:FRFC'):
         """
         Create from an array type entry.
 
         Parameters
         ----------
         array: numpy.ndarray|list|tuple
-            assumed [Lat, Lon, HAE]
+            assumed `[Lat, Lon, HAE]`
         index : str
-            array index in ('1:FRFC', '2:FRLC', '3:LRLC', '4:LRFC')
+            array index in `('1:FRFC', '2:FRLC', '3:LRLC', '4:LRFC')`
         Returns
         -------
         LatLonHAECornerStringType
@@ -664,7 +740,11 @@ class RowColType(Serializable, Arrayable):
     Col = IntegerDescriptor(
         'Col', _required, strict=True, docstring='The Column attribute.')  # type: int
 
-    def __init__(self, Row=None, Col=None, **kwargs):
+    def __init__(
+            self,
+            Row: int = None,
+            Col: int = None,
+            **kwargs):
         """
         Parameters
         ----------
@@ -680,7 +760,7 @@ class RowColType(Serializable, Arrayable):
         self.Row, self.Col = Row, Col
         super(RowColType, self).__init__(**kwargs)
 
-    def get_array(self, dtype=numpy.int64):
+    def get_array(self, dtype=numpy.int64) -> numpy.ndarray:
         """
         Gets an array representation of the class instance.
 
@@ -698,19 +778,20 @@ class RowColType(Serializable, Arrayable):
         return numpy.array([self.Row, self.Col], dtype=dtype)
 
     @classmethod
-    def from_array(cls, array):
+    def from_array(cls, array: Union[numpy.ndarray, list, tuple]):
         """
         Create from an array type entry.
 
         Parameters
         ----------
         array: numpy.ndarray|list|tuple
-            assumed [Row, Col]
+            assumed `[Row, Col]`
 
         Returns
         -------
         RowColType
         """
+
         if array is None:
             return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
@@ -731,7 +812,12 @@ class RowColArrayElement(RowColType):
     index = IntegerDescriptor(
         'index', _required, strict=False, docstring='The array index attribute.')  # type: int
 
-    def __init__(self, Row=None, Col=None, index=None, **kwargs):
+    def __init__(
+            self,
+            Row: int = None,
+            Col: int = None,
+            index: int = None,
+            **kwargs):
         """
         Parameters
         ----------
@@ -749,16 +835,19 @@ class RowColArrayElement(RowColType):
         super(RowColArrayElement, self).__init__(Row=Row, Col=Col, **kwargs)
 
     @classmethod
-    def from_array(cls, array, index=1):
+    def from_array(
+            cls,
+            array: Union[numpy.ndarray, list, tuple],
+            index: int = 1):
         """
         Create from an array type entry.
 
         Parameters
         ----------
         array: numpy.ndarray|list|tuple
-            assumed [Row, Col]
+            assumed `[Row, Col]`
         index : int
-            the array index
+            (1 based) the array index
 
         Returns
         -------
@@ -787,7 +876,10 @@ class Poly1DType(Serializable, Arrayable):
     _required = ('Coefs', )
     _numeric_format = {'Coefs': FLOAT_FORMAT}
 
-    def __init__(self, Coefs=None, **kwargs):
+    def __init__(
+            self,
+            Coefs: Union[None, numpy.ndarray, list, tuple] = None,
+            **kwargs):
         """
 
         Parameters
@@ -805,27 +897,31 @@ class Poly1DType(Serializable, Arrayable):
         super(Poly1DType, self).__init__(**kwargs)
 
     @property
-    def order1(self):
+    def order1(self) -> int:
         """
-        int: The order1 attribute [READ ONLY]  - that is, largest exponent presented in the monomial terms of coefs.
+        int: The order1 attribute [READ ONLY]  - that is, largest exponent
+        presented in the monomial terms of coefs.
         """
 
         return self.Coefs.size - 1
 
     @property
-    def Coefs(self):
+    def Coefs(self) -> numpy.ndarray:
         """
-        numpy.ndarray: The one-dimensional polynomial coefficient array of dtype=float64. Assignment object must be a
+        numpy.ndarray: The one-dimensional polynomial coefficient array of
+        dtype=float64. Assignment object must be a
         one-dimensional numpy.ndarray, or naively convertible to one.
 
-        .. Note:: this returns the direct coefficient array. Use the `get_array()` method to get a copy of the
-            coefficient array of specified data type.
+        .. Note::
+            This returns the direct coefficient array. Use the `get_array()`
+            method to get a copy of the coefficient array of specified data
+            type.
         """
 
         return self._coefs
 
     @Coefs.setter
-    def Coefs(self, value):
+    def Coefs(self, value: Union[numpy.ndarray, list, tuple]):
         if value is None:
             raise ValueError('The coefficient array for a Poly1DType instance must be defined.')
 
@@ -843,7 +939,7 @@ class Poly1DType(Serializable, Arrayable):
             value = numpy.cast[numpy.float64](value)
         self._coefs = value
 
-    def __call__(self, x):
+    def __call__(self, x: Union[float, int, numpy.ndarray]) -> numpy.ndarray:
         """
         Evaluate the polynomial at points `x`. This passes `x` straight through to :func:`polyval` of
         `numpy.polynomial.polynomial`.
@@ -866,7 +962,10 @@ class Poly1DType(Serializable, Arrayable):
     def __setitem__(self, item, value):
         self._coefs[item] = value
 
-    def derivative(self, der_order=1, return_poly=False):
+    def derivative(
+            self,
+            der_order: int = 1,
+            return_poly: bool = False):
         """
         Calculate the `der_order` derivative of the polynomial.
 
@@ -887,7 +986,10 @@ class Poly1DType(Serializable, Arrayable):
             return Poly1DType(Coefs=coefs)
         return coefs
 
-    def derivative_eval(self, x, der_order=1):
+    def derivative_eval(
+            self,
+            x: Union[float, int, numpy.ndarray],
+            der_order: int = 1) -> numpy.ndarray:
         """
         Evaluate the `der_order` derivative of the polynomial at points `x`. This uses the
         functionality presented in `numpy.polynomial.polynomial`.
@@ -898,6 +1000,7 @@ class Poly1DType(Serializable, Arrayable):
             The point(s) at which to evaluate.
         der_order : int
             The derivative.
+
         Returns
         -------
         numpy.ndarray
@@ -906,7 +1009,7 @@ class Poly1DType(Serializable, Arrayable):
         coefs = self.derivative(der_order=der_order, return_poly=False)
         return numpy.polynomial.polynomial.polyval(x, coefs)
 
-    def shift(self, t_0, alpha=1, return_poly=False):
+    def shift(self, t_0: float, alpha: float = 1, return_poly: bool = False):
         r"""
         Transform a polynomial with respect to a affine shift in the coordinate system.
         That is, :math:`P(x) = Q(\alpha\cdot(t-t_0))`.
@@ -932,6 +1035,7 @@ class Poly1DType(Serializable, Arrayable):
         -------
         Poly1DType|numpy.ndarray
         """
+
         # prepare array workspace
         out = numpy.copy(self._coefs)
         if t_0 != 0 and out.size > 1:
@@ -951,7 +1055,7 @@ class Poly1DType(Serializable, Arrayable):
             return out
 
     @classmethod
-    def from_array(cls, array):
+    def from_array(cls, array: Union[numpy.ndarray, list, tuple]):
         """
         Create from the coefficients array type entry.
 
@@ -964,11 +1068,12 @@ class Poly1DType(Serializable, Arrayable):
         -------
         Poly1DType
         """
+
         if array is None:
             return None
         return cls(Coefs=array)
 
-    def get_array(self, dtype=numpy.float64):
+    def get_array(self, dtype=numpy.float64) -> numpy.ndarray:
         """
         Gets *a copy* of the coefficent array of specified data type.
 
@@ -1060,7 +1165,10 @@ class Poly2DType(Serializable, Arrayable):
     _required = ('Coefs', )
     _numeric_format = {'Coefs': FLOAT_FORMAT}
 
-    def __init__(self, Coefs=None, **kwargs):
+    def __init__(
+            self,
+            Coefs: Union[numpy.ndarray, list, tuple] = None,
+            **kwargs):
         """
         Parameters
         ----------
@@ -1076,10 +1184,13 @@ class Poly2DType(Serializable, Arrayable):
         self.Coefs = Coefs
         super(Poly2DType, self).__init__(**kwargs)
 
-    def __call__(self, x, y):
+    def __call__(
+            self,
+            x: Union[float, int, numpy.ndarray],
+            y: Union[float, int, numpy.ndarray]) -> numpy.ndarray:
         """
-        Evaluate a polynomial at points [`x`, `y`]. This passes `x`,`y` straight through to :func:`polyval2d` of
-        `numpy.polynomial.polynomial`.
+        Evaluate a polynomial at points [`x`, `y`]. This passes `x`,`y`
+        straight through to :func:`polyval2d` of `numpy.polynomial.polynomial`.
 
         Parameters
         ----------
@@ -1096,7 +1207,7 @@ class Poly2DType(Serializable, Arrayable):
         return numpy.polynomial.polynomial.polyval2d(x, y, self._coefs)
 
     @property
-    def order1(self):
+    def order1(self) -> int:
         """
         int: The order1 attribute [READ ONLY]  - that is, largest exponent1 presented in the monomial terms of coefs.
         """
@@ -1104,7 +1215,7 @@ class Poly2DType(Serializable, Arrayable):
         return self._coefs.shape[0] - 1
 
     @property
-    def order2(self):
+    def order2(self) -> int:
         """
         int: The order1 attribute [READ ONLY]  - that is, largest exponent2 presented in the monomial terms of coefs.
         """
@@ -1112,7 +1223,7 @@ class Poly2DType(Serializable, Arrayable):
         return self._coefs.shape[1] - 1
 
     @property
-    def Coefs(self):
+    def Coefs(self) -> numpy.ndarray:
         """
         numpy.ndarray: The two-dimensional polynomial coefficient array of dtype=float64. Assignment object must be a
         two-dimensional numpy.ndarray, or naively convertible to one.
@@ -1124,7 +1235,7 @@ class Poly2DType(Serializable, Arrayable):
         return self._coefs
 
     @Coefs.setter
-    def Coefs(self, value):
+    def Coefs(self, value: Union[numpy.ndarray, list, tuple]):
         if value is None:
             raise ValueError('The coefficient array for a Poly2DType instance must be defined.')
 
@@ -1148,7 +1259,13 @@ class Poly2DType(Serializable, Arrayable):
     def __setitem__(self, item, value):
         self._coefs[item] = value
 
-    def shift(self, t1_shift=0, t1_scale=1, t2_shift=0, t2_scale=1, return_poly=False):
+    def shift(
+            self,
+            t1_shift: float = 0,
+            t1_scale: float = 1,
+            t2_shift: float = 0,
+            t2_scale: float = 1,
+            return_poly: bool = False):
         r"""
         Transform a polynomial with respect to a affine shift in the coordinate system.
         That is, :math:`P(x1, x2) = Q(t1_scale\cdot(t1 - t1_shift), t2_scale\cdot(t2 - t2_shift))`.
@@ -1209,7 +1326,7 @@ class Poly2DType(Serializable, Arrayable):
             return out
 
     @classmethod
-    def from_array(cls, array):
+    def from_array(cls, array: Union[numpy.ndarray, list, tuple]):
         """
         Create from the coefficients array type entry.
 
@@ -1226,7 +1343,7 @@ class Poly2DType(Serializable, Arrayable):
             return None
         return cls(Coefs=array)
 
-    def get_array(self, dtype=numpy.float64):
+    def get_array(self, dtype=numpy.float64) -> numpy.ndarray:
         """
         Gets **a copy** of the coefficent array of specified data type.
 
@@ -1340,7 +1457,12 @@ class XYZPolyType(Serializable, Arrayable):
         'Z', Poly1DType, _required, strict=False,
         docstring='The polynomial for the Z coordinate.')  # type: Poly1DType
 
-    def __init__(self, X=None, Y=None, Z=None, **kwargs):
+    def __init__(
+            self,
+            X: Union[Poly1DType, numpy.ndarray, list, tuple] = None,
+            Y: Union[Poly1DType, numpy.ndarray, list, tuple] = None,
+            Z: Union[Poly1DType, numpy.ndarray, list, tuple] = None,
+            **kwargs):
         """
         Parameters
         ----------
@@ -1357,7 +1479,7 @@ class XYZPolyType(Serializable, Arrayable):
         self.X, self.Y, self.Z = X, Y, Z
         super(XYZPolyType, self).__init__(**kwargs)
 
-    def __call__(self, t):
+    def __call__(self, t: Union[float, int, numpy.ndarray]) -> numpy.ndarray:
         """
         Evaluate the polynomial at points `t`. This passes `t` straight through
         to :func:`polyval` of `numpy.polynomial.polynomial` for each of
@@ -1386,7 +1508,7 @@ class XYZPolyType(Serializable, Arrayable):
             out = numpy.hstack((x, y, z))
             return numpy.reshape(out, o_shape + (3, ))
 
-    def get_array(self, dtype='object'):
+    def get_array(self, dtype='object') -> numpy.ndarray:
         """Gets an array representation of the class instance.
 
         Parameters
@@ -1417,7 +1539,7 @@ class XYZPolyType(Serializable, Arrayable):
             return out
 
     @classmethod
-    def from_array(cls, array):
+    def from_array(cls, array: Union[numpy.ndarray, list, tuple]):
         """
         Create from an array type entry.
 
@@ -1438,7 +1560,10 @@ class XYZPolyType(Serializable, Arrayable):
             return cls(X=array[0], Y=array[1], Z=array[2])
         raise ValueError(_array_type_text.format(type(array)))
 
-    def derivative(self, der_order=1, return_poly=False):
+    def derivative(
+            self,
+            der_order: int = 1,
+            return_poly: bool = False):
         """
         Calculate the `der_order` derivative of each component polynomial.
 
@@ -1461,7 +1586,10 @@ class XYZPolyType(Serializable, Arrayable):
             return XYZPolyType(X=coefs[0], Y=coefs[1], Z=coefs[2])
         return coefs
 
-    def derivative_eval(self, t, der_order=1):
+    def derivative_eval(
+            self,
+            t: Union[float, int, numpy.ndarray],
+            der_order: int = 1) -> numpy.ndarray:
         """
         Evaluate the `der_order` derivative of the polynomial collection at points `x`.
         This uses the functionality presented in `numpy.polynomial.polynomial`.
@@ -1481,7 +1609,11 @@ class XYZPolyType(Serializable, Arrayable):
         der_poly = self.derivative(der_order=der_order, return_poly=True)
         return der_poly(t)
 
-    def shift(self, t_0, alpha=1, return_poly=False):
+    def shift(
+            self,
+            t_0: float,
+            alpha: float = 1,
+            return_poly: bool = False):
         r"""
         Transform a polynomial with respect to a affine shift in the coordinate system.
         That is, :math:`P(u) = Q(\alpha\cdot(t-t_0))`.
@@ -1541,7 +1673,13 @@ class XYZPolyAttributeType(XYZPolyType):
     index = IntegerDescriptor(
         'index', _required, strict=False, docstring='The array index value.')  # type: int
 
-    def __init__(self, X=None, Y=None, Z=None, index=None, **kwargs):
+    def __init__(
+            self,
+            X: Union[Poly1DType, numpy.ndarray, list, tuple] = None,
+            Y: Union[Poly1DType, numpy.ndarray, list, tuple] = None,
+            Z: Union[Poly1DType, numpy.ndarray, list, tuple] = None,
+            index: int = None,
+            **kwargs):
         """
         Parameters
         ----------
@@ -1560,7 +1698,10 @@ class XYZPolyAttributeType(XYZPolyType):
         super(XYZPolyAttributeType, self).__init__(X=X, Y=Y, Z=Z, **kwargs)
 
     @classmethod
-    def from_array(cls, array, index=1):
+    def from_array(
+            cls,
+            array: Union[numpy.ndarray, list, tuple],
+            index: int = 1):
         """
         Create from an array type entry.
 
@@ -1601,7 +1742,11 @@ class GainPhasePolyType(Serializable):
                   'DCY (variable 2). Phase relative to phase at DCX = 0 and DCY = 0, '
                   'so constant coefficient is always 0.0.')  # type: Poly2DType
 
-    def __init__(self, GainPoly=None, PhasePoly=None, **kwargs):
+    def __init__(
+            self,
+            GainPoly: Union[Poly2DType, numpy.ndarray, list, tuple] = None,
+            PhasePoly: Union[Poly2DType, numpy.ndarray, list, tuple] = None,
+            **kwargs):
         """
         Parameters
         ----------
@@ -1618,7 +1763,10 @@ class GainPhasePolyType(Serializable):
         self.PhasePoly = PhasePoly
         super(GainPhasePolyType, self).__init__(**kwargs)
 
-    def __call__(self, x, y):
+    def __call__(
+            self,
+            x: Union[float, int, numpy.ndarray],
+            y: Union[float, int, numpy.ndarray]) -> Optional[numpy.ndarray]:
         """
         Evaluate a polynomial at points [`x`, `y`]. This passes `x`,`y` straight
         through to the call method for each component.
@@ -1678,7 +1826,11 @@ class ErrorDecorrFuncType(Serializable):
         'DecorrRate', _required, strict=True, bounds=(0, None),
         docstring='Error decorrelation rate. Simple linear decorrelation rate (DCR).')  # type: float
 
-    def __init__(self, CorrCoefZero=None, DecorrRate=None, **kwargs):
+    def __init__(
+            self,
+            CorrCoefZero: float = None,
+            DecorrRate: float = None,
+            **kwargs):
         """
         Parameters
         ----------

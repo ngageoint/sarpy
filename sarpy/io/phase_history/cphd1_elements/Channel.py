@@ -5,14 +5,94 @@ The Channel definition.
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
-from typing import Union, List
+from typing import Union, List, Tuple, Optional
+
+import numpy
 
 from .base import DEFAULT_STRICT, FLOAT_FORMAT
 from .blocks import POLARIZATION_TYPE, AreaType
-from sarpy.io.xml.base import Serializable, SerializableArray, ParametersCollection
+from sarpy.io.xml.base import Serializable, SerializableArray, ParametersCollection, \
+    Arrayable
 from sarpy.io.xml.descriptors import StringDescriptor, StringEnumDescriptor, StringListDescriptor, \
     IntegerDescriptor, FloatDescriptor, BooleanDescriptor, ParametersDescriptor, \
     SerializableDescriptor, SerializableListDescriptor, SerializableArrayDescriptor
+
+
+class PolarizationRefType(Serializable, Arrayable):
+    """
+    Polarization reference type.
+    """
+    _fields = ('AmpH', 'AmpV', 'PhaseV')
+    _required = _fields
+    _numeric_format = {key: '0.17E' for key in _fields}
+    AmpH = FloatDescriptor(
+        'AmpH', _required, strict=DEFAULT_STRICT, bounds=(0.0, 1.0),
+        docstring='E-field relative amplitude in H direction')  # type: float
+    AmpV = FloatDescriptor(
+        'AmpV', _required, strict=DEFAULT_STRICT, bounds=(0.0, 1.0),
+        docstring='E-field relative amplitude in V direction')  # type: float
+    PhaseV = FloatDescriptor(
+        'PhaseV', _required, strict=DEFAULT_STRICT, bounds=(-0.5, 0.5),
+        docstring='Relative phase of the V E-field '
+                  'relative to the H E-field')  # type: float
+
+    def __init__(
+            self,
+            AmpH: float = None,
+            AmpV: float = None,
+            PhaseV: float = None,
+            **kwargs):
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
+        self.AmpH = AmpH
+        self.AmpV = AmpV
+        self.PhaseV = PhaseV
+        super(PolarizationRefType, self).__init__(**kwargs)
+
+    def get_array(self, dtype=numpy.float64) -> numpy.ndarray:
+        """
+        Gets an array representation of the class instance.
+
+        Parameters
+        ----------
+        dtype : str|numpy.dtype|numpy.number
+            numpy data type of the return
+
+        Returns
+        -------
+        numpy.ndarray
+            array of the form [AmpH, AmpV, PhaseV]
+        """
+
+        return numpy.array([self.AmpH, self.AmpV, self.PhaseV], dtype=dtype)
+
+    @classmethod
+    def from_array(cls, array: numpy.ndarray):
+        """
+        Construct from a iterable.
+
+        Parameters
+        ----------
+        array : numpy.ndarray|list|tuple
+
+        Returns
+        -------
+        PolarizationRefType
+        """
+
+        if array is None:
+            return None
+        if isinstance(array, (numpy.ndarray, list, tuple)):
+            if len(array) < 3:
+                raise ValueError(
+                    'Expected array to be of length 3,\n\t'
+                    'and received `{}`'.format(array))
+            return cls(AmpH=array[0], AmpV=array[1], PhaseV=array[2])
+        raise ValueError(
+            'Expected array to be numpy.ndarray, list, or tuple,\n\t'
+            'got `{}`'.format(type(array)))
 
 
 class PolarizationType(Serializable):
@@ -20,8 +100,8 @@ class PolarizationType(Serializable):
     Polarization(s) of the signals that formed the signal array.
     """
 
-    _fields = ('TxPol', 'RcvPol')
-    _required = _fields
+    _fields = ('TxPol', 'RcvPol', 'TxPolRef', 'RcvPolRef')
+    _required = ('TxPol', 'RcvPol')
     # descriptors
     TxPol = StringEnumDescriptor(
         'TxPol', POLARIZATION_TYPE, _required, strict=DEFAULT_STRICT,
@@ -29,15 +109,49 @@ class PolarizationType(Serializable):
     RcvPol = StringEnumDescriptor(
         'RcvPol', POLARIZATION_TYPE, _required, strict=DEFAULT_STRICT,
         docstring='Receive polarization for the channel.')  # type: str
+    TxPolRef = SerializableDescriptor(
+        'TxPolRef', PolarizationRefType, _required, strict=DEFAULT_STRICT,
+        docstring='')  # type: Optional[PolarizationRefType]
+    RcvPolRef = SerializableDescriptor(
+        'RcvPolRef', PolarizationRefType, _required, strict=DEFAULT_STRICT,
+        docstring='')  # type: Optional[PolarizationRefType]
 
-    def __init__(self, TxPol=None, RcvPol=None, **kwargs):
+    def __init__(
+            self,
+            TxPol: str = None,
+            RcvPol: str = None,
+            TxPolRef: Union[None, PolarizationRefType, numpy.ndarray, tuple, list] = None,
+            RcvPolRef: Union[None, PolarizationRefType, numpy.ndarray, tuple, list] = None,
+            **kwargs):
+        """
+
+        Parameters
+        ----------
+        TxPol : str
+        RcvPol : str
+        TxPolRef : None|PolarizationRefType|numpy.ndarray|tuple|list
+        RcvPolRef : None|PolarizationRefType|numpy.ndarray|tuple|list
+        """
+
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
         if '_xml_ns_key' in kwargs:
             self._xml_ns_key = kwargs['_xml_ns_key']
         self.TxPol = TxPol
         self.RcvPol = RcvPol
+        self.TxPolRef = TxPolRef
+        self.RcvPolRef = RcvPolRef
         super(PolarizationType, self).__init__(**kwargs)
+
+    def version_required(self) -> Tuple[int, int, int]:
+        required = (1, 0, 1)
+        for fld in ['TxPol', 'RcvPol']:
+            val = getattr(self, fld)
+            if val is not None and val in ['S', 'E']:
+                required = max(required, (1, 1, 0))
+        if self.TxPolRef is not None or self.RcvPolRef is not None:
+            required = max(required, (1, 1, 0))
+        return required
 
 
 class LFMEclipseType(Serializable):
@@ -133,8 +247,8 @@ class DwellTimesType(Serializable):
     COD Time and Dwell Time polynomials over the image area.
     """
 
-    _fields = ('CODId', 'DwellId')
-    _required = _fields
+    _fields = ('CODId', 'DwellId', 'DTAId', 'UseDTA')
+    _required = ('CODId', 'DwellId')
     # descriptors
     CODId = StringDescriptor(
         'CODId', _required, strict=DEFAULT_STRICT,
@@ -144,14 +258,22 @@ class DwellTimesType(Serializable):
         'DwellId', _required, strict=DEFAULT_STRICT,
         docstring='Identifier of the Dwell Time polynomial that maps reference '
                   'surface position to dwell time.')  # type: str
+    DTAId = StringDescriptor(
+        'DTAId', _required, strict=DEFAULT_STRICT,
+        docstring='')  # type: Optional[str]
+    UseDTA = BooleanDescriptor(
+        'UseDTA', _required, strict=DEFAULT_STRICT,
+        docstring='')  # type: Optional[bool]
 
-    def __init__(self, CODId=None, DwellId=None, **kwargs):
+    def __init__(self, CODId=None, DwellId=None, DTAId=None, UseDTA=None, **kwargs):
         """
 
         Parameters
         ----------
         CODId : str
         DwellId : str
+        DTAId : None|str
+        UseDTA : None|bool
         kwargs
         """
 
@@ -161,7 +283,15 @@ class DwellTimesType(Serializable):
             self._xml_ns_key = kwargs['_xml_ns_key']
         self.CODId = CODId
         self.DwellId = DwellId
+        self.DTAId = DTAId
+        self.UseDTA = UseDTA
         super(DwellTimesType, self).__init__(**kwargs)
+
+    def version_required(self) -> Tuple[int, int, int]:
+        if self.DTAId is not None or self.UseDTA is not None:
+            return (1, 1, 0)
+        else:
+            return (1, 0, 1)
 
 
 class AntennaType(Serializable):
@@ -506,6 +636,14 @@ class ChannelParametersType(Serializable):
         self.NoiseLevel = NoiseLevel
         super(ChannelParametersType, self).__init__(**kwargs)
 
+    def version_required(self) -> Tuple[int, int, int]:
+        required = (1, 0, 1)
+        if self.Polarization is not None:
+            required = max(required, self.Polarization.version_required())
+        if self.DwellTimes is not None:
+            required = max(required, self.DwellTimes.version_required())
+        return required
+
 
 class ChannelType(Serializable):
     """
@@ -545,8 +683,15 @@ class ChannelType(Serializable):
         'AddedParameters', _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Additional free form parameters.')  # type: Union[None, ParametersCollection]
 
-    def __init__(self, RefChId=None, FXFixedCPHD=None, TOAFixedCPHD=None,
-                 SRPFixedCPHD=None, Parameters=None, AddedParameters=None, **kwargs):
+    def __init__(
+            self,
+            RefChId: str = None,
+            FXFixedCPHD: bool = None,
+            TOAFixedCPHD: bool = None,
+            SRPFixedCPHD: bool = None,
+            Parameters: List[ChannelParametersType] = None,
+            AddedParameters: Optional[ParametersCollection] = None,
+            **kwargs):
         """
 
         Parameters
@@ -556,7 +701,7 @@ class ChannelType(Serializable):
         TOAFixedCPHD : bool
         SRPFixedCPHD : bool
         Parameters : List[ChannelParametersType]
-        AddedParameters
+        AddedParameters : None|ParametersCollection
         kwargs
         """
 
@@ -571,3 +716,10 @@ class ChannelType(Serializable):
         self.Parameters = Parameters
         self.AddedParameters = AddedParameters
         super(ChannelType, self).__init__(**kwargs)
+
+    def version_required(self) -> Tuple[int, int, int]:
+        required = (1, 0, 1)
+        if self.Parameters is not None:
+            for entry in self.Parameters:
+                required = max(required, entry.version_required())
+        return required

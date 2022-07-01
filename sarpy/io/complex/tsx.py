@@ -47,7 +47,8 @@ logger = logging.getLogger(__name__)
 ##########
 # helper functions and basic interpreter
 
-def _parse_xml(file_name: str, without_ns: bool=False) -> Union[ElementTree.Element, Tuple[dict, ElementTree.Element]]:
+def _parse_xml(file_name: str, without_ns: bool = False) -> Union[
+        ElementTree.Element, Tuple[dict, ElementTree.Element]]:
     root_node = ElementTree.parse(file_name).getroot()
     if without_ns:
         return root_node
@@ -356,9 +357,9 @@ class TSXDetails(object):
         rg_ref_time = float(doppler_estimate_center_node.find('./combinedDoppler/referencePoint').text)
 
         # extract the doppler centroid information from all the nodes
-        diff_times_raw = numpy.zeros((doppler_count, ), dtype='float64') # offsets from reference time, in seconds
-        doppler_range_min = numpy.zeros((doppler_count, ), dtype='float64') # offsets in seconds
-        doppler_range_max = numpy.zeros((doppler_count, ), dtype='float64') # offsets in seconds
+        diff_times_raw = numpy.zeros((doppler_count, ), dtype='float64')  # offsets from reference time, in seconds
+        doppler_range_min = numpy.zeros((doppler_count, ), dtype='float64')  # offsets in seconds
+        doppler_range_max = numpy.zeros((doppler_count, ), dtype='float64')  # offsets in seconds
         doppler_poly_est = []
         for i, node in enumerate(doppler_estimate_nodes):
             diff_times_raw[i] = get_seconds(
@@ -384,7 +385,8 @@ class TSXDetails(object):
         dopp_centroid = numpy.zeros((doppler_count, range_samples), dtype='float64')
         for i, entry in enumerate(diff_times_raw):
             time_coa[i, :] = entry
-            diff_t_range[i, :] = numpy.linspace(doppler_range_min[i], doppler_range_max[i], num=range_samples) - rg_ref_time
+            diff_t_range[i, :] = numpy.linspace(
+                doppler_range_min[i], doppler_range_max[i], num=range_samples) - rg_ref_time
             dopp_centroid[i, :] = polynomial.polyval(diff_t_range[i, :], doppler_poly_est[i])
         diff_t_zd = time_coa - dopp_centroid/fm_dop
         coords_rg = 0.5*(diff_t_range + rg_ref_time - range_time_scp)*speed_of_light
@@ -490,9 +492,12 @@ class TSXDetails(object):
             if self._find_main('./productSpecific/complexImageInfo/imageCoordinateType').text == 'ZERODOPPLER':
                 the_type = 'RGZERO'
 
-            row_ss = 0.5*float(self._find_main('./productInfo/imageDataInfo/imageRaster/rowSpacing').text)*speed_of_light
-            row_bw = 2*float(self._find_main('./processing/processingParameter/rangeLookBandwidth').text)/speed_of_light
-            row_win_name = self._find_main('./processing/processingParameter/rangeWindowID').text.upper()
+            row_ss = 0.5*float(
+                self._find_main('./productInfo/imageDataInfo/imageRaster/rowSpacing').text)*speed_of_light
+            row_bw = 2*float(
+                self._find_main('./processing/processingParameter/rangeLookBandwidth').text)/speed_of_light
+            row_win_name = self._find_main(
+                './processing/processingParameter/rangeWindowID').text.upper()
             row_wgt_type = WgtTypeType(WindowName=row_win_name)
             if row_win_name == 'HAMMING':
                 row_wgt_type.Parameters = {
@@ -504,7 +509,7 @@ class TSXDetails(object):
                 KCtr=2*center_freq/speed_of_light,
                 DeltaK1=-0.5*row_bw,
                 DeltaK2=0.5*row_bw,
-                DeltaKCOAPoly=[[0,],],
+                DeltaKCOAPoly=[[0, ], ],
                 WgtType=row_wgt_type)
 
             col_ss = float(self._find_main('./productSpecific/complexImageInfo/projectedSpacingAzimuth').text)
@@ -536,8 +541,8 @@ class TSXDetails(object):
                 ImageBeamComp='SV',
                 AzAutofocus='NO',
                 RgAutofocus='NO',
-                STBeamComp='SV' if collection_info.RadarMode.ModeID in ['SL','HS'] else 'GLOBAL')
-                # NB: SL and HS are the proper spotlight modes
+                STBeamComp='SV' if collection_info.RadarMode.ModeID in ['SL', 'HS'] else 'GLOBAL')
+            # NB: SL and HS are the proper spotlight modes
 
         def get_initial_rma():
             # type: () -> RMAType
@@ -754,11 +759,13 @@ class TSXDetails(object):
                     float(entry.find('./coefficient').text) for entry in
                     self._findall_georef('./signalPropagationEffects/azimuthShift')]
                 azimuth_shift = reduce(lambda x, y: x+y, azimuths_shifts)
-                out_sicd.RMA.INCA.TimeCAPoly = Poly1DType(Coefs=[time_ca_scp + az_offset - azimuth_shift, time_ca_linear])
+                out_sicd.RMA.INCA.TimeCAPoly = Poly1DType(
+                    Coefs=[time_ca_scp + az_offset - azimuth_shift, time_ca_linear])
                 azimuth_time_scp = get_seconds(ref_time, collect_start, precision='us') + time_ca_scp
 
-                range_time_scp = float(self._find_georef('./geolocationGrid/gridReferenceTime/tauReferenceTime').text) + \
-                                 float(middle_grid.find('./tau').text)
+                range_time_scp = float(
+                    self._find_georef('./geolocationGrid/gridReferenceTime/tauReferenceTime').text) + \
+                    float(middle_grid.find('./tau').text)
                 # get the sum of all provided range delays?
                 # NB: this is obviously assuming that all entries are constant shifts...should we check?
                 range_delays = [
@@ -768,7 +775,9 @@ class TSXDetails(object):
                 out_sicd.RMA.INCA.R_CA_SCP = 0.5*(range_time_scp - range_delay)*speed_of_light
             else:
                 azimuth_time_scp = get_seconds(
-                    parse_timestring(self._find_main('./productInfo/sceneInfo/sceneCenterCoord/azimuthTimeUTC').text, precision='us'),
+                    parse_timestring(
+                        self._find_main('./productInfo/sceneInfo/sceneCenterCoord/azimuthTimeUTC').text,
+                        precision='us'),
                     collect_start, precision='us')
                 range_time_scp = float(self._find_main('./productInfo/sceneInfo/sceneCenterCoord/rangeTime').text)
                 out_sicd.RMA.INCA.TimeCAPoly = Poly1DType(Coefs=[azimuth_time_scp, time_ca_linear])
@@ -777,8 +786,8 @@ class TSXDetails(object):
             # populate DopCentroidPoly and TimeCOAPoly
             if out_sicd.CollectionInfo.RadarMode.ModeID == 'ST':
                 # proper spotlight mode
-                out_sicd.Grid.Col.DeltaKCOAPoly = Poly2DType(Coefs=[[0,],]) # NB: this seems fishy to me
-                out_sicd.Grid.TimeCOAPoly = Poly2DType(Coefs=[[out_sicd.RMA.INCA.TimeCAPoly.Coefs[0],], ])
+                out_sicd.Grid.Col.DeltaKCOAPoly = Poly2DType(Coefs=[[0, ], ])  # NB: this seems fishy to me
+                out_sicd.Grid.TimeCOAPoly = Poly2DType(Coefs=[[out_sicd.RMA.INCA.TimeCAPoly.Coefs[0], ], ])
             else:
                 dop_centroid_poly, time_coa_poly = self._calculate_dop_polys(
                     layer_index, azimuth_time_scp, range_time_scp, collect_start, doppler_rate_reference_node)
@@ -789,7 +798,9 @@ class TSXDetails(object):
             # calculate DRateSFPoly
             vm_vel_sq = numpy.sum(out_sicd.Position.ARPPoly.derivative_eval(azimuth_time_scp)**2)
             r_ca = numpy.array([out_sicd.RMA.INCA.R_CA_SCP, 1], dtype='float64')
-            dop_rate_poly_coefs = [float(entry.text) for entry in doppler_rate_reference_node.findall('./dopplerRatePolynomial/coefficient')]
+            dop_rate_poly_coefs = [
+                float(entry.text) for entry in doppler_rate_reference_node.findall(
+                    './dopplerRatePolynomial/coefficient')]
             # Shift 1D polynomial to account for SCP
             dop_rate_ref_time = float(doppler_rate_reference_node.find('./dopplerRatePolynomial/referencePoint').text)
             dop_rate_poly_rg = Poly1DType(Coefs=dop_rate_poly_coefs).shift(dop_rate_ref_time - range_time_scp,
@@ -815,7 +826,8 @@ class TSXDetails(object):
             range_max = float(noise_data_node.find('./noiseEstimate/validityRangeMax').text)
             ref_point = float(noise_data_node.find('./noiseEstimate/referencePoint').text)
             poly_coeffs = numpy.array(
-                [float(coeff.text) for coeff in noise_data_node.findall('./noiseEstimate/coefficient')], dtype='float64')
+                [float(coeff.text) for coeff in noise_data_node.findall(
+                    './noiseEstimate/coefficient')], dtype='float64')
             # create a sample grid in range time and evaluate the noise
             range_time = numpy.linspace(range_min, range_max, 100) - ref_point
             # this should be an absolute squared magnitude value
@@ -879,7 +891,8 @@ class TSXDetails(object):
         """
 
         def get_file_name(layer_index):
-            file_node = self._find_main('./productComponents/imageData[@layerIndex="{}"]/file/location'.format(layer_index))
+            file_node = self._find_main(
+                './productComponents/imageData[@layerIndex="{}"]/file/location'.format(layer_index))
             path_stem = file_node.find('./path').text
             file_name = file_node.find('./filename').text
             full_file = os.path.join(self._parent_directory, path_stem, file_name)
@@ -1038,11 +1051,12 @@ class COSARDetails(object):
                 else:
                     cont = False
 
-    def construct_data_segment(self,
-                          index: int,
-                          reverse_axes: Optional[Tuple[int, ...]],
-                          transpose_axes: Optional[Tuple[int, ...]],
-                          expected_size: Tuple[int, ...]) -> DataSegment:
+    def construct_data_segment(
+            self,
+            index: int,
+            reverse_axes: Optional[Tuple[int, ...]],
+            transpose_axes: Optional[Tuple[int, ...]],
+            expected_size: Tuple[int, ...]) -> DataSegment:
         """
         Construct a data segment for the given burst index.
 
@@ -1124,7 +1138,8 @@ class TSXReader(SICDTypeReader):
             cosar_details = COSARDetails(the_file)
             if cosar_details.burst_count != 1:
                 raise ValueError(
-                    'Expected one burst in the COSAR file {}, but got {} bursts'.format(the_file, cosar_details.burst_count))
+                    'Expected one burst in the COSAR file {},\n\t'
+                    'but got {} bursts'.format(the_file, cosar_details.burst_count))
             data_seg = cosar_details.construct_data_segment(0, reverse_axes, transpose_axes, (cols, rows))
             data_segments.append(data_seg)
         SICDTypeReader.__init__(self, data_segments, the_sicds, close_segments=True)

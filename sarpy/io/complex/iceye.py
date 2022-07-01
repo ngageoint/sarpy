@@ -218,7 +218,7 @@ class ICEYEDetails(object):
                 RcvChanProc=RcvChanProcType(NumChanProc=1, PRFScaleFactor=1, ChanIndices=[1, ]),)
 
         def get_radiometric() -> RadiometricType:
-            return RadiometricType(BetaZeroSFPoly=[[float(hf['calibration_factor'][()]), ],])
+            return RadiometricType(BetaZeroSFPoly=[[float(hf['calibration_factor'][()]), ], ])
 
         def calculate_drate_sf_poly() -> (numpy.ndarray, numpy.ndarray):
             r_ca_coeffs = numpy.array([r_ca_scp, 1], dtype='float64')
@@ -232,7 +232,8 @@ class ICEYEDetails(object):
             t_drate_ca_poly = dop_rate_poly.shift(
                 t_0=zd_ref_time - rg_time_scp,
                 alpha=2/speed_of_light, return_poly=False)
-            return t_drate_ca_poly, -polynomial.polymul(t_drate_ca_poly, r_ca_coeffs)*speed_of_light/(2*center_freq*vm_ca_sq)
+            return t_drate_ca_poly, \
+                -polynomial.polymul(t_drate_ca_poly, r_ca_coeffs)*speed_of_light/(2*center_freq*vm_ca_sq)
 
         def calculate_doppler_polys() -> (numpy.ndarray, numpy.ndarray):
             # extract doppler centroid coefficients
@@ -245,7 +246,7 @@ class ICEYEDetails(object):
             samples = 49  # copied from corresponding matlab, we just need enough for appropriate refitting
             # create doppler time samples
             diff_time_rg = first_pixel_time - zd_ref_time + \
-                           numpy.linspace(0, number_of_range_samples/range_sampling_rate, samples)
+                numpy.linspace(0, number_of_range_samples/range_sampling_rate, samples)
             # doppler centroid samples definition
             dc_sample_array = numpy.zeros((samples, dc_zd_times.size), dtype='float64')
             for i, coeffs in enumerate(dc_estimate_coeffs):
@@ -310,7 +311,7 @@ class ICEYEDetails(object):
                 Sgn=-1,
                 KCtr=2*center_freq/speed_of_light,
                 ImpRespBW=2*tx_bandwidth/speed_of_light,
-                DeltaKCOAPoly=Poly2DType(Coefs=[[0,]]),
+                DeltaKCOAPoly=Poly2DType(Coefs=[[0, ], ]),
                 WgtType=WgtTypeType(WindowName=row_win))
             col_win = _stringify(hf['window_function_azimuth'][()])
             if col_win == 'NONE':
@@ -380,7 +381,7 @@ class ICEYEDetails(object):
                 zero_doppler_left = _parse_time(hf['zerodoppler_start_utc'][()])
             dop_bw = hf['total_processed_bandwidth_azimuth'][()]
             zd_time_scp = get_seconds(zero_doppler_left, start_time, precision='us') + \
-                          image_data.SCPPixel.Col*ss_zd_s
+                image_data.SCPPixel.Col*ss_zd_s
             zd_ref_time = first_pixel_time + number_of_range_samples/(2*range_sampling_rate)
             vel_scp = position.ARPPoly.derivative_eval(zd_time_scp, der_order=1)
             vm_ca_sq = numpy.sum(vel_scp*vel_scp)
@@ -424,11 +425,12 @@ class ICEYEDetails(object):
         return sicd, reverse_axes, transpose_axes
 
 
-def get_iceye_data_segment(file_name: str,
-                           reverse_axes: Union[None, int, Sequence[int]],
-                           transpose_axes: Union[None, Tuple[int, ...]],
-                           real_group: str='s_i',
-                           imaginary_grop: str='s_q') -> BandAggregateSegment:
+def get_iceye_data_segment(
+        file_name: str,
+        reverse_axes: Union[None, int, Sequence[int]],
+        transpose_axes: Union[None, Tuple[int, ...]],
+        real_group: str = 's_i',
+        imaginary_grop: str = 's_q') -> BandAggregateSegment:
     real_dataset = HDF5DatasetSegment(
         file_name, real_group, reverse_axes=reverse_axes, transpose_axes=transpose_axes, close_file=True)
     imag_dataset = HDF5DatasetSegment(
@@ -515,4 +517,3 @@ def is_a(file_name: str) -> Union[None, ICEYEReader]:
         return ICEYEReader(iceye_details)
     except SarpyIOError:
         return None
-

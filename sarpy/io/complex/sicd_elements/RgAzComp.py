@@ -7,6 +7,7 @@ __author__ = "Thomas McCullough"
 
 
 import logging
+from typing import Union
 
 import numpy
 from numpy.linalg import norm
@@ -41,7 +42,11 @@ class RgAzCompType(Serializable):
                   r':math:`\text{Slow Time (sec)} \to \text{Azimuth spatial frequency (cycles/meter)}`. '
                   'Time relative to collection start.')  # type: Poly1DType
 
-    def __init__(self, AzSF=None, KazPoly=None, **kwargs):
+    def __init__(
+            self,
+            AzSF: float = None,
+            KazPoly: Union[Poly1DType, numpy.ndarray, list, tuple] = None,
+            **kwargs):
         """
 
         Parameters

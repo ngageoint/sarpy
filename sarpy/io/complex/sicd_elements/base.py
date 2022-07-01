@@ -7,6 +7,10 @@ __author__ = "Thomas McCullough"
 
 
 import logging
+from typing import Dict, Tuple, Optional
+
+import numpy
+
 from sarpy.io.xml.base import SerializableArray, create_new_node
 from sarpy.io.xml.descriptors import BasicDescriptor
 
@@ -21,7 +25,14 @@ class SerializableCPArrayDescriptor(BasicDescriptor):
     minimum_length = 4
     maximum_length = 4
 
-    def __init__(self, name, child_type, tag_dict, required, strict=DEFAULT_STRICT, docstring=None):
+    def __init__(
+            self,
+            name: str,
+            child_type,
+            tag_dict: Dict,
+            required: Tuple[str, ...],
+            strict: bool = DEFAULT_STRICT,
+            docstring: Optional[str] = None):
         self.child_type = child_type
         tags = tag_dict[name]
         self.array = tags.get('array', False)
@@ -43,7 +54,7 @@ class SerializableCPArrayDescriptor(BasicDescriptor):
             self.data[instance] = value
         else:
             xml_ns = getattr(instance, '_xml_ns', None)
-            # noinspection PyProtectedMember
+            # noinspection PyProtectedMember, PyUnresolvedReferences
             if hasattr(instance, '_child_xml_ns_key') and self.name in instance._child_xml_ns_key:
                 # noinspection PyProtectedMember
                 xml_ns_key = instance._child_xml_ns_key[self.name]
@@ -64,7 +75,14 @@ class SerializableCPArray(SerializableArray):
         '_child_tag', '_child_type', '_array', '_name', '_minimum_length',
         '_maximum_length', '_index_as_string', '_xml_ns', '_xml_ns_key')
 
-    def __init__(self, coords=None, name=None, child_tag=None, child_type=None, _xml_ns=None, _xml_ns_key=None):
+    def __init__(
+            self,
+            coords=None,
+            name: str = None,
+            child_tag: str = None,
+            child_type=None,
+            _xml_ns: Optional[Dict[str, str]] = None,
+            _xml_ns_key: Optional[str] = None):
         if hasattr(child_type, '_CORNER_VALUES'):
             self._index_as_string = True
         else:
@@ -76,25 +94,25 @@ class SerializableCPArray(SerializableArray):
         self._maximum_length = 4
 
     @property
-    def FRFC(self):
+    def FRFC(self) -> Optional[numpy.ndarray]:
         if self._array is None:
             return None
         return self._array[0].get_array()
 
     @property
-    def FRLC(self):
+    def FRLC(self) -> Optional[numpy.ndarray]:
         if self._array is None:
             return None
         return self._array[1].get_array()
 
     @property
-    def LRLC(self):
+    def LRLC(self) -> Optional[numpy.ndarray]:
         if self._array is None:
             return None
         return self._array[2].get_array()
 
     @property
-    def LRFC(self):
+    def LRFC(self) -> Optional[numpy.ndarray]:
         if self._array is None:
             return None
         return self._array[3].get_array()

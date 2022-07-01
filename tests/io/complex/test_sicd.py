@@ -6,7 +6,7 @@ import unittest
 
 from sarpy.io.complex.converter import conversion_utility
 from sarpy.io.complex.sicd import SICDReader
-from sarpy.io.complex.sicd_schema import get_schema_path
+from sarpy.io.complex.sicd_schema import get_schema_path, get_default_version_string
 
 
 from tests import parse_file_entry
@@ -33,7 +33,8 @@ if os.path.isfile(file_reference):
 
 sicd_files = complex_file_types.get('SICD', [])
 
-the_schema =  get_schema_path('1.2.1')
+the_version = get_default_version_string()
+the_schema =  get_schema_path(the_version)
 
 
 class TestSICDWriting(unittest.TestCase):

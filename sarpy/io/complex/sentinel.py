@@ -48,7 +48,7 @@ logger = logging.getLogger(__name__)
 # helper functions
 
 def _parse_xml(file_name: str,
-               without_ns: bool=False) -> Union[ElementTree.Element, Tuple[dict, ElementTree.Element]]:
+               without_ns: bool = False) -> Union[ElementTree.Element, Tuple[dict, ElementTree.Element]]:
     root_node = ElementTree.parse(file_name).getroot()
     if without_ns:
         return root_node
@@ -679,7 +679,7 @@ class SentinelDetails(object):
             scp_pixels = numpy.zeros((count, 2), dtype=numpy.float64)
             scp_pixels[:, 0] = int((out_sicd.ImageData.NumRows - 1)/2.)
             scp_pixels[:, 1] = int((out_sicd.ImageData.NumCols - 1)/2.) + \
-                               out_sicd.ImageData.NumCols*(numpy.arange(count, dtype=numpy.float64))
+                out_sicd.ImageData.NumCols*(numpy.arange(count, dtype=numpy.float64))
             scps = numpy.zeros((count, 3), dtype=numpy.float64)
             for j in range(3):
                 scps[:, j] = griddata(geo_pixels, geo_coords[:, j], scp_pixels)
@@ -1040,7 +1040,7 @@ class SentinelReader(SICDTypeReader):
         self._sentinel_details = sentinel_details  # type: SentinelDetails
 
         reverse_axes = None
-        transpose_axes = (1, 0, 2) # True for all Sentinel-1 data
+        transpose_axes = (1, 0, 2)  # True for all Sentinel-1 data
 
         parent_segments = []
         segments = []
@@ -1049,13 +1049,18 @@ class SentinelReader(SICDTypeReader):
         for data_file, sicds in sicd_collection:
             tiff_details = TiffDetails(data_file)
             if isinstance(sicds, SICDType):
-                segments.append(NativeTiffDataSegment(tiff_details, reverse_axes=reverse_axes, transpose_axes=transpose_axes))
+                segments.append(
+                    NativeTiffDataSegment(
+                        tiff_details, reverse_axes=reverse_axes, transpose_axes=transpose_axes))
                 sicd_collection_out.append(sicds)
             elif len(sicds) == 1:
-                segments.append(NativeTiffDataSegment(tiff_details, reverse_axes=reverse_axes, transpose_axes=transpose_axes))
+                segments.append(
+                    NativeTiffDataSegment(
+                        tiff_details, reverse_axes=reverse_axes, transpose_axes=transpose_axes))
                 sicd_collection_out.append(sicds[0])
             else:
-                p_segment = NativeTiffDataSegment(tiff_details, reverse_axes=reverse_axes, transpose_axes=transpose_axes)
+                p_segment = NativeTiffDataSegment(
+                    tiff_details, reverse_axes=reverse_axes, transpose_axes=transpose_axes)
                 parent_segments.append(p_segment)
                 begin_col = 0
                 for sicd in sicds:
@@ -1065,7 +1070,7 @@ class SentinelReader(SICDTypeReader):
                     begin_col = end_col
                     sicd_collection_out.append(sicd)
 
-        self._parent_segments = parent_segments # type: List[NativeTiffDataSegment]
+        self._parent_segments = parent_segments  # type: List[NativeTiffDataSegment]
         SICDTypeReader.__init__(self, segments, sicd_collection_out, close_segments=True)
         self._check_sizes()
 

@@ -147,7 +147,7 @@ def extract_sicd(
 
     def set_image_corners(icps: numpy.ndarray, override: bool = False) -> None:
         if the_sicd.GeoData is None:
-             the_sicd.GeoData = GeoDataType(ImageCorners=icps)
+            the_sicd.GeoData = GeoDataType(ImageCorners=icps)
         elif the_sicd.GeoData.ImageCorners is None or override:
             the_sicd.GeoData.ImageCorners = icps
 
@@ -439,7 +439,7 @@ def extract_sicd(
                 lon_val = lat_lon_parser(value[10:21])
 
             icps.append([lat_val, lon_val])
-        set_image_corners(icps, override=False)
+        set_image_corners(numpy.array(icps, dtype='float64'), override=False)
 
     def try_MPDSRA() -> None:
         def valid_array(arr):
@@ -1166,7 +1166,9 @@ class ComplexNITFReader(NITFReader, SICDTypeReader):
         if the_band is None:
             return data_segment
         else:
-            return SubsetSegment(data_segment, (slice(None, None, 1), slice(None, None, 1), slice(the_band, the_band+1, 1)), 'formatted', close_parent=True)
+            return SubsetSegment(
+                data_segment, (slice(None, None, 1), slice(None, None, 1), slice(the_band, the_band+1, 1)),
+                'formatted', close_parent=True)
 
 
 def final_attempt(file_name: str) -> Optional[ComplexNITFReader]:

@@ -72,10 +72,13 @@ def binary_format_string_to_dtype(format_string):
             kvp = comp.split('=')
             comptypes.append((kvp[0], _single_binary_format_string_to_dtype(kvp[1])))
 
-        # special handling of XYZ types
         keys, types = list(zip(*comptypes))
         if keys == ('X', 'Y', 'Z') and len(set(types)) == 1:
+            # special handling of XYZ types
             dtype = numpy.dtype((comptypes[0][1], 3))
+        elif keys == ('DCX', 'DCY') and len(set(types)) == 1:
+            # special handling of DCX/DCY types
+            dtype = numpy.dtype((comptypes[0][1], 2))
         else:
             dtype = numpy.dtype(comptypes)
     else:

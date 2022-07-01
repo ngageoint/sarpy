@@ -6,6 +6,7 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
+from typing import Union, Optional
 import numpy
 
 from sarpy.io.xml.base import Serializable, find_first_child
@@ -35,7 +36,11 @@ class NoiseLevelType_(Serializable):
         docstring='Polynomial coefficients that yield thermal noise power *(in dB)* in a pixel as a function of '
                   'image row coordinate *(variable 1)* and column coordinate *(variable 2)*.')  # type: Poly2DType
 
-    def __init__(self, NoiseLevelType=None, NoisePoly=None, **kwargs):
+    def __init__(
+            self,
+            NoiseLevelType: str = None,
+            NoisePoly: Union[Poly2DType, numpy.ndarray, list, tuple] = None,
+            **kwargs):
         """
 
         Parameters
@@ -98,8 +103,14 @@ class RadiometricType(Serializable):
                   'Gamma-Zero as a function of image row coordinate *(variable 1)* and column coordinate '
                   '*(variable 2)*. Scale factor computed for a clutter cell at `HAE = SCP_HAE`.')  # type: Poly2DType
 
-    def __init__(self, NoiseLevel=None, RCSSFPoly=None, SigmaZeroSFPoly=None,
-                 BetaZeroSFPoly=None, GammaZeroSFPoly=None, **kwargs):
+    def __init__(
+            self,
+            NoiseLevel: Optional[NoiseLevelType_] = None,
+            RCSSFPoly: Union[None, Poly2DType, numpy.ndarray, list, tuple] = None,
+            SigmaZeroSFPoly: Union[None, Poly2DType, numpy.ndarray, list, tuple] = None,
+            BetaZeroSFPoly: Union[None, Poly2DType, numpy.ndarray, list, tuple] = None,
+            GammaZeroSFPoly: Union[None, Poly2DType, numpy.ndarray, list, tuple] = None,
+            **kwargs):
         """
 
         Parameters

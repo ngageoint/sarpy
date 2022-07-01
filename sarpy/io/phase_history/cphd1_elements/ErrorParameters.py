@@ -5,7 +5,7 @@ The error parameters type definition.
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
-from typing import Union
+from typing import Union, Tuple, Optional
 
 from sarpy.io.xml.base import Serializable, ParametersCollection
 from sarpy.io.xml.descriptors import FloatDescriptor, SerializableDescriptor, \
@@ -117,25 +117,31 @@ class BistaticRadarSensorType(Serializable):
     Error statistics for a single radar platform.
     """
 
-    _fields = ('ClockFreqSF', 'CollectionStartTime')
+    _fields = ('DelayBias', 'ClockFreqSF', 'CollectionStartTime')
     _required = ('CollectionStartTime', )
-    _numeric_format = {'ClockFreqSF': FLOAT_FORMAT, 'CollectionStartTime': FLOAT_FORMAT}
+    _numeric_format = {
+        'DelayBias': FLOAT_FORMAT, 'ClockFreqSF': FLOAT_FORMAT,
+        'CollectionStartTime': FLOAT_FORMAT}
     # descriptors
+    DelayBias = FloatDescriptor(
+        'DelayBias', _required, strict=DEFAULT_STRICT,
+        docstring='')  # type: Optional[float]
     ClockFreqSF = FloatDescriptor(
         'ClockFreqSF', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='Payload clock frequency scale factor standard deviation, '
-                  r'where :math:`SF = (\Delta f)/f_0`.')  # type: float
+                  r'where :math:`SF = (\Delta f)/f_0`.')  # type: Optional[float]
     CollectionStartTime = FloatDescriptor(
         'CollectionStartTime', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='Collection Start time error standard deviation, '
                   'in seconds.')  # type: float
 
-    def __init__(self, ClockFreqSF=None, CollectionStartTime=None, **kwargs):
+    def __init__(self, DelayBias=None, ClockFreqSF=None, CollectionStartTime=None, **kwargs):
         """
 
         Parameters
         ----------
-        ClockFreqSF : float
+        DelayBias : None|float
+        ClockFreqSF : None|float
         CollectionStartTime : float
         kwargs
         """
@@ -144,9 +150,16 @@ class BistaticRadarSensorType(Serializable):
             self._xml_ns = kwargs['_xml_ns']
         if '_xml_ns_key' in kwargs:
             self._xml_ns_key = kwargs['_xml_ns_key']
+        self.DelayBias = DelayBias
         self.ClockFreqSF = ClockFreqSF
         self.CollectionStartTime = CollectionStartTime
         super(BistaticRadarSensorType, self).__init__(**kwargs)
+
+    def version_required(self) -> Tuple[int, int, int]:
+        required = (1, 0, 1)
+        if self.DelayBias is not None:
+            required = max(required, (1, 1, 0))
+        return required
 
 
 class MonostaticType(Serializable):
@@ -234,6 +247,12 @@ class PlatformType(Serializable):
         self.RadarSensor = RadarSensor
         super(PlatformType, self).__init__(**kwargs)
 
+    def version_required(self) -> Tuple[int, int, int]:
+        required = (1, 0, 1)
+        if self.RadarSensor is not None:
+            required = max(required, self.RadarSensor.version_required())
+        return required
+
 
 class BistaticType(Serializable):
     """
@@ -274,6 +293,14 @@ class BistaticType(Serializable):
         self.AddedParameters = AddedParameters
         super(BistaticType, self).__init__(**kwargs)
 
+    def version_required(self) -> Tuple[int, int, int]:
+        required = (1, 0, 1)
+        for fld in ['TxPlatform', 'RcvPlatform']:
+            val = getattr(self, fld)
+            if val is not None:
+                required = max(required, val.version_required())
+        return required
+
 
 class ErrorParametersType(Serializable):
     """
@@ -310,3 +337,9 @@ class ErrorParametersType(Serializable):
         self.Monostatic = Monostatic
         self.Bistatic = Bistatic
         super(ErrorParametersType, self).__init__(**kwargs)
+
+    def version_required(self) -> Tuple[int, int, int]:
+        required = (1, 0, 1)
+        if self.Bistatic is not None:
+            required = max(required, self.Bistatic.version_required())
+        return required
