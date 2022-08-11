@@ -4,6 +4,11 @@ SarPy follows a continuous release process, so there are fairly frequent release
 Since essentially every (squash merge) commit corresponds to a release, specific 
 release points are not being annotated in github.
 
+## [1.3.5] - 2022-08-11
+### Fixed
+Fixed a bug in improper checking of whether the signal data for a CPHD/CRSD file 
+was fully written.
+
 ## [1.3.4] - 2022-07-01
 ### Changed
 - Added SICD version 1.3.0 information, and set the default SICD version number 

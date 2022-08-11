@@ -1819,6 +1819,13 @@ class CPHDWriter1(BaseWriter):
 
         BaseWriter.__call__(self, data, start_indices=start_indices, subscript=subscript, index=int_index, raw=raw)
 
+        # check if it's fully written
+        # NB: this could be refactored out, but leaving it makes the most logical
+        #   sense given the pvp/support approach
+        fully_written = self.data_segment[int_index].check_fully_written(warn=False)
+        if fully_written:
+            self.writing_details.signal_details[int_index].item_written = True
+
     def flush(self, force: bool = False) -> None:
         self._validate_closed()
 
