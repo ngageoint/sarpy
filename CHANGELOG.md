@@ -4,6 +4,10 @@ SarPy follows a continuous release process, so there are fairly frequent release
 Since essentially every (squash merge) commit corresponds to a release, specific 
 release points are not being annotated in github.
 
+## [1.3.6] - 2022-08-23
+### Fixed
+Fixed a bug in improper raw writing for a CPHD/CRSD file.
+
 ## [1.3.5] - 2022-08-11
 ### Fixed
 Fixed a bug in improper checking of whether the signal data for a CPHD/CRSD file 
