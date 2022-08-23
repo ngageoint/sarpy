@@ -1800,7 +1800,7 @@ class CPHDWriter1(BaseWriter):
             start_indices: Union[None, int, Tuple[int, ...]] = None,
             subscript: Union[None, Tuple[slice, ...]] = None,
             index: Union[int, str] = 0) -> None:
-        self.__call__(data, start_indices=start_indices, subscript=subscript, index=index, raw=False)
+        self.__call__(data, start_indices=start_indices, subscript=subscript, index=index, raw=True)
 
     def __call__(
             self,
