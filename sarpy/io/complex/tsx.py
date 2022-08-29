@@ -941,7 +941,7 @@ class TSXDetails(object):
 class COSARDetails(object):
     __slots__ = (
         '_file_name', '_file_size', '_header_offsets', '_data_offsets',
-        '_burst_index', '_burst_size', '_data_sizes')
+        '_burst_index', '_burst_size', '_data_sizes', '_version')
 
     def __init__(self, file_name: str):
         """
@@ -956,6 +956,7 @@ class COSARDetails(object):
         self._burst_index = []
         self._burst_size = []
         self._data_sizes = []
+        self._version = None
 
         if not os.path.isfile(file_name):
             raise SarpyIOError('path {} is not not a file'.format(file_name))
@@ -971,9 +972,33 @@ class COSARDetails(object):
 
         return len(self._data_offsets)
 
-    def _process_burst_header(self,
-                              fi: BinaryIO,
-                              the_offset: int):
+    @property
+    def version(self) -> Optional[int]:
+        """
+        int: The COSAR version
+        """
+
+        return self._version
+
+    @property
+    def pixel_type(self) -> Optional[str]:
+        """
+        str: The pixel type
+        """
+
+        if self._version is None:
+            return None
+        elif self._version == 1:
+            return 'RE16I_IM16I'
+        elif self._version == 2:
+            return 'RE32F_IM32F'
+        else:
+            raise ValueError('Got unexpected version {}'.format(self._version))
+
+    def _process_burst_header(
+            self,
+            fi: BinaryIO,
+            the_offset: int):
         """
 
         Parameters
@@ -1004,7 +1029,7 @@ class COSARDetails(object):
         tnl = struct.unpack('>I', header_bytes[24:28])[0]
         # basic check bytes
         csar = struct.unpack('>4s', header_bytes[28:32])[0]
-        version = struct.unpack('>4s', header_bytes[32:36])[0]
+        version = struct.unpack('>I', header_bytes[32:36])[0]
         oversample = struct.unpack('>I', header_bytes[36:40])[0]
         scaling_rate = struct.unpack('>d', header_bytes[40:])[0]
         if csar.upper() != b'CSAR':
@@ -1032,12 +1057,16 @@ class COSARDetails(object):
         self._burst_index.append(int(burst_index))
         self._burst_size.append(burst_size)
         self._data_sizes.append((range_samples, azimuth_samples))
+        self._version = version
         if the_offset + burst_size > self._file_size:
             raise ValueError(
                 'The file size for {} is given as {} bytes, but '
                 'the burst at index {} has size {} and offset {}'.format(
                     self._file_name, self._file_size, self._burst_index[-1],
                     self._burst_size[-1], the_offset))
+        if self._version not in [1, 2]:
+            raise ValueError(
+                'Got unexpected version value {}'.format(self._version))
 
     def _parse_details(self) -> None:
         with open(self._file_name, 'rb') as fi:
@@ -1083,7 +1112,14 @@ class COSARDetails(object):
             raise ValueError(
                 'Expected raw burst size is {}, while actual raw burst size '
                 'is {}'.format(expected_size, (range_samples, azimuth_samples)))
-        raw_dtype = numpy.dtype('>i2')
+
+        if self._version == 1:
+            raw_dtype = numpy.dtype('>i2')
+        elif self._version == 2:
+            raw_dtype = numpy.dtype('>f2')
+        else:
+            raise ValueError('Got unhandled version {}'.format(self._version))
+
         format_function = ComplexFormatFunction(raw_dtype, 'IQ')
         parent_segment = NumpyMemmapSegment(
             self._file_name, offset, raw_dtype, (azimuth_samples, range_samples + 2, 2),
@@ -1140,6 +1176,7 @@ class TSXReader(SICDTypeReader):
                 raise ValueError(
                     'Expected one burst in the COSAR file {},\n\t'
                     'but got {} bursts'.format(the_file, cosar_details.burst_count))
+            the_sicd.ImageData.PixelType = cosar_details.pixel_type
             data_seg = cosar_details.construct_data_segment(0, reverse_axes, transpose_axes, (cols, rows))
             data_segments.append(data_seg)
         SICDTypeReader.__init__(self, data_segments, the_sicds, close_segments=True)
