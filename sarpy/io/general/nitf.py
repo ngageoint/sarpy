@@ -2431,7 +2431,8 @@ class NITFReader(BaseReader):
 
     def close(self) -> None:
         self._image_segment_data_segments = None
-        BaseReader.close(self)
+        if BaseReader is not None:
+            BaseReader.close(self)
 
 
 ########
