@@ -2,7 +2,12 @@
 
 SarPy follows a continuous release process, so there are fairly frequent releases. 
 Since essentially every (squash merge) commit corresponds to a release, specific 
-release points are not being annotated in github.
+release points are not being annotated in GitHub.
+
+## [1.3.9] - 2022-10-13
+### Fixed
+- Fixed a bug in correctly handling IQ error in CPHD reader.
+- Refactored CHPD schema file name to match official release. 
 
 ## [1.3.8] - 2022-10-07
 ### Fixed
@@ -29,7 +34,7 @@ accordingly.
 accordingly.
 - Set the stage for anticipated CRSD changes.
 - Removed the colon character with an underscore character in a suggested file 
-name, since apparently colon in not permitted in a windows file name.
+name, since apparently colon in not permitted in a Windows file name.
 ### Fixed
 Using NamedTemporaryFile in unit tests on writing files fails on windows, and 
 usage has been replaced.
