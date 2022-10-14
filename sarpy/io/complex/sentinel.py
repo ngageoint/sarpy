@@ -547,7 +547,7 @@ class SentinelDetails(object):
             timeline.CollectStart = start
             timeline.CollectDuration = duration
             timeline.IPP[0].TEnd = duration
-            timeline.IPP[0].IPPEnd = int(timeline.CollectDuration*prf)
+            timeline.IPP[0].IPPEnd = round(timeline.CollectDuration*prf) - 1
             sicd.ImageFormation.TEndProc = duration
 
         def set_position(sicd, start):

@@ -477,7 +477,7 @@ class CSKDetails(object):
             prf = band_dict[band_name]['PRF']
             duration = sicd.Timeline.CollectDuration
             ipp_el = sicd.Timeline.IPP[0]
-            ipp_el.IPPEnd = duration*prf
+            ipp_el.IPPEnd = round(duration*prf) - 1
             ipp_el.TEnd = duration
             ipp_el.IPPPoly = Poly1DType(Coefs=(0, prf))
 
