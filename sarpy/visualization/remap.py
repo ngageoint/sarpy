@@ -60,7 +60,7 @@ def clip_cast(
 
     np_type = numpy.dtype(dtype)
     min_value = numpy.iinfo(np_type).min if min_value is None else max(min_value, numpy.iinfo(np_type).min)
-    max_value = numpy.iinfo(np_type).max if max_value is None else max(max_value, numpy.iinfo(np_type).max)
+    max_value = numpy.iinfo(np_type).max if max_value is None else min(max_value, numpy.iinfo(np_type).max)
     return numpy.clip(array, min_value, max_value).astype(np_type)
 
 
@@ -121,7 +121,7 @@ def amplitude_to_density(
         # clarity in historical reference
         # Originally, C_L and C_H were static values drawn from a determined set
         # of remap look-up tables. The C_L/C_H values were presumably based roughly
-        # on mean amplitude and desired rempa brightness/contrast. The dmin value
+        # on mean amplitude and desired remap brightness/contrast. The dmin value
         # was fixed as 30.
         return slope*numpy.log10(numpy.maximum(amplitude, EPS)) + constant
 
@@ -777,7 +777,7 @@ class Linear(MonochromaticRemap):
     @property
     def max_value(self) -> Optional[float]:
         """
-        None|float:  The minimum value allowed (clipped above this)
+        None|float:  The maximum value allowed (clipped above this)
         """
 
         return self._max_value
@@ -1180,7 +1180,7 @@ class PEDF(MonochromaticRemap):
     def are_global_parameters_set(self) -> bool:
         """
         bool: Are (all) global parameters used for applying this remap function
-        set? In this case, this is the `min_value` and `max_value` properties.
+        set? In this case, this is the `data_mean` property.
         """
 
         return self._density.are_global_parameters_set
