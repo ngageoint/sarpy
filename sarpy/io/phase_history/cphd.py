@@ -108,6 +108,11 @@ class AmpScalingFunction(ComplexFormatFunction):
             self._amplitude_scaling = None
             return
 
+        if self.order != 'IQ':
+            raise ValueError(
+                'A magnitude lookup table has been supplied,\n\t'
+                'but the order is not one of `MP` or `PM`')
+
         if not isinstance(array, numpy.ndarray):
             raise ValueError('requires a numpy.ndarray, got {}'.format(type(array)))
         if array.ndim != 1:
@@ -117,10 +122,6 @@ class AmpScalingFunction(ComplexFormatFunction):
         if array.dtype.name != 'float32':
             array = numpy.cast['float32'](array)
 
-        if self.order not in ['MP', 'PM']:
-            logger.warning(
-                'A magnitude lookup table has been supplied,\n\t'
-                'but the order is not one of `MP` or `PM`')
         # NB: more validation as part of validate_shapes
         if self._raw_dtype.name not in ['int8', 'int16']:
             raise ValueError(
@@ -364,7 +365,7 @@ def _validate_cphd_details(
     Raises
     ------
     TypeError
-        The input was neither path to a CPHD file or a CPHDDetails instance
+        The input was neither path to a CPHD file nor a CPHDDetails instance
     ValueError
         The CPHD file was the incorrect (specified) version
     """
