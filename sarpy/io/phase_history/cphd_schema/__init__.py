@@ -31,7 +31,7 @@ urn_mapping = {
         'version': '1.1',
         'release': '1.1.0',
         'date': '2022-06-09T00:00:00Z',
-        'schema': os.path.join(_the_directory, 'CPHD_schema_V1.1.0_2022_06_23.xsd')},
+        'schema': os.path.join(_the_directory, 'CPHD_schema_V1.1.0_2021_11_30_FINAL.xsd')},
 }
 WRITABLE_VERSIONS = ('1.0.1', '1.1.0')
 
