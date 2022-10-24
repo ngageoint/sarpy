@@ -315,7 +315,7 @@ class CapellaDetails(object):
                         TStart=0,
                         TEnd=duration,
                         IPPStart=0,
-                        IPPEnd=duration*prf,
+                        IPPEnd=round(duration*prf) - 1,
                         IPPPoly=(0, prf)), ])
 
         def get_image_formation() -> ImageFormationType:

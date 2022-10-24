@@ -701,7 +701,7 @@ class TSXDetails(object):
                                 TEnd=collect_duration,
                                 IPPPoly=ipp_poly,
                                 IPPStart=0,
-                                IPPEnd=int(ipp_poly(collect_duration)))])
+                                IPPEnd=int(round(ipp_poly(collect_duration))) - 1)])
 
         def set_position():
             times_s = numpy.array(

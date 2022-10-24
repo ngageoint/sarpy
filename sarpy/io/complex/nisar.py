@@ -383,7 +383,7 @@ class NISARDetails(object):
 
         def update_timeline() -> None:
             prf = gp['nominalAcquisitionPRF'][()]
-            t_sicd.Timeline.IPP[0].IPPEnd = prf*t_sicd.Timeline.CollectDuration
+            t_sicd.Timeline.IPP[0].IPPEnd = round(prf*t_sicd.Timeline.CollectDuration) - 1
             t_sicd.Timeline.IPP[0].IPPPoly = [0, prf]
 
         def define_radar_collection() -> List[str]:

@@ -174,7 +174,7 @@ class ICEYEDetails(object):
                 CollectStart=start_time,
                 CollectDuration=duration,
                 IPP=[IPPSetType(index=0, TStart=0, TEnd=duration,
-                                IPPStart=0, IPPEnd=int(round(acq_prf*duration)),
+                                IPPStart=0, IPPEnd=int(round(acq_prf*duration) - 1),
                                 IPPPoly=[0, acq_prf]), ])
 
         def get_position() -> PositionType:

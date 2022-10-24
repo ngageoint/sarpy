@@ -1361,7 +1361,7 @@ class PALSARDetails(object):
                 IPP=[IPPSetType(TStart=0,
                                 TEnd=duration,
                                 IPPStart=0,
-                                IPPEnd=int(prf*duration),
+                                IPPEnd=round(prf*duration) - 1,
                                 IPPPoly=[0, prf]), ])
 
         def get_position() -> PositionType:
