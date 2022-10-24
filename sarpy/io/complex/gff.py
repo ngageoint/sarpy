@@ -1438,7 +1438,7 @@ class _GFFInterpreter2(_GFFInterpreter):
                     TEnd=collect_duration,
                     IPPStart=0,
                     IPPEnd=ipp_end,
-                    IPPPoly=[0, ipp_end/collect_duration]), ]
+                    IPPPoly=[0, (ipp_end + 1)/collect_duration]), ]
             except AttributeError:
                 ipp = None
             return TimelineType(
