@@ -14,6 +14,7 @@ from functools import reduce
 import struct
 
 import numpy
+import numpy.linalg
 from numpy.polynomial import polynomial
 from scipy.constants import speed_of_light
 
@@ -786,8 +787,21 @@ class TSXDetails(object):
             # populate DopCentroidPoly and TimeCOAPoly
             if out_sicd.CollectionInfo.RadarMode.ModeID == 'ST':
                 # proper spotlight mode
-                out_sicd.Grid.Col.DeltaKCOAPoly = Poly2DType(Coefs=[[0, ], ])  # NB: this seems fishy to me
-                out_sicd.Grid.TimeCOAPoly = Poly2DType(Coefs=[[out_sicd.RMA.INCA.TimeCAPoly.Coefs[0], ], ])
+                coa_time = collect_duration / 2
+                look = 1 if side_of_track == 'L' else -1
+                alpha = 2.0/speed_of_light
+                pos = out_sicd.Position.ARPPoly(coa_time)
+                vel = out_sicd.Position.ARPPoly.derivative_eval(coa_time)
+                speed = numpy.linalg.norm(vel)
+                vel_hat = vel / speed
+                los = out_sicd.GeoData.SCP.ECF.get_array() - pos
+
+                out_sicd.Grid.TimeCOAPoly = Poly2DType(Coefs=[[coa_time, ], ])
+                dop_poly = numpy.zeros((2, 2), dtype=numpy.float64)
+                dop_poly[0, 1] = -look*center_freq*alpha*speed/out_sicd.RMA.INCA.R_CA_SCP
+                dop_poly[1, 1] = look*center_freq*alpha*speed/(out_sicd.RMA.INCA.R_CA_SCP**2)
+                dop_poly[:, 0] = dop_poly[:, 0] - look*(dop_poly[:, 1]*numpy.dot(los, vel_hat))
+                out_sicd.Grid.Col.DeltaKCOAPoly = Poly2DType(Coefs=dop_poly*use_ss_zd_s/out_sicd.Grid.Col.SS)
             else:
                 dop_centroid_poly, time_coa_poly = self._calculate_dop_polys(
                     layer_index, azimuth_time_scp, range_time_scp, collect_start, doppler_rate_reference_node)
