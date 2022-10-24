@@ -2448,7 +2448,7 @@ class FileReadDataSegment(DataSegment):
         row_stride = self.raw_dtype.itemsize*pixel_per_row
 
         start_row = init_slice.start
-        rows = out_shape[0]
+        rows = out_shape[0] * init_slice.step
 
         # read the whole contiguous chunk from start_row up to the final row
         # seek to the proper start location
@@ -2466,7 +2466,7 @@ class FileReadDataSegment(DataSegment):
         data = numpy.frombuffer(data, self._raw_dtype, rows*pixel_per_row)
         data = numpy.reshape(data, (rows, ) + self.raw_shape[1:])
         # extract our data
-        out = data[(slice(None, None, 1), ) + subscript[1:]]
+        out = data[(slice(None, None, init_slice.step), ) + subscript[1:]]
         out = numpy.reshape(out, out_shape)
         if init_reverse:
             out = numpy.flip(out, axis=0)
