@@ -18,7 +18,7 @@ class RESUserHeader(Unstructured):
 
 class ReservedExtensionHeader(NITFElement):
     """
-    The reserved extension subheader - see standards document MIL-STD-2500C for more
+    The reserved extension subheader - see standards document Joint BIIF Profile (JBP) for more
     information.
     """
 

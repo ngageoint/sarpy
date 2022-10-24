@@ -128,7 +128,7 @@ class DESUserHeader(Unstructured):
 
 class DataExtensionHeader(NITFElement):
     """
-    The data extension subheader - see standards document MIL-STD-2500C for more
+    The data extension subheader - see standards document Joint BIIF Profile (JBP) for more
     information.
     """
 
@@ -315,7 +315,7 @@ class DataExtensionHeader(NITFElement):
 
 class DataExtensionHeader0(NITFElement):
     """
-    The data extension subheader - see standards document MIL-STD-2500C for more
+    The data extension subheader - see standards document Joint BIIF Profile (JBP) for more
     information.
     """
 

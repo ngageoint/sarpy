@@ -17,7 +17,7 @@ from .security import NITFSecurityTags, NITFSecurityTags0
 class TextSegmentHeader(NITFElement):
     """
     Text Segment Subheader for NITF version 2.1 - see standards document
-    MIL-STD-2500C for more information.
+    Joint BIIF Profile (JBP) for more information.
     """
 
     _ordering = (
