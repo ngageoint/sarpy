@@ -455,7 +455,7 @@ class MaskSubheader(NITFElement):
 
 class ImageSegmentHeader(NITFElement):
     """
-    The image segment header - see standards document MIL-STD-2500C for more
+    The image segment header - see standards document Joint BIIF Profile (JBP) for more
     information.
     """
 

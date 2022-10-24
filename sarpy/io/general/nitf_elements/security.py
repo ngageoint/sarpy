@@ -15,7 +15,7 @@ from .base import NITFElement, _StringDescriptor, _StringEnumDescriptor, _parse_
 class NITFSecurityTags(NITFElement):
     """
     The NITF security tags object for NITF version 2.1 - see standards document
-    MIL-STD-2500C for more information.
+    Joint BIIF Profile (JBP) for more information.
 
     In the NITF standard, this object is simply redefined (is an identical way)
     for each of the main header and subheader objects. This object is intended to

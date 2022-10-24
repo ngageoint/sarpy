@@ -4,6 +4,16 @@ SarPy follows a continuous release process, so there are fairly frequent release
 Since essentially every (squash merge) commit corresponds to a release, specific 
 release points are not being annotated in GitHub.
 
+## [1.3.10] - 2022-10-24
+### Fixed
+- Updated error message for IQ handing in CPHD reader.
+- Refactored reference to MIL-STD-2500C NITF spec to "Joint BIIF Profile (JBP)"
+- Fixed bug in correctly accounting for row stride from file like object. [Pull Request 348](https://github.com/ngageoint/sarpy/pull/348)
+- Fixed bug with SICD converter correctly conform to described relationship in the SICD D&I.  [Pull Request 349](https://github.com/ngageoint/sarpy/pull/349)
+- Fixed bug with Grid.Col.DeltaKCOA poly correctly populated based on collection metadate 
+and constant COA. [Pull Request 350](https://github.com/ngageoint/sarpy/pull/350)
+- Added remap.py unit test. [Pull Request 351](https://github.com/ngageoint/sarpy/pull/351)
+
 ## [1.3.9] - 2022-10-13
 ### Fixed
 - Fixed a bug in correctly handling IQ error in CPHD reader.

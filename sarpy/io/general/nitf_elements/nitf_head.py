@@ -66,7 +66,7 @@ class ReservedExtensionsType(_ItemArrayHeaders):
 class NITFHeader(NITFElement):
     """
     The main NITF file header for NITF version 2.1 - see standards document
-    MIL-STD-2500C for more information.
+    Joint BIIF Profile (JBP) for more information.
     """
 
     _ordering = (

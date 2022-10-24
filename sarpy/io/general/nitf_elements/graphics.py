@@ -12,7 +12,7 @@ from .security import NITFSecurityTags
 
 class GraphicsSegmentHeader(NITFElement):
     """
-    Graphics segment subheader - see standards document MIL-STD-2500C for more
+    Graphics segment subheader - see standards document Joint BIIF Profile (JBP) for more
     information.
     """
     _ordering = (

@@ -110,8 +110,7 @@ class AmpScalingFunction(ComplexFormatFunction):
 
         if self.order != 'IQ':
             raise ValueError(
-                'A magnitude lookup table has been supplied,\n\t'
-                'but the order is not one of `MP` or `PM`')
+                'CPHD requires data in IQ order.')
 
         if not isinstance(array, numpy.ndarray):
             raise ValueError('requires a numpy.ndarray, got {}'.format(type(array)))
