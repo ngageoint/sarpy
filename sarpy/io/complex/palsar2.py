@@ -902,9 +902,6 @@ class _LED_Facility(_BaseElements):
     def __init__(self, fi, parse_all=False):
         start_loc = fi.tell()
         super(_LED_Facility, self).__init__(fi)
-        # self.rec_length = 5000  # I don't kow why it gets populated wrong?
-
-        # self.fac_seq_num = struct.unpack('>I', fi.read(4))[0]  # type: int
         self.fac_seq_num = int(fi.read(4))  # type: int
         if not parse_all:
             fi.seek(start_loc + self.rec_length, os.SEEK_SET)

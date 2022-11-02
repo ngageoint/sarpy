@@ -991,19 +991,17 @@ class ComplexNITFDetails(NITFDetails):
                 segment_status.append(False)
                 return
 
-        if order in ['IQ', 'QI']:
-            if pvtype not in ['SI', 'R']:
-                logging.error(
-                    'Image segment appears to be complex of order `{}`, \n\t'
-                    'but PVTYPE is `{}`'.format(order, pvtype))
-                segment_status.append(False)
+        if order in ['IQ', 'QI'] and pvtype not in ['SI', 'R']:
+            logging.error(
+                'Image segment appears to be complex of order `{}`, \n\t'
+                'but PVTYPE is `{}`'.format(order, pvtype))
+            segment_status.append(False)
 
-        if order in ['MP', 'PM']:
-            if pvtype not in ['INT', 'R']:
-                logging.error(
-                    'Image segment appears to be complex of order `{}`, \n\t'
-                    'but PVTYPE is `{}`'.format(order, pvtype))
-                segment_status.append(False)
+        if order in ['MP', 'PM'] and pvtype not in ['INT', 'R']:
+            logging.error(
+                'Image segment appears to be complex of order `{}`, \n\t'
+                'but PVTYPE is `{}`'.format(order, pvtype))
+            segment_status.append(False)
 
         segment_status.append(True)
         sicd_meta.append(sicd)

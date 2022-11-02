@@ -294,16 +294,14 @@ def _get_dtype(
         for i in range(2, len(bands), 2):
             if order != bands[i].ISUBCAT + bands[i+1].ISUBCAT:
                 return None
-        if order in ['IQ', 'QI']:
-            if pvtype not in ['SI', 'R']:
-                raise ValueError(
-                    'Image segment appears to be complex of order `{}`, \n\t'
-                    'but PVTYPE is `{}`'.format(order, pvtype))
-        if order in ['MP', 'PM']:
-            if pvtype not in ['INT', 'R']:
-                raise ValueError(
-                    'Image segment appears to be complex of order `{}`, \n\t'
-                    'but PVTYPE is `{}`'.format(order, pvtype))
+        if order in ['IQ', 'QI'] and pvtype not in ['SI', 'R']:
+            raise ValueError(
+                'Image segment appears to be complex of order `{}`, \n\t'
+                'but PVTYPE is `{}`'.format(order, pvtype))
+        if order in ['MP', 'PM'] and pvtype not in ['INT', 'R']:
+            raise ValueError(
+                'Image segment appears to be complex of order `{}`, \n\t'
+                'but PVTYPE is `{}`'.format(order, pvtype))
         return order
 
     def get_lut_info() -> Optional[numpy.ndarray]:
@@ -1298,9 +1296,8 @@ class NITFReader(BaseReader):
                     raise ValueError('reverse_axes values must be restricted to `{0, 1}`.')
         self._reverse_axes = reverse_axes
 
-        if transpose_axes is not None:
-            if transpose_axes != (1, 0):
-                raise ValueError('transpose_axes, if not None, must be (1, 0)')
+        if transpose_axes is not None and transpose_axes != (1, 0):
+            raise ValueError('transpose_axes, if not None, must be (1, 0)')
         self._transpose_axes = transpose_axes
 
         # find image segments which we can not support, for whatever reason
@@ -1428,14 +1425,13 @@ class NITFReader(BaseReader):
                 'only 8, 16, 32, 64 are supported.'.format(index, img_header.NBPP))
             out = False
 
-        if img_header.is_compressed:
-            if PIL_Image is None:
-                logger.error(
-                    'Image segment at index {} has IC value {},\n\t'
-                    'and PIL cannot be imported.\n\t'
-                    'Currently, compressed image segments require PIL.'.format(
-                        index, img_header.IC))
-                out = False
+        if img_header.is_compressed and PIL_Image is None:
+            logger.error(
+                'Image segment at index {} has IC value {},\n\t'
+                'and PIL cannot be imported.\n\t'
+                'Currently, compressed image segments require PIL.'.format(
+                    index, img_header.IC))
+            out = False
 
         if img_header.IC in self.unsupported_compressions:
             logger.error(
@@ -2251,7 +2247,7 @@ class NITFReader(BaseReader):
             return self._handle_jpeg(image_segment_index, apply_format)
         elif image_header.IC == 'C8':
             return self._handle_jpeg2k_no_mask(image_segment_index, apply_format)
-        elif image_header.IC == 'C8':
+        elif image_header.IC == 'M8':
             return self._handle_jpeg2k_with_mask(image_segment_index, apply_format)
         else:
             raise ValueError('Got unhandled IC `{}`'.format(image_header.IC))
@@ -3019,9 +3015,8 @@ class NITFWritingDetails(object):
         for entry in value:
             if not isinstance(entry, tuple):
                 raise TypeError('image segment collection must be a tuple of tuples')
-            if last_index == -1:
-                if entry[0] != 0:
-                    raise ValueError('The first entry of image segment collection must start at 0.')
+            if last_index == -1 and entry[0] != 0:
+                raise ValueError('The first entry of image segment collection must start at 0.')
 
             for item in entry:
                 if not isinstance(item, int) or item < 0:
@@ -3672,8 +3667,7 @@ class NITFWriter(BaseWriter):
                 'Image segment at index {} has bits per pixel per band {},\n\t'
                 'only 8, 16, 32, 64 are supported.'.format(index, img_header.NBPP))
 
-        if img_header.is_compressed:
-            if PIL_Image is None:
+        if img_header.is_compressed and PIL_Image is None:
                 raise ValueError(
                     'Image segment at index {} has unsupported IC value {}.'.format(
                         index, img_header.IC))
@@ -4033,11 +4027,10 @@ class NITFWriter(BaseWriter):
 
         image_manager = self.image_managers[image_segment_index]
         assert isinstance(image_manager, ImageSubheaderManager)
-        if not self._in_memory:
-            if image_manager.item_offset is None:
-                raise ValueError(
-                    'Performing file processing and item_offset unpopulated for '
-                    'image segment at index {}'.format(image_segment_index))
+        if not self._in_memory and image_manager.item_offset is None:
+            raise ValueError(
+                'Performing file processing and item_offset unpopulated for '
+                'image segment at index {}'.format(image_segment_index))
         if len(self._image_segment_data_segments) != image_segment_index:
             raise ValueError('data segments must be constructed in order.')
         image_header = image_manager.subheader
@@ -4132,16 +4125,15 @@ class NITFWriter(BaseWriter):
         BaseWriter.flush(self, force=force)
 
         try:
-            if self._in_memory:
-                if self._image_segment_data_segments is not None:
-                    for index, entry in enumerate(self._image_segment_data_segments):
-                        manager = self.nitf_writing_details.image_managers[index]
-                        if manager.item_written:
-                            continue
-                        if manager.item_bytes is not None:
-                            continue
-                        if force or entry.check_fully_written(warn=force):
-                            manager.item_bytes = entry.get_raw_bytes(warn=False)
+            if self._in_memory and self._image_segment_data_segments is not None:
+                for index, entry in enumerate(self._image_segment_data_segments):
+                    manager = self.nitf_writing_details.image_managers[index]
+                    if manager.item_written:
+                        continue
+                    if manager.item_bytes is not None:
+                        continue
+                    if force or entry.check_fully_written(warn=force):
+                        manager.item_bytes = entry.get_raw_bytes(warn=False)
 
             check = self.nitf_writing_details.verify_all_offsets(require=False)
             if check:

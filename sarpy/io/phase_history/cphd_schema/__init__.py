@@ -69,7 +69,7 @@ def get_default_version_string() -> str:
 def get_namespace(version: Union[str, Tuple[int, int, int]]) -> str:
     if isinstance(version, (list, tuple)):
         version = '{}.{}.{}'.format(version[0], version[1], version[2])
-    return 'http://api.nsgreg.nga.mil/schema/cphd/{}'.format(version)
+    return 'https://api.nsgreg.nga.mil/schema/cphd/{}'.format(version)
 
 
 def check_urn(urn_string: str) -> str:
