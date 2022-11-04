@@ -336,8 +336,9 @@ class CPHDDetails(object):
         if self._closed:
             return
 
-        if self._close_after and hasattr(self.file_object, 'close'):
-            self.file_object.close()
+        if self._close_after:
+            if hasattr(self.file_object, 'close'):
+                self.file_object.close()
         self._file_object = None
         self._closed = True
 
@@ -1831,15 +1832,16 @@ class CPHDWriter1(BaseWriter):
         BaseWriter.flush(self, force=force)
 
         try:
-            if self._in_memory and self.data_segment is not None:
-                for index, entry in enumerate(self.data_segment):
-                    details = self.writing_details.signal_details[index]
-                    if details.item_written:
-                        continue
-                    if details.item_bytes is not None:
-                        continue
-                    if force or entry.check_fully_written(warn=force):
-                        details.item_bytes = entry.get_raw_bytes(warn=False)
+            if self._in_memory:
+                if self.data_segment is not None:
+                    for index, entry in enumerate(self.data_segment):
+                        details = self.writing_details.signal_details[index]
+                        if details.item_written:
+                            continue
+                        if details.item_bytes is not None:
+                            continue
+                        if force or entry.check_fully_written(warn=force):
+                            details.item_bytes = entry.get_raw_bytes(warn=False)
 
             self.writing_details.write_all_populated_items(self._file_object)
         except AttributeError:

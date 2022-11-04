@@ -88,10 +88,12 @@ def verify_slice(item: Union[None, int, slice, Tuple[int, ...]], max_element: in
                 start = 0
             if stop is None:
                 stop = max_element
-        if step < 0 and start is None:
-            start = max_element - 1
-        if (start is not None and stop is not None) and numpy.sign(stop - start) != numpy.sign(step):
-            raise ValueError('slice {} is not well formed'.format(item))
+        if step < 0:
+            if start is None:
+                start = max_element - 1
+        if start is not None and stop is not None:
+            if numpy.sign(stop - start) != numpy.sign(step):
+                raise ValueError('slice {} is not well formed'.format(item))
         return slice(start, stop, step)
     else:
         raise ValueError('Got unexpected argument of type {} in slice'.format(type(item)))

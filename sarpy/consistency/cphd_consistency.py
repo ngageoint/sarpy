@@ -1567,7 +1567,7 @@ def make_id_graph(xml):
 
 def main(args=None):
     """
-    CphdConsistency CLI tool.  Prints results to stdout.
+    CphdConsistency CLI tool. Print results to stdout.
 
     Parameters
     ----------

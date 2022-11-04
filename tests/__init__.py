@@ -56,7 +56,3 @@ def parse_file_entry(entry, default='absolute'):
         return the_file
     else:
         return None
-
-
-def unittest():
-    return None

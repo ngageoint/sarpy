@@ -603,8 +603,9 @@ class ComplexFormatFunction(FormatFunction):
         if value < 0:
             value = value + self.raw_ndim
 
-        if self._band_dimension is not None and ((value - self._band_dimension) % self.raw_ndim) != 0:
-            raise ValueError('band_dimension is read only once set')
+        if self._band_dimension is not None:
+            if ((value - self._band_dimension) % self.raw_ndim) != 0:
+                raise ValueError('band_dimension is read only once set')
         self._band_dimension = value
 
     @property
@@ -624,8 +625,9 @@ class ComplexFormatFunction(FormatFunction):
             raise ValueError(
                 'Order is required to be one of {},\n\t'
                 'got `{}`'.format(self._allowed_ordering, value))
-        if self._order is not None and value != self._order:
-            raise ValueError('order is read only once set')
+        if self._order is not None:
+            if value != self._order:
+                raise ValueError('order is read only once set')
         self._order = value
         if self._order in ['IQ', 'QI']:
             if self._raw_dtype.name not in [

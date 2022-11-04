@@ -1440,8 +1440,9 @@ class BandAggregateSegment(DataSegment):
         if value < 0:
             raise TypeError('band_dimension must be non-negative')
 
-        if transpose_axes is not None and value != transpose_axes[value]:
-            raise ValueError('band_dimension is not permitted to be changed by transpose_axes.')
+        if transpose_axes is not None:
+            if value != transpose_axes[value]:
+                raise ValueError('band_dimension is not permitted to be changed by transpose_axes.')
 
         if reverse_axes is None:
             pass
@@ -2498,8 +2499,9 @@ class FileReadDataSegment(DataSegment):
             if self._closed:
                 return
 
-            if self._close_file and hasattr(self.file_object, 'close'):
-                self.file_object.close()
+            if self._close_file:
+                if hasattr(self.file_object, 'close'):
+                    self.file_object.close()
             self._file_object = None
             DataSegment.close(self)
         except AttributeError:
