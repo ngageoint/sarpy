@@ -53,8 +53,8 @@ File Sources:
 Non-SAR data:
 -------------
 - General NITF files:
-    - https://gwg.nga.mil/ntb/baseline/software/testfile/Nitfv2_1/scen_2_1.html
-    - The relavant files here are the NITF files with extension .ntf. There are
+    - https://gwg.nga.mil/gwg/focus-groups/ntb/jbp-sample-files/
+    - The relevant files here are the NITF files with extension .ntf. There are
       non-NITF (.nsf) files here that are not presently relevant to sarpy.
     - **These files are referenced for testing general nitf header parsing capabilities.**
       None of the sample NITF files here appear to be SAR related files.
@@ -76,7 +76,7 @@ Publicly available complex valued SAR example data in various formats:
     + These files should be referenced in unit tests for general NITF header parsing,
       and extensive tests of SICD reading and writing capabilities.
 - Radarsat-2:
-    + https://mdacorporation.com/geospatial/international/satellites/RADARSAT-2/sample-data/
+    + https://ietr-lab.univ-rennes1.fr/polsarpro-bio/san-francisco/
     + Only the SLC (single-look complex) product is presently relevant to sarpy.
 - RCM (Radarsat Constellation Mission):
     + https://www.asc-csa.gc.ca/eng/open-data/access-the-data.asp
@@ -91,7 +91,7 @@ Publicly available complex valued SAR example data in various formats:
     + https://www.iceye.com/downloads/datasets
     + Only the SSC product is presently relevant to sarpy.
 - PALSAR:
-    + http://en.alos-pasco.com/sample/
+    + https://search.asf.alaska.edu/#/?resultsLoaded=true&zoom=3&center=-97.493959,39.672786&view=equitorial&dataset=ALOS&productTypes=L1.1
     + You have to fill out some forms, but you can get sample data here.
       Again, only the complex valued data is relevant to sarpy.
 
