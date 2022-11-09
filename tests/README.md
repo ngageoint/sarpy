@@ -92,14 +92,16 @@ Publicly available complex valued SAR example data in various formats:
     + Only the SSC product is presently relevant to sarpy.
 - PALSAR:
     + https://search.asf.alaska.edu/#/?resultsLoaded=true&zoom=3&center=-97.493959,39.672786&view=equitorial&dataset=ALOS&productTypes=L1.1
-    + You have to fill out some forms, but you can get sample data here.
-      Again, only the complex valued data is relevant to sarpy.
-
-Unknown Status complex SAR data:
---------------------------------
-- Capella - I couldn't find any oublic data with basic google searches on 2020-12-04.
-- NISAR - this mission hasn't launched, but open data is likely to come.
-- CPHD - this is an evolving situation, and more information to come.
+    + Only the complex valued data is relevant to sarpy.
+- Capella
+    + https://capella-open-data.s3.us-west-2.amazonaws.com/
+    + Only the SLC (single-look complex) product is presently relevant to sarpy.
+- NISAR
+    + https://uavsar.jpl.nasa.gov/cgi-bin/product.pl?jobName=sabine_01200_17088_017_170901_L090_CX_05#data
+    + Simulated NISAR product. 
+- CPHD
+    + https://rdr.ucl.ac.uk/articles/dataset/T-72_SAR_data_dome_Remote_Sensing_0_25_no_PSF_/20681836
+    + Simulated CPHD files. 
 
 Not publicly available complex SAR data:
 ----------------------------------------
