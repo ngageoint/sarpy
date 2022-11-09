@@ -99,7 +99,7 @@ or all of these formally stated dependencies. The choices made here are guided b
 practical realities versus what is generally considered best practices.
 
 For all packages on this list, the import is tried (where relevant), and any 
-import errors fr these optional dependencies are caught and handled. In other words, 
+import errors for these optional dependencies are caught and handled. In other words, 
 a missing optional dependency **will not** be presented as import time. Excepting 
 the functionality requiring `h5py`, this import error handling is probably silent. 
 
@@ -151,7 +151,7 @@ Changes to sarpy for the sole purpose of supporting a Python version beyond
 end-of-life are unlikely to be considered.
 
 Information regarding any discovered bugs would be greatly appreciated, so please
-feel free to create a github issue. If more appropriate, contact wade.c.schwartzkopf@nga.mil.
+feel free to create a GitHub issue. If more appropriate, contact wade.c.schwartzkopf@nga.mil.
 
 Pull Requests
 -------------

@@ -4,10 +4,18 @@ SarPy follows a continuous release process, so there are fairly frequent release
 Since essentially every (squash merge) commit corresponds to a release, specific 
 release points are not being annotated in GitHub.
 
+## [1.3.11] - 2022-11-08
+### Fixed
+- Fixed bug with conditional testing of NITF image header for jpeg2k files correctly testing and applying format for C8/regular and M8/with masking. 
+### Added
+- Added links to SAR data for Capella, NISAR, and CPHD file formats.
+### Changed
+- Changed links for general NITF, Radarsat-2, and PALSAR files.
+
 ## [1.3.10] - 2022-10-24
 ### Fixed
 - Updated error message for IQ handing in CPHD reader.
-- Refactored reference to MIL-STD-2500C NITF spec to "Joint BIIF Profile (JBP)"
+- Refactored reference to MIL-STD-2500C NITF spec to "Joint BIIF Profile (JBP)".
 - Fixed bug in correctly accounting for row stride from file like object. [Pull Request 348](https://github.com/ngageoint/sarpy/pull/348)
 - Fixed bug with SICD converter correctly conform to described relationship in the SICD D&I.  [Pull Request 349](https://github.com/ngageoint/sarpy/pull/349)
 - Fixed bug with Grid.Col.DeltaKCOA poly correctly populated based on collection metadate 
