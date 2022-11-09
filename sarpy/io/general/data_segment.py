@@ -1217,7 +1217,6 @@ class SubsetSegment(DataSegment):
         Tuple[slice, ...]
         """
 
-
         out = self._get_parent_subscript(
             self.verify_formatted_subscript(subscript), self.formatted_shape, self.parent.formatted_shape,
             self._original_formatted_indices, self._formatted_subset_definition)

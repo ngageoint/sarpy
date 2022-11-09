@@ -2251,7 +2251,7 @@ class NITFReader(BaseReader):
             return self._handle_jpeg(image_segment_index, apply_format)
         elif image_header.IC == 'C8':
             return self._handle_jpeg2k_no_mask(image_segment_index, apply_format)
-        elif image_header.IC == 'C8':
+        elif image_header.IC == 'M8':
             return self._handle_jpeg2k_with_mask(image_segment_index, apply_format)
         else:
             raise ValueError('Got unhandled IC `{}`'.format(image_header.IC))
