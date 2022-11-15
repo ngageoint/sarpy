@@ -236,56 +236,74 @@ class ICEYEDetails(object):
                 -polynomial.polymul(t_drate_ca_poly, r_ca_coeffs)*speed_of_light/(2*center_freq*vm_ca_sq)
 
         def calculate_doppler_polys() -> (numpy.ndarray, numpy.ndarray):
-            # extract doppler centroid coefficients
-            dc_estimate_coeffs = hf['dc_estimate_coeffs'][:]
-            dc_time_str = hf['dc_estimate_time_utc'][:, 0]
-            dc_zd_times = numpy.zeros((dc_time_str.shape[0], ), dtype='float64')
-            for i, entry in enumerate(dc_time_str):
-                dc_zd_times[i] = get_seconds(_parse_time(entry), start_time, precision='us')
-            # create a sampled doppler centroid
-            samples = 49  # copied from corresponding matlab, we just need enough for appropriate refitting
-            # create doppler time samples
-            diff_time_rg = first_pixel_time - zd_ref_time + \
-                numpy.linspace(0, number_of_range_samples/range_sampling_rate, samples)
-            # doppler centroid samples definition
-            dc_sample_array = numpy.zeros((samples, dc_zd_times.size), dtype='float64')
-            for i, coeffs in enumerate(dc_estimate_coeffs):
-                dc_sample_array[:, i] = polynomial.polyval(diff_time_rg, coeffs)
-            # create arrays for range/azimuth from scp in meters
-            azimuth_scp_m, range_scp_m = numpy.meshgrid(
-                col_ss*(dc_zd_times - zd_time_scp)/ss_zd_s,
-                (diff_time_rg + zd_ref_time - rg_time_scp)*speed_of_light/2)
-
-            # fit the doppler centroid sample array
-            x_order = min(3, range_scp_m.shape[0]-1)
-            y_order = min(3, range_scp_m.shape[1]-1)
-
-            t_dop_centroid_poly, residuals, rank, sing_values = two_dim_poly_fit(
-                range_scp_m, azimuth_scp_m, dc_sample_array, x_order=x_order, y_order=y_order,
-                x_scale=1e-3, y_scale=1e-3, rcond=1e-40)
-            logger.info(
-                'The dop_centroid_poly fit details:\n\troot mean square '
-                'residuals = {}\n\trank = {}\n\tsingular values = {}'.format(
-                    residuals, rank, sing_values))
-
             # define and fit the time coa array
-            doppler_rate_sampled = polynomial.polyval(azimuth_scp_m, drate_ca_poly)
-            time_coa = dc_zd_times + dc_sample_array/doppler_rate_sampled
-            t_time_coa_poly, residuals, rank, sing_values = two_dim_poly_fit(
-                range_scp_m, azimuth_scp_m, time_coa, x_order=x_order, y_order=y_order,
-                x_scale=1e-3, y_scale=1e-3, rcond=1e-40)
-            logger.info(
-                'The time_coa_poly fit details:\n\troot mean square '
-                'residuals = {}\n\trank = {}\n\tsingular values = {}'.format(
-                    residuals, rank, sing_values))
-            return t_dop_centroid_poly, t_time_coa_poly
+            if collect_info.RadarMode.ModeType == 'SPOTLIGHT':
+                coa_time = duration / 2
+                look = 1 if look_side == 'left' else -1
+                alpha = 2.0/speed_of_light
+                pos = position.ARPPoly(coa_time)
+                vel = position.ARPPoly.derivative_eval(coa_time)
+                speed = numpy.linalg.norm(vel)
+                vel_hat = vel / speed
+                los = geo_data.SCP.ECF.get_array() - pos
+
+                t_time_coa_coeffs = [[coa_time, ], ]
+                t_dop_centroid_coeffs = numpy.zeros((2, 2), dtype=numpy.float64)
+                t_dop_centroid_coeffs[0, 1] = -look*center_freq*alpha*speed/r_ca_scp
+                t_dop_centroid_coeffs[1, 1] = look*center_freq*alpha*speed/(r_ca_scp**2)
+                t_dop_centroid_coeffs[:, 0] = -look*(t_dop_centroid_coeffs[:, 1]*numpy.dot(los, vel_hat))
+            else:
+                # extract doppler centroid coefficients
+                dc_estimate_coeffs = hf['dc_estimate_coeffs'][:]
+                dc_time_str = hf['dc_estimate_time_utc'][:, 0]
+                dc_zd_times = numpy.zeros((dc_time_str.shape[0], ), dtype='float64')
+                for i, entry in enumerate(dc_time_str):
+                    dc_zd_times[i] = get_seconds(_parse_time(entry), start_time, precision='us')
+                # create a sampled doppler centroid
+                samples = 49  # copied from corresponding matlab, we just need enough for appropriate refitting
+                # create doppler time samples
+                diff_time_rg = first_pixel_time - zd_ref_time + \
+                    numpy.linspace(0, number_of_range_samples/range_sampling_rate, samples)
+                # doppler centroid samples definition
+                dc_sample_array = numpy.zeros((samples, dc_zd_times.size), dtype='float64')
+                for i, coeffs in enumerate(dc_estimate_coeffs):
+                    dc_sample_array[:, i] = polynomial.polyval(diff_time_rg, coeffs)
+                # create arrays for range/azimuth from scp in meters
+                azimuth_scp_m, range_scp_m = numpy.meshgrid(
+                    col_ss*(dc_zd_times - zd_time_scp)/ss_zd_s,
+                    (diff_time_rg + zd_ref_time - rg_time_scp)*speed_of_light/2)
+
+                # fit the doppler centroid sample array
+                x_order = min(3, range_scp_m.shape[0]-1)
+                y_order = min(3, range_scp_m.shape[1]-1)
+
+                t_dop_centroid_coeffs, residuals, rank, sing_values = two_dim_poly_fit(
+                    range_scp_m, azimuth_scp_m, dc_sample_array, x_order=x_order, y_order=y_order,
+                    x_scale=1e-3, y_scale=1e-3, rcond=1e-40)
+                logger.info(
+                    'The dop_centroid_poly fit details:\n\troot mean square '
+                    'residuals = {}\n\trank = {}\n\tsingular values = {}'.format(
+                        residuals, rank, sing_values))
+
+                doppler_rate_sampled = polynomial.polyval(azimuth_scp_m, drate_ca_poly)
+                time_coa = dc_zd_times + dc_sample_array/doppler_rate_sampled
+                t_time_coa_coeffs, residuals, rank, sing_values = two_dim_poly_fit(
+                    range_scp_m, azimuth_scp_m, time_coa, x_order=x_order, y_order=y_order,
+                    x_scale=1e-3, y_scale=1e-3, rcond=1e-40)
+                logger.info(
+                    'The time_coa_poly fit details:\n\troot mean square '
+                    'residuals = {}\n\trank = {}\n\tsingular values = {}'.format(
+                        residuals, rank, sing_values))
+
+            return t_dop_centroid_coeffs, t_time_coa_coeffs
 
         def get_rma() -> RMAType:
-            dop_centroid_poly = Poly2DType(Coefs=dop_centroid_poly_coeffs)
-            dop_centroid_coa = True
             if collect_info.RadarMode.ModeType == 'SPOTLIGHT':
                 dop_centroid_poly = None
                 dop_centroid_coa = None
+            else:
+                dop_centroid_poly = Poly2DType(Coefs=dop_centroid_poly_coeffs)
+                dop_centroid_coa = True
             # NB: DRateSFPoly is defined as a function of only range - reshape appropriately
             inca = INCAType(
                 R_CA_SCP=r_ca_scp,
@@ -300,8 +318,6 @@ class ICEYEDetails(object):
 
         def get_grid() -> GridType:
             time_coa_poly = Poly2DType(Coefs=time_coa_poly_coeffs)
-            if collect_info.RadarMode.ModeType == 'SPOTLIGHT':
-                time_coa_poly = Poly2DType(Coefs=[[float(time_coa_poly_coeffs[0, 0]), ], ])
 
             row_win = _stringify(hf['window_function_range'][()])
             if row_win == 'NONE':
