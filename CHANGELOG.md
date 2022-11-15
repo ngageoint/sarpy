@@ -4,6 +4,10 @@ SarPy follows a continuous release process, so there are fairly frequent release
 Since essentially every (squash merge) commit corresponds to a release, specific 
 release points are not being annotated in GitHub.
 
+## [1.3.12] - 2022-11-15
+### Fixed
+- Fixed accuracy of TimeCOA and DeltaKCOA polygons for ICEYE Spotlight
+
 ## [1.3.11] - 2022-11-08
 ### Fixed
 - Fixed bug with conditional testing of NITF image header for jpeg2k files correctly testing and applying format for C8/regular and M8/with masking. 
