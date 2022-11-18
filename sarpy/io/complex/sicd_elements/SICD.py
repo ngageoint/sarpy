@@ -233,6 +233,16 @@ class SICDType(Serializable):
 
         return self._NITF
 
+    @NITF.setter
+    def NITF(self, value: Optional[Dict]):
+        if value is None:
+            self._NITF = {}
+            return
+        if isinstance(value, dict):
+            self._NITF = value
+        if not isinstance(value, dict):
+            raise TypeError('data must be dictionary instance. Received {}'.format(type(value)))
+
     @property
     def ImageFormType(self) -> str:
         """
