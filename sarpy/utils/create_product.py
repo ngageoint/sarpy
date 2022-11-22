@@ -43,7 +43,7 @@ if __name__ == '__main__':
         help='Path to the output directory where the product file(s) will be created.\n'
              'This directory MUST exist.\n'
              '* Depending on the input file, multiple product files may be produced.\n'
-             '* The name for the ouput file(s) will be chosen based on CoreName and\n '
+             '* The name for the output file(s) will be chosen based on CoreName and\n '
              '  transmit/collect polarization.\n')
     parser.add_argument(
         '-t', '--type', default='detected', choices=['detected', 'csi', 'dynamic'],

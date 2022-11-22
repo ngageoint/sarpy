@@ -426,7 +426,7 @@ class TestFileReadSegment(unittest.TestCase):
             test_data = data_segment[0:2, 1:3]
             self.assertTrue(numpy.all(complex_data[subscript] == test_data))
 
-        with self.subTest(msg='read using __getitem__ and specifiying raw'):
+        with self.subTest(msg='read using __getitem__ and specifying raw'):
             subscript = (slice(0, 2, 1), slice(1, 3, 1))
             test_data = data_segment[0:2, 1:3, 'raw']
             self.assertTrue(numpy.all(data[subscript] == test_data))

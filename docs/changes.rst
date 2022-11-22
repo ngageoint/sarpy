@@ -15,7 +15,7 @@ Subpackage restructuring
 Reading changes
 ---------------
 For SICD-like, CPHD, and CRSD readers in sarpy take slicing arguments, read image
-data of some native format, and perform some reformating operation to return a
+data of some native format, and perform some reformatting operation to return a
 two-dimensional image of complex64 data type. Although expected to be the
 minority (by far) use case, the ability to access raw data may be useful, and
 has been introduced.
@@ -42,7 +42,7 @@ Writing changes
 ---------------
 Similarly, writers for SICD, CPHD, and CRSD format files take a two-dimensional
 of complex64 data type and something like a slicing argument, and perform some
-reformating operation to write image data in some native format. The ability to
+reformatting operation to write image data in some native format. The ability to
 provide and directly write raw data (avoiding the reformatting step) has been
 introduced.
 

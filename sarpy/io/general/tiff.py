@@ -71,7 +71,7 @@ _EXTENSION_TAGS = {
     292: 'T4Options',
     293: 'T6Options',
     297: 'PageNumber',
-    301: 'TransferDunction',
+    301: 'TransferFunction',
     317: 'Predictor',
     318: 'WhitePoint',
     319: 'PrimaryChromaticities',
@@ -374,7 +374,7 @@ class TiffDetails(object):
             raise ValueError(
                 'The file {} indicates some kind of tiff compression, and the sarpy API requirements '
                 'do not presently support reading of compressed tiff files. Consider using gdal to '
-                'translate this tiff to an uncompressed file via the commmand\n\t'
+                'translate this tiff to an uncompressed file via the command\n\t'
                 '"gdal_translate -co TILED=no <input_file> <output_file>"')
 
     def check_tiled(self):
@@ -390,7 +390,7 @@ class TiffDetails(object):
             raise ValueError(
                 'The file {} indicates that this is a tiled file, and the sarpy API requirements '
                 'do not presently support reading of tiled tiff files. Consider using gdal to '
-                'translate this tiff to a flat file via the commmand\n\t'
+                'translate this tiff to a flat file via the command\n\t'
                 '"gdal_translate -co TILED=no <input_file> <output_file>"')
 
 

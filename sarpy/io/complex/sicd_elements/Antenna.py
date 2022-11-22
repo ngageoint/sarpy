@@ -99,7 +99,7 @@ class AntParamType(Serializable):
     )  # type: XYZPolyType
     FreqZero = FloatDescriptor(
         'FreqZero', _required, strict=DEFAULT_STRICT,
-        docstring='RF frequency *(f0)* used to specify the array pattern and electrical boresite *(EB)* '
+        docstring='RF frequency *(f0)* used to specify the array pattern and electrical boresight *(EB)* '
                   'steering direction cosines.')  # type: float
     EB = SerializableDescriptor(
         'EB', EBType, _required, strict=DEFAULT_STRICT,

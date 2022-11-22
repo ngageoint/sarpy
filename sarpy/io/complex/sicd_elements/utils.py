@@ -68,7 +68,7 @@ def polstring_version_required(str_in: Optional[str]) -> Tuple[int, int, int]:
 
 
 ################
-# SICD comparsion and matching methods
+# SICD comparison and matching methods
 
 def is_same_size(sicd1, sicd2) -> bool:
     """

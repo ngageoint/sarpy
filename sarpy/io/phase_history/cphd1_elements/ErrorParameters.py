@@ -86,7 +86,7 @@ class IonoErrorType(Serializable):
         docstring='Ionosphere range error and range rate error correlation coefficient.')  # type: float
     IonoRangeVertDecorr = SerializableDescriptor(
         'IonoRangeVertDecorr', ErrorDecorrFuncType, _required, strict=DEFAULT_STRICT,
-        docstring='Ionosphere range error decorrelation fucntion.')  # type: ErrorDecorrFuncType
+        docstring='Ionosphere range error decorrelation function.')  # type: ErrorDecorrFuncType
 
     def __init__(self, IonoRangeVertical=None, IonoRangeRateVertical=None,
                  IonoRgRgRateCC=None, IonoRangeVertDecorr=None, **kwargs):

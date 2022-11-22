@@ -36,7 +36,7 @@ from .blocks import ErrorStatisticsType, RadiometricType, MatchInfoType
 logger = logging.getLogger(__name__)
 
 ############
-# namespace validate and definitIon of required entries in the namespace dictionary
+# namespace validate and definition of required entries in the namespace dictionary
 _SIDD_SPECIFICATION_IDENTIFIER = get_specification_identifier()
 
 _SIDD_URN = 'urn:SIDD:2.0.0'
@@ -102,7 +102,7 @@ class SIDDType(Serializable):
                   'to the image data.')  # type: CompressionType
     DigitalElevationData = SerializableDescriptor(
         'DigitalElevationData', DigitalElevationDataType, _required, strict=DEFAULT_STRICT,
-        docstring='This describes any Digital ElevatioNData included with '
+        docstring='This describes any Digital ElevationData included with '
                   'the SIDD product.')  # type: DigitalElevationDataType
     ProductProcessing = SerializableDescriptor(
         'ProductProcessing', ProductProcessingType, _required, strict=DEFAULT_STRICT,
