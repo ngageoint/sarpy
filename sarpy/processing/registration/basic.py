@@ -109,7 +109,7 @@ def _find_best_adjustable_parameters_sicd(
         **minimization_args) -> Tuple[numpy.ndarray, numpy.ndarray, float, float, Any]:
     """
     Find the best projection model adjustable parameters (in `'ECF'` coordinate frame)
-    to fit the geophyscial coordinate locations to the image coordinate locations.
+    to fit the geophysical coordinate locations to the image coordinate locations.
 
     Parameters
     ----------
@@ -181,7 +181,7 @@ def _find_best_adjustable_parameters(
         **minimization_args) -> Tuple[numpy.ndarray, numpy.ndarray, float, float, Any]:
     """
     Find the best projection model adjustable parameters (in `'ECF'` coordinate frame)
-    to fit the geophyscial coordinate locations to the image coordinate locations.
+    to fit the geophysical coordinate locations to the image coordinate locations.
 
     Parameters
     ----------
@@ -249,7 +249,7 @@ def find_best_adjustable_parameters(
         **minimization_args) -> Tuple[numpy.ndarray, numpy.ndarray, float, float, Any]:
     """
     Find the best projection model adjustable parameters (in `'ECF'` coordinate frame)
-    to fit the geophyscial coordinate locations to the image coordinate locations.
+    to fit the geophysical coordinate locations to the image coordinate locations.
 
     Parameters
     ----------

@@ -143,7 +143,7 @@ def is_tiff(
     ----------
     file_name : str|BinaryIO
     return_details : bool
-        Return the tiff details of endianess and magic number?
+        Return the tiff details of endianness and magic number?
 
     Returns
     -------
@@ -290,7 +290,7 @@ def calculate_md5(the_path: str, chunk_size: int = 1024*1024) -> str:
 class MemMap(object):
     """
     Spoofing necessary memory map functionality to permit READ ONLY opening of a
-    file containing compressed image data somewheer mid-file for use in the PIL
+    file containing compressed image data somewhere mid-file for use in the PIL
     interface. This is just a thin wrapper around the built-in Python memmap
     class which accommodates arbitrary offset (versus limited to allocation
     granularity).

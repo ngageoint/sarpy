@@ -126,7 +126,7 @@ It should be noted that the flexibility of reading using a file-like object come
 at a significant efficiency and speed cost, particularly for reading decimated or
 down-selected data. A numpy memory map can not be utilized (at least as of May 2021)
 for a non-file object, and reading/interpreting data becomes a fully manual
-and non-optimized process. The entire continguous chunk of data containing the
+and non-optimized process. The entire continuous chunk of data containing the
 desired segment of data will be read, then down-selected. This is to accommodate
 for the overhead of the connection request for remote reading - simple bench marks
 indicate that the bottleneck for performing a remote read is clearly the connection

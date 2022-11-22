@@ -103,7 +103,7 @@ def string(value, latlon, num_units=3, precision=None, delimiter='',
     if num_units > 1 and round(value[-1],precision) == 60:  # Seconds of 60 is invalid
         value[-1] = 0 
         value[-2] = value[-2] + 1
-        if num_units == 3 and value[-2] == 60:  # If adding 1 to mintues makes minutes 60 which is also invalid
+        if num_units == 3 and value[-2] == 60:  # If adding 1 to minutes makes minutes 60 which is also invalid
             value[-2] = 0
             value[-3] = value[-3] + 1
     # Build string

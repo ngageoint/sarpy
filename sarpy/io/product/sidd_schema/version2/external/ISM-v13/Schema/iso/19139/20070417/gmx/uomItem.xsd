@@ -133,10 +133,10 @@
     </xs:complexType>
     <!-- =========================================================================== -->
     <!-- =========================================================================== -->
-    <!--===================== Alternative Expresssion type ===============================-->
+    <!--===================== Alternative Expression type ===============================-->
     <xs:complexType name="UomAlternativeExpression_Type">
         <xs:annotation>
-            <xs:documentation>XML attributes contraints: - 1) Id is mandatory - 2) codeSpace (type xsd:anyURI) is mandatory</xs:documentation>
+            <xs:documentation>XML attributes constraints: - 1) Id is mandatory - 2) codeSpace (type xsd:anyURI) is mandatory</xs:documentation>
         </xs:annotation>
         <xs:complexContent>
             <xs:extension base="gml:UnitDefinitionType">

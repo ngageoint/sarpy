@@ -78,7 +78,7 @@ class DEMInterpolator(object):
 
     def get_min_hae(self, lat_lon_box=None):
         """
-        Get the minimum dem value with respct to HAE, which should be assumed
+        Get the minimum dem value with respect to HAE, which should be assumed
         **approximately** correct. This may possibly be with respect to some
         Area of Interest.
 

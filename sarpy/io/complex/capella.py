@@ -326,7 +326,7 @@ class CapellaDetails(object):
             else:
                 logger.warning(
                     'Got unexpected algorithm, the results for the '
-                    'sicd struture might be unexpected')
+                    'sicd structure might be unexpected')
 
             if algo not in ('PFA', 'RMA', 'RGAZCOMP'):
                 logger.warning(

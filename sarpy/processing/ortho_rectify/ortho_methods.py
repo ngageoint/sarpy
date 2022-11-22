@@ -776,7 +776,7 @@ class OrthorectificationHelper(object):
 
     def get_orthorectified_from_array(self, ortho_bounds, row_array, col_array, value_array):
         """
-        Construct the orthorecitified array covering the orthorectified region given by
+        Construct the orthorectified array covering the orthorectified region given by
         `ortho_bounds` based on the `values_array`, which spans the pixel region defined by
         `row_array` and `col_array`.
 

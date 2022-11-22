@@ -107,7 +107,7 @@ class ColorDisplayRemapType(Serializable, Arrayable):
 
     def get_array(self, dtype=numpy.uint8):
         """
-        Gets **a copy** of the coefficent array of specified data type.
+        Gets **a copy** of the coefficient array of specified data type.
 
         Parameters
         ----------
@@ -362,7 +362,7 @@ class MonitorCompensationAppliedType(Serializable):
 
 class DRAHistogramOverridesType(Serializable):
     """
-    Dynamic range adjustment overide parameters.
+    Dynamic range adjustment override parameters.
     """
     _fields = ('ClipMin', 'ClipMax')
     _required = ('ClipMin', 'ClipMax')

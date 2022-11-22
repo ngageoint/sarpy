@@ -105,7 +105,7 @@ def generic_nitf_header_test(instance, test_file):
                     graphics_bytes, graphics_sub.to_bytes(), msg='graphics subheader serializes and deserializes as expected')
 
 
-    # is each data extenson subheader working?
+    # is each data extension subheader working?
     if details.des_segment_offsets is not None:
         for i in range(details.des_segment_offsets.size):
             with instance.subTest('des subheader {} match'.format(i)):

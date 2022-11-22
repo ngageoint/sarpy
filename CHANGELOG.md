@@ -4,9 +4,15 @@ SarPy follows a continuous release process, so there are fairly frequent release
 Since essentially every (squash merge) commit corresponds to a release, specific 
 release points are not being annotated in GitHub.
 
+## [1.3.13] - 2022-11-21
+### Fixed
+- Fixed bug in correctly setting attribution for populate_nitf_information_into_sicd().
+### Changed
+- Changed links for SAR standards in the readme file, pointed links to the newest versions.  
+
 ## [1.3.12] - 2022-11-15
 ### Fixed
-- Fixed accuracy of TimeCOA and DeltaKCOA polygons for ICEYE Spotlight
+- Fixed accuracy of TimeCOA and DeltaKCOA polygons for ICEYE Spotlight.
 
 ## [1.3.11] - 2022-11-08
 ### Fixed
