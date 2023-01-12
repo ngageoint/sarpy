@@ -63,7 +63,7 @@ def get_node_value(nod: ElementTree.Element) -> Optional[str]:
 def create_new_node(
         doc: ElementTree.ElementTree,
         tag: str,
-        parent: Optional[ElementTree.Element]=None) -> ElementTree.Element:
+        parent: Optional[ElementTree.Element] = None) -> ElementTree.Element:
     """
     XML ElementTree node creation helper function.
 
@@ -96,7 +96,7 @@ def create_text_node(
         doc: ElementTree.ElementTree,
         tag: str,
         value: str,
-        parent: Optional[ElementTree.Element]=None) -> ElementTree.Element:
+        parent: Optional[ElementTree.Element] = None) -> ElementTree.Element:
     """
     XML ElementTree text node creation helper function
 
@@ -172,7 +172,7 @@ def find_children(node, tag, xml_ns, ns_key):
 
 def parse_xml_from_string(xml_string):
     """
-    Parse the ElementTree root node and xml namespace dict from an xml string.
+    Parse the ElementTree root node and xml namespace dict from a xml string.
 
     Parameters
     ----------
@@ -204,7 +204,7 @@ def parse_xml_from_string(xml_string):
 
 def parse_xml_from_file(xml_file_path):
     """
-    Parse the ElementTree root node and xml namespace dict from an xml file.
+    Parse the ElementTree root node and xml namespace dict from a xml file.
 
     Parameters
     ----------
@@ -223,7 +223,7 @@ def parse_xml_from_file(xml_file_path):
 
 def validate_xml_from_string(xml_string, xsd_path, output_logger=None):
     """
-    Validate an xml string against a given xsd document.
+    Validate a xml string against a given xsd document.
 
     Parameters
     ----------
@@ -261,7 +261,7 @@ def validate_xml_from_string(xml_string, xsd_path, output_logger=None):
 
 def validate_xml_from_file(xml_path, xsd_path, output_logger=None):
     """
-    Validate an xml string against a given xsd document.
+    Validate a xml string against a given xsd document.
 
     Parameters
     ----------
@@ -979,10 +979,10 @@ class Serializable(object):
             # verify that the xml namespace will work
             if xml_ns_key is not None:
                 if xml_ns is None:
-                    raise ValueError('Attribute {} in class {} expects an xml namespace entry of {}, '
+                    raise ValueError('Attribute {} in class {} expects a xml namespace entry of {}, '
                                      'but xml_ns is None.'.format(attribute, cls, xml_ns_key))
                 elif xml_ns_key not in xml_ns:
-                    raise ValueError('Attribute {} in class {} expects an xml namespace entry of {}, '
+                    raise ValueError('Attribute {} in class {} expects a xml namespace entry of {}, '
                                      'but xml_ns does not contain this key.'.format(attribute, cls, xml_ns_key))
 
             if attribute in cls._set_as_attribute:
@@ -1372,7 +1372,7 @@ class Serializable(object):
 
     def to_xml_string(self, urn=None, tag=None, check_validity=False, strict=DEFAULT_STRICT):
         """
-        Gets an xml string with utf-8 encoding, identified as using the namespace
+        Gets n xml string with utf-8 encoding, identified as using the namespace
         given by `urn` (if given).
 
         Parameters

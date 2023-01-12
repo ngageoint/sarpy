@@ -15,7 +15,7 @@ of the subpackages:
 - :mod:`sarpy.io.phase_history` - for CPHD images/data
 - :mod:`sarpy.io.received` - for CRSD images/data
 
-Each of these supackages contains an :meth:`open` function (aliased from the
+Each of these subpackages contains an :meth:`open` function (aliased from the
 `converter` module), which should open eligible files of ONLY their given type.
 For example, the :meth:`sarpy.io.complex.open` function will open a SICD or SLC
 products from Cosmo Skymed, RadarSat, Sentinel, etc, but **will not** open a
