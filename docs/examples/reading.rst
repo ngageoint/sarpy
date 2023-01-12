@@ -15,7 +15,7 @@ of the subpackages:
 - :mod:`sarpy.io.phase_history` - for CPHD images/data
 - :mod:`sarpy.io.received` - for CRSD images/data
 
-Each of these supackages contains an :meth:`open` function (aliased from the
+Each of these subpackages contains an :meth:`open` function (aliased from the
 `converter` module), which should open eligible files of ONLY their given type.
 For example, the :meth:`sarpy.io.complex.open` function will open a SICD or SLC
 products from Cosmo Skymed, RadarSat, Sentinel, etc, but **will not** open a
@@ -88,7 +88,7 @@ with basic usage as indicated by
     print('image size = {}'.format(reader.data_size))
     print('image size as tuple = {}'.format(reader.get_data_size_as_tuple()))
 
-Any reader retruned by this function should be an extension of the class
+Any reader returned by this function should be an extension of the class
 :class:`sarpy.io.product.base.SIDDTypeReader`.
 
 Some basic properties:
