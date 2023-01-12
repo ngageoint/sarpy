@@ -690,7 +690,7 @@ class DTEDInterpolator(DEMInterpolator):
 
     def _get_elevation_geoid(self, lat, lon):
         out = numpy.full(lat.shape, numpy.nan, dtype=numpy.float64)
-        remaining = numpy.ones(lat.shape, dtype=numpy.bool)
+        remaining = numpy.ones(lat.shape, dtype=numpy.bool_)
         for reader in self._readers:
             if not numpy.any(remaining):
                 break

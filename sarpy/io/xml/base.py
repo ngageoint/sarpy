@@ -979,10 +979,10 @@ class Serializable(object):
             # verify that the xml namespace will work
             if xml_ns_key is not None:
                 if xml_ns is None:
-                    raise ValueError('Attribute {} in class {} expects an xml namespace entry of {}, '
+                    raise ValueError('Attribute {} in class {} expects a xml namespace entry of {}, '
                                      'but xml_ns is None.'.format(attribute, cls, xml_ns_key))
                 elif xml_ns_key not in xml_ns:
-                    raise ValueError('Attribute {} in class {} expects an xml namespace entry of {}, '
+                    raise ValueError('Attribute {} in class {} expects a xml namespace entry of {}, '
                                      'but xml_ns does not contain this key.'.format(attribute, cls, xml_ns_key))
 
             if attribute in cls._set_as_attribute:
