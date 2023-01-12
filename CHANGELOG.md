@@ -4,7 +4,7 @@ SarPy follows a continuous release process, so there are fairly frequent release
 Since essentially every (squash merge) commit corresponds to a release, specific 
 release points are not being annotated in GitHub.
 
-## [1.3.13] - 2022-11-21
+## [1.3.14] - 2022-11-21
 ### Fixed
 - Updated deprecated numpy.bool usage
 ### Changed
