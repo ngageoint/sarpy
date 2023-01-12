@@ -6,12 +6,6 @@ release points are not being annotated in GitHub.
 
 ## [1.3.13] - 2022-11-21
 ### Fixed
-- Updated deprecated numpy.bool usage
-### Changed
-- Updated documentation on the usage of the CPHD consistency check. 
-
-## [1.3.13] - 2022-11-21
-### Fixed
 - Fixed bug in correctly setting attribution for populate_nitf_information_into_sicd().
 ### Changed
 - Changed links for SAR standards in the readme file, pointed links to the newest versions.  
