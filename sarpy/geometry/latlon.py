@@ -148,8 +148,8 @@ def dms(degrees):
     degrees_int = int(abs(degrees))	 # integer degrees
     degrees_frac = abs(degrees) - degrees_int  # fractional degrees, used to compute minutes
     minutes_int = float(int(degrees_frac * 60))  # integer minutes
-    minutes_frac = degrees_frac - minutes_int / 60  # fractional minutes, used to compute seconds
-    seconds = minutes_frac * 3600  # decimal seconds
+    minutes_frac = degrees_frac * 60 - minutes_int  # fractional minutes, used to compute seconds
+    seconds = minutes_frac * 60  # decimal seconds
 
     # Handle sign.  Degrees portion will contain the sign of the coordinate.
     # Minutes and seconds will always be positive.
