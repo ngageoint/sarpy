@@ -879,3 +879,46 @@ def test_refgeom_bad_bistatic():
 
     cphd_con.check('check_refgeom_bistatic')
     assert len(cphd_con.failures()) > 0
+
+
+@pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
+def test_check_identifier_uniqueness():
+    cphd_con = CphdConsistency.from_file(GOOD_CPHD)
+    dwelltime = cphd_con.xml.find('./Dwell/DwellTime')
+    dwelltime.getparent().append(copy.deepcopy(dwelltime))
+    cphd_con.check('check_identifier_uniqueness')
+    assert cphd_con.failures()
+
+
+def _invalidate_order(xml):
+    poly_2d = xml.find('./Dwell/CODTime/CODTimePoly')
+    poly_2d.find('./Coef').set('exponent1', '1' + poly_2d.get('order1'))
+
+
+def _invalidate_coef_uniqueness(xml):
+    poly_2d = xml.find('./Dwell/DwellTime/DwellTimePoly')
+    poly_2d.append(copy.deepcopy(poly_2d.find('./Coef')))
+
+
+@pytest.mark.parametrize('invalidate_func', [_invalidate_order, _invalidate_coef_uniqueness])
+@pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
+def test_check_polynomials(invalidate_func):
+    cphd_con = CphdConsistency.from_file(GOOD_CPHD)
+    invalidate_func(cphd_con.xml)
+    cphd_con.check('check_polynomials')
+    assert cphd_con.failures()
+
+
+@pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
+def test_check_channel_normal_signal_pvp(xml_with_signal_normal):
+    pvps, root, nsmap = xml_with_signal_normal
+    cphd_con = CphdConsistency(
+        root, pvps=pvps, header=None, filename=None, check_signal_data=False)
+    channel_pvps = next(iter(cphd_con.pvps.values()))
+    channel_pvps['SIGNAL'][:] = 0
+    cphd_con.check(ignore_patterns=['check_(?!channel_normal_signal_pvp.+)'])
+    assert cphd_con.failures()
+
+    channel_pvps['SIGNAL'][::2] = 1
+    cphd_con.check(ignore_patterns=['check_(?!channel_normal_signal_pvp.+)'])
+    assert not cphd_con.failures()
