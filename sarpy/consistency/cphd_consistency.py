@@ -11,6 +11,7 @@ __author__ = "Nathan Bombaci, Valkyrie"
 import logging
 import argparse
 import collections
+import copy
 import functools
 import itertools
 import numbers
@@ -27,7 +28,7 @@ import sarpy.consistency.consistency as con
 import sarpy.consistency.parsers as parsers
 import sarpy.io.phase_history.cphd1_elements.CPHD
 import sarpy.io.phase_history.cphd1_elements.utils as cphd1_utils
-from sarpy.io.phase_history.cphd_schema import get_schema_path, get_default_version_string
+from sarpy.io.phase_history import cphd_schema
 
 logger = logging.getLogger(__name__)
 
@@ -62,8 +63,6 @@ except ImportError:
 
 
 INVALID_CHAR_REGEX = re.compile(r'\W')
-DEFAULT_VERSION = '1.0.1'
-DEFAULT_SCHEMA = get_schema_path(DEFAULT_VERSION)
 
 
 def strip_namespace(root):
@@ -81,17 +80,18 @@ def strip_namespace(root):
         The element tree
     """
 
+    root_copy = copy.deepcopy(root)
     # strip namespace from each element
-    for elem in root.iter():
+    for elem in root_copy.iter():
         try:
             elem.tag = elem.tag.split('}')[-1]
         except (AttributeError, TypeError):
             pass
     # remove default namespace
-    nsmap = root.nsmap
+    nsmap = root_copy.nsmap
     nsmap.pop(None, None)
-    new_root = etree.Element(root.tag, nsmap)
-    new_root[:] = root[:]
+    new_root = etree.Element(root_copy.tag, nsmap)
+    new_root[:] = root_copy[:]
 
     return new_root
 
@@ -147,7 +147,7 @@ def read_header(file_handle):
     assert version.startswith('CPHD/1.0') or version.startswith('CPHD/1.1')
 
     header = sarpy.io.phase_history.cphd1_elements.CPHD.CPHDHeader.from_file_object(file_handle)
-    return {k:getattr(header, k) for k in header._fields if getattr(header, k) is not None}
+    return {k: getattr(header, k) for k in header._fields if getattr(header, k) is not None}
 
 
 def per_channel(method):
@@ -206,19 +206,24 @@ class CphdConsistency(con.ConsistencyChecker):
     filename : None|str
         Path to CPHD file (or None if not available)
     schema : str
-        Path to CPHD XML Schema
+        Path to CPHD XML Schema. If None, tries to find a version-specific schema
     check_signal_data: bool
         Should the signal array be checked for invalid values
     """
 
-    def __init__(self, cphdroot, pvps, header, filename, schema, check_signal_data):
+    def __init__(self, cphdroot, pvps, header, filename, schema=None, check_signal_data=False):
         super(CphdConsistency, self).__init__()
-        self.xml = strip_namespace(etree.fromstring(etree.tostring(cphdroot)))
-        self.xml_with_ns = cphdroot
+        self.xml_with_ns = etree.fromstring(etree.tostring(cphdroot))  # handle element or tree -> element
+        self.xml = strip_namespace(self.xml_with_ns)
         self.pvps = pvps
         self.filename = filename
         self.header = header
-        self.schema = schema
+        self.version = self._version_lookup()
+        if schema is None and self.version is not None:
+            urn = {v['release']: k for k, v in cphd_schema.urn_mapping.items()}[self.version]
+            self.schema = cphd_schema.get_schema_path(urn)
+        else:
+            self.schema = schema
         self.check_signal_data = check_signal_data
         channel_ids = [x.text for x in self.xml.findall('./Data/Channel/Identifier')]
 
@@ -237,7 +242,7 @@ class CphdConsistency(con.ConsistencyChecker):
                 self.funcs[index:index+1] = subfuncs
 
     @classmethod
-    def from_file(cls, filename, schema, check_signal_data):
+    def from_file(cls, filename, schema=None, check_signal_data=False):
         """
         Create a CphdConsistency object from a CPHD file.
 
@@ -246,7 +251,7 @@ class CphdConsistency(con.ConsistencyChecker):
         filename : str
             Path to CPHD file
         schema : str
-            Path to CPHD XML schema
+            Path to CPHD XML Schema. If None, tries to find a version-specific schema
         check_signal_data : bool
             Should the signal array be checked for invalid values
 
@@ -285,6 +290,32 @@ class CphdConsistency(con.ConsistencyChecker):
                                              offset=int(channel_node.findtext('./PVPArrayByteOffset')))
                 pvps[channel_id] = channel_pvps
         return cls(cphdroot, pvps, header, filename, schema=schema, check_signal_data=check_signal_data)
+
+    def _version_lookup(self):
+        """
+        Returns the version string associated with the XML instance or None if a match is not found.
+        """
+        this_ns = etree.QName(self.xml_with_ns).namespace
+        if this_ns is None:
+            return None
+        for schema_info in cphd_schema.urn_mapping.values():
+            schema_path = schema_info.get('schema')
+            if schema_path is not None and this_ns == etree.parse(schema_path).getroot().get('targetNamespace'):
+                return schema_info['release']
+
+    def check_file_type_header(self):
+        """
+        Version in File Type Header matches the version in the XML.
+        """
+        with self.precondition():
+            assert self.version is not None
+            assert self.filename is not None
+            with open(self.filename, 'rb') as fd:
+                first_line = fd.readline().decode()
+            assert first_line.startswith('CPHD/')
+            file_type_header_version = first_line.removeprefix('CPHD/').removesuffix('\n')
+            with self.need("version in File Type Header matches the version in the XML"):
+                assert self.version == file_type_header_version
 
     def check_header_keys(self):
         """
@@ -325,10 +356,9 @@ class CphdConsistency(con.ConsistencyChecker):
         The XML matches the schema.
         """
 
-        with self.precondition():
+        with self.need(f"Schema available for checking xml whose root tag = {self.xml_with_ns.tag}"):
             assert self.schema is not None
-            with open(self.schema, mode='rb') as schema_file:
-                schema = etree.XMLSchema(etree.parse(schema_file))
+            schema = etree.XMLSchema(file=str(self.schema))
 
             with self.need("XML passes schema"):
                 assert schema.validate(self.xml_with_ns), schema.error_log
@@ -1578,9 +1608,13 @@ def main(args=None):
     parser.add_argument('cphd_or_xml')
     parser.add_argument('-v', '--verbose', default=0,
                         action='count', help="Increase verbosity (can be specified more than once >4 doesn't help)")
-    parser.add_argument('--schema', help="Use a supplied schema file", default=DEFAULT_SCHEMA)
-    parser.add_argument('--noschema', action='store_const', const=None, dest='schema', help="Disable schema checks")
+    parser.add_argument('--schema', help="Use a supplied schema file (attempts version-specific schema if omitted)")
+    parser.add_argument('--noschema', action='append_const', const='check_against_schema', dest='ignore',
+                        help="Disable schema checks")
     parser.add_argument('--signal-data', action='store_true', help="Check the signal data for NaN and +/- Inf")
+    parser.add_argument('--ignore', action='extend', nargs='+', metavar='PATTERN',
+                        help=("Skip any check matching PATTERN at the beginning of its name. Can be specified more than"
+                              " once."))
     config = parser.parse_args(args)
 
     # Some questionable abuse of the pytest internals
@@ -1600,7 +1634,7 @@ def main(args=None):
     exec(co, ns)
 
     cphd_con = ns['CphdConsistency'].from_file(config.cphd_or_xml, config.schema, config.signal_data)
-    cphd_con.check()
+    cphd_con.check(ignore_patterns=config.ignore)
     failures = cphd_con.failures()
     cphd_con.print_result(fail_detail=config.verbose >= 1,
                           include_passed_asserts=config.verbose >= 2,

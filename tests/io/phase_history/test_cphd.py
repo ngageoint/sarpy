@@ -9,12 +9,8 @@ import numpy.testing
 from sarpy.io.phase_history.cphd import CPHDReader, CPHDReader0_3, CPHDReader1, CPHDWriter1
 from sarpy.io.phase_history.converter import open_phase_history
 import sarpy.consistency.cphd_consistency
-from sarpy.io.phase_history.cphd_schema import get_schema_path, get_default_version_string
 
 from tests import parse_file_entry
-
-DEFAULT_VERSION = get_default_version_string()
-DEFAULT_SCHEMA = get_schema_path(DEFAULT_VERSION)
 
 cphd_file_types = {}
 
@@ -142,7 +138,7 @@ def generic_writer_test(cphd_reader, the_directory):
     for signal_key in reread_signal:
         numpy.testing.assert_array_equal(read_signal[signal_key], reread_signal[signal_key])
 
-    assert not sarpy.consistency.cphd_consistency.main([written_cphd_name, '--schema', DEFAULT_SCHEMA, '--signal-data'])
+    assert not sarpy.consistency.cphd_consistency.main([written_cphd_name, '--signal-data'])
 
 
 class TestCPHD(unittest.TestCase):

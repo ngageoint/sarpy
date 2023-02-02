@@ -11,6 +11,7 @@ __author__ = "Nathan Bombaci, Valkyrie"
 import collections
 import contextlib
 import linecache
+import re
 import sys
 import textwrap
 from typing import List, Dict, Callable
@@ -66,7 +67,7 @@ class ConsistencyChecker(object):
         attrs = [getattr(self, name) for name in sorted(names)]
         self.funcs = [attr for attr in attrs if hasattr(attr, '__call__')]
 
-    def check(self, func_name=None):
+    def check(self, func_name=None, *, ignore_patterns=None):
         """
         Run checks.
 
@@ -75,6 +76,8 @@ class ConsistencyChecker(object):
         func_name: None|str|List[str]
             List of check functions to run.  If omitted, then all check functions
             will be run.
+        ignore_patterns: list-like of str
+            Skips tests if zero or more characters at the beginning of their name match the regular expression patterns
         """
         # run specified test(s) or all of them
         if func_name is None:
@@ -88,6 +91,9 @@ class ConsistencyChecker(object):
                 raise ValueError("Functions not found: {}".format(not_found))
 
             funcs = [func for func in self.funcs if func.__name__ in func_name]
+
+        for pattern in (ignore_patterns or []):
+            funcs = [func for func in funcs if not re.match(pattern, func.__name__)]
 
         for func in funcs:
             self._run_check(func)

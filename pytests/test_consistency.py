@@ -127,10 +127,28 @@ def test_all(dummycon, capsys):
 
 def test_one(dummycon):
     dummycon.check('check_need_pass')
+    assert not dummycon.failures()
 
 
 def test_multiple(dummycon):
     dummycon.check(['check_need_pass', 'check_need_fail'])
+    assert set(dummycon.failures()) == {'check_need_fail'}
+    assert set(dummycon.all()).difference(dummycon.failures()) == {'check_need_pass'}
+
+
+def test_check_with_ignore_pattern(dummycon):
+    # all checks must start with check_
+    dummycon.check(ignore_patterns=['check_'])
+    assert set(dummycon.all()) == set()
+
+
+@pytest.mark.parametrize('should_ignore', [True, False])
+def test_check_with_ignore_specific(dummycon, should_ignore):
+    test_name = 'check_exception'
+    ignore_patterns = [test_name] if should_ignore else []
+    dummycon.check(ignore_patterns=ignore_patterns)
+    was_tested = (test_name in dummycon.all())
+    assert was_tested != should_ignore
 
 
 def test_invalid(dummycon):

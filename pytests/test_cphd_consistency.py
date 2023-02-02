@@ -5,6 +5,7 @@
 #
 
 import copy
+import importlib.util
 import os
 import re
 import shutil
@@ -17,7 +18,6 @@ import pytest
 from sarpy.consistency.cphd_consistency import main, CphdConsistency, \
     read_header, strip_namespace
 
-from sarpy.io.phase_history.cphd_schema import get_schema_path
 
 TEST_FILE_NAMES = {
     'simple': 'spotlight_example.cphd',
@@ -36,7 +36,9 @@ if TEST_FILE_ROOT is not None:
 GOOD_CPHD = TEST_FILE_PATHS.get('simple', None)
 BISTATIC_CPHD = TEST_FILE_PATHS.get('bistatic', None)
 ANTENNA_CPHD = TEST_FILE_PATHS.get('has_antenna', None)
-DEFAULT_SCHEMA = get_schema_path('1.0.1')
+
+HAVE_NETWORKX = importlib.util.find_spec('networkx') is not None
+HAVE_SHAPELY = importlib.util.find_spec('shapely') is not None
 
 
 def make_elem(tag, text=None, children=None, namespace=None, attributes=None, **attrib):
@@ -144,7 +146,7 @@ def copy_xml(elem):
 
 @pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
 def test_from_file_cphd():
-    cphdcon = CphdConsistency.from_file(str(GOOD_CPHD), DEFAULT_SCHEMA, True)
+    cphdcon = CphdConsistency.from_file(str(GOOD_CPHD), check_signal_data=True)
     assert isinstance(cphdcon, CphdConsistency)
     cphdcon.check()
     assert len(cphdcon.failures()) == 0
@@ -156,7 +158,7 @@ def test_from_file_xml(good_xml_str, tmpdir):
     with open(xml_file, 'w') as fid:
         fid.write(good_xml_str)
 
-    cphdcon = CphdConsistency.from_file(str(xml_file), DEFAULT_SCHEMA, False)
+    cphdcon = CphdConsistency.from_file(str(xml_file), check_signal_data=False)
     assert isinstance(cphdcon, CphdConsistency)
     cphdcon.check()
     assert len(cphdcon.failures()) == 0
@@ -164,8 +166,7 @@ def test_from_file_xml(good_xml_str, tmpdir):
 
 @pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
 def test_main(good_xml_str, tmpdir):
-    assert not main([str(GOOD_CPHD), '--schema', DEFAULT_SCHEMA, '--signal-data'])
-    assert not main([str(GOOD_CPHD), '--noschema'])
+    assert not main([str(GOOD_CPHD), '--signal-data'])
     assert not main([str(GOOD_CPHD)])
 
     xml_file = os.path.join(tmpdir, 'cphd.xml')
@@ -174,9 +175,50 @@ def test_main(good_xml_str, tmpdir):
     assert not main([str(xml_file), '-v'])
 
 
+@pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
+def test_main_with_ignore(good_xml, tmpdir):
+    good_xml['with_ns'].find('./ns:Global/ns:SGN', namespaces=good_xml['nsmap']).text += '1'
+    slightly_bad_xml = os.path.join(tmpdir, 'slightly_bad.xml')
+    etree.ElementTree(good_xml['with_ns']).write(str(slightly_bad_xml))
+    assert main([slightly_bad_xml])
+    assert not main([slightly_bad_xml, '--ignore', 'check_against_schema'])
+
+
+@pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
+def test_main_schema_args():
+    good_schema = CphdConsistency.from_file(GOOD_CPHD).schema
+    assert main([str(GOOD_CPHD), '--schema', str(GOOD_CPHD)])  # fails with bogus schema
+    assert not main([str(GOOD_CPHD), '--schema', good_schema])  # pass with actual schema
+    assert not main([str(GOOD_CPHD), '--schema', str(GOOD_CPHD), '--noschema'])  # skips schema
+
+
 @pytest.mark.parametrize('cphd_file', TEST_FILE_PATHS.values())
 def test_main_each_file(cphd_file):
     assert not main([cphd_file])
+
+
+@pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
+def test_check_file_type_header(tmpdir):
+    bad_cphd = os.path.join(tmpdir, 'bad.cphd')
+    with open(GOOD_CPHD, 'rb') as orig_file, open(bad_cphd, 'wb') as out_file:
+        orig_header = orig_file.readline()
+        orig_version_length = len(orig_header) - len('CPHD/') - 1
+        assert orig_version_length > 3
+        out_file.write(f"CPHD/1.0{'Q' * (orig_version_length - 3)}\n".encode())
+        shutil.copyfileobj(orig_file, out_file)
+
+    cphd_con = CphdConsistency.from_file(bad_cphd)
+    cphd_con.check('check_file_type_header')
+    assert cphd_con.failures()
+
+
+@pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
+def test_schema_available(good_xml_str):
+    xml_str_with_unknown_ns = re.sub(r'<CPHD xmlns="[^"]+">', '<CPHD xmlns="bad_ns">', good_xml_str)
+    root_elem = etree.fromstring(xml_str_with_unknown_ns)
+    cphd_con = CphdConsistency(root_elem, pvps={}, header=None, filename=None)
+    cphd_con.check('check_against_schema')
+    assert cphd_con.failures()
 
 
 @pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
@@ -185,7 +227,7 @@ def test_xml_schema_error(good_xml):
 
     remove_nodes(*bad_xml.xpath('./ns:Global/ns:DomainType', namespaces=good_xml['nsmap']))
     cphd_con = CphdConsistency(
-        bad_xml, pvps={}, header=None, filename=None, schema=DEFAULT_SCHEMA, check_signal_data=False)
+        bad_xml, pvps={}, header=None, filename=None, check_signal_data=False)
     cphd_con.check('check_against_schema')
     assert len(cphd_con.failures()) > 0
 
@@ -196,9 +238,9 @@ def test_check_unconnected_ids_severed_node(good_xml):
 
     bad_xml.find('./Dwell/CODTime/Identifier').text += '-make-bad'
     cphd_con = CphdConsistency(
-        bad_xml, pvps={}, header=good_header, filename=None, schema=DEFAULT_SCHEMA, check_signal_data=False)
+        bad_xml, pvps={}, header=good_header, filename=None, check_signal_data=False)
     cphd_con.check('check_unconnected_ids')
-    assert len(cphd_con.failures()) > 0
+    assert (len(cphd_con.failures()) > 0) == HAVE_NETWORKX
 
 
 @pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
@@ -211,9 +253,9 @@ def test_check_unconnected_ids_extra_node(good_xml):
     first_acf.getparent().append(extra_acf)
 
     cphd_con = CphdConsistency(
-        bad_xml, pvps={}, header=good_header, filename=None, schema=DEFAULT_SCHEMA, check_signal_data=False)
+        bad_xml, pvps={}, header=good_header, filename=None, check_signal_data=False)
     cphd_con.check('check_unconnected_ids')
-    assert len(cphd_con.failures()) > 0
+    assert (len(cphd_con.failures()) > 0) == HAVE_NETWORKX
 
 
 @pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
@@ -222,7 +264,7 @@ def test_check_classification_and_release_info_error(good_xml, good_header):
 
     bad_xml.find('./CollectionID/ReleaseInfo').text += '-make-bad'
     cphd_con = CphdConsistency(
-        bad_xml, pvps={}, header=good_header, filename=None, schema=DEFAULT_SCHEMA, check_signal_data=False)
+        bad_xml, pvps={}, header=good_header, filename=None, check_signal_data=False)
     cphd_con.check('check_classification_and_release_info')
     assert len(cphd_con.failures()) > 0
 
@@ -233,7 +275,7 @@ def test_error_in_check(good_xml):
     remove_nodes(*bad_xml.xpath('./ns:Channel/ns:Parameters/ns:DwellTimes/ns:CODId', namespaces=good_xml['nsmap']))
 
     cphd_con = CphdConsistency(
-        bad_xml, pvps={}, header=None, filename=None, schema=DEFAULT_SCHEMA, check_signal_data=False)
+        bad_xml, pvps={}, header=None, filename=None, check_signal_data=False)
     tocheck = []
     for chan_id in bad_xml.findall('./ns:Data/ns:Channel/ns:Identifier', namespaces=good_xml['nsmap']):
         tocheck.append('check_channel_dwell_exist_{}'.format(chan_id.text))
@@ -248,9 +290,9 @@ def test_polygon_size_error(good_xml):
     ia_polygon_node.attrib['size'] = "12345678890"
 
     cphd_con = CphdConsistency(
-        bad_xml, pvps={}, header=None, filename=None, schema=DEFAULT_SCHEMA, check_signal_data=False)
+        bad_xml, pvps={}, header=None, filename=None, check_signal_data=False)
     cphd_con.check('check_global_imagearea_polygon')
-    assert len(cphd_con.failures()) > 0
+    assert (len(cphd_con.failures()) > 0) == HAVE_SHAPELY
 
 
 @pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
@@ -263,9 +305,9 @@ def test_polygon_winding_error(good_xml):
         vertex.attrib['index'] = str(size - int(vertex.attrib['index']) + 1)
 
     cphd_con = CphdConsistency(
-        bad_xml, pvps={}, header=None, filename=None, schema=DEFAULT_SCHEMA, check_signal_data=False)
+        bad_xml, pvps={}, header=None, filename=None, check_signal_data=False)
     cphd_con.check('check_global_imagearea_polygon')
-    assert len(cphd_con.failures()) > 0
+    assert (len(cphd_con.failures()) > 0) == HAVE_SHAPELY
 
 
 @pytest.fixture
@@ -290,7 +332,7 @@ def test_signalnormal(xml_with_signal_normal):
     pvps, root, nsmap = xml_with_signal_normal
 
     cphd_con = CphdConsistency(
-        root, pvps=pvps, header=None, filename=None, schema=DEFAULT_SCHEMA, check_signal_data=False)
+        root, pvps=pvps, header=None, filename=None, check_signal_data=False)
 
     tocheck = ['check_channel_signalnormal_{}'.format(key) for key in pvps.keys()]
     cphd_con.check(tocheck)
@@ -304,7 +346,7 @@ def test_signalnormal_bad_pvp(xml_with_signal_normal):
     for idx, pvp in enumerate(pvps.values()):
         pvp['SIGNAL'][idx] = 0
     cphd_con = CphdConsistency(
-        root, pvps=pvps, header=None, filename=None, schema=DEFAULT_SCHEMA, check_signal_data=False)
+        root, pvps=pvps, header=None, filename=None, check_signal_data=False)
     tocheck = ['check_channel_signalnormal_{}'.format(key) for key in pvps.keys()]
     cphd_con.check(tocheck)
     assert len(cphd_con.failures()) == len(pvps)
@@ -312,13 +354,13 @@ def test_signalnormal_bad_pvp(xml_with_signal_normal):
     for norm_node in root.findall('./ns:Channel/ns:Parameters/ns:SignalNormal', namespaces=nsmap):
         norm_node.text = 'false'
     cphd_con = CphdConsistency(
-        root, pvps=pvps, header=None, filename=None, schema=DEFAULT_SCHEMA, check_signal_data=False)
+        root, pvps=pvps, header=None, filename=None, check_signal_data=False)
     cphd_con.check(tocheck)
     assert len(cphd_con.failures()) == 0
 
     no_sig_pvp = {name: np.zeros(pvp.shape, dtype=[('notsignal', 'i8')]) for name, pvp in pvps.items()}
     cphd_con = CphdConsistency(
-        root, pvps=no_sig_pvp, header=None, filename=None, schema=DEFAULT_SCHEMA, check_signal_data=False)
+        root, pvps=no_sig_pvp, header=None, filename=None, check_signal_data=False)
     cphd_con.check(tocheck)
     assert len(cphd_con.failures()) > 0
 
@@ -349,7 +391,7 @@ def test_fxfixed(xml_without_fxfixed):
     pvps, root, nsmap = xml_without_fxfixed
 
     cphd_con = CphdConsistency(
-        root, pvps=pvps, header=None, filename=None, schema=DEFAULT_SCHEMA, check_signal_data=False)
+        root, pvps=pvps, header=None, filename=None, check_signal_data=False)
 
     tocheck = ['check_channel_fxfixed_{}'.format(key) for key in pvps.keys()]
     tocheck.append('check_file_fxfixed')
@@ -383,7 +425,7 @@ def test_channel_toafixed(xml_without_toafixed):
     pvps, root, nsmap = xml_without_toafixed
 
     cphd_con = CphdConsistency(
-        root, pvps=pvps, header=None, filename=None, schema=DEFAULT_SCHEMA, check_signal_data=False)
+        root, pvps=pvps, header=None, filename=None, check_signal_data=False)
 
     tocheck = ['check_channel_toafixed_{}'.format(key) for key in pvps.keys()]
     tocheck.append('check_file_toafixed')
@@ -417,7 +459,7 @@ def test_channel_srpfixed(xml_without_srpfixed):
     pvps, root, nsmap = xml_without_srpfixed
 
     cphd_con = CphdConsistency(
-        root, pvps=pvps, header=None, filename=None, schema=DEFAULT_SCHEMA, check_signal_data=False)
+        root, pvps=pvps, header=None, filename=None, check_signal_data=False)
 
     tocheck = ['check_channel_srpfixed_{}'.format(key) for key in pvps.keys()]
     tocheck.append('check_file_srpfixed')
@@ -465,7 +507,7 @@ def test_txrcv(xml_with_txrcv):
     chan_ids, root, nsmap = xml_with_txrcv
 
     cphd_con = CphdConsistency(
-        root, pvps=None, header=None, filename=None, schema=DEFAULT_SCHEMA, check_signal_data=False)
+        root, pvps=None, header=None, filename=None, check_signal_data=False)
 
     tocheck = ['check_channel_txrcv_exist_{}'.format(key) for key in chan_ids]
     cphd_con.check(tocheck)
@@ -481,7 +523,7 @@ def test_txrcv_bad_txwfid(xml_with_txrcv):
     chan_param_node.xpath('./ns:TxRcv/ns:TxWFId', namespaces=nsmap)[-1].text = 'missing'
 
     cphd_con = CphdConsistency(
-        root, pvps=None, header=None, filename=None, schema=DEFAULT_SCHEMA, check_signal_data=False)
+        root, pvps=None, header=None, filename=None, check_signal_data=False)
 
     tocheck = ['check_channel_txrcv_exist_{}'.format(key) for key in chan_ids]
     cphd_con.check(tocheck)
@@ -494,7 +536,7 @@ def test_antenna_bad_acf_count(good_xml):
     antenna_node = root.find('./ns:Antenna', namespaces=good_xml['nsmap'])
     antenna_node.xpath('./ns:NumACFs', namespaces=good_xml['nsmap'])[-1].text += '2'
     cphd_con = CphdConsistency(
-        root, pvps=None, header=None, filename=None, schema=DEFAULT_SCHEMA, check_signal_data=False)
+        root, pvps=None, header=None, filename=None, check_signal_data=False)
     cphd_con.check('check_antenna')
     assert len(cphd_con.failures()) > 0
 
@@ -505,7 +547,7 @@ def test_antenna_bad_apc_count(good_xml):
     antenna_node = root.find('./ns:Antenna', namespaces=good_xml['nsmap'])
     antenna_node.xpath('./ns:NumAPCs', namespaces=good_xml['nsmap'])[-1].text += '2'
     cphd_con = CphdConsistency(
-        root, pvps=None, header=None, filename=None, schema=DEFAULT_SCHEMA, check_signal_data=False)
+        root, pvps=None, header=None, filename=None, check_signal_data=False)
     cphd_con.check('check_antenna')
     assert len(cphd_con.failures()) > 0
 
@@ -516,7 +558,7 @@ def test_antenna_bad_antpats_count(good_xml):
     antenna_node = root.find('./ns:Antenna', namespaces=good_xml['nsmap'])
     antenna_node.xpath('./ns:NumAntPats', namespaces=good_xml['nsmap'])[-1].text += '2'
     cphd_con = CphdConsistency(
-        root, pvps=None, header=None, filename=None, schema=DEFAULT_SCHEMA, check_signal_data=False)
+        root, pvps=None, header=None, filename=None, check_signal_data=False)
     cphd_con.check('check_antenna')
     assert len(cphd_con.failures()) > 0
 
@@ -527,7 +569,7 @@ def test_antenna_non_matching_acfids(good_xml):
     antenna_node = root.find('./ns:Antenna', namespaces=good_xml['nsmap'])
     antenna_node.xpath('./ns:AntPhaseCenter/ns:ACFId', namespaces=good_xml['nsmap'])[-1].text += '_wrong'
     cphd_con = CphdConsistency(
-        root, pvps=None, header=None, filename=None, schema=DEFAULT_SCHEMA, check_signal_data=False)
+        root, pvps=None, header=None, filename=None, check_signal_data=False)
     cphd_con.check('check_antenna')
     assert len(cphd_con.failures())
 
@@ -541,7 +583,7 @@ def test_txrcv_bad_rcvid(xml_with_txrcv):
     chan_param_node.xpath('./ns:TxRcv/ns:RcvId', namespaces=nsmap)[-1].text = 'missing'
 
     cphd_con = CphdConsistency(
-        root, pvps=None, header=None, filename=None, schema=DEFAULT_SCHEMA, check_signal_data=False)
+        root, pvps=None, header=None, filename=None, check_signal_data=False)
 
     tocheck = ['check_channel_txrcv_exist_{}'.format(key) for key in chan_ids]
     cphd_con.check(tocheck)
@@ -557,7 +599,7 @@ def test_txrcv_missing_channel_node(xml_with_txrcv):
     remove_nodes(*chan_param_node.findall('./ns:TxRcv', nsmap))
 
     cphd_con = CphdConsistency(
-        root, pvps=None, header=None, filename=None, schema=DEFAULT_SCHEMA, check_signal_data=False)
+        root, pvps=None, header=None, filename=None, check_signal_data=False)
 
     cphd_con.check('check_txrcv_ids_in_channel')
     assert len(cphd_con.failures()) > 0
@@ -590,7 +632,7 @@ def test_fxbwnoise(xml_with_fxbwnoise):
     pvps, root, nsmap = xml_with_fxbwnoise
 
     cphd_con = CphdConsistency(
-        root, pvps=pvps, header=None, filename=None, schema=DEFAULT_SCHEMA, check_signal_data=False)
+        root, pvps=pvps, header=None, filename=None, check_signal_data=False)
 
     tocheck = ['check_channel_fxbwnoise_{}'.format(key) for key in pvps.keys()]
     cphd_con.check(tocheck)
@@ -604,7 +646,7 @@ def test_fxbwnoise_bad_domain(xml_with_fxbwnoise):
     root.find('./ns:Global/ns:DomainType', namespaces=nsmap).text = 'TOA'
 
     cphd_con = CphdConsistency(
-        root, pvps=pvps, header=None, filename=None, schema=DEFAULT_SCHEMA, check_signal_data=False)
+        root, pvps=pvps, header=None, filename=None, check_signal_data=False)
 
     tocheck = ['check_channel_fxbwnoise_{}'.format(key) for key in pvps.keys()]
     cphd_con.check(tocheck)
@@ -619,7 +661,7 @@ def test_fxbwnoise_bad_value(xml_with_fxbwnoise):
     pvps[chan_id]['FXN1'][0] = 0.5
 
     cphd_con = CphdConsistency(
-        root, pvps=pvps, header=None, filename=None, schema=DEFAULT_SCHEMA, check_signal_data=False)
+        root, pvps=pvps, header=None, filename=None, check_signal_data=False)
 
     tocheck = ['check_channel_fxbwnoise_{}'.format(key) for key in pvps.keys()]
     cphd_con.check(tocheck)
@@ -647,7 +689,7 @@ def test_geoinfo_polygons(good_xml):
     ]))
 
     cphd_con = CphdConsistency(
-        root, pvps=None, header=None, filename=None, schema=DEFAULT_SCHEMA, check_signal_data=False)
+        root, pvps=None, header=None, filename=None, check_signal_data=False)
 
     cphd_con.check('check_geoinfo_polygons')
     assert len(cphd_con.failures()) == 0
@@ -674,10 +716,11 @@ def test_geoinfo_polygons_bad_order(good_xml):
     ]))
 
     cphd_con = CphdConsistency(
-        root, pvps=None, header=None, filename=None, schema=DEFAULT_SCHEMA, check_signal_data=False)
+        root, pvps=None, header=None, filename=None, check_signal_data=False)
 
     cphd_con.check('check_geoinfo_polygons')
-    assert len(cphd_con.failures()) > 0
+    assert (len(cphd_con.failures()) > 0) == HAVE_SHAPELY
+
 
 @pytest.fixture
 def xml_with_channel_imagearea(good_xml):
@@ -723,7 +766,7 @@ def test_channel_image_area(xml_with_channel_imagearea):
     root, nsmap = xml_with_channel_imagearea
 
     cphd_con = CphdConsistency(
-        root, pvps=None, header=None, filename=None, schema=DEFAULT_SCHEMA, check_signal_data=False)
+        root, pvps=None, header=None, filename=None, check_signal_data=False)
 
     tocheck = []
     for chan_id in root.findall('./ns:Data/ns:Channel/ns:Identifier', namespaces=nsmap):
@@ -775,7 +818,7 @@ def test_extended_imagearea(xml_with_extendedarea):
     root, nsmap = xml_with_extendedarea
 
     cphd_con = CphdConsistency(
-        root, pvps=None, header=None, filename=None, schema=DEFAULT_SCHEMA, check_signal_data=False)
+        root, pvps=None, header=None, filename=None, check_signal_data=False)
 
     cphd_con.check(['check_extended_imagearea_polygon', 'check_extended_imagearea_x1y1_x2y2'])
     assert len(cphd_con.failures()) == 0
@@ -787,10 +830,10 @@ def test_extended_imagearea_polygon_bad_extent(xml_with_extendedarea):
     root.find('./ns:SceneCoordinates/ns:ExtendedArea/ns:X2Y2/ns:X', namespaces=nsmap).text = '2000'
 
     cphd_con = CphdConsistency(
-        root, pvps=None, header=None, filename=None, schema=DEFAULT_SCHEMA, check_signal_data=False)
+        root, pvps=None, header=None, filename=None, check_signal_data=False)
 
     cphd_con.check('check_extended_imagearea_polygon')
-    assert len(cphd_con.failures()) > 0
+    assert (len(cphd_con.failures()) > 0) == HAVE_SHAPELY
 
 
 @pytest.mark.skipif(ANTENNA_CPHD is None, reason="cphd test file not found")
@@ -799,7 +842,7 @@ def test_antenna_missing_channel_node(good_xml_with_antenna):
     remove_nodes(*bad_xml.findall('./Channel/Parameters/Antenna'))
 
     cphd_con = CphdConsistency(
-        bad_xml, pvps=None, header=None, filename=None, schema=DEFAULT_SCHEMA, check_signal_data=False)
+        bad_xml, pvps=None, header=None, filename=None, check_signal_data=False)
 
     cphd_con.check('check_antenna_ids_in_channel')
     assert len(cphd_con.failures()) > 0
@@ -808,7 +851,7 @@ def test_antenna_missing_channel_node(good_xml_with_antenna):
 @pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
 def test_refgeom_bad_root():
     cphd_con = CphdConsistency.from_file(
-        GOOD_CPHD, schema=DEFAULT_SCHEMA, check_signal_data=False)
+        GOOD_CPHD, check_signal_data=False)
     bad_node = cphd_con.xml.find('./ReferenceGeometry/SRPCODTime')
     bad_node.text = '24' + bad_node.text
 
@@ -819,7 +862,7 @@ def test_refgeom_bad_root():
 @pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
 def test_refgeom_bad_monostatic():
     cphd_con = CphdConsistency.from_file(
-        GOOD_CPHD, schema=DEFAULT_SCHEMA, check_signal_data=False)
+        GOOD_CPHD, check_signal_data=False)
     bad_node = cphd_con.xml.find('./ReferenceGeometry/Monostatic/AzimuthAngle')
     bad_node.text = str((float(bad_node.text) + 3) % 360)
 
@@ -830,7 +873,7 @@ def test_refgeom_bad_monostatic():
 @pytest.mark.skipif(BISTATIC_CPHD is None, reason="cphd test file not found")
 def test_refgeom_bad_bistatic():
     cphd_con = CphdConsistency.from_file(
-        BISTATIC_CPHD, schema=DEFAULT_SCHEMA, check_signal_data=False)
+        BISTATIC_CPHD, check_signal_data=False)
     bad_node = cphd_con.xml.find('./ReferenceGeometry/Bistatic/RcvPlatform/SlantRange')
     bad_node.text = '2' + bad_node.text
 
