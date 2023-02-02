@@ -10,7 +10,7 @@ from sarpy.geometry import latlon
 
 
 def test_string():
-    ll_str = latlon.string(33.92527777777778, 'lat') # float input
+    ll_str = latlon.string(33.92527777777778, 'lat')  # float input
     assert ll_str == '33°55\'31"N'
 
     ll_str = latlon.string(33, 'lat')
@@ -32,11 +32,11 @@ def test_string():
     ll_str = latlon.string(-33.92527777777778, 'lat')
     assert ll_str == '33°55\'31"S'
 
-    ll_str = latlon.string(np.array([33.0, 55.0, 31.0]), 'lat') # array input
+    ll_str = latlon.string(np.array([33.0, 55.0, 31.0]), 'lat')  # array input
     assert ll_str == '33°55\'31"N'
-    ll_str = latlon.string([33.0, 55.0, 31.0], 'lat') # list input
+    ll_str = latlon.string([33.0, 55.0, 31.0], 'lat')  # list input
     assert ll_str == '33°55\'31"N'
-    ll_str = latlon.string((33.0, 55.0, 31.0), 'lat') # tuple input
+    ll_str = latlon.string((33.0, 55.0, 31.0), 'lat')  # tuple input
     assert ll_str == '33°55\'31"N'
 
     ll_str = latlon.string(133.92527777777778, 'lon')
@@ -46,14 +46,15 @@ def test_string():
     ll_str = latlon.string(-133.92527777777778, 'lon')
     assert ll_str == '133°55\'31"W'
 
-    ll_str = latlon.string([33.0, 55.0, 60.0], 'lat') # seconds == 60
+    ll_str = latlon.string([33.0, 55.0, 60.0], 'lat')  # seconds == 60
     assert ll_str == '33°56\'00"N'
 
-    ll_str = latlon.string([33.0, 59.0, 60.0], 'lat') # seconds rollover to minutes == 60
+    ll_str = latlon.string([33.0, 59.0, 60.0], 'lat')  # seconds rollover to minutes == 60
     assert ll_str == '34°00\'00"N'
 
     ll_str = latlon.string(33.0, 'lat', padded=False)
     assert ll_str == '33°0\'0"N'
+
 
 def test_dms():
     deg, min, sec = latlon.dms(33.92527777777778)
@@ -65,6 +66,7 @@ def test_dms():
     assert deg == -33
     assert min == 55
     assert 31 == pytest.approx(sec, abs=1e-10)
+
 
 def test_num():
     ll_dec = latlon.num('33:55:31')
