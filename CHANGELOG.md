@@ -4,11 +4,17 @@ SarPy follows a continuous release process, so there are fairly frequent release
 Since essentially every (squash merge) commit corresponds to a release, specific 
 release points are not being annotated in GitHub.
 
+## [1.3.16] - 2023-02-02
+### Changed
+- Misleading naming/comment for DMS
+### Added
+- Tests for latlon.
+- 
 ## [1.3.15] - 2023-02-02
 ### Fixed
 - Fixed bug in intersection and bounding box code for geometry elements.
 ### Added
-- Pytests for geometry.
+- Tests for geometry.
 
 ## [1.3.14] - 2023-01-11
 ### Fixed
