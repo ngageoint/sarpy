@@ -1242,7 +1242,7 @@ class LineString(GeometryObject):
             return False
 
         for i in range(self.coordinates.shape[0] - 3):
-            for j in range(i+1, self.coordinates.shape[0] - 2):
+            for j in range(i+1, self.coordinates.shape[0] - 1):
                 result = _line_segments_intersect(
                     self.coordinates[i, :], self.coordinates[i+1, :], self.coordinates[j, :], self.coordinates[j+1, :])
                 if result:
@@ -1374,11 +1374,14 @@ class MultiLineString(GeometryObject):
         maxs = [None, ]*siz
         for line in self.lines:
             t_bbox = line.get_bbox()
+            num_mins = len(t_bbox)//2
             for i, entry in enumerate(t_bbox):
-                if mins[i] is None or entry < mins[i]:
-                    mins[i] = entry
-                if maxs[i] is None or entry > maxs[i]:
-                    maxs[i] = entry
+                if(i < num_mins):
+                    if mins[i] is None or entry < mins[i]:
+                        mins[i] = entry
+                else:
+                    if maxs[i-num_mins] is None or entry > maxs[i-num_mins]:
+                        maxs[i-num_mins] = entry
         mins.extend(maxs)
         return mins
 
@@ -2008,9 +2011,9 @@ class Polygon(GeometryObject):
                 if entry.self_intersection():
                     return True
 
-            for i in range(self.outer_ring.coordinates.shape[0] - 2):
+            for i in range(self.outer_ring.coordinates.shape[0] - 1):
                 for entry in self.inner_rings:
-                    for j in range(entry.coordinates.shape[0] - 2):
+                    for j in range(entry.coordinates.shape[0] - 1):
                         result = _line_segments_intersect(
                             self.outer_ring.coordinates[i, :], self.outer_ring.coordinates[i + 1, :],
                             entry.coordinates[j, :], entry.coordinates[j + 1, :])
@@ -2303,17 +2306,21 @@ class MultiPolygon(GeometryObject):
         maxs = []
         for polygon in self.polygons:
             t_bbox = polygon.get_bbox()
+            num_mins = len(t_bbox)//2
             for i, entry in enumerate(t_bbox):
-                if len(mins) < i:
-                    mins.append(entry)
-                elif entry < mins[i]:
-                    mins[i] = entry
-                if len(maxs) < i:
-                    maxs.append(entry)
-                elif entry > maxs[i]:
-                    maxs[i] = entry
+                if (i < num_mins):
+                    if len(mins) < num_mins:
+                        mins.append(entry)
+                    elif entry < mins[i]:
+                        mins[i] = entry
+                else:
+                    if len(maxs) < num_mins:
+                        maxs.append(entry)
+                    elif entry > maxs[i-num_mins]:
+                        maxs[i-num_mins] = entry
         mins.extend(maxs)
         return mins
+
 
     @classmethod
     def from_dict(cls, geometry):

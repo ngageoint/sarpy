@@ -62,10 +62,10 @@ setup(name=parameters['__title__'],
       url=parameters['__url__'],
       author=parameters['__author__'],
       author_email=parameters['__email__'],  # The primary POC
-      install_requires=['numpy>=1.11.0', 'scipy', 'pillow', 'lxml', 'matplotlib', 'h5py', 'smart_open[http]', 'pytest'],
+      install_requires=['numpy>=1.11.0', 'scipy'],
       zip_safe=False,  # Use of __file__ and __path__ in some code makes it unusable from zip
       test_suite="setup.my_test_suite",
-      tests_require=[],
+      tests_require=['pillow', 'lxml', 'matplotlib', 'h5py', 'smart_open[http]', 'pytest', 'networkx', 'shapely'],
       classifiers=[
           'Development Status :: 4 - Beta',
           'Intended Audience :: Developers',
