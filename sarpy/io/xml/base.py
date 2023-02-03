@@ -1372,7 +1372,7 @@ class Serializable(object):
 
     def to_xml_string(self, urn=None, tag=None, check_validity=False, strict=DEFAULT_STRICT):
         """
-        Gets n xml string with utf-8 encoding, identified as using the namespace
+        Gets a xml string with utf-8 encoding, identified as using the namespace
         given by `urn` (if given).
 
         Parameters

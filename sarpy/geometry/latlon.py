@@ -52,7 +52,7 @@ def string(value, latlon, num_units=3, precision=None, delimiter='',
         value = num(value)
     elif not isinstance(value, float):
         value = float(value)
-    # value should now be in in decimal degrees
+    # value should now be in decimal degrees
 
     # Precision.  Default is dependent on other input arguments.
     if precision is None:
@@ -100,7 +100,7 @@ def string(value, latlon, num_units=3, precision=None, delimiter='',
         value[i] = int(new_value)
         new_value = fraction*60
     value[-1] = value[-1] + fraction
-    if num_units > 1 and round(value[-1],precision) == 60:  # Seconds of 60 is invalid
+    if num_units > 1 and round(value[-1], precision) == 60:  # Seconds of 60 is invalid
         value[-1] = 0 
         value[-2] = value[-2] + 1
         if num_units == 3 and value[-2] == 60:  # If adding 1 to minutes makes minutes 60 which is also invalid
@@ -148,8 +148,8 @@ def dms(degrees):
     degrees_int = int(abs(degrees))	 # integer degrees
     degrees_frac = abs(degrees) - degrees_int  # fractional degrees, used to compute minutes
     minutes_int = float(int(degrees_frac * 60))  # integer minutes
-    minutes_frac = degrees_frac - minutes_int / 60  # fractional minutes, used to compute seconds
-    seconds = minutes_frac * 3600  # decimal seconds
+    minutes_frac = degrees_frac * 60 - minutes_int  # fractional minutes, used to compute seconds
+    seconds = minutes_frac * 60  # decimal seconds
 
     # Handle sign.  Degrees portion will contain the sign of the coordinate.
     # Minutes and seconds will always be positive.
