@@ -28,6 +28,7 @@ class TestRemoteSICD(unittest.TestCase):
         reader = None
         with self.subTest(msg='establish remote sicd reader'):
             reader = open_complex(file_object)
+            file_object.close()
             self.assertTrue(reader is not None, msg='Returned None, so opening failed.')
 
         if reader is None:
@@ -68,3 +69,4 @@ class TestRemoteSICD(unittest.TestCase):
                     msg='Verify fetching complete columns(s) have correct size for sicd index {}'.format(i)):
                 test_data = reader[:2, :, i]
                 self.assertEqual(test_data.shape, (2, data_size[1]), msg='Complete row fetch size mismatch')
+        reader.close()
