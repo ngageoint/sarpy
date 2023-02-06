@@ -70,3 +70,4 @@ class TestRemoteSICD(unittest.TestCase):
                 test_data = reader[:2, :, i]
                 self.assertEqual(test_data.shape, (2, data_size[1]), msg='Complete row fetch size mismatch')
         reader.close()
+        
