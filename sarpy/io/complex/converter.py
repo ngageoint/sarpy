@@ -238,7 +238,7 @@ class Converter(object):
         block_start = self._row_limits[0]
         while block_start < self._row_limits[1]:
             block_end = min(block_start + rows_per_block, self._row_limits[1])
-            data = self._reader[block_start:block_end, self._col_limits[0]:self._col_limits[1], self._frame]
+            data = self._reader[block_start:block_end, self._col_limits[0]:self._col_limits[1], self._frame, 'nosqueeze']
             self._writer.write_chip(data, start_indices=(block_start - self._row_limits[0], 0))
             logger.info('Done writing block {}-{} to file {}'.format(block_start, block_end, self._file_name))
             block_start = block_end

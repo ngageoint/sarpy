@@ -1,7 +1,6 @@
 import os
 import json
 import tempfile
-import shutil
 import unittest
 
 from sarpy.io.complex.converter import conversion_utility
@@ -54,11 +53,10 @@ class TestSICDWriting(unittest.TestCase):
                                     msg='SICD structure serialized from file {} is '
                                         'not valid versus schema {}'.format(fil, the_schema))
 
-            # create a temp directory
-            temp_directory = tempfile.mkdtemp()
-
             with self.subTest(msg='Test conversion (recreation) of the sicd file {}'.format(fil)):
-                conversion_utility(reader, temp_directory)
+                with tempfile.TemporaryDirectory() as tmpdirname:
+                    conversion_utility(reader, tmpdirname)
 
-            # clean up the temporary directory
-            shutil.rmtree(temp_directory)
+            with self.subTest(msg='Test writing a single row of the sicd file {}'.format(fil)):
+                with tempfile.TemporaryDirectory() as tmpdirname:
+                    conversion_utility(reader, tmpdirname, row_limits=(0,1))
