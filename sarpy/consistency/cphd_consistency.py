@@ -734,6 +734,25 @@ class CphdConsistency(con.ConsistencyChecker):
                         == np.nanmax(pvp['TOA2']) - np.nanmin(pvp['TOA1']))
 
     @per_channel
+    def check_channel_toaextsaved(self, channel_id, channel_node):
+        """
+        PVP agrees with TOAExtSaved.
+        """
+
+        toa_ext_saved_text = channel_node.findtext('./TOAExtended/TOAExtSaved')
+        has_toa_ext_saved = toa_ext_saved_text is not None
+        has_toae1 = self.xml.findtext('./PVP/TOAE1') is not None
+        has_toae2 = self.xml.findtext('./PVP/TOAE2') is not None
+        with self.want('TOA extended swath parameters are specified together'):
+            assert has_toa_ext_saved == has_toae1 == has_toae2
+        with self.precondition():
+            pvp = self._get_channel_pvps(channel_id)
+            assert has_toa_ext_saved
+            assert {'TOAE1', 'TOAE2'}.issubset(pvp.dtype.fields)
+            with self.need("TOAExtSaved is max(TOAE2) - min(TOAE1)"):
+                assert con.Approx(float(toa_ext_saved_text)) == np.nanmax(pvp['TOAE2']) - np.nanmin(pvp['TOAE1'])
+
+    @per_channel
     def check_channel_global_txtime(self, channel_id, channel_node):
         """
         PVP within global TxTime1 and TxTime2.
@@ -1267,6 +1286,27 @@ class CphdConsistency(con.ConsistencyChecker):
         for element_path in poly_paths:
             for poly in self.xml.findall(element_path):
                 check_poly(poly)
+
+    def check_optional_pvps_fx(self):
+        """
+        FXN1 & FXN2 PVPs are included appropriately.
+        """
+
+        is_fx_domain = self.xml.findtext('./Global/DomainType') == 'FX'
+        has_fxn1 = self.xml.findtext('./PVP/FXN1') is not None
+        has_fxn2 = self.xml.findtext('./PVP/FXN2') is not None
+        with self.need('FXN1/FXN2 only allowed when /Global/DomainType = FX and must be included together'):
+            assert not(has_fxn1 or has_fxn2) or (is_fx_domain and has_fxn1 and has_fxn2)
+
+    def check_optional_pvps_toa(self):
+        """
+        TOAE1 & TOAE2 PVPs are included appropriately.
+        """
+
+        has_toae1 = self.xml.findtext('./PVP/TOAE1') is not None
+        has_toae2 = self.xml.findtext('./PVP/TOAE2') is not None
+        with self.need('TOAE1/TOAE2 must be included together'):
+            assert has_toae1 == has_toae2
 
 
 def _get_repeated_elements(items):

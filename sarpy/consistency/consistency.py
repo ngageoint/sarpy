@@ -282,6 +282,30 @@ class ConsistencyChecker(object):
                     retval[k]['details'] = [d for d in v['details'] if not d['passed']]
         return retval
 
+    def passes(self):
+        """
+        Returns passed checks that are not wholly No-Op.
+
+        Returns
+        -------
+        Dict
+            Dictionary containing checks that are not wholly No-Op
+        """
+        return {k: v for k, v in self.all().items()
+                if v['passed'] and any(d['severity'] != 'No-Op' for d in v['details'])}
+
+    def skips(self):
+        """
+        Returns passed checks that are wholly No-Op.
+
+        Returns
+        -------
+        Dict
+            Dictionary containing checks that are wholly No-Op
+        """
+        return {k: v for k, v in self.all().items()
+                if v['passed'] and all(d['severity'] == 'No-Op' for d in v['details'])}
+
     def print_result(self, include_passed_asserts=True, color=True, include_passed_checks=False, width=120,
                      skip_detail=False, fail_detail=False, pass_detail=False):
         """

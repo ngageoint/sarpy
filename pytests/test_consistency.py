@@ -101,6 +101,10 @@ def test_all(dummycon, capsys):
     assert len(dummycon.all()) == 11
     assert len(dummycon.failures()) == 5
 
+    num_checks_by_part = [len(x) for x in (dummycon.passes(), dummycon.skips(), dummycon.failures())]
+    assert all(x > 0 for x in num_checks_by_part)
+    assert sum(num_checks_by_part) == len(dummycon.all())
+
     failures = dummycon.failures()
     details = itertools.chain.from_iterable([value['details'] for value in failures.values()])
     passed = [item for item in details if item['passed']]

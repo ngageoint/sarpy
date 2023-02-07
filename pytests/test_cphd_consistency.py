@@ -33,12 +33,35 @@ if TEST_FILE_ROOT is not None:
         if os.path.isfile(the_file):
             TEST_FILE_PATHS[name_key] = the_file
 
-GOOD_CPHD = TEST_FILE_PATHS.get('simple', None)
-BISTATIC_CPHD = TEST_FILE_PATHS.get('bistatic', None)
-ANTENNA_CPHD = TEST_FILE_PATHS.get('has_antenna', None)
-
 HAVE_NETWORKX = importlib.util.find_spec('networkx') is not None
 HAVE_SHAPELY = importlib.util.find_spec('shapely') is not None
+
+
+@pytest.fixture(scope='module')
+def good_cphd():
+    file_path = TEST_FILE_PATHS.get('simple', None)
+    if file_path is None:
+        pytest.skip('simple cphd test file not found')
+    else:
+        return file_path
+
+
+@pytest.fixture(scope='module')
+def bistatic_cphd():
+    file_path = TEST_FILE_PATHS.get('bistatic', None)
+    if file_path is None:
+        pytest.skip('bistatic cphd test file not found')
+    else:
+        return file_path
+
+
+@pytest.fixture(scope='module')
+def antenna_cphd():
+    file_path = TEST_FILE_PATHS.get('has_antenna', None)
+    if file_path is None:
+        pytest.skip('antenna cphd test file not found')
+    else:
+        return file_path
 
 
 def make_elem(tag, text=None, children=None, namespace=None, attributes=None, **attrib):
@@ -104,25 +127,19 @@ def _read_xml_str(cphd_path):
 
 
 @pytest.fixture(scope='module')
-def good_xml_str():
-    if GOOD_CPHD is None:
-        return None
-    return _read_xml_str(GOOD_CPHD)
+def good_xml_str(good_cphd):
+    return _read_xml_str(good_cphd)
 
 
 @pytest.fixture(scope='module')
-def good_xml_with_antenna():
-    if ANTENNA_CPHD is None:
-        return None
-    xml_str = _read_xml_str(ANTENNA_CPHD)
+def good_xml_with_antenna(antenna_cphd):
+    xml_str = _read_xml_str(antenna_cphd)
     xml_root = etree.fromstring(xml_str)
     return strip_namespace(xml_root)
 
 
 @pytest.fixture
 def good_xml(good_xml_str):
-    if good_xml_str is None:
-        yield None
     good_xml_root = etree.fromstring(good_xml_str)
     good_xml_root_no_ns = strip_namespace(etree.fromstring(good_xml_str))
     yield {'with_ns': good_xml_root, 'without_ns': good_xml_root_no_ns,
@@ -130,8 +147,8 @@ def good_xml(good_xml_str):
 
 
 @pytest.fixture
-def good_header():
-    with open(GOOD_CPHD, 'rb') as fid:
+def good_header(good_cphd):
+    with open(good_cphd, 'rb') as fid:
         return read_header(fid)
 
 
@@ -144,15 +161,13 @@ def copy_xml(elem):
     return etree.fromstring(etree.tostring(elem))
 
 
-@pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
-def test_from_file_cphd():
-    cphdcon = CphdConsistency.from_file(str(GOOD_CPHD), check_signal_data=True)
+def test_from_file_cphd(good_cphd):
+    cphdcon = CphdConsistency.from_file(str(good_cphd), check_signal_data=True)
     assert isinstance(cphdcon, CphdConsistency)
     cphdcon.check()
     assert len(cphdcon.failures()) == 0
 
 
-@pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
 def test_from_file_xml(good_xml_str, tmpdir):
     xml_file = os.path.join(tmpdir, 'cphd.xml')
     with open(xml_file, 'w') as fid:
@@ -164,10 +179,9 @@ def test_from_file_xml(good_xml_str, tmpdir):
     assert len(cphdcon.failures()) == 0
 
 
-@pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
-def test_main(good_xml_str, tmpdir):
-    assert not main([str(GOOD_CPHD), '--signal-data'])
-    assert not main([str(GOOD_CPHD)])
+def test_main(good_cphd, good_xml_str, tmpdir):
+    assert not main([str(good_cphd), '--signal-data'])
+    assert not main([str(good_cphd)])
 
     xml_file = os.path.join(tmpdir, 'cphd.xml')
     with open(xml_file, 'w') as fid:
@@ -175,7 +189,6 @@ def test_main(good_xml_str, tmpdir):
     assert not main([str(xml_file), '-v'])
 
 
-@pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
 def test_main_with_ignore(good_xml, tmpdir):
     good_xml['with_ns'].find('./ns:Global/ns:SGN', namespaces=good_xml['nsmap']).text += '1'
     slightly_bad_xml = os.path.join(tmpdir, 'slightly_bad.xml')
@@ -184,12 +197,11 @@ def test_main_with_ignore(good_xml, tmpdir):
     assert not main([slightly_bad_xml, '--ignore', 'check_against_schema'])
 
 
-@pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
-def test_main_schema_args():
-    good_schema = CphdConsistency.from_file(GOOD_CPHD).schema
-    assert main([str(GOOD_CPHD), '--schema', str(GOOD_CPHD)])  # fails with bogus schema
-    assert not main([str(GOOD_CPHD), '--schema', good_schema])  # pass with actual schema
-    assert not main([str(GOOD_CPHD), '--schema', str(GOOD_CPHD), '--noschema'])  # skips schema
+def test_main_schema_args(good_cphd):
+    good_schema = CphdConsistency.from_file(good_cphd).schema
+    assert main([str(good_cphd), '--schema', str(good_cphd)])  # fails with bogus schema
+    assert not main([str(good_cphd), '--schema', good_schema])  # pass with actual schema
+    assert not main([str(good_cphd), '--schema', str(good_cphd), '--noschema'])  # skips schema
 
 
 @pytest.mark.parametrize('cphd_file', TEST_FILE_PATHS.values())
@@ -197,10 +209,9 @@ def test_main_each_file(cphd_file):
     assert not main([cphd_file])
 
 
-@pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
-def test_check_file_type_header(tmpdir):
+def test_check_file_type_header(good_cphd, tmpdir):
     bad_cphd = os.path.join(tmpdir, 'bad.cphd')
-    with open(GOOD_CPHD, 'rb') as orig_file, open(bad_cphd, 'wb') as out_file:
+    with open(good_cphd, 'rb') as orig_file, open(bad_cphd, 'wb') as out_file:
         orig_header = orig_file.readline()
         orig_version_length = len(orig_header) - len('CPHD/') - 1
         assert orig_version_length > 3
@@ -212,7 +223,6 @@ def test_check_file_type_header(tmpdir):
     assert cphd_con.failures()
 
 
-@pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
 def test_schema_available(good_xml_str):
     xml_str_with_unknown_ns = re.sub(r'<CPHD xmlns="[^"]+">', '<CPHD xmlns="bad_ns">', good_xml_str)
     root_elem = etree.fromstring(xml_str_with_unknown_ns)
@@ -221,7 +231,6 @@ def test_schema_available(good_xml_str):
     assert cphd_con.failures()
 
 
-@pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
 def test_xml_schema_error(good_xml):
     bad_xml = copy_xml(good_xml['with_ns'])
 
@@ -232,7 +241,6 @@ def test_xml_schema_error(good_xml):
     assert len(cphd_con.failures()) > 0
 
 
-@pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
 def test_check_unconnected_ids_severed_node(good_xml):
     bad_xml = copy_xml(good_xml['without_ns'])
 
@@ -243,7 +251,6 @@ def test_check_unconnected_ids_severed_node(good_xml):
     assert (len(cphd_con.failures()) > 0) == HAVE_NETWORKX
 
 
-@pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
 def test_check_unconnected_ids_extra_node(good_xml):
     bad_xml = copy_xml(good_xml['without_ns'])
 
@@ -258,7 +265,6 @@ def test_check_unconnected_ids_extra_node(good_xml):
     assert (len(cphd_con.failures()) > 0) == HAVE_NETWORKX
 
 
-@pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
 def test_check_classification_and_release_info_error(good_xml, good_header):
     bad_xml = copy_xml(good_xml['without_ns'])
 
@@ -269,7 +275,6 @@ def test_check_classification_and_release_info_error(good_xml, good_header):
     assert len(cphd_con.failures()) > 0
 
 
-@pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
 def test_error_in_check(good_xml):
     bad_xml = copy_xml(good_xml['with_ns'])
     remove_nodes(*bad_xml.xpath('./ns:Channel/ns:Parameters/ns:DwellTimes/ns:CODId', namespaces=good_xml['nsmap']))
@@ -283,7 +288,6 @@ def test_error_in_check(good_xml):
     assert len(cphd_con.failures()) > 0
 
 
-@pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
 def test_polygon_size_error(good_xml):
     bad_xml = copy_xml(good_xml['with_ns'])
     ia_polygon_node = bad_xml.find('./ns:SceneCoordinates/ns:ImageArea/ns:Polygon', namespaces=good_xml['nsmap'])
@@ -295,7 +299,6 @@ def test_polygon_size_error(good_xml):
     assert (len(cphd_con.failures()) > 0) == HAVE_SHAPELY
 
 
-@pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
 def test_polygon_winding_error(good_xml):
     bad_xml = copy_xml(good_xml['with_ns'])
     ia_polygon_node = bad_xml.find('./ns:SceneCoordinates/ns:ImageArea/ns:Polygon', namespaces=good_xml['nsmap'])
@@ -312,8 +315,6 @@ def test_polygon_winding_error(good_xml):
 
 @pytest.fixture
 def xml_with_signal_normal(good_xml):
-    if good_xml is None:
-        return None
     root = copy_xml(good_xml['with_ns'])
     pvps = {}
     for channel_node in root.findall('./ns:Data/ns:Channel', namespaces=good_xml['nsmap']):
@@ -327,7 +328,6 @@ def xml_with_signal_normal(good_xml):
     return pvps, root, good_xml['nsmap']
 
 
-@pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
 def test_signalnormal(xml_with_signal_normal):
     pvps, root, nsmap = xml_with_signal_normal
 
@@ -339,7 +339,6 @@ def test_signalnormal(xml_with_signal_normal):
     assert len(cphd_con.failures()) == 0
 
 
-@pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
 def test_signalnormal_bad_pvp(xml_with_signal_normal):
     pvps, root, nsmap = xml_with_signal_normal
 
@@ -367,9 +366,6 @@ def test_signalnormal_bad_pvp(xml_with_signal_normal):
 
 @pytest.fixture
 def xml_without_fxfixed(good_xml):
-    if good_xml is None:
-        return None
-
     root = copy_xml(good_xml['with_ns'])
     pvps = {}
     for channel_node in root.findall('./ns:Data/ns:Channel', namespaces=good_xml['nsmap']):
@@ -386,7 +382,6 @@ def xml_without_fxfixed(good_xml):
     return pvps, root, good_xml['nsmap']
 
 
-@pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
 def test_fxfixed(xml_without_fxfixed):
     pvps, root, nsmap = xml_without_fxfixed
 
@@ -401,9 +396,6 @@ def test_fxfixed(xml_without_fxfixed):
 
 @pytest.fixture
 def xml_without_toafixed(good_xml):
-    if good_xml is None:
-        return None
-
     root = copy_xml(good_xml['with_ns'])
     pvps = {}
     for channel_node in root.findall('./ns:Data/ns:Channel', namespaces=good_xml['nsmap']):
@@ -420,7 +412,6 @@ def xml_without_toafixed(good_xml):
     return pvps, root, good_xml['nsmap']
 
 
-@pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
 def test_channel_toafixed(xml_without_toafixed):
     pvps, root, nsmap = xml_without_toafixed
 
@@ -435,8 +426,6 @@ def test_channel_toafixed(xml_without_toafixed):
 
 @pytest.fixture
 def xml_without_srpfixed(good_xml):
-    if good_xml is None:
-        return None
     root = copy_xml(good_xml['with_ns'])
     pvps = {}
     for channel_node in root.findall('./ns:Data/ns:Channel', namespaces=good_xml['nsmap']):
@@ -454,7 +443,6 @@ def xml_without_srpfixed(good_xml):
     return pvps, root, good_xml['nsmap']
 
 
-@pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
 def test_channel_srpfixed(xml_without_srpfixed):
     pvps, root, nsmap = xml_without_srpfixed
 
@@ -469,9 +457,6 @@ def test_channel_srpfixed(xml_without_srpfixed):
 
 @pytest.fixture
 def xml_with_txrcv(good_xml):
-    if good_xml is None:
-        return None
-
     root = copy_xml(good_xml['with_ns'])
     root.append(make_elem('TxRcv', namespace=good_xml['nsmap']['ns'], children=[
         make_elem('NumTxWFs', 2, namespace=good_xml['nsmap']['ns']),
@@ -502,7 +487,6 @@ def xml_with_txrcv(good_xml):
     return chan_ids, root, good_xml['nsmap']
 
 
-@pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
 def test_txrcv(xml_with_txrcv):
     chan_ids, root, nsmap = xml_with_txrcv
 
@@ -514,7 +498,6 @@ def test_txrcv(xml_with_txrcv):
     assert len(cphd_con.failures()) == 0
 
 
-@pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
 def test_txrcv_bad_txwfid(xml_with_txrcv):
     chan_ids, root, nsmap = xml_with_txrcv
 
@@ -530,7 +513,6 @@ def test_txrcv_bad_txwfid(xml_with_txrcv):
     assert len(cphd_con.failures()) > 0
 
 
-@pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
 def test_antenna_bad_acf_count(good_xml):
     root = copy_xml(good_xml['with_ns'])
     antenna_node = root.find('./ns:Antenna', namespaces=good_xml['nsmap'])
@@ -541,7 +523,6 @@ def test_antenna_bad_acf_count(good_xml):
     assert len(cphd_con.failures()) > 0
 
 
-@pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
 def test_antenna_bad_apc_count(good_xml):
     root = copy_xml(good_xml['with_ns'])
     antenna_node = root.find('./ns:Antenna', namespaces=good_xml['nsmap'])
@@ -552,7 +533,6 @@ def test_antenna_bad_apc_count(good_xml):
     assert len(cphd_con.failures()) > 0
 
 
-@pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
 def test_antenna_bad_antpats_count(good_xml):
     root = copy_xml(good_xml['with_ns'])
     antenna_node = root.find('./ns:Antenna', namespaces=good_xml['nsmap'])
@@ -563,7 +543,6 @@ def test_antenna_bad_antpats_count(good_xml):
     assert len(cphd_con.failures()) > 0
 
 
-@pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
 def test_antenna_non_matching_acfids(good_xml):
     root = copy_xml(good_xml['with_ns'])
     antenna_node = root.find('./ns:Antenna', namespaces=good_xml['nsmap'])
@@ -574,7 +553,6 @@ def test_antenna_non_matching_acfids(good_xml):
     assert len(cphd_con.failures())
 
 
-@pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
 def test_txrcv_bad_rcvid(xml_with_txrcv):
     chan_ids, root, nsmap = xml_with_txrcv
 
@@ -590,7 +568,6 @@ def test_txrcv_bad_rcvid(xml_with_txrcv):
     assert len(cphd_con.failures()) > 0
 
 
-@pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
 def test_txrcv_missing_channel_node(xml_with_txrcv):
     chan_ids, root, nsmap = xml_with_txrcv
 
@@ -607,9 +584,6 @@ def test_txrcv_missing_channel_node(xml_with_txrcv):
 
 @pytest.fixture
 def xml_with_fxbwnoise(good_xml):
-    if good_xml is None:
-        return None
-
     root = copy_xml(good_xml['with_ns'])
     pvps = {}
     for channel_node in root.findall('./ns:Data/ns:Channel', namespaces=good_xml['nsmap']):
@@ -627,7 +601,6 @@ def xml_with_fxbwnoise(good_xml):
     return pvps, root, good_xml['nsmap']
 
 
-@pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
 def test_fxbwnoise(xml_with_fxbwnoise):
     pvps, root, nsmap = xml_with_fxbwnoise
 
@@ -639,7 +612,6 @@ def test_fxbwnoise(xml_with_fxbwnoise):
     assert len(cphd_con.failures()) == 0
 
 
-@pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
 def test_fxbwnoise_bad_domain(xml_with_fxbwnoise):
     pvps, root, nsmap = xml_with_fxbwnoise
 
@@ -653,7 +625,6 @@ def test_fxbwnoise_bad_domain(xml_with_fxbwnoise):
     assert len(cphd_con.failures()) > 0
 
 
-@pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
 def test_fxbwnoise_bad_value(xml_with_fxbwnoise):
     pvps, root, nsmap = xml_with_fxbwnoise
 
@@ -668,7 +639,6 @@ def test_fxbwnoise_bad_value(xml_with_fxbwnoise):
     assert len(cphd_con.failures()) > 0
 
 
-@pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
 def test_geoinfo_polygons(good_xml):
     root = copy_xml(good_xml['with_ns'])
     root.append(make_elem('GeoInfo', namespace=good_xml['nsmap']['ns'], children=[
@@ -695,7 +665,6 @@ def test_geoinfo_polygons(good_xml):
     assert len(cphd_con.failures()) == 0
 
 
-@pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
 def test_geoinfo_polygons_bad_order(good_xml):
     root = copy_xml(good_xml['with_ns'])
     root.append(make_elem('GeoInfo', namespace=good_xml['nsmap']['ns'], children=[
@@ -724,9 +693,6 @@ def test_geoinfo_polygons_bad_order(good_xml):
 
 @pytest.fixture
 def xml_with_channel_imagearea(good_xml):
-    if good_xml is None:
-        return None
-
     root = copy_xml(good_xml['with_ns'])
     for chan_param_node in root.xpath('./ns:Channel/ns:Parameters', namespaces=good_xml['nsmap']):
         chan_param_node.append(make_elem('ImageArea', namespace=good_xml['nsmap']['ns'], children=[
@@ -761,7 +727,6 @@ def xml_with_channel_imagearea(good_xml):
     return root, good_xml['nsmap']
 
 
-@pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
 def test_channel_image_area(xml_with_channel_imagearea):
     root, nsmap = xml_with_channel_imagearea
 
@@ -778,8 +743,6 @@ def test_channel_image_area(xml_with_channel_imagearea):
 
 @pytest.fixture
 def xml_with_extendedarea(good_xml):
-    if good_xml is None:
-        return None
     root = copy_xml(good_xml['with_ns'])
     scene = root.find('./ns:SceneCoordinates', namespaces=good_xml['nsmap'])
     scene.append(make_elem('ExtendedArea', namespace=good_xml['nsmap']['ns'], children=[
@@ -813,7 +776,6 @@ def xml_with_extendedarea(good_xml):
     return root, good_xml['nsmap']
 
 
-@pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
 def test_extended_imagearea(xml_with_extendedarea):
     root, nsmap = xml_with_extendedarea
 
@@ -824,7 +786,6 @@ def test_extended_imagearea(xml_with_extendedarea):
     assert len(cphd_con.failures()) == 0
 
 
-@pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
 def test_extended_imagearea_polygon_bad_extent(xml_with_extendedarea):
     root, nsmap = xml_with_extendedarea
     root.find('./ns:SceneCoordinates/ns:ExtendedArea/ns:X2Y2/ns:X', namespaces=nsmap).text = '2000'
@@ -836,7 +797,6 @@ def test_extended_imagearea_polygon_bad_extent(xml_with_extendedarea):
     assert (len(cphd_con.failures()) > 0) == HAVE_SHAPELY
 
 
-@pytest.mark.skipif(ANTENNA_CPHD is None, reason="cphd test file not found")
 def test_antenna_missing_channel_node(good_xml_with_antenna):
     bad_xml = copy_xml(good_xml_with_antenna)
     remove_nodes(*bad_xml.findall('./Channel/Parameters/Antenna'))
@@ -848,10 +808,9 @@ def test_antenna_missing_channel_node(good_xml_with_antenna):
     assert len(cphd_con.failures()) > 0
 
 
-@pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
-def test_refgeom_bad_root():
+def test_refgeom_bad_root(good_cphd):
     cphd_con = CphdConsistency.from_file(
-        GOOD_CPHD, check_signal_data=False)
+        good_cphd, check_signal_data=False)
     bad_node = cphd_con.xml.find('./ReferenceGeometry/SRPCODTime')
     bad_node.text = '24' + bad_node.text
 
@@ -859,10 +818,9 @@ def test_refgeom_bad_root():
     assert len(cphd_con.failures()) > 0
 
 
-@pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
-def test_refgeom_bad_monostatic():
+def test_refgeom_bad_monostatic(good_cphd):
     cphd_con = CphdConsistency.from_file(
-        GOOD_CPHD, check_signal_data=False)
+        good_cphd, check_signal_data=False)
     bad_node = cphd_con.xml.find('./ReferenceGeometry/Monostatic/AzimuthAngle')
     bad_node.text = str((float(bad_node.text) + 3) % 360)
 
@@ -870,10 +828,9 @@ def test_refgeom_bad_monostatic():
     assert len(cphd_con.failures()) > 0
 
 
-@pytest.mark.skipif(BISTATIC_CPHD is None, reason="cphd test file not found")
-def test_refgeom_bad_bistatic():
+def test_refgeom_bad_bistatic(bistatic_cphd):
     cphd_con = CphdConsistency.from_file(
-        BISTATIC_CPHD, check_signal_data=False)
+        bistatic_cphd, check_signal_data=False)
     bad_node = cphd_con.xml.find('./ReferenceGeometry/Bistatic/RcvPlatform/SlantRange')
     bad_node.text = '2' + bad_node.text
 
@@ -881,9 +838,8 @@ def test_refgeom_bad_bistatic():
     assert len(cphd_con.failures()) > 0
 
 
-@pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
-def test_check_identifier_uniqueness():
-    cphd_con = CphdConsistency.from_file(GOOD_CPHD)
+def test_check_identifier_uniqueness(good_cphd):
+    cphd_con = CphdConsistency.from_file(good_cphd)
     dwelltime = cphd_con.xml.find('./Dwell/DwellTime')
     dwelltime.getparent().append(copy.deepcopy(dwelltime))
     cphd_con.check('check_identifier_uniqueness')
@@ -901,15 +857,13 @@ def _invalidate_coef_uniqueness(xml):
 
 
 @pytest.mark.parametrize('invalidate_func', [_invalidate_order, _invalidate_coef_uniqueness])
-@pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
-def test_check_polynomials(invalidate_func):
-    cphd_con = CphdConsistency.from_file(GOOD_CPHD)
+def test_check_polynomials(invalidate_func, good_cphd):
+    cphd_con = CphdConsistency.from_file(good_cphd)
     invalidate_func(cphd_con.xml)
     cphd_con.check('check_polynomials')
     assert cphd_con.failures()
 
 
-@pytest.mark.skipif(GOOD_CPHD is None, reason="cphd test file not found")
 def test_check_channel_normal_signal_pvp(xml_with_signal_normal):
     pvps, root, nsmap = xml_with_signal_normal
     cphd_con = CphdConsistency(
@@ -922,3 +876,90 @@ def test_check_channel_normal_signal_pvp(xml_with_signal_normal):
     channel_pvps['SIGNAL'][::2] = 1
     cphd_con.check(ignore_patterns=['check_(?!channel_normal_signal_pvp.+)'])
     assert not cphd_con.failures()
+
+
+def _fxn_with_toa_domain(xml):
+    xml.find('./Global/DomainType').text = 'TOA'
+    fx1 = xml.find('./PVP/FX1')
+    for name in ('FXN1', 'FXN2'):
+        if xml.find(f'./PVP/{name}') is None:
+            new_elem = copy.deepcopy(fx1)
+            new_elem.tag = name
+            fx1.getparent().append(new_elem)
+
+
+def _fxn1_only(xml):
+    xml.find('./Global/DomainType').text = 'FX'
+    fx1 = xml.find('./PVP/FX1')
+    remove_nodes(*xml.findall('./PVP/FXN1'), *xml.findall('./PVP/FXN2'))
+    new_elem = copy.deepcopy(fx1)
+    new_elem.tag = 'FXN1'
+    fx1.getparent().append(new_elem)
+
+
+@pytest.mark.parametrize('invalidate_func', [_fxn_with_toa_domain, _fxn1_only])
+def test_check_optional_pvps_fx(invalidate_func, good_cphd):
+    cphd_con = CphdConsistency.from_file(good_cphd)
+    invalidate_func(cphd_con.xml)
+    cphd_con.check('check_optional_pvps_fx')
+    assert cphd_con.failures()
+
+
+def test_check_optional_pvps_toa(good_cphd):
+    cphd_con = CphdConsistency.from_file(good_cphd)
+    toa1 = cphd_con.xml.find('./PVP/TOA1')
+    remove_nodes(*cphd_con.xml.findall('./PVP/TOAE1'), *cphd_con.xml.findall('./PVP/TOAE2'))
+    new_elem = copy.deepcopy(toa1)
+    new_elem.tag = 'TOAE1'
+    toa1.getparent().append(new_elem)
+    cphd_con.check('check_optional_pvps_toa')
+    assert cphd_con.failures()
+
+
+@pytest.fixture
+def dataset_with_toaextsaved(good_xml):
+    root = copy_xml(good_xml['with_ns'])
+    pvps = {}
+    min_toae1 = -1.1
+    max_toae2 = 2.2
+    toaextsaved = max_toae2 - min_toae1
+    for channel_node in root.findall('./ns:Data/ns:Channel', namespaces=good_xml['nsmap']):
+        chan_id = channel_node.findtext('./ns:Identifier', namespaces=good_xml['nsmap'])
+        num_vect = int(channel_node.findtext('./ns:NumVectors', namespaces=good_xml['nsmap']))
+        pvps[chan_id] = np.zeros(num_vect, dtype=[('TOAE1', 'f8'), ('TOAE2', 'f8')])
+        pvps[chan_id]['TOAE1'] = np.linspace(min_toae1, min_toae1 / 2, num_vect)
+        pvps[chan_id]['TOAE2'] = np.linspace(max_toae2, max_toae2 / 2, num_vect)
+        chan_param_node = root.find(f'./ns:Channel/ns:Parameters[ns:Identifier="{chan_id}"]',
+                                    namespaces=good_xml['nsmap'])
+        remove_nodes(*chan_param_node.findall('./ns:TOAExtended/ns:TOAExtSaved', namespaces=good_xml['nsmap']))
+        new_elem = make_elem('TOAExtended', namespace=good_xml['nsmap']['ns'], children=[
+            make_elem('TOAExtSaved', text=str(toaextsaved), namespace=good_xml['nsmap']['ns'])])
+        chan_param_node.find('./ns:TOASaved', namespaces=good_xml['nsmap']).addnext(new_elem)
+
+        toa1 = root.find('./ns:PVP/ns:TOA1', namespaces=good_xml['nsmap'])
+        for parameter in ('TOAE1', 'TOAE2'):
+            remove_nodes(*root.findall(f'./ns:PVP/ns:{parameter}', namespaces=good_xml['nsmap']))
+            new_elem = copy.deepcopy(toa1)
+            new_elem.tag = etree.QName(new_elem, parameter)
+            toa1.getparent().append(new_elem)
+
+    return pvps, root, good_xml['nsmap']
+
+
+def test_check_channel_toaextsaved(dataset_with_toaextsaved):
+    pvps, root, nsmap = dataset_with_toaextsaved
+
+    cphd_con = CphdConsistency(root, pvps=pvps, header=None, filename=None)
+    cphd_con.check(ignore_patterns=['check_(?!channel_toaextsaved.+)'])
+    assert cphd_con.passes()
+    assert not cphd_con.failures()
+
+
+def test_check_channel_toaextsaved_no_toae1(dataset_with_toaextsaved):
+    pvps, root, nsmap = dataset_with_toaextsaved
+
+    cphd_con = CphdConsistency(root, pvps=pvps, header=None, filename=None)
+    remove_nodes(*cphd_con.xml.findall('./PVP/TOAE1'))
+    cphd_con.pvps = {k: v[[x for x in v.dtype.names if x != 'TOAE1']] for k, v in pvps.items()}
+    cphd_con.check(ignore_patterns=['check_(?!channel_toaextsaved.+)'])
+    assert cphd_con.failures()
