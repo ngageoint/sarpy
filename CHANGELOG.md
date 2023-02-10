@@ -4,6 +4,12 @@ SarPy follows a continuous release process, so there are fairly frequent release
 Since essentially every (squash merge) commit corresponds to a release, specific 
 release points are not being annotated in GitHub.
 
+## [1.3.18] - 2023-02-10
+### Fixed
+- Fixed a bug in SICD get_format_function correctly checking for PixelType .
+### Added
+- more tests to test_geocoords.py, switched from unittests to pytest.
+
 ## [1.3.17] - 2023-02-06
 ### Fixed
 - Fixed bug in SICD converter returning 1D array instead of a 2D array.
