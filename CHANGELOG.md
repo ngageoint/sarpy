@@ -6,6 +6,12 @@ release points are not being annotated in GitHub.
 
 ## [1.3.17] - 2023-02-06
 ### Fixed
+- Fixed a bug in SICD get_format_function correctly checking for PixelType .
+### Added
+- more tests to test_geocoords.py, switched from unittests to pytest.
+
+## [1.3.17] - 2023-02-06
+### Fixed
 - Fixed bug in SICD converter returning 1D array instead of a 2D array.
 ### Added
 - Close connection for test_remote. 

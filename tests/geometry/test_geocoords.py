@@ -11,6 +11,7 @@ TOLERANCE = 1e-8
 
 numpy.random.seed(314159)
 
+
 @pytest.fixture(scope='module')
 def input():
     llh = numpy.array([[0, 0, 0], [0, 180, 0], [90, 0, 0], [-90, 0, 0], [0, 90, 0]], dtype='float64')
