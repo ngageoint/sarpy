@@ -120,7 +120,8 @@ class ConsistencyChecker(object):
             stack = _exception_stack()
             message = []
             for indent, frame in enumerate(stack[1:]):
-                message.append(' '*indent*4 + "line#{lineno}: {line}".format(lineno=frame['lineno'], line=frame['line']))
+                message.append(' '*indent*4 + "line#{lineno}: {line}".format(lineno=frame['lineno'],
+                                                                             line=frame['line']))
             message.append(str(e))
             self._add_item_to_current('Error', False, '\n'.join(message), details="Exception Raised")
 
@@ -134,7 +135,7 @@ class ConsistencyChecker(object):
         Parameters
         ----------
         severity : str
-            Severity level of the results eg. 'Error', 'Warning'
+            Severity level of the results e.g. 'Error', 'Warning'
         passed : bool
             The result of the test
         message : str
@@ -153,7 +154,7 @@ class ConsistencyChecker(object):
 
     def _format_assertion(self, e, depth=1):
         """
-        Format an assertion to human readable text.
+        Format an assertion to human-readable text.
 
         Parameters
         ----------
@@ -207,7 +208,7 @@ class ConsistencyChecker(object):
         Parameters
         ----------
         level : str
-            Severity level of the checks.  eg. 'Error' or 'Warning'
+            Severity level of the checks.  e.g. 'Error' or 'Warning'
         details : str|None
             Text describing the scope of checks
         depth : int
@@ -254,7 +255,7 @@ class ConsistencyChecker(object):
         Returns
         -------
         Dict
-            Unfiltered dictionary of all (Passed, Failed, Skpped) results
+            Unfiltered dictionary of all (Passed, Failed, Skipped) results
         """
 
         return self._all_check_results

@@ -4,29 +4,44 @@ SarPy follows a continuous release process, so there are fairly frequent release
 Since essentially every (squash merge) commit corresponds to a release, specific 
 release points are not being annotated in GitHub.
 
+## [1.3.19] - 2023-02-13
+### Fixed
+- Fixed bug in check_channel_dwell_exist message
+### Added
+- Added auto-detection of schema for CPHD data.
+- Added new check_file_type header check in tests.
+- Added new check_identifier_uniqueness check in tests.
+- Added new check_channel_normal_signal_pvp check in tests.
+- Added new TOAExtended.TOAExtSaved check in tests.
+- Added two new optional PVP checks, check_optional_pvps_fx, and check_optional_pvps_toa
+- Added passes and skips to ConsistencyChecker
+### Changed
+- Changed cphd_consistency testing dependencies to be optional, skips the check if networkx, and shapely are not installed.
+- Simplified pytest.skip usage in test_cphd_consistency.
+
 ## [1.3.18] - 2023-02-10
 ### Fixed
 - Fixed a bug in SICD get_format_function correctly checking for PixelType .
 ### Added
-- more tests to test_geocoords.py, switched from unittests to pytest.
+- Added more tests to test_geocoords.py, switched from unittests to pytest.
 
 ## [1.3.17] - 2023-02-06
 ### Fixed
 - Fixed bug in SICD converter returning 1D array instead of a 2D array.
 ### Added
-- Close connection for test_remote. 
+- Added close connection for test_remote. 
 
 ## [1.3.16] - 2023-02-02
 ### Changed
 - Misleading naming/comment for DMS
 ### Added
-- Tests for latlon.
+- Added Tests for latlon.
 
 ## [1.3.15] - 2023-02-02
 ### Fixed
 - Fixed bug in intersection and bounding box code for geometry elements.
 ### Added
-- Tests for geometry.
+- Added Tests for geometry.
 
 ## [1.3.14] - 2023-01-11
 ### Fixed
@@ -60,6 +75,7 @@ release points are not being annotated in GitHub.
 - Fixed bug with SICD converter correctly conform to described relationship in the SICD D&I.  [Pull Request 349](https://github.com/ngageoint/sarpy/pull/349)
 - Fixed bug with Grid.Col.DeltaKCOA poly correctly populated based on collection metadate 
 and constant COA. [Pull Request 350](https://github.com/ngageoint/sarpy/pull/350)
+### Added
 - Added remap.py unit test. [Pull Request 351](https://github.com/ngageoint/sarpy/pull/351)
 
 ## [1.3.9] - 2022-10-13
@@ -94,7 +110,7 @@ accordingly.
 - Removed the colon character with an underscore character in a suggested file 
 name, since apparently colon in not permitted in a Windows file name.
 ### Fixed
-Using NamedTemporaryFile in unit tests on writing files fails on windows, and 
+Using NamedTemporaryFile in unit tests on writing files fails on Windows, and 
 usage has been replaced.
 
 ## [1.3.3] - 2022-06-20
@@ -346,7 +362,7 @@ weighting changes in sarpy.processing.sicd.normalize_sicd methods
 - Bug fixes for sicd validation of version 1.1 date and pfa bounds consistency 
 checking for the spotlight case
 - Ensure that FTITLE and IID2 nitf header fields in a sicd file will be prefixed 
-with 'SICD:' if attepting to write a version 1.1 SICD file
+with 'SICD:' if attempting to write a version 1.1 SICD file
 - Correcting data for SICD version 1.1.0 schema
 
 ## [1.2.27] - 2021-10-09
@@ -547,7 +563,7 @@ Introducing basic SIDD consistency check, and debugging the squint calculation
 - Reorganization of SIDD schemas and inclusion in package data
 
 ## [1.1.69] - 2021-04-27
-- Debugging SIDD Version 1.0 structure producted in create_product methods
+- Debugging SIDD Version 1.0 structure produced in create_product methods
 - Introduction of a reader implementation which directly uses an array or memmap,
 which is intended merely to provide unified integration for tool usage.
 
@@ -609,7 +625,7 @@ Use SICD.RadarCollect.Area for definition for default SIDD image bounds
 Introduced validity check for SICD in the consistency module
 
 ## [1.1.50] - 2021-02-15
-Imposing print function complicance for Python 2.7 usage
+Imposing print function compliance for Python 2.7 usage
 
 ## [1.1.49] - 2021-02-12
 Completion of annotation and geometry elements for apps usage

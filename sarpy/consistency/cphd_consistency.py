@@ -233,7 +233,8 @@ class CphdConsistency(con.ConsistencyChecker):
             if getattr(func, 'per_channel', False):
                 subfuncs = []
                 for channel_id in channel_ids:
-                    channel_node = self.xml.xpath('./Channel/Parameters/Identifier[text()="{}"]/..'.format(channel_id))[0]
+                    channel_node = self.xml.xpath('./Channel/Parameters/Identifier[text()="{}"]/..'.format(
+                        channel_id))[0]
                     subfunc = functools.partial(func, channel_id, channel_node)
                     subfunc.__doc__ = "{doc} for channel {chanid}".format(doc=func.__doc__, chanid=channel_id)
                     modified_channel_id = re.sub(INVALID_CHAR_REGEX, '_', channel_id)
