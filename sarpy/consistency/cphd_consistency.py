@@ -321,7 +321,8 @@ class CphdConsistency(con.ConsistencyChecker):
             with open(self.filename, 'rb') as fd:
                 first_line = fd.readline().decode()
             assert first_line.startswith('CPHD/')
-            file_type_header_version = first_line.removeprefix('CPHD/').removesuffix('\n')
+            assert first_line.endswith('\n')
+            file_type_header_version = first_line[len('CPHD/'):-1]
             with self.need("version in File Type Header matches the version in the XML"):
                 assert self.version == file_type_header_version
 
@@ -1264,8 +1265,8 @@ class CphdConsistency(con.ConsistencyChecker):
 
         def check_poly(poly_elem):
             path = poly_elem.getroottree().getpath(poly_elem)
-            order_by_dim = {dim: int(order_str)
-                            for dim in (1, 2) if (order_str := poly_elem.get(f'order{dim}')) is not None}
+            order_by_dim = {dim: int(poly_elem.get(f'order{dim}'))
+                            for dim in (1, 2) if poly_elem.get(f'order{dim}') is not None}
             coef_exponents = [tuple(int(coef.get(f'exponent{dim}')) for dim in order_by_dim)
                               for coef in poly_elem.findall('./Coef')]
             repeated_coef_exponents = _get_repeated_elements(coef_exponents)
@@ -1703,7 +1704,7 @@ def main(args=None):
     parser.add_argument('--noschema', action='append_const', const='check_against_schema', dest='ignore',
                         help="Disable schema checks")
     parser.add_argument('--signal-data', action='store_true', help="Check the signal data for NaN and +/- Inf")
-    parser.add_argument('--ignore', action='extend', nargs='+', metavar='PATTERN',
+    parser.add_argument('--ignore', action='append', metavar='PATTERN',
                         help=("Skip any check matching PATTERN at the beginning of its name. Can be specified more than"
                               " once."))
     config = parser.parse_args(args)
