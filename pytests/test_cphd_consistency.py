@@ -21,7 +21,6 @@ from sarpy.consistency.cphd_consistency import main, CphdConsistency, \
 
 TEST_FILE_NAMES = {
     'simple': 'spotlight_example.cphd',
-    'has_antenna': 'has_antenna.cphd',
     'bistatic': 'bistatic.cphd',
 }
 
@@ -51,15 +50,6 @@ def bistatic_cphd():
     file_path = TEST_FILE_PATHS.get('bistatic', None)
     if file_path is None:
         pytest.skip('bistatic cphd test file not found')
-    else:
-        return file_path
-
-
-@pytest.fixture(scope='module')
-def antenna_cphd():
-    file_path = TEST_FILE_PATHS.get('has_antenna', None)
-    if file_path is None:
-        pytest.skip('antenna cphd test file not found')
     else:
         return file_path
 
@@ -129,13 +119,6 @@ def _read_xml_str(cphd_path):
 @pytest.fixture(scope='module')
 def good_xml_str(good_cphd):
     return _read_xml_str(good_cphd)
-
-
-@pytest.fixture(scope='module')
-def good_xml_with_antenna(antenna_cphd):
-    xml_str = _read_xml_str(antenna_cphd)
-    xml_root = etree.fromstring(xml_str)
-    return strip_namespace(xml_root)
 
 
 @pytest.fixture
@@ -797,9 +780,9 @@ def test_extended_imagearea_polygon_bad_extent(xml_with_extendedarea):
     assert (len(cphd_con.failures()) > 0) == HAVE_SHAPELY
 
 
-def test_antenna_missing_channel_node(good_xml_with_antenna):
-    bad_xml = copy_xml(good_xml_with_antenna)
-    remove_nodes(*bad_xml.findall('./Channel/Parameters/Antenna'))
+def test_antenna_missing_channel_node(good_xml):
+    bad_xml = copy_xml(good_xml['with_ns'])
+    remove_nodes(*bad_xml.xpath('./ns:Channel/ns:Parameters/ns:Antenna', namespaces=good_xml['nsmap']))
 
     cphd_con = CphdConsistency(
         bad_xml, pvps=None, header=None, filename=None, check_signal_data=False)
