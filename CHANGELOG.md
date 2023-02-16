@@ -4,6 +4,13 @@ SarPy follows a continuous release process, so there are fairly frequent release
 Since essentially every (squash merge) commit corresponds to a release, specific 
 release points are not being annotated in GitHub.
 
+## [1.3.20] - 2023-02-16
+### Fixed
+- Fixed bug with walrus operator and other modern syntax to ensure code is backwards compatible with
+older python versions. 3.8 and below.
+### Changed
+- Changed CPHD Consistency to remove antenna file tests. 
+
 ## [1.3.19] - 2023-02-13
 ### Fixed
 - Fixed bug in check_channel_dwell_exist message
