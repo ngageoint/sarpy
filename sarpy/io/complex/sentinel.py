@@ -71,7 +71,7 @@ class SentinelDetails(object):
         file_name : str
         """
 
-        if os.path.isdir(file_name):  # its' the directory - point it at the manifest.safe file
+        if os.path.isdir(file_name):  # its directory - point it at the manifest.safe file
             t_file_name = os.path.join(file_name, 'manifest.safe')
             if os.path.exists(t_file_name):
                 file_name = t_file_name

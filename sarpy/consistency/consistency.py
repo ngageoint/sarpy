@@ -11,6 +11,7 @@ __author__ = "Nathan Bombaci, Valkyrie"
 import collections
 import contextlib
 import linecache
+import re
 import sys
 import textwrap
 from typing import List, Dict, Callable
@@ -66,7 +67,7 @@ class ConsistencyChecker(object):
         attrs = [getattr(self, name) for name in sorted(names)]
         self.funcs = [attr for attr in attrs if hasattr(attr, '__call__')]
 
-    def check(self, func_name=None):
+    def check(self, func_name=None, *, ignore_patterns=None):
         """
         Run checks.
 
@@ -75,6 +76,8 @@ class ConsistencyChecker(object):
         func_name: None|str|List[str]
             List of check functions to run.  If omitted, then all check functions
             will be run.
+        ignore_patterns: list-like of str
+            Skips tests if zero or more characters at the beginning of their name match the regular expression patterns
         """
         # run specified test(s) or all of them
         if func_name is None:
@@ -88,6 +91,9 @@ class ConsistencyChecker(object):
                 raise ValueError("Functions not found: {}".format(not_found))
 
             funcs = [func for func in self.funcs if func.__name__ in func_name]
+
+        for pattern in (ignore_patterns or []):
+            funcs = [func for func in funcs if not re.match(pattern, func.__name__)]
 
         for func in funcs:
             self._run_check(func)
@@ -114,7 +120,8 @@ class ConsistencyChecker(object):
             stack = _exception_stack()
             message = []
             for indent, frame in enumerate(stack[1:]):
-                message.append(' '*indent*4 + "line#{lineno}: {line}".format(lineno=frame['lineno'], line=frame['line']))
+                message.append(' '*indent*4 + "line#{lineno}: {line}".format(lineno=frame['lineno'],
+                                                                             line=frame['line']))
             message.append(str(e))
             self._add_item_to_current('Error', False, '\n'.join(message), details="Exception Raised")
 
@@ -128,7 +135,7 @@ class ConsistencyChecker(object):
         Parameters
         ----------
         severity : str
-            Severity level of the results eg. 'Error', 'Warning'
+            Severity level of the results e.g. 'Error', 'Warning'
         passed : bool
             The result of the test
         message : str
@@ -147,7 +154,7 @@ class ConsistencyChecker(object):
 
     def _format_assertion(self, e, depth=1):
         """
-        Format an assertion to human readable text.
+        Format an assertion to human-readable text.
 
         Parameters
         ----------
@@ -201,7 +208,7 @@ class ConsistencyChecker(object):
         Parameters
         ----------
         level : str
-            Severity level of the checks.  eg. 'Error' or 'Warning'
+            Severity level of the checks.  e.g. 'Error' or 'Warning'
         details : str|None
             Text describing the scope of checks
         depth : int
@@ -248,7 +255,7 @@ class ConsistencyChecker(object):
         Returns
         -------
         Dict
-            Unfiltered dictionary of all (Passed, Failed, Skpped) results
+            Unfiltered dictionary of all (Passed, Failed, Skipped) results
         """
 
         return self._all_check_results
@@ -275,6 +282,30 @@ class ConsistencyChecker(object):
                 if omit_passed_sub:
                     retval[k]['details'] = [d for d in v['details'] if not d['passed']]
         return retval
+
+    def passes(self):
+        """
+        Returns passed checks that are not wholly No-Op.
+
+        Returns
+        -------
+        Dict
+            Dictionary containing checks that are not wholly No-Op
+        """
+        return {k: v for k, v in self.all().items()
+                if v['passed'] and any(d['severity'] != 'No-Op' for d in v['details'])}
+
+    def skips(self):
+        """
+        Returns passed checks that are wholly No-Op.
+
+        Returns
+        -------
+        Dict
+            Dictionary containing checks that are wholly No-Op
+        """
+        return {k: v for k, v in self.all().items()
+                if v['passed'] and all(d['severity'] == 'No-Op' for d in v['details'])}
 
     def print_result(self, include_passed_asserts=True, color=True, include_passed_checks=False, width=120,
                      skip_detail=False, fail_detail=False, pass_detail=False):

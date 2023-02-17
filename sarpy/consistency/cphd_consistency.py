@@ -11,6 +11,7 @@ __author__ = "Nathan Bombaci, Valkyrie"
 import logging
 import argparse
 import collections
+import copy
 import functools
 import itertools
 import numbers
@@ -27,7 +28,7 @@ import sarpy.consistency.consistency as con
 import sarpy.consistency.parsers as parsers
 import sarpy.io.phase_history.cphd1_elements.CPHD
 import sarpy.io.phase_history.cphd1_elements.utils as cphd1_utils
-from sarpy.io.phase_history.cphd_schema import get_schema_path, get_default_version_string
+from sarpy.io.phase_history import cphd_schema
 
 logger = logging.getLogger(__name__)
 
@@ -62,8 +63,6 @@ except ImportError:
 
 
 INVALID_CHAR_REGEX = re.compile(r'\W')
-DEFAULT_VERSION = '1.0.1'
-DEFAULT_SCHEMA = get_schema_path(DEFAULT_VERSION)
 
 
 def strip_namespace(root):
@@ -81,17 +80,18 @@ def strip_namespace(root):
         The element tree
     """
 
+    root_copy = copy.deepcopy(root)
     # strip namespace from each element
-    for elem in root.iter():
+    for elem in root_copy.iter():
         try:
             elem.tag = elem.tag.split('}')[-1]
         except (AttributeError, TypeError):
             pass
     # remove default namespace
-    nsmap = root.nsmap
+    nsmap = root_copy.nsmap
     nsmap.pop(None, None)
-    new_root = etree.Element(root.tag, nsmap)
-    new_root[:] = root[:]
+    new_root = etree.Element(root_copy.tag, nsmap)
+    new_root[:] = root_copy[:]
 
     return new_root
 
@@ -147,7 +147,7 @@ def read_header(file_handle):
     assert version.startswith('CPHD/1.0') or version.startswith('CPHD/1.1')
 
     header = sarpy.io.phase_history.cphd1_elements.CPHD.CPHDHeader.from_file_object(file_handle)
-    return {k:getattr(header, k) for k in header._fields if getattr(header, k) is not None}
+    return {k: getattr(header, k) for k in header._fields if getattr(header, k) is not None}
 
 
 def per_channel(method):
@@ -171,7 +171,7 @@ def per_channel(method):
 
 def get_by_id(xml, path, identifier):
     """
-    Find a node with a specific child Identifier node.
+    Matches the first element that has a child named Identifier whose text is `identifier`.
 
     Parameters
     ----------
@@ -184,11 +184,11 @@ def get_by_id(xml, path, identifier):
 
     Returns
     -------
-    etree.Element
-        node found by path with an Identifier node with value of `identifier`
+    None|etree.Element
+        node found by path with an Identifier node with value of `identifier` or None if a match is not found
     """
 
-    return xml.xpath('{path}/Identifier[text()="{identifier}"]/..'.format(path=path, identifier=identifier))[0]
+    return xml.find(f'{path}[Identifier="{identifier}"]')
 
 
 class CphdConsistency(con.ConsistencyChecker):
@@ -206,19 +206,24 @@ class CphdConsistency(con.ConsistencyChecker):
     filename : None|str
         Path to CPHD file (or None if not available)
     schema : str
-        Path to CPHD XML Schema
+        Path to CPHD XML Schema. If None, tries to find a version-specific schema
     check_signal_data: bool
         Should the signal array be checked for invalid values
     """
 
-    def __init__(self, cphdroot, pvps, header, filename, schema, check_signal_data):
+    def __init__(self, cphdroot, pvps, header, filename, schema=None, check_signal_data=False):
         super(CphdConsistency, self).__init__()
-        self.xml = strip_namespace(etree.fromstring(etree.tostring(cphdroot)))
-        self.xml_with_ns = cphdroot
+        self.xml_with_ns = etree.fromstring(etree.tostring(cphdroot))  # handle element or tree -> element
+        self.xml = strip_namespace(self.xml_with_ns)
         self.pvps = pvps
         self.filename = filename
         self.header = header
-        self.schema = schema
+        self.version = self._version_lookup()
+        if schema is None and self.version is not None:
+            urn = {v['release']: k for k, v in cphd_schema.urn_mapping.items()}[self.version]
+            self.schema = cphd_schema.get_schema_path(urn)
+        else:
+            self.schema = schema
         self.check_signal_data = check_signal_data
         channel_ids = [x.text for x in self.xml.findall('./Data/Channel/Identifier')]
 
@@ -228,7 +233,8 @@ class CphdConsistency(con.ConsistencyChecker):
             if getattr(func, 'per_channel', False):
                 subfuncs = []
                 for channel_id in channel_ids:
-                    channel_node = self.xml.xpath('./Channel/Parameters/Identifier[text()="{}"]/..'.format(channel_id))[0]
+                    channel_node = self.xml.xpath('./Channel/Parameters/Identifier[text()="{}"]/..'.format(
+                        channel_id))[0]
                     subfunc = functools.partial(func, channel_id, channel_node)
                     subfunc.__doc__ = "{doc} for channel {chanid}".format(doc=func.__doc__, chanid=channel_id)
                     modified_channel_id = re.sub(INVALID_CHAR_REGEX, '_', channel_id)
@@ -237,7 +243,7 @@ class CphdConsistency(con.ConsistencyChecker):
                 self.funcs[index:index+1] = subfuncs
 
     @classmethod
-    def from_file(cls, filename, schema, check_signal_data):
+    def from_file(cls, filename, schema=None, check_signal_data=False):
         """
         Create a CphdConsistency object from a CPHD file.
 
@@ -246,7 +252,7 @@ class CphdConsistency(con.ConsistencyChecker):
         filename : str
             Path to CPHD file
         schema : str
-            Path to CPHD XML schema
+            Path to CPHD XML Schema. If None, tries to find a version-specific schema
         check_signal_data : bool
             Should the signal array be checked for invalid values
 
@@ -285,6 +291,41 @@ class CphdConsistency(con.ConsistencyChecker):
                                              offset=int(channel_node.findtext('./PVPArrayByteOffset')))
                 pvps[channel_id] = channel_pvps
         return cls(cphdroot, pvps, header, filename, schema=schema, check_signal_data=check_signal_data)
+
+    def _version_lookup(self):
+        """
+        Returns the version string associated with the XML instance or None if a match is not found.
+        """
+        this_ns = etree.QName(self.xml_with_ns).namespace
+        if this_ns is None:
+            return None
+        for schema_info in cphd_schema.urn_mapping.values():
+            schema_path = schema_info.get('schema')
+            if schema_path is not None and this_ns == etree.parse(schema_path).getroot().get('targetNamespace'):
+                return schema_info['release']
+
+    def _get_channel_pvps(self, channel_id):
+        """
+        Returns the PVPs associated with the channel keyed by `channel_id` or raises an AssertionError.
+        """
+        assert self.pvps is not None
+        assert channel_id in self.pvps
+        return self.pvps[channel_id]
+
+    def check_file_type_header(self):
+        """
+        Version in File Type Header matches the version in the XML.
+        """
+        with self.precondition():
+            assert self.version is not None
+            assert self.filename is not None
+            with open(self.filename, 'rb') as fd:
+                first_line = fd.readline().decode()
+            assert first_line.startswith('CPHD/')
+            assert first_line.endswith('\n')
+            file_type_header_version = first_line[len('CPHD/'):-1]
+            with self.need("version in File Type Header matches the version in the XML"):
+                assert self.version == file_type_header_version
 
     def check_header_keys(self):
         """
@@ -325,10 +366,9 @@ class CphdConsistency(con.ConsistencyChecker):
         The XML matches the schema.
         """
 
-        with self.precondition():
+        with self.need(f"Schema available for checking xml whose root tag = {self.xml_with_ns.tag}"):
             assert self.schema is not None
-            with open(self.schema, mode='rb') as schema_file:
-                schema = etree.XMLSchema(etree.parse(schema_file))
+            schema = etree.XMLSchema(file=str(self.schema))
 
             with self.need("XML passes schema"):
                 assert schema.validate(self.xml_with_ns), schema.error_log
@@ -340,12 +380,12 @@ class CphdConsistency(con.ConsistencyChecker):
         """
 
         cod_id = channel_node.findtext('./DwellTimes/CODId')
-        with self.need("COD node exists"):
-            assert self.xml.xpath('./Dwell/CODTime/Identifier[text()="{}"]/..'.format(cod_id))[0] is not None
+        with self.need(f"/Dwell/CODTime with Identifier={cod_id} exists for DwellTime in channel={channel_id}"):
+            assert get_by_id(self.xml, './Dwell/CODTime', cod_id) is not None
 
         dwell_id = channel_node.findtext('./DwellTimes/DwellId')
-        with self.need("DwellTime node exists"):
-            assert self.xml.xpath('./Dwell/DwellTime/Identifier[text()="{}"]/..'.format(dwell_id))[0] is not None
+        with self.need(f"/Dwell/DwellTime with Identifier={dwell_id} exists for DwellTime in channel={channel_id}"):
+            assert get_by_id(self.xml, './Dwell/DwellTime', dwell_id) is not None
 
     def check_antenna(self):
         """
@@ -415,9 +455,7 @@ class CphdConsistency(con.ConsistencyChecker):
         """
 
         with self.precondition():
-            assert self.pvps is not None
-            assert channel_id in self.pvps
-            pvp = self.pvps[channel_id]
+            pvp = self._get_channel_pvps(channel_id)
             for side in 'Tx', 'Rcv':
                 spvp = pvp['{}Time'.format(side)]
                 mask = np.isfinite(spvp)
@@ -431,9 +469,7 @@ class CphdConsistency(con.ConsistencyChecker):
         """
 
         with self.precondition():
-            assert self.pvps is not None
-            assert channel_id in self.pvps
-            pvp = self.pvps[channel_id]
+            pvp = self._get_channel_pvps(channel_id)
             tx_time = pvp['TxTime']
             rcv_time = pvp['RcvTime']
             mask = np.logical_and(np.isfinite(pvp['TxTime']), np.isfinite(pvp['RcvTime']))
@@ -447,9 +483,7 @@ class CphdConsistency(con.ConsistencyChecker):
         """
 
         with self.precondition():
-            assert self.pvps is not None
-            assert channel_id in self.pvps
-            pvp = self.pvps[channel_id]
+            pvp = self._get_channel_pvps(channel_id)
             rcv_time = pvp['RcvTime']
             rcv_pos = pvp['RcvPos']
             with self.need("RcvTime"):
@@ -464,9 +498,7 @@ class CphdConsistency(con.ConsistencyChecker):
         """
 
         with self.precondition():
-            assert self.pvps is not None
-            assert channel_id in self.pvps
-            pvp = self.pvps[channel_id]
+            pvp = self._get_channel_pvps(channel_id)
             fx1_tol = con.Approx(np.nanmean(pvp['FX1']))
             fx2_tol = con.Approx(np.nanmean(pvp['FX2']))
             fx1_min_max = np.array([pvp['FX1'].min(), pvp['FX1'].max()])
@@ -492,9 +524,7 @@ class CphdConsistency(con.ConsistencyChecker):
         """
 
         with self.precondition():
-            assert self.pvps is not None
-            assert channel_id in self.pvps
-            pvp = self.pvps[channel_id]
+            pvp = self._get_channel_pvps(channel_id)
             toa1_tol = con.Approx(np.nanmean(pvp['TOA1']), atol=1e-11)
             toa2_tol = con.Approx(np.nanmean(pvp['TOA2']), atol=1e-11)
             toa1_min_max = np.array([pvp['TOA1'].min(), pvp['TOA1'].max()])
@@ -520,9 +550,7 @@ class CphdConsistency(con.ConsistencyChecker):
         """
 
         with self.precondition():
-            assert self.pvps is not None
-            assert channel_id in self.pvps
-            pvp = self.pvps[channel_id]
+            pvp = self._get_channel_pvps(channel_id)
             with self.precondition():
                 assert parsers.parse_bool(channel_node.find('./SRPFixed'))
                 with self.need("SRPPos is fixed"):
@@ -645,9 +673,7 @@ class CphdConsistency(con.ConsistencyChecker):
         """
 
         with self.precondition():
-            assert self.pvps is not None
-            assert channel_id in self.pvps
-            pvp = self.pvps[channel_id]
+            pvp = self._get_channel_pvps(channel_id)
             with self.precondition():
                 assert channel_node.find('./SignalNormal') is not None
                 with self.need('SIGNAL PVP present'):
@@ -664,9 +690,7 @@ class CphdConsistency(con.ConsistencyChecker):
         """
 
         with self.precondition():
-            assert self.pvps is not None
-            assert channel_id in self.pvps
-            pvp = self.pvps[channel_id]
+            pvp = self._get_channel_pvps(channel_id)
             with self.need("FxC is (max(fx2) + min(fx1)) / 2"):
                 assert (con.Approx(float(channel_node.findtext('./FxC')))
                         == (np.nanmax(pvp['FX2']) + np.nanmin(pvp['FX1'])) / 2)
@@ -678,9 +702,7 @@ class CphdConsistency(con.ConsistencyChecker):
         """
 
         with self.precondition():
-            assert self.pvps is not None
-            assert channel_id in self.pvps
-            pvp = self.pvps[channel_id]
+            pvp = self._get_channel_pvps(channel_id)
             with self.need("FxBW is max(fx2) - min(fx1)"):
                 assert (con.Approx(float(channel_node.findtext('./FxBW')))
                         == np.nanmax(pvp['FX2']) - np.nanmin(pvp['FX1']))
@@ -692,9 +714,7 @@ class CphdConsistency(con.ConsistencyChecker):
         """
 
         with self.precondition():
-            assert self.pvps is not None
-            assert channel_id in self.pvps
-            pvp = self.pvps[channel_id]
+            pvp = self._get_channel_pvps(channel_id)
             with self.precondition():
                 assert channel_node.find('./FxBWNoise') is not None
                 with self.need("Domain is FX when FxBWNoise is provided"):
@@ -710,12 +730,29 @@ class CphdConsistency(con.ConsistencyChecker):
         """
 
         with self.precondition():
-            assert self.pvps is not None
-            assert channel_id in self.pvps
-            pvp = self.pvps[channel_id]
+            pvp = self._get_channel_pvps(channel_id)
             with self.need("TOASaved is max(TOA2) - min(TOA1)"):
                 assert (con.Approx(float(channel_node.findtext('./TOASaved')))
                         == np.nanmax(pvp['TOA2']) - np.nanmin(pvp['TOA1']))
+
+    @per_channel
+    def check_channel_toaextsaved(self, channel_id, channel_node):
+        """
+        PVP agrees with TOAExtSaved.
+        """
+
+        toa_ext_saved_text = channel_node.findtext('./TOAExtended/TOAExtSaved')
+        has_toa_ext_saved = toa_ext_saved_text is not None
+        has_toae1 = self.xml.findtext('./PVP/TOAE1') is not None
+        has_toae2 = self.xml.findtext('./PVP/TOAE2') is not None
+        with self.want('TOA extended swath parameters are specified together'):
+            assert has_toa_ext_saved == has_toae1 == has_toae2
+        with self.precondition():
+            pvp = self._get_channel_pvps(channel_id)
+            assert has_toa_ext_saved
+            assert {'TOAE1', 'TOAE2'}.issubset(pvp.dtype.fields)
+            with self.need("TOAExtSaved is max(TOAE2) - min(TOAE1)"):
+                assert con.Approx(float(toa_ext_saved_text)) == np.nanmax(pvp['TOAE2']) - np.nanmin(pvp['TOAE1'])
 
     @per_channel
     def check_channel_global_txtime(self, channel_id, channel_node):
@@ -724,9 +761,7 @@ class CphdConsistency(con.ConsistencyChecker):
         """
 
         with self.precondition():
-            assert self.pvps is not None
-            assert channel_id in self.pvps
-            pvp = self.pvps[channel_id]
+            pvp = self._get_channel_pvps(channel_id)
             with self.need("TxTime is greater than TxTime1"):
                 assert np.nanmin(pvp['TxTime']) >= con.Approx(float(self.xml.findtext('./Global/Timeline/TxTime1')))
             with self.need("TxTime is less than TxTime2"):
@@ -739,9 +774,7 @@ class CphdConsistency(con.ConsistencyChecker):
         """
 
         with self.precondition():
-            assert self.pvps is not None
-            assert channel_id in self.pvps
-            pvp = self.pvps[channel_id]
+            pvp = self._get_channel_pvps(channel_id)
             with self.need("FX1 is greater than FxMin"):
                 assert np.nanmin(pvp['FX1']) >= con.Approx(float(self.xml.findtext('./Global/FxBand/FxMin')))
             with self.need("FX2 is less than FxMax"):
@@ -754,9 +787,7 @@ class CphdConsistency(con.ConsistencyChecker):
         """
 
         with self.precondition():
-            assert self.pvps is not None
-            assert channel_id in self.pvps
-            pvp = self.pvps[channel_id]
+            pvp = self._get_channel_pvps(channel_id)
             with self.need("TOA1 is greater than TOAMin"):
                 assert np.nanmin(pvp['TOA1']) >= con.Approx(float(self.xml.findtext('./Global/TOASwath/TOAMin')))
             with self.need("TOA2 is less than TOAMax"):
@@ -939,6 +970,16 @@ class CphdConsistency(con.ConsistencyChecker):
                                                         offset=signal_file_offset,
                                                         shape=(num_vectors, num_samples),
                                                         order='C')))
+
+    @per_channel
+    def check_channel_normal_signal_pvp(self, channel_id, channel_node):
+        """SIGNAL PVP = 1 for at least half of the vectors."""
+        with self.precondition():
+            pvp = self._get_channel_pvps(channel_id)
+            assert 'SIGNAL' in pvp.dtype.fields
+            num_normal = np.count_nonzero(pvp['SIGNAL'] == 1)
+            with self.want("SIGNAL PVP = 1 for at least half of the vectors"):
+                assert num_normal / pvp.size >= 0.5
 
     def check_image_grid_exists(self):
         """
@@ -1190,6 +1231,88 @@ class CphdConsistency(con.ConsistencyChecker):
             unconnected_ids = [] if no_data_subgraph is None else [x for x in no_data_subgraph.nodes if '<' in x]
             with self.want("All IDs connect to Data branch"):
                 assert not unconnected_ids
+
+    def check_identifier_uniqueness(self):
+        """
+        Identifier nodes are unique.
+        """
+
+        identifier_sets = (
+            {'./Antenna/AntCoordFrame/Identifier'},
+            {'./Antenna/AntPattern/Identifier'},
+            {'./Antenna/AntPhaseCenter/Identifier'},
+            {'./Channel/Parameters/Identifier'},
+            {'./Data/Channel/Identifier'},
+            {'./Data/SupportArray/Identifier'},
+            {'./Dwell/CODTime/Identifier'},
+            {'./Dwell/DwellTime/Identifier'},
+            {'./SceneCoordinates/ImageGrid/SegmentList/Segment/Identifier'},
+            {'./TxRcv/RcvParameters/Identifier'},
+            {'./TxRcv/TxWFParameters/Identifier'},
+            {f'./SupportArray/{sa_type}/Identifier' for sa_type in ('IAZArray', 'AntGainPhase', 'AddedSupportArray')},
+        )
+        for identifier_set in identifier_sets:
+            these_identifiers = []
+            for path in identifier_set:
+                these_identifiers.extend(x.text for x in self.xml.findall(path))
+            repeated_identifiers = _get_repeated_elements(these_identifiers)
+            with self.need(f'Identifiers {identifier_set} are unique'):
+                assert not repeated_identifiers
+
+    def check_polynomials(self):
+        """
+        Polynomial types are correctly specified.
+        """
+
+        def check_poly(poly_elem):
+            path = poly_elem.getroottree().getpath(poly_elem)
+            order_by_dim = {dim: int(poly_elem.get(f'order{dim}'))
+                            for dim in (1, 2) if poly_elem.get(f'order{dim}') is not None}
+            coef_exponents = [tuple(int(coef.get(f'exponent{dim}')) for dim in order_by_dim)
+                              for coef in poly_elem.findall('./Coef')]
+            repeated_coef_exponents = _get_repeated_elements(coef_exponents)
+            with self.need(f'{path} is correctly specified'):
+                for index, order in enumerate(order_by_dim.values()):
+                    dim_coefs_above_order = [coef_exp[index] for coef_exp in coef_exponents if coef_exp[index] > order]
+                    assert not dim_coefs_above_order
+                assert not repeated_coef_exponents
+
+        poly_paths = itertools.chain(
+            [f'./Antenna/AntPattern/{j}/{k}Poly' for j, k in itertools.product(('Array', 'Element'),
+                                                                               ('Gain', 'Phase'))],
+            [f'./Antenna/AntCoordFrame/{axis}AxisPoly/{comp}' for axis, comp in itertools.product('XY', 'XYZ')],
+            ['./Antenna/AntPattern/GainBSPoly'],
+            [f'./Antenna/AntPattern/EB/DC{ax}Poly' for ax in 'XY'],
+            [f'./Dwell/{x}Time/{x}TimePoly' for x in ('COD', 'Dwell')],
+        )
+        for element_path in poly_paths:
+            for poly in self.xml.findall(element_path):
+                check_poly(poly)
+
+    def check_optional_pvps_fx(self):
+        """
+        FXN1 & FXN2 PVPs are included appropriately.
+        """
+
+        is_fx_domain = self.xml.findtext('./Global/DomainType') == 'FX'
+        has_fxn1 = self.xml.findtext('./PVP/FXN1') is not None
+        has_fxn2 = self.xml.findtext('./PVP/FXN2') is not None
+        with self.need('FXN1/FXN2 only allowed when /Global/DomainType = FX and must be included together'):
+            assert not(has_fxn1 or has_fxn2) or (is_fx_domain and has_fxn1 and has_fxn2)
+
+    def check_optional_pvps_toa(self):
+        """
+        TOAE1 & TOAE2 PVPs are included appropriately.
+        """
+
+        has_toae1 = self.xml.findtext('./PVP/TOAE1') is not None
+        has_toae2 = self.xml.findtext('./PVP/TOAE2') is not None
+        with self.need('TOAE1/TOAE2 must be included together'):
+            assert has_toae1 == has_toae2
+
+
+def _get_repeated_elements(items):
+    return [x for x, count in collections.Counter(items).items() if count > 1]
 
 
 def calc_refgeom_parameters(xml, pvps):
@@ -1578,9 +1701,13 @@ def main(args=None):
     parser.add_argument('cphd_or_xml')
     parser.add_argument('-v', '--verbose', default=0,
                         action='count', help="Increase verbosity (can be specified more than once >4 doesn't help)")
-    parser.add_argument('--schema', help="Use a supplied schema file", default=DEFAULT_SCHEMA)
-    parser.add_argument('--noschema', action='store_const', const=None, dest='schema', help="Disable schema checks")
+    parser.add_argument('--schema', help="Use a supplied schema file (attempts version-specific schema if omitted)")
+    parser.add_argument('--noschema', action='append_const', const='check_against_schema', dest='ignore',
+                        help="Disable schema checks")
     parser.add_argument('--signal-data', action='store_true', help="Check the signal data for NaN and +/- Inf")
+    parser.add_argument('--ignore', action='append', metavar='PATTERN',
+                        help=("Skip any check matching PATTERN at the beginning of its name. Can be specified more than"
+                              " once."))
     config = parser.parse_args(args)
 
     # Some questionable abuse of the pytest internals
@@ -1600,7 +1727,7 @@ def main(args=None):
     exec(co, ns)
 
     cphd_con = ns['CphdConsistency'].from_file(config.cphd_or_xml, config.schema, config.signal_data)
-    cphd_con.check()
+    cphd_con.check(ignore_patterns=config.ignore)
     failures = cphd_con.failures()
     cphd_con.print_result(fail_detail=config.verbose >= 1,
                           include_passed_asserts=config.verbose >= 2,

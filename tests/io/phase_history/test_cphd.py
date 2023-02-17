@@ -9,12 +9,8 @@ import numpy.testing
 from sarpy.io.phase_history.cphd import CPHDReader, CPHDReader0_3, CPHDReader1, CPHDWriter1
 from sarpy.io.phase_history.converter import open_phase_history
 import sarpy.consistency.cphd_consistency
-from sarpy.io.phase_history.cphd_schema import get_schema_path, get_default_version_string
 
 from tests import parse_file_entry
-
-DEFAULT_VERSION = get_default_version_string()
-DEFAULT_SCHEMA = get_schema_path(DEFAULT_VERSION)
 
 cphd_file_types = {}
 
@@ -45,7 +41,8 @@ def generic_io_test(instance, test_file, reader_type_string, reader_type):
 
     assert isinstance(reader, CPHDReader)
     with instance.subTest(msg='Reader for type {} should be appropriate reader'):
-        instance.assertTrue(isinstance(reader, reader_type), msg='Returned reader should be of type {}'.format(reader_type))
+        instance.assertTrue(isinstance(reader, reader_type), msg='Returned reader should be of type {}'.format(
+            reader_type))
 
     if not isinstance(reader, reader_type):
         return  # remaining tests might be misleading
@@ -59,7 +56,8 @@ def generic_io_test(instance, test_file, reader_type_string, reader_type):
             logging.warning(
                 'cphd in reader of type {} for file {} not valid'.format(reader_type_string, test_file))
 
-    with instance.subTest(msg='Fetch data_sizes and sidds for type {} and file {}'.format(reader_type_string, test_file)):
+    with instance.subTest(msg='Fetch data_sizes and sidds for type {} and file {}'.format(
+            reader_type_string, test_file)):
         data_sizes = reader.get_data_size_as_tuple()
         if isinstance(reader, CPHDReader1):
             elements = reader.cphd_meta.Data.Channels
@@ -82,12 +80,14 @@ def generic_io_test(instance, test_file, reader_type_string, reader_type):
             instance.assertEqual(reader[:2, -2:, i].shape[:2], (2, 2), msg='upper right fetch')
 
         with instance.subTest(msg='Verify fetching complete row(s) have correct size '
-                                  'for cphd index {} in reader of type {} and file {}'.format(i, reader_type_string, test_file)):
+                                  'for cphd index {} in reader of type {} and file {}'.format(
+                                    i, reader_type_string, test_file)):
             test_data = reader[:, :2, i]
             instance.assertEqual(test_data.shape[:2], (data_size[0], 2), msg='Complete row fetch size mismatch')
 
         with instance.subTest(msg='Verify fetching complete columns(s) have correct size '
-                                  'for cphd index {} in reader of type {} file {}'.format(i, reader_type_string, test_file)):
+                                  'for cphd index {} in reader of type {} file {}'.format(
+                                    i, reader_type_string, test_file)):
             test_data = reader[:2, :, i]
             instance.assertEqual(test_data.shape[:2], (2, data_size[1]), msg='Complete row fetch size mismatch')
 
@@ -142,7 +142,7 @@ def generic_writer_test(cphd_reader, the_directory):
     for signal_key in reread_signal:
         numpy.testing.assert_array_equal(read_signal[signal_key], reread_signal[signal_key])
 
-    assert not sarpy.consistency.cphd_consistency.main([written_cphd_name, '--schema', DEFAULT_SCHEMA, '--signal-data'])
+    assert not sarpy.consistency.cphd_consistency.main([written_cphd_name, '--signal-data'])
 
 
 class TestCPHD(unittest.TestCase):
