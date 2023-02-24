@@ -4,6 +4,10 @@ SarPy follows a continuous release process, so there are fairly frequent release
 Since essentially every (squash merge) commit corresponds to a release, specific 
 release points are not being annotated in GitHub.
 
+## [1.3.22] - 2023-02-23
+### Added
+- Added point projection tests.
+ 
 ## [1.3.21] - 2023-02-22
 ### Fixed
 - Fixed bug with applying the correct endianness being applied when reading SIO data. 
