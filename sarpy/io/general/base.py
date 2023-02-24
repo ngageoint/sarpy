@@ -682,7 +682,8 @@ class BaseWriter(object):
     @property
     def closed(self) -> bool:
         """
-        bool: Is the reader closed? Reading will result in a ValueError
+        bool: Is the writer closed? Reading file after writing can
+        result in a ValueError if writer was not closed.
         """
 
         return self._closed
@@ -817,7 +818,7 @@ class BaseWriter(object):
                     'and to write the data in raw (i.e. unformatted) form.')
             return ds.write(data, start_indices=start_indices, subscript=subscript)
 
-    def flush(self, force: bool=False) -> None:
+    def flush(self, force: bool = False) -> None:
         """
         Try to perform any necessary steps to flush written data to the disk/buffer.
 
@@ -838,7 +839,10 @@ class BaseWriter(object):
 
     def close(self) -> None:
         """
-        Completes any necessary final steps.
+        This should perform any necessary final steps, like closing
+        open file handles, deleting any temp files, etc.
+        Trying to read newly created file without closing may raise a ValueError.
+
         """
 
         if not hasattr(self, '_closed') or self._closed:
