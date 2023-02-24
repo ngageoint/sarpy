@@ -7,6 +7,7 @@ __author__ = ("Thomas McCullough", "Wade Schwartzkopf")
 
 
 import os
+import sys
 import struct
 import logging
 import re
@@ -58,7 +59,10 @@ class SIODetails(object):
             raise SarpyIOError('Path {} is not a file'.format(file_name))
 
         with open(file_name, 'rb') as fi:
-            self._magic_number = struct.unpack('I', fi.read(4))[0]
+            if sys.byteorder == 'little':
+                self._magic_number = struct.unpack('>I', fi.read(4))[0]
+            else:
+                self._magic_number = struct.unpack('<I', fi.read(4))[0]
             endian = self.ENDIAN.get(self._magic_number, None)
             if endian is None:
                 raise SarpyIOError(
