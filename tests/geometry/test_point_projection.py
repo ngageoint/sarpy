@@ -14,6 +14,7 @@ from sarpy.io.product.sidd2_elements.SIDD import SIDDType
 from sarpy.io.DEM.DEM import DEMInterpolator
 TOLERANCE = 1e-8
 
+
 @pytest.fixture(scope='module')
 def sicd():
     xml_file = pathlib.Path(pathlib.Path.cwd(), 'tests/data/example.sicd.xml')
@@ -27,7 +28,8 @@ def sicd():
                structure.GeoData.SCP.LLH.Lon,
                structure.GeoData.SCP.LLH.HAE]
 
-    return {'structure': structure,'scp_pixel': scp_pixel,'scp_ecf': scp_ecf,'scp_llh': scp_llh}
+    return {'structure': structure, 'scp_pixel': scp_pixel, 'scp_ecf': scp_ecf, 'scp_llh': scp_llh}
+
 
 @pytest.fixture(scope='module')
 def sidd():
@@ -123,7 +125,8 @@ def test_image_to_ground_errors(sicd):
 
     # dem_interpolator is not DEMInterpolator type
     with pytest.raises(TypeError, match="dem_interpolator is of unsupported type"):
-        point_projection.image_to_ground(sicd['scp_pixel'], sicd['structure'], projection_type='DEM', dem_interpolator=sicd['scp_pixel'])
+        point_projection.image_to_ground(sicd['scp_pixel'], sicd['structure'], projection_type='DEM',
+                                         dem_interpolator=sicd['scp_pixel'])
 
 
 def test_image_to_ground_geo(sicd):
@@ -249,4 +252,3 @@ def test_validate_adjustment_param_error(sicd):
     coords = np.array(coords)
     with pytest.raises(ValueError, match=r"position must have shape \(3, \). Got \(4, 1\)"):
         point_projection._validate_adj_param(coords, 'position')
-
