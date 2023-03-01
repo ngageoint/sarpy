@@ -9,8 +9,8 @@ release points are not being annotated in GitHub.
 - Fixed pixel_type check for get_format_function within SICDWriter.
 ### Added
 - Added additional information in documents for writer class close() function 
-- to explicitly state that not closing file after writing can raise ValueErrors
-- when trying to read them. 
+to explicitly state that not closing file after writing can raise ValueErrors
+when trying to read them. 
 
 ## [1.3.22] - 2023-02-23
 ### Added
