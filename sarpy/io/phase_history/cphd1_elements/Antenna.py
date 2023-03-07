@@ -125,7 +125,7 @@ class GainPhaseArrayType(Serializable):
 
     _fields = ('Freq', 'ArrayId', 'ElementId')
     _required = ('Freq', 'ArrayId')
-    _numeric_format = {'Freq', FLOAT_FORMAT}
+    _numeric_format = {'Freq': FLOAT_FORMAT}
     # descriptors
     Freq = FloatDescriptor(
         'Freq', _required, strict=DEFAULT_STRICT, bounds=(0, None),
