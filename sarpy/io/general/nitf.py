@@ -3716,7 +3716,7 @@ class NITFWriter(BaseWriter):
         -------
         mask_offsets : Optional[numpy.ndarray]
             The mask byte offset from the end of the mask subheader definition.
-            If `IMODE = S`, then this is two dimensional, otherwise it is one
+            If `IMODE = S`, then this is two-dimensional, otherwise it is one
             dimensional
         exclude_value : int
             The offset value for excluded block, should always be `0xFFFFFFFF`.
@@ -4151,6 +4151,11 @@ class NITFWriter(BaseWriter):
             return
 
     def close(self) -> None:
+        """
+        This should perform any necessary final steps, like closing
+        open file handles, deleting any temp files, etc.
+        Trying to read newly created file without closing may raise a ValueError.
+        """
         BaseWriter.close(self)  # NB: flush called here
         try:
             if self.nitf_writing_details is not None:
