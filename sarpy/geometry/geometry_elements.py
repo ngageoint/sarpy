@@ -1519,7 +1519,7 @@ class LinearRing(LineString):
         numpy.ndarray
         """
 
-        return self.bounding_box
+        return self._bounding_box
 
     def get_perimeter(self):
         """
