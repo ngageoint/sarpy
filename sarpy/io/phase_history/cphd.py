@@ -1848,6 +1848,12 @@ class CPHDWriter1(BaseWriter):
             return
 
     def close(self):
+        """
+        This should perform any necessary final steps, like closing
+        open file handles, deleting any temp files, etc.
+        Trying to read newly created file without closing may raise a ValueError.
+        """
+
         if hasattr(self, '_closed') and self._closed:
             return
 
