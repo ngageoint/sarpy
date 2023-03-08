@@ -4,6 +4,10 @@ SarPy follows a continuous release process, so there are fairly frequent release
 Since essentially every (squash merge) commit corresponds to a release, specific 
 release points are not being annotated in GitHub.
 
+## [1.3.24] - 2023-03-08
+### Added
+- Added more coverage to test_geometry_elements
+
 ## [1.3.23] - 2023-02-23
 ### Fixed
 - Fixed pixel_type check for get_format_function within SICDWriter.
