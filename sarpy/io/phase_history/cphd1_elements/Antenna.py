@@ -201,7 +201,7 @@ class FreqSFType(Serializable, Arrayable):
     @classmethod
     def from_array(cls, array: numpy.ndarray):
         """
-        Construct from a iterable.
+        Construct from an iterable.
 
         Parameters
         ----------
@@ -278,7 +278,7 @@ class AntPolRefType(Serializable, Arrayable):
     @classmethod
     def from_array(cls, array: numpy.ndarray):
         """
-        Construct from a iterable.
+        Construct from an iterable.
 
         Parameters
         ----------
