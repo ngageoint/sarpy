@@ -10,6 +10,7 @@ import os
 import re
 import shutil
 import tempfile
+import xml.etree.ElementTree as ET
 
 from lxml import etree
 import numpy as np
@@ -17,6 +18,7 @@ import pytest
 
 from sarpy.consistency.cphd_consistency import main, CphdConsistency, \
     get_by_id, read_header, strip_namespace
+import sarpy.io.phase_history.cphd1_elements.Dwell as sarpy_dwell
 
 
 TEST_FILE_NAMES = {
@@ -1023,4 +1025,19 @@ def test_check_channel_rcv_sample_rate(good_cphd):
     for rcv_rate in cphd_con.xml.findall('./TxRcv/RcvParameters/SampleRate'):
         rcv_rate.text = '0'
     cphd_con.check(ignore_patterns=['check_(?!channel_rcv_sample_rate.+)'])
+    assert cphd_con.failures()
+
+def test_check_channel_dwell_polys(good_cphd):
+    cphd_con = CphdConsistency.from_file(str(good_cphd))
+    bad_xml = ET.fromstring(ET.tostring(cphd_con.xml))  # CODTimeType needs xml
+    global_txtime2 = float(bad_xml.findtext('./Global/Timeline/TxTime2'))
+    cod_id = bad_xml.findtext('./Channel/Parameters/DwellTimes/CODId')
+    codtime_elem = get_by_id(bad_xml, './Dwell/CODTime', cod_id)
+    codtime_elem.remove(codtime_elem.find('./CODTimePoly'))
+    bad_cod_time = sarpy_dwell.CODTimeType(Identifier=cod_id, CODTimePoly=[[global_txtime2 + 1]])
+    codtime_elem.append(bad_cod_time.CODTimePoly.to_node(ET.ElementTree(bad_xml), 'CODTimePoly'))
+    bad_xml = etree.fromstring(ET.tostring(bad_xml))  # CphdConsistency needs lxml
+    cphd_con = CphdConsistency(bad_xml, cphd_con.pvps, cphd_con.header, cphd_con.filename,
+                               cphd_con.schema, cphd_con.check_signal_data)
+    cphd_con.check(ignore_patterns=['check_(?!channel_dwell_polys.+)'])
     assert cphd_con.failures()

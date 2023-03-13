@@ -391,6 +391,62 @@ class CphdConsistency(con.ConsistencyChecker):
         with self.need(f"/Dwell/DwellTime with Identifier={dwell_id} exists for DwellTime in channel={channel_id}"):
             assert get_by_id(self.xml, './Dwell/DwellTime', dwell_id) is not None
 
+    @per_channel
+    def check_channel_dwell_polys(self, channel_id, channel_node):
+        """
+        /Dwell/CODTime/CODTimePoly and /Dwell/DwellTime/DwellTimePoly are consistent with other metadata.
+        """
+
+        cod_node = get_by_id(self.xml, './Dwell/CODTime', channel_node.findtext('./DwellTimes/CODId'))
+        dwell_node = get_by_id(self.xml, './Dwell/DwellTime', channel_node.findtext('./DwellTimes/DwellId'))
+        codtime_poly = parsers.parse_poly2d(cod_node.find('./CODTimePoly'))
+        dwelltime_poly = parsers.parse_poly2d(dwell_node.find('./DwellTimePoly'))
+
+        def _get_image_area_polygon(image_area_elem):
+            inner_polygon = image_area_elem.find('./Polygon')
+            if inner_polygon is not None:
+                return shg.Polygon(self.get_polygon(inner_polygon))
+            x1, y1 = parsers.parse_xy(image_area_elem.find('./X1Y1'))
+            x2, y2 = parsers.parse_xy(image_area_elem.find('./X2Y2'))
+            return shg.box(x1, y1, x2, y2)
+
+        image_area_elem = channel_node.find('./ImageArea')
+        if image_area_elem is None:
+            image_area_elem = self.xml.find('./SceneCoordinates/ImageArea')
+        image_area_polygon = _get_image_area_polygon(image_area_elem)
+
+        def _get_points_in_polygon(polygon, grid_size=25):
+            bounds = np.asarray(polygon.bounds).reshape(2, 2)  # [[xmin, ymin], [xmax, ymax]]
+            mesh = np.stack(np.meshgrid(np.linspace(bounds[0, 0], bounds[1, 0], grid_size),
+                                        np.linspace(bounds[0, 1], bounds[1, 1], grid_size)), axis=-1)
+            coords = shg.MultiPoint(np.concatenate([mesh.reshape(-1, 2),
+                                                    np.asarray(polygon.exterior.coords)[:-1, :]], axis=0))
+            return np.asarray([pt.coords for pt in polygon.intersection(coords).geoms])
+
+        sampled_iacs = _get_points_in_polygon(image_area_polygon).T
+        sampled_cods = npp.polyval2d(*sampled_iacs, codtime_poly)
+        sampled_dwells = npp.polyval2d(*sampled_iacs, dwelltime_poly)
+        with self.need("/Dwell/DwellTime/DwellTimePoly is nonnegative in image area"):
+            assert sampled_dwells.min() >= 0.0
+
+        sampled_tref1 = sampled_cods - 0.5 * sampled_dwells
+        sampled_tref2 = sampled_cods + 0.5 * sampled_dwells
+        with self.precondition():
+            pvp = self._get_channel_pvps(channel_id)
+            mask = np.isfinite(pvp['TxTime'])
+
+            def calc_tref(v):
+                r_xmt = np.linalg.norm(v['TxPos'] - v['SRPPos'])
+                r_rcv = np.linalg.norm(v['RcvPos'] - v['SRPPos'])
+                return v['TxTime'] + r_xmt / (r_xmt + r_rcv) * (v['RcvTime'] - v['TxTime'])
+
+            pvps_tref1 = calc_tref(pvp[mask][0])
+            pvps_tref2 = calc_tref(pvp[mask][-1])
+
+            with self.need("/Dwell/CODTime/CODTimePoly and /Dwell/DwellTime/DwellTimePoly supported by PVPs"):
+                assert sampled_tref1.min() >= con.Approx(pvps_tref1, atol=100e-6)
+                assert sampled_tref2.max() <= con.Approx(pvps_tref2, atol=100e-6)
+
     def check_antenna(self):
         """
         Check that antenna node is consistent.
