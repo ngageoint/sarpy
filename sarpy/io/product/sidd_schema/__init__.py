@@ -146,69 +146,6 @@ def validate_xml_ns(xml_ns: Dict[str, str], ns_key: str='default') -> bool:
     bool
     """
 
-    def validate_ism_urn():
-        if 'ism' not in xml_ns:
-            the_val = None
-            for key in xml_ns:
-                val = xml_ns[key]
-                if val.lower().startswith('urn:us:gov:ic:ism'):
-                    the_val = val
-            xml_ns['ism'] = the_val
-
-        valid = True
-        if 'ism' not in xml_ns:
-            logger.error('SIDD: No `ism` namespace defined.')
-            valid = False
-        elif xml_ns['ism'] != details['ism_urn']:
-            logger.error(
-                'SIDD: SIDD {} `ISM` namespace urn is expected to be "{}", but we got "{}".\n\t'
-                'Differences in standard may lead to deserialization and/or '
-                'validation errors.'.format(sidd_urn, details['ism_urn'], xml_ns['ism']))
-            valid = False
-        return valid
-
-    def validate_sfa_urn():
-        if 'sfa' not in xml_ns:
-            the_val = None
-            for key in xml_ns:
-                val = xml_ns[key]
-                if val.lower().startswith('urn:sfa:'):
-                    the_val = val
-            xml_ns['sfa'] = the_val
-
-        valid = True
-        if 'ism' not in xml_ns:
-            logger.error('SIDD: No `sfa` namespace defined.')
-            valid = False
-        elif xml_ns['sfa'] != details['sfa_urn']:
-            logger.error(
-                'SIDD: SIDD {} `SFA` namespace urn is expected to be "{}", but we got "{}".\n\t'
-                'Differences in standard may lead to deserialization and/or '
-                'validation errors.'.format(sidd_urn, details['sfa_urn'], xml_ns['sfa']))
-            valid = False
-        return valid
-
-    def validate_sicommon_urn():
-        if 'sicommon' not in xml_ns:
-            the_val = None
-            for key in xml_ns:
-                val = xml_ns[key]
-                if val.lower().startswith('urn:sicommon:'):
-                    the_val = val
-            xml_ns['sicommon'] = the_val
-
-        valid = True
-        if 'sicommon' not in xml_ns:
-            logger.error('SIDD: No `sicommon` namespace defined.')
-            valid = False
-        elif xml_ns['sicommon'] != details['sicommon_urn']:
-            logger.error(
-                'SIDD: SIDD {} `SICommon` namespace urn is expected to be "{}", but we got "{}".\n\t'
-                'Differences in standard may lead to deserialization and/or '
-                'validation errors.'.format(sidd_urn, details['sicommon_urn'], xml_ns['sicommon']))
-            valid = False
-        return valid
-
     if not isinstance(xml_ns, dict):
         raise ValueError('xml_ns must be a dictionary for SIDD interpretation.')
 
@@ -223,7 +160,31 @@ def validate_xml_ns(xml_ns: Dict[str, str], ns_key: str='default') -> bool:
         logger.error('Got unmapped sidd urn `{}`'.format(sidd_urn))
         return False
 
-    valid_ns = validate_ism_urn()
-    valid_ns &= validate_sfa_urn()
-    valid_ns &= validate_sicommon_urn()
-    return valid_ns
+    # key => (expected prefix, required)
+    expected_ns = {
+        'ism': ('urn:us:gov:ic:ism', True),
+        'sfa': ('urn:sfa:', False),
+        'sicommon': ('urn:sicommon:', True),
+    }
+
+    ns_to_add = dict()
+    for expected_key, (expected_prefix, _) in expected_ns.items():
+        if expected_key not in xml_ns:
+            for actual_ns in xml_ns.values():
+                if isinstance(actual_ns, str) and actual_ns.lower().startswith(expected_prefix):
+                    ns_to_add[expected_key] = actual_ns
+                    break
+    xml_ns.update(ns_to_add)
+
+    valid = True
+    for key, (_, required) in expected_ns.items():
+        if key in xml_ns and xml_ns[key] != details[f'{key}_urn']:
+            valid = False
+            logger.error(
+                'SIDD: SIDD {} `{}` namespace urn is expected to be "{}", but we got "{}".\n\t'
+                'Differences in standard may lead to deserialization and/or '
+                'validation errors.'.format(sidd_urn, key, details[f'{key}_urn'], xml_ns[key]))
+        if required and key not in xml_ns:
+            valid = False
+            logger.error(f'SIDD: No `{key}` namespace defined.')
+    return valid
