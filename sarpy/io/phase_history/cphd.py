@@ -151,7 +151,7 @@ class AmpScalingFunction(ComplexFormatFunction):
         # NB: subscript is in raw coordinates, but we have verified that
         #   the first dimension is unchanged
         if self._amplitude_scaling is not None:
-            out = self._amplitude_scaling[subscript[0]]*out
+            out = self._amplitude_scaling[subscript[0]][:, numpy.newaxis] * out
 
         return out
 
@@ -162,7 +162,7 @@ class AmpScalingFunction(ComplexFormatFunction):
         # NB: subscript is in formatted coordinates, but we have verified that
         #   transpose_axes is None and band_dimension is the final dimension
         if self._amplitude_scaling is not None:
-            data = (1./self._amplitude_scaling[subscript[0]])*data
+            data = numpy.rint((1./self._amplitude_scaling[subscript[0]])[:, numpy.newaxis] * data)
 
         return ComplexFormatFunction._reverse_functional_step(self, data, subscript)
 
