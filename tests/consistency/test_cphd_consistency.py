@@ -1027,6 +1027,7 @@ def test_check_channel_rcv_sample_rate(good_cphd):
     cphd_con.check(ignore_patterns=['check_(?!channel_rcv_sample_rate.+)'])
     assert cphd_con.failures()
 
+
 def test_check_channel_dwell_polys(good_cphd):
     cphd_con = CphdConsistency.from_file(str(good_cphd))
     bad_xml = ET.fromstring(ET.tostring(cphd_con.xml))  # CODTimeType needs xml
