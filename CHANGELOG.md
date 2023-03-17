@@ -4,6 +4,10 @@ SarPy follows a continuous release process, so there are fairly frequent release
 Since essentially every (squash merge) commit corresponds to a release, specific 
 release points are not being annotated in GitHub.
 
+## [1.3.26] - 2023-03-17
+### Changed
+- Moved test_consistency and test_cphd_consistency from pytests folder to tests folder. 
+
 ## [1.3.25] - 2023-03-10
 ### Added
 - Added additional checks for micro-parameters, and related metadata in cphd_consistency.
