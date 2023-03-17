@@ -7,6 +7,10 @@ release points are not being annotated in GitHub.
 ## [1.3.26] - 2023-03-17
 ### Changed
 - Moved test_consistency and test_cphd_consistency from pytests folder to tests folder. 
+### Fixed
+-  Fixed bug in SarPy correctly reading SIDDs with undeclared XML namespace
+### Added
+- Added test for SIDD undeclared XML namespace
 
 ## [1.3.25] - 2023-03-10
 ### Added
