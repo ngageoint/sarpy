@@ -4,6 +4,14 @@ SarPy follows a continuous release process, so there are fairly frequent release
 Since essentially every (squash merge) commit corresponds to a release, specific 
 release points are not being annotated in GitHub.
 
+## [1.3.25] - 2023-03-10
+### Added
+- Added additional checks for micro-parameters, and related metadata in cphd_consistency.
+### Changed
+- Improved cphd_consistency result formatting.
+### Fixed
+- Fixed GainPhaseArrayType._numeric_format typo when creating the dictionary. 
+ 
 ## [1.3.24] - 2023-03-08
 ### Added
 - Added more coverage to test_geometry_elements
@@ -205,7 +213,7 @@ misidentified
 
 ## [1.2.63] - 2022-03-16
 ### Added
-Created a few methods for parsing a sicd structure directly from an xml file
+Created a few methods for parsing a sicd structure directly from a xml file
 
 ## [1.2.62] - 2022-03-08
 ### Changed
@@ -245,7 +253,7 @@ Fixed a bug in scaling failure for the creation of KMZ from SICD
 ### Added
 - A ReferencePoint property to SIDD.Measurement
 - Basic image registration functions for 
-    - finding the best adjustable projection parameters to fit known geo-location and 
+    - finding the best adjustable projection parameters to fit known geolocation and 
     observed image location
     - find the best geophysical location given a collection of images and observed 
     image locations
@@ -267,7 +275,7 @@ Resolves a potentially invalid gc.collect call
 
 ## [1.2.52] - 2022-01-19
 ### Added
-- Adds links to NGA standards documents in the readme
+- Add links to NGA standards documents in the readme
 - Introduction of a subset SICD reader class implementation
 
 ### Changed

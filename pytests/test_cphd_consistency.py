@@ -16,7 +16,7 @@ import numpy as np
 import pytest
 
 from sarpy.consistency.cphd_consistency import main, CphdConsistency, \
-    read_header, strip_namespace
+    get_by_id, read_header, strip_namespace
 
 
 TEST_FILE_NAMES = {
@@ -945,4 +945,82 @@ def test_check_channel_toaextsaved_no_toae1(dataset_with_toaextsaved):
     remove_nodes(*cphd_con.xml.findall('./PVP/TOAE1'))
     cphd_con.pvps = {k: v[[x for x in v.dtype.names if x != 'TOAE1']] for k, v in pvps.items()}
     cphd_con.check(ignore_patterns=['check_(?!channel_toaextsaved.+)'])
+    assert cphd_con.failures()
+
+
+def test_check_channel_afdop(good_cphd):
+    cphd_con = CphdConsistency.from_file(good_cphd, check_signal_data=True)
+    cphd_con = copy.deepcopy(cphd_con)
+    channel_pvps = next(iter(cphd_con.pvps.values()))
+    channel_pvps['aFDOP'][0] += 100
+    cphd_con.check(ignore_patterns=['check_(?!channel_afdop.+)'])
+    assert cphd_con.failures()
+    assert not cphd_con.skips()
+
+    channel_pvps['aFDOP'][:] = 0
+    cphd_con.check(ignore_patterns=['check_(?!channel_afdop.+)'])
+    assert cphd_con.skips()  # skips check if all zeroes
+
+
+def test_check_channel_afrr1_afrr2_relative(good_cphd):
+    cphd_con = CphdConsistency.from_file(good_cphd, check_signal_data=True)
+    cphd_con = copy.deepcopy(cphd_con)
+    channel_pvps = next(iter(cphd_con.pvps.values()))
+    channel_pvps['FX1'][0] *= 2
+    channel_pvps['FX2'][0] *= 2
+    cphd_con.check(ignore_patterns=['check_(?!channel_afrr1_afrr2_relative.+)'])
+    assert cphd_con.failures()
+
+
+@pytest.mark.parametrize('parameter', ['aFRR1', 'aFRR2'])
+def test_check_channel_afrrs(good_cphd, parameter):
+    cphd_con = CphdConsistency.from_file(good_cphd, check_signal_data=True)
+    cphd_con = copy.deepcopy(cphd_con)
+    channel_id = cphd_con.xml.findtext('./Data/Channel/Identifier')
+    tx_wf_ids = cphd_con.xml.findall(f'./Channel/Parameters[Identifier="{channel_id}"]/TxRcv/TxWFId')
+    assert len(tx_wf_ids) == 1  # test construction assumes only one tx_wf
+    tx_wf_parameters = get_by_id(cphd_con.xml, './TxRcv/TxWFParameters', tx_wf_ids[0].text)
+    restored_tx_wf_parameters = copy.deepcopy(tx_wf_parameters)
+    restored_tx_wf_parameters.find('./Identifier').text += '_restored'
+    tx_fm_rate = tx_wf_parameters.find('./LFMRate')
+    tx_fm_rate.text = str((float(tx_fm_rate.text) + 1e6) * 10)
+    cphd_con.check(f'check_channel_{parameter.lower()}_{channel_id}')
+    assert cphd_con.failures()
+
+    # add back the original LFMRate and see that it passes
+    restored_tx_wf_id = copy.deepcopy(tx_wf_ids[0])
+    restored_tx_wf_id.text = restored_tx_wf_parameters.findtext('./Identifier')
+    tx_wf_ids[0].addnext(restored_tx_wf_id)
+    tx_wf_parameters.addnext(restored_tx_wf_parameters)
+    num_tx_wfs = tx_wf_parameters.getparent().find('./NumTxWFs')
+    num_tx_wfs.text = str(int(num_tx_wfs.text) + 1)
+    cphd_con = CphdConsistency(cphd_con.xml, cphd_con.pvps, cphd_con.header, cphd_con.filename,
+                               cphd_con.schema, cphd_con.check_signal_data)
+    cphd_con.check(f'check_channel_{parameter.lower()}_{channel_id}')
+    assert not cphd_con.failures()
+    assert cphd_con.passes()
+
+    # skips if micro parameter is all zero
+    cphd_con.pvps[channel_id][parameter][:] = 0
+    cphd_con.check(f'check_channel_{parameter.lower()}_{channel_id}')
+    assert not cphd_con.failures()
+    assert not cphd_con.passes()
+    assert cphd_con.skips()
+
+
+def test_check_channel_identifier_uniqueness(good_cphd):
+    cphd_con = CphdConsistency.from_file(good_cphd, check_signal_data=False)
+    tx_wf_id = cphd_con.xml.find('./Channel/Parameters/TxRcv/TxWFId')
+    tx_wf_id.addnext(copy.deepcopy(tx_wf_id))
+    cphd_con = CphdConsistency(cphd_con.xml, cphd_con.pvps, cphd_con.header, cphd_con.filename,
+                               cphd_con.schema, cphd_con.check_signal_data)
+    cphd_con.check(ignore_patterns=['check_(?!channel_identifier_uniqueness.+)'])
+    assert cphd_con.failures()
+
+
+def test_check_channel_rcv_sample_rate(good_cphd):
+    cphd_con = CphdConsistency.from_file(good_cphd, check_signal_data=False)
+    for rcv_rate in cphd_con.xml.findall('./TxRcv/RcvParameters/SampleRate'):
+        rcv_rate.text = '0'
+    cphd_con.check(ignore_patterns=['check_(?!channel_rcv_sample_rate.+)'])
     assert cphd_con.failures()
