@@ -351,7 +351,7 @@ class ConsistencyChecker(object):
 
         indent = 4
         for case, details in to_print.items():
-            print("{}: {}".format(case, details['doc']))
+            print(f"{case}: {str(details['doc']).strip()}")
             if details['details']:
                 for sub in details['details']:
                     lead = in_color(*coloration[sub['severity'], sub['passed']])

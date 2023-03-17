@@ -125,7 +125,7 @@ class GainPhaseArrayType(Serializable):
 
     _fields = ('Freq', 'ArrayId', 'ElementId')
     _required = ('Freq', 'ArrayId')
-    _numeric_format = {'Freq', FLOAT_FORMAT}
+    _numeric_format = {'Freq': FLOAT_FORMAT}
     # descriptors
     Freq = FloatDescriptor(
         'Freq', _required, strict=DEFAULT_STRICT, bounds=(0, None),
@@ -201,7 +201,7 @@ class FreqSFType(Serializable, Arrayable):
     @classmethod
     def from_array(cls, array: numpy.ndarray):
         """
-        Construct from a iterable.
+        Construct from an iterable.
 
         Parameters
         ----------
@@ -278,7 +278,7 @@ class AntPolRefType(Serializable, Arrayable):
     @classmethod
     def from_array(cls, array: numpy.ndarray):
         """
-        Construct from a iterable.
+        Construct from an iterable.
 
         Parameters
         ----------

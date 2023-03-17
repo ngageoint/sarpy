@@ -21,6 +21,7 @@ from typing import List
 
 import numpy as np
 import numpy.polynomial.polynomial as npp
+import scipy.constants
 
 from sarpy.geometry import geocoords
 
@@ -236,7 +237,10 @@ class CphdConsistency(con.ConsistencyChecker):
                     channel_node = self.xml.xpath('./Channel/Parameters/Identifier[text()="{}"]/..'.format(
                         channel_id))[0]
                     subfunc = functools.partial(func, channel_id, channel_node)
-                    subfunc.__doc__ = "{doc} for channel {chanid}".format(doc=func.__doc__, chanid=channel_id)
+                    this_doc = func.__doc__.strip()
+                    if this_doc.endswith('.'):
+                        this_doc = this_doc[:-1]
+                    subfunc.__doc__ = f"{this_doc} for channel {channel_id}."
                     modified_channel_id = re.sub(INVALID_CHAR_REGEX, '_', channel_id)
                     subfunc.__name__ = "{name}_{chanid}".format(name=func.__name__, chanid=modified_channel_id)
                     subfuncs.append(subfunc)
@@ -794,6 +798,89 @@ class CphdConsistency(con.ConsistencyChecker):
                 assert np.nanmax(pvp['TOA2']) <= con.Approx(float(self.xml.findtext('./Global/TOASwath/TOAMax')))
 
     @per_channel
+    def check_channel_afdop(self, channel_id, channel_node):
+        """
+        aFDOP PVP is consistent with other PVPs.
+        """
+
+        def calc_rdot(pos, vel, srp):
+            return (vel * unit(pos - srp)).sum(axis=-1)
+
+        with self.precondition():
+            pvp = self._get_channel_pvps(channel_id)
+            rdot_xmt_srp = calc_rdot(pvp['TxPos'], pvp['TxVel'], pvp['SRPPos'])
+            rdot_rcv_srp = calc_rdot(pvp['RcvPos'], pvp['RcvVel'], pvp['SRPPos'])
+            rdot_avg_srp = 0.5 * (rdot_xmt_srp + rdot_rcv_srp)
+            afdop_expected = rdot_avg_srp * (-2 / scipy.constants.speed_of_light)
+            mask = np.logical_and(np.isfinite(afdop_expected), np.isfinite(pvp['aFDOP']))
+            assert mask.any()
+            assert np.count_nonzero(pvp['aFDOP'])  # CPHD advises these "may be set equal to zero for all vectors"
+            with self.want("aFDOP consistent with other PVPs"):
+                assert afdop_expected[mask] == con.Approx(pvp['aFDOP'][mask], atol=1e-9)
+
+    @per_channel
+    def check_channel_afrr1_afrr2_relative(self, channel_id, channel_node):
+        """
+        aFRR1 & aFRR2 PVPs are related by fx_C.
+        """
+
+        with self.precondition():
+            pvp = self._get_channel_pvps(channel_id)
+            fx_c = 0.5 * (pvp['FX1'] + pvp['FX2'])
+            mask = np.logical_and(np.isfinite(fx_c), np.isfinite(pvp['aFRR1']), np.isfinite(pvp['aFRR2']))
+            assert mask.any()
+            with self.want("aFRR1 == (FX1 + FX2) * aFRR2 / 2"):
+                assert pvp['aFRR1'][mask] / (fx_c[mask] * pvp['aFRR2'][mask]) == con.Approx(1)
+
+    def _get_channel_tx_lfmrates(self, channel_node):
+        tx_lfmrates = set()
+        for txwdid_node in channel_node.findall('./TxRcv/TxWFId'):
+            this_lfmrate = self.xml.findtext(f'./TxRcv/TxWFParameters[Identifier="{txwdid_node.text}"]/LFMRate')
+            if this_lfmrate is not None:
+                tx_lfmrates.add(float(this_lfmrate))
+        assert tx_lfmrates
+        return np.fromiter(tx_lfmrates, float)
+
+    @per_channel
+    def check_channel_afrr1(self, channel_id, channel_node):
+        """
+        aFRR1 is consistent with /TxRcv/TxWFParameters/LFMRate.
+        """
+
+        with self.precondition():
+            pvp = self._get_channel_pvps(channel_id)
+            fx_c = 0.5 * (pvp['FX1'] + pvp['FX2'])
+            tx_lfmrates = self._get_channel_tx_lfmrates(channel_node)
+            with np.errstate(divide='ignore'):
+                derived_fx_rate = fx_c * 2 / (scipy.constants.speed_of_light * pvp['aFRR1'])
+            mask = np.isfinite(derived_fx_rate)
+            assert mask.any()
+            derived_fx_matches_tx_lfmrates = np.isclose(derived_fx_rate[mask, np.newaxis],
+                                                        tx_lfmrates[np.newaxis, :]).any(axis=1)
+            inconsistent_derived_lfmrates = derived_fx_rate[mask][~derived_fx_matches_tx_lfmrates].tolist()
+            with self.want(f"aFRR1 is consistent with /TxRcv/TxWFParameters/LFMRate(s): {tx_lfmrates}"):
+                assert not inconsistent_derived_lfmrates
+
+    @per_channel
+    def check_channel_afrr2(self, channel_id, channel_node):
+        """
+        aFRR2 is consistent with /TxRcv/TxWFParameters/LFMRate(s).
+        """
+
+        with self.precondition():
+            pvp = self._get_channel_pvps(channel_id)
+            tx_lfmrates = self._get_channel_tx_lfmrates(channel_node)
+            with np.errstate(divide='ignore'):
+                derived_fx_rate = 2 / (scipy.constants.speed_of_light * pvp['aFRR2'])
+            mask = np.isfinite(derived_fx_rate)
+            assert mask.any()
+            derived_fx_matches_tx_lfmrates = np.isclose(derived_fx_rate[mask, np.newaxis],
+                                                        tx_lfmrates[np.newaxis, :]).any(axis=1)
+            inconsistent_derived_lfmrates = derived_fx_rate[mask][~derived_fx_matches_tx_lfmrates].tolist()
+            with self.want(f"aFRR2 is consistent with /TxRcv/TxWFParameters/LFMRate(s): {tx_lfmrates}"):
+                assert not inconsistent_derived_lfmrates
+
+    @per_channel
     def check_channel_imagearea_polygon(self, channel_id, channel_node):
         """
         Image area polygon is simple and consistent with X1Y1 and X2Y2.
@@ -813,6 +900,48 @@ class CphdConsistency(con.ConsistencyChecker):
                     assert polygon.max(axis=0) == con.Approx(x2y2, atol=1e-3)
                 with self.need("Polygon is simple"):
                     assert shg.Polygon(polygon).is_simple
+
+    @per_channel
+    def check_channel_identifier_uniqueness(self, channel_id, channel_node):
+        """
+        Identifier nodes within /Channel/Parameters are unique.
+        """
+
+        identifier_sets = (
+            {'./TxRcv/TxWFId'},
+            {'./TxRcv/RcvId'},
+        )
+        for identifier_set in identifier_sets:
+            these_identifiers = []
+            for path in identifier_set:
+                these_identifiers.extend(x.text for x in channel_node.findall(path))
+            repeated_identifiers = _get_repeated_elements(these_identifiers)
+            with self.want(f'Identifiers {identifier_set} are unique'):
+                assert not repeated_identifiers
+
+    @per_channel
+    def check_channel_rcv_sample_rate(self, channel_id, channel_node):
+        """
+        /TxRcv/RcvParameters/SampleRate sufficient to support saved TOA swath.
+        """
+
+        toa_swath = float(channel_node.findtext('./TOAExtended/TOAExtSaved', np.nan))
+        if np.isnan(toa_swath):
+            toa_swath = float(channel_node.findtext('./TOASaved'))
+        txwf_ids = {x.text for x in channel_node.findall('./TxRcv/TxWFId')}
+        rcv_ids = {x.text for x in channel_node.findall('./TxRcv/RcvId')}
+        with self.precondition():
+            assert len(txwf_ids) == 1 and len(rcv_ids) == 1
+            txwf_params = get_by_id(self.xml, './TxRcv/TxWFParameters', next(iter(txwf_ids)))
+            rcv_params = get_by_id(self.xml, './TxRcv/RcvParameters', next(iter(rcv_ids)))
+            tx_lfm_rate = float(txwf_params.findtext('./LFMRate', np.nan))
+            rcv_lfm_rate = float(rcv_params.findtext('./LFMRate', np.nan))
+            assert np.isfinite([tx_lfm_rate, rcv_lfm_rate]).all()
+            tx_pulse_length = float(txwf_params.findtext('./PulseLength'))
+            rcv_sample_rate = float(rcv_params.findtext('./SampleRate'))
+            claimed_bw = abs(tx_lfm_rate - rcv_lfm_rate) * tx_pulse_length + abs(toa_swath * rcv_lfm_rate)
+            with self.need("/TxRcv/RcvParameters/SampleRate sufficient to support saved TOA swath"):
+                assert claimed_bw <= con.Approx(rcv_sample_rate)
 
     def check_global_imagearea_polygon(self):
         """
@@ -1066,6 +1195,9 @@ class CphdConsistency(con.ConsistencyChecker):
                 assert np.all(np.frombuffer(bytes_after_pvp, dtype=np.uint8) == 0)
 
     def check_signal_at_end_of_file(self):
+        """
+        Signal is at the end of the file.
+        """
         with self.precondition():
             assert self.header is not None
             assert self.filename is not None
@@ -1315,14 +1447,14 @@ def _get_repeated_elements(items):
     return [x for x, count in collections.Counter(items).items() if count > 1]
 
 
+def unit(vec, axis=-1):
+    return vec / np.linalg.norm(vec, axis=axis, keepdims=True)
+
+
 def calc_refgeom_parameters(xml, pvps):
     """
     Calculate expected reference geometry parameters given CPHD XML and PVPs (CPHD1.0.1, Sec 6.5)
     """
-
-    def unit(vec):
-        return vec / np.linalg.norm(vec)
-
     # 6.5.1 - Reference Vector Parameters
     ref_id = xml.findtext('./Channel/RefChId')
     ref_chan_parameters = get_by_id(xml, './Channel/Parameters/', ref_id)
