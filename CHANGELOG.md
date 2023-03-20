@@ -11,6 +11,7 @@ release points are not being annotated in GitHub.
 -  Fixed bug in SarPy correctly reading SIDDs with undeclared XML namespace
 ### Added
 - Added test for SIDD undeclared XML namespace
+- Added additional checks for cphd_consistency dwell polynomials.
 
 ## [1.3.25] - 2023-03-10
 ### Added
