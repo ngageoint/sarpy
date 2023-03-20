@@ -84,7 +84,7 @@ def generic_reader_test(instance, test_file, reader_type_string, reader_type):
     del reader
 
 
-# NB: I'm splitting these tests to ensure interpretable names - each reader has it's own test.
+# NB: I'm splitting these tests to ensure interpretable names - each reader has its own test.
 
 
 class TestSIDD(unittest.TestCase):
