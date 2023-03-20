@@ -1527,7 +1527,7 @@ class CPHDWriter1(BaseWriter):
 
     def _initialize_data(self) -> List[DataSegment]:
         self._pvp_memmaps = {}
-        # setup the PVP memmaps
+        # set up the PVP memmaps
         pvp_dtype = self.meta.PVP.get_vector_dtype()
         for i, entry in enumerate(self.meta.Data.Channels):
             # create the pvp mem map
@@ -1555,7 +1555,7 @@ class CPHDWriter1(BaseWriter):
                     self._support_memmaps[entry.Identifier] = numpy.memmap(
                         self._file_name, dtype=dtype, mode='r+', offset=offset, shape=shape)
 
-        # setup the signal data_segment (this is used for formatting issues)
+        # set up the signal data_segment (this is used for formatting issues)
         no_amp_sf = (self.meta.PVP.AmpSF is None)
         self._signal_data_segments = {}
         self._can_write_regular_data = {}
@@ -1717,7 +1717,7 @@ class CPHDWriter1(BaseWriter):
         Parameters
         ----------
         signal_block: dict
-            Dictionary of `numpy.ndarray` containing the the raw formatted
+            Dictionary of `numpy.ndarray` containing the raw formatted
             (i.e. file storage format) signal arrays.
         """
 
