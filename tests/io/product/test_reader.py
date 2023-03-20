@@ -1,10 +1,14 @@
-import logging
-import os
 import json
+import logging
+import lxml.etree
+import os
+import pathlib
 import unittest
 
 from sarpy.io.product.converter import open_product
 from sarpy.io.product.sidd import SIDDReader
+import sarpy.io.product.sidd
+import sarpy.io.product.sidd2_elements.SIDD as sarpy_sidd2
 
 from tests import parse_file_entry
 
@@ -80,7 +84,7 @@ def generic_reader_test(instance, test_file, reader_type_string, reader_type):
     del reader
 
 
-# NB: I'm splitting these tests to ensure interpretable names - each reader has it's own test.
+# NB: I'm splitting these tests to ensure interpretable names - each reader has its own test.
 
 
 class TestSIDD(unittest.TestCase):
@@ -88,3 +92,16 @@ class TestSIDD(unittest.TestCase):
     def test_sidd_reader(self):
         for test_file in product_file_types['SIDD']:
             generic_reader_test(self, test_file, 'SIDD', SIDDReader)
+
+    def test_from_xml(self):
+        sidd_meta = sarpy_sidd2.SIDDType.from_xml_file(pathlib.Path(__file__).parents[2] / 'data/example.sidd.xml')
+        sarpy.io.product.sidd.validate_sidd_for_writing(sidd_meta)
+
+    def test_from_xml_no_sfa(self):
+        sidd_etree = lxml.etree.parse(str(pathlib.Path(__file__).parents[2] / 'data/example.sidd.xml'))
+        pre_nsmap = sidd_etree.getroot().nsmap
+        lxml.etree.cleanup_namespaces(sidd_etree)
+        post_nsmap = sidd_etree.getroot().nsmap
+        assert 'sfa' in set(pre_nsmap).difference(post_nsmap)
+        sidd_meta = sarpy_sidd2.SIDDType.from_xml_string(lxml.etree.tostring(sidd_etree))
+        sarpy.io.product.sidd.validate_sidd_for_writing(sidd_meta)
