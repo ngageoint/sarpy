@@ -1352,18 +1352,17 @@ class CphdConsistency(con.ConsistencyChecker):
                 approx_args['atol'] = 1
             elif xml_path.endswith('Time'):
                 approx_args['atol'] = 1e-6
-            else:
-                approx_args['atol'] = 1e-6
+            elif xml_path == 'ARPPos':
+                approx_args['atol'] = 1e-2
+            elif xml_path == 'ARPVel':
+                approx_args['atol'] = 1e-3
 
-            actual_value = parser(xml_node.find('./{}'.format(xml_path)))
-            if isinstance(expected_value, numbers.Number):
+            actual_value = parser(xml_node.find(f'./{xml_path}'))
+            if issubclass(np.asarray(expected_value).dtype.type, numbers.Number):
                 actual_value = con.Approx(actual_value, **approx_args)
 
-            with self.need('{} matches defined PVP/calculation'.format(xml_path)):
-                if isinstance(expected_value, np.ndarray) and expected_value.dtype.name == 'float64':
-                    assert np.all(np.cast['float32'](expected_value) == np.cast['float32'](actual_value))
-                else:
-                    assert np.all(expected_value == actual_value)
+            with self.need(f'{xml_path} matches defined PVP/calculation'):
+                assert np.all(expected_value == actual_value)
 
     def check_refgeom_root(self):
         """
