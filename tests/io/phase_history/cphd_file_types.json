@@ -1,6 +1,7 @@
 {
   "CPHD": [
     {"path":  "cphd/example_0_3.cphd", "path_type":  "relative"},
-    {"path":  "cphd/spotlight_example.cphd", "path_type":  "relative"}
+    {"path":  "cphd/spotlight_example.cphd", "path_type":  "relative"},
+    {"path":  "cphd/dynamic_stripmap_ci2.cphd", "path_type":  "relative"}
   ]
 }
