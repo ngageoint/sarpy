@@ -8,9 +8,12 @@ release points are not being annotated in GitHub.
 ### Changed
 - Moved test_consistency and test_cphd_consistency from pytests folder to tests folder. 
 ### Fixed
--  Fixed bug in SarPy correctly reading SIDDs with undeclared XML namespace
+- Fixed bug in SarPy correctly reading SIDDs with undeclared XML.
+- Fixed bug in CPHD correctly using AmpScaling when reading CPHD signal arrays with.
+integer types that have an AmpSF PVP.
+- Fixed bug in CPHD consistency by updating tolerances and use of Approx in numpy comparisons.
 ### Added
-- Added test for SIDD undeclared XML namespace
+- Added test for SIDD undeclared XML namespace.
 - Added additional checks for cphd_consistency dwell polynomials.
 
 ## [1.3.25] - 2023-03-10
