@@ -5,10 +5,13 @@ Common use sicd_elements methods.
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
-
+import logging
 from typing import Optional, Tuple
 import numpy
 from sarpy.io.general.utils import get_seconds
+
+
+logger = logging.getLogger(__name__)
 
 
 def _get_center_frequency(
@@ -27,12 +30,12 @@ def _get_center_frequency(
     None|float
         The center processed frequency, in the event that RadarCollection.RefFreqIndex is `None` or `0`.
     """
-
-    if RadarCollection is None or RadarCollection.RefFreqIndex is None or RadarCollection.RefFreqIndex == 0:
+    if RadarCollection is None or ImageFormation is None or ImageFormation.TxFrequencyProc is None:
         return None
-    if ImageFormation is None or ImageFormation.TxFrequencyProc is None:
+    if RadarCollection.RefFreqIndex is None or RadarCollection.RefFreqIndex == 0:
+        return ImageFormation.TxFrequencyProc.center_frequency
+    else:
         return None
-    return ImageFormation.TxFrequencyProc.center_frequency
 
 
 def polstring_version_required(str_in: Optional[str]) -> Tuple[int, int, int]:
@@ -55,10 +58,14 @@ def polstring_version_required(str_in: Optional[str]) -> Tuple[int, int, int]:
 
     parts = str_in.split(':')
     if len(parts) != 2:
-        return (1, 1, 0)
+        logger.error('Expected polarization string of length 2, '
+                    'but populated as `{}`'.format(len(parts)))
+        return None
 
     part1, part2 = parts
-    if part1 in ['S', 'E', 'X', 'Y', 'OTHER'] or part2 in ['S', 'E', 'X', 'Y', 'OTHER']:
+    if part1.startswith('OTHER') or part2.startswith('OTHER'):
+        return (1, 3, 0)
+    if part1 in ['S', 'E', 'X', 'Y'] or part2 in ['S', 'E', 'X', 'Y']:
         return (1, 3, 0)
     elif (part1 in ['V', 'H'] and part2 in ['RHC', 'LHC']) or \
             (part2 in ['V', 'H'] and part1 in ['RHC', 'LHC']):
