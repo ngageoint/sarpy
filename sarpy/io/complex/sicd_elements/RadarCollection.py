@@ -65,7 +65,11 @@ def get_band_name(freq: float) -> str:
         return 'K'
     elif 2.7e10 <= freq < 4e10:
         return 'KA'
-    elif 4e10 <= freq < 3e20:
+    elif 4e10 <= freq < 7.5e10:
+        return 'V'
+    elif 7.5e10 <= freq < 1.1e11:
+        return 'W'
+    elif 1.1e11 <= freq < 3e11:
         return 'MM'
     else:
         return 'UN'
@@ -180,7 +184,7 @@ class TxFrequencyType(Serializable, Arrayable):
             return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 2:
-                raise ValueError('Expected array to be of length 2, and received {}'.format(array))
+                raise ValueError('Expected array to be of length 2, and received {}'.format(len(array)))
             return cls(Min=array[0], Max=array[1])
         raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
 
@@ -235,7 +239,7 @@ class WaveformParametersType(Serializable):
             TxRFBandwidth: Optional[float] = None,
             TxFreqStart: Optional[float] = None,
             TxFMRate: Optional[float] = None,
-            RcvDemodType: Optional[float] = None,
+            RcvDemodType: Optional[str] = None,
             RcvWindowLength: Optional[float] = None,
             ADCSampleRate: Optional[float] = None,
             RcvIFBandwidth: Optional[float] = None,
@@ -275,8 +279,10 @@ class WaveformParametersType(Serializable):
         # NB: self.RcvDemodType is read only.
         if RcvDemodType == 'CHIRP' and RcvFMRate is None:
             self.RcvFMRate = 0.0
-        else:
+        elif RcvDemodType == 'STRETCH' and RcvFMRate is not None:
             self.RcvFMRate = RcvFMRate
+        else:
+            self.RcvFMRate = None
         self.index = index
         super(WaveformParametersType, self).__init__(**kwargs)
 
