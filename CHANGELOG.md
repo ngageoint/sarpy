@@ -4,6 +4,11 @@ SarPy follows a continuous release process, so there are fairly frequent release
 Since essentially every (squash merge) commit corresponds to a release, specific 
 release points are not being annotated in GitHub.
 
+## [1.3.28] - 2023-04-21
+### Fixed
+- Fixed bug in Sarpy correctly handling negative longitudes when calculating longitude grid size in 
+point_projection.image_to_ground_dem.
+
 ## [1.3.27] - 2023-04-17
 ### Added
 - Tests for utils, validation_checks, PFA, RMA, and Grid
