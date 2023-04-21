@@ -1900,7 +1900,7 @@ def image_to_ground_dem(
     ref_hae = ref_llh[2]
     # subgrid size definition
     lat_grid_size = 0.03
-    lon_grid_size = min(10, lat_grid_size/numpy.sin(numpy.deg2rad(ref_llh[0])))
+    lon_grid_size = min(10, lat_grid_size/abs(numpy.sin(numpy.deg2rad(ref_llh[0]))))
 
     # validate the dem_interpolator
     if dem_interpolator is None:
