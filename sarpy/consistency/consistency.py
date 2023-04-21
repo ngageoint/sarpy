@@ -67,7 +67,7 @@ class ConsistencyChecker(object):
         attrs = [getattr(self, name) for name in sorted(names)]
         self.funcs = [attr for attr in attrs if hasattr(attr, '__call__')]
 
-    def check(self, func_name=None, *, ignore_patterns=None):
+    def check(self, func_name=None, *, allow_prefix=False, ignore_patterns=None):
         """
         Run checks.
 
@@ -76,6 +76,10 @@ class ConsistencyChecker(object):
         func_name: None|str|List[str]
             List of check functions to run.  If omitted, then all check functions
             will be run.
+        allow_prefix: bool
+            If ``True``, runs tests with names starting with any `func_name`
+
+            If ``False``, runs tests with names equal to any `func_name`
         ignore_patterns: list-like of str
             Skips tests if zero or more characters at the beginning of their name match the regular expression patterns
         """
@@ -86,11 +90,23 @@ class ConsistencyChecker(object):
             if isinstance(func_name, str):
                 func_name = [func_name]
 
-            not_found = set(func_name) - set([func.__name__ for func in self.funcs])
-            if not_found:
-                raise ValueError("Functions not found: {}".format(not_found))
+            def matches_prefix(requested, actual):
+                return actual.startswith(requested)
 
-            funcs = [func for func in self.funcs if func.__name__ in func_name]
+            def matches_exact(requested, actual):
+                return requested == actual
+
+            qualifier = matches_prefix if allow_prefix else matches_exact
+            funcs = []
+            not_found = []
+            for requested_func in set(func_name):
+                matches = [func for func in self.funcs if qualifier(requested_func, func.__name__)]
+                funcs.extend(matches)
+                if not matches:
+                    not_found.append(requested_func)
+
+            if not_found:
+                raise ValueError(f"Functions not found: {not_found}")
 
         for pattern in (ignore_patterns or []):
             funcs = [func for func in funcs if not re.match(pattern, func.__name__)]
