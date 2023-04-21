@@ -720,6 +720,7 @@ class GridType(Serializable):
                 'The Grid.Type is set to {},\n\t'
                 'but Image Formation Algorithm is RgAzComp, which requires "RGAZIM".\n\t'
                 'Resetting.'.format(self.Type))
+            self.Type = 'RGAZIM'
 
         if GeoData is not None and GeoData.SCP is not None and GeoData.SCP.ECF is not None and \
                 SCPCOA.ARPPos is not None and SCPCOA.ARPVel is not None:
@@ -749,8 +750,10 @@ class GridType(Serializable):
                 self.Row.DeltaKCOAPoly = Poly2DType(Coefs=[[2*center_frequency/speed_of_light - self.Row.KCtr, ], ])
 
             if self.Col.KCtr is None:
+                kctr = 0.0
                 if self.Col.DeltaKCOAPoly is not None:
-                    self.Col.KCtr = -self.Col.DeltaKCOAPoly.Coefs[0, 0]
+                    kctr -= self.Col.DeltaKCOAPoly.Coefs[0, 0]
+                self.Col.KCtr = kctr
             elif self.Col.DeltaKCOAPoly is None:
                 self.Col.DeltaKCOAPoly = Poly2DType(Coefs=[[-self.Col.KCtr, ], ])
 
@@ -963,7 +966,7 @@ class GridType(Serializable):
             self.Type = 'XRGYCR'
 
         if self.Row.UVectECF is None and self.Col.UVectECF is None:
-            params = self._derive_unit_vector_params(GeoData, RMA.RMAT)
+            params = self._derive_unit_vector_params(GeoData, RMA.RMCR)
             if params is not None:
                 scp, upos_ref, uvel_ref, ulos, left, look = params
                 uxrg = ulos

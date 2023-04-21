@@ -4,6 +4,14 @@ SarPy follows a continuous release process, so there are fairly frequent release
 Since essentially every (squash merge) commit corresponds to a release, specific 
 release points are not being annotated in GitHub.
 
+## [1.3.27] - 2023-04-17
+### Added
+- Tests for utils, validation_checks, PFA, RMA, and Grid
+### Fixed
+- Fixed bug in Sarpy correctly calling _derive_unit_vector_params with correct RMAParam.
+- Fixed bug in Sarpy correctly checking Grid.type is RGAZIM and resetting type if not.
+- Fixed bug in Sarpy returning 0 and not None in _derive_rg_az_comp when Grid.Col.DeltaKCOAPoly does not exist.
+
 ## [1.3.26] - 2023-03-17
 ### Changed
 - Moved test_consistency and test_cphd_consistency from pytests folder to tests folder. 
