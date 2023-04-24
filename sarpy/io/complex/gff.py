@@ -257,7 +257,7 @@ class _GFFHeader_1_8(object):
 
         self.res1 = fi.read(32)  # leave uninterpreted
 
-        fi.read(2) # redundant
+        fi.read(2)  # redundant
         self.comment = _get_string(fi.read(166))
         self.image_plane = struct.unpack(estr+'I', fi.read(4))[0]
         range_pixel_size, azimuth_pixel_size, azimuth_overlap = struct.unpack(estr+'3I', fi.read(3*4))

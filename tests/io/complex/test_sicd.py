@@ -33,7 +33,7 @@ if os.path.isfile(file_reference):
 sicd_files = complex_file_types.get('SICD', [])
 
 the_version = get_default_version_string()
-the_schema =  get_schema_path(the_version)
+the_schema = get_schema_path(the_version)
 
 
 class TestSICDWriting(unittest.TestCase):
@@ -59,4 +59,4 @@ class TestSICDWriting(unittest.TestCase):
 
             with self.subTest(msg='Test writing a single row of the sicd file {}'.format(fil)):
                 with tempfile.TemporaryDirectory() as tmpdirname:
-                    conversion_utility(reader, tmpdirname, row_limits=(0,1))
+                    conversion_utility(reader, tmpdirname, row_limits=(0, 1))

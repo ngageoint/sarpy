@@ -42,6 +42,7 @@ _proj_helper_text = 'Unhandled projection helper type `{}`'
 
 # TODO: move this to processing for 1.3.0
 
+
 def _fit_timecoa_poly(proj_helper, bounds):
     """
     Fit the TimeCOA in new pixel coordinates.
@@ -290,7 +291,6 @@ def create_sidd_structure_v1(ortho_helper, bounds, product_class, pixel_type):
     bounds, ortho_pixel_corners = ortho_helper.bounds_to_rectangle(bounds)
     # construct appropriate SIDD elements
     prod_create = ProductCreationType1.from_sicd(ortho_helper.proj_helper.sicd, product_class)
-
 
     # Display requires more product specifics
     display = _create_display_v1()

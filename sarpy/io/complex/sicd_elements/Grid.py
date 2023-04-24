@@ -392,7 +392,7 @@ class DirParamType(Serializable):
         """
 
         if self.ImpRespBW is None or self.SS is None:
-            return  None  # nothing can be done
+            return None  # nothing can be done
 
         if self.DeltaKCOAPoly is not None and x_coords is not None:
             deltaks = self.DeltaKCOAPoly(x_coords, y_coords)

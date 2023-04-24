@@ -8,6 +8,7 @@ import pytest
 
 from sarpy.geometry import geometry_elements
 
+
 @pytest.fixture(scope='module')
 def test_elements():
     point = [33.447899, -112.097254]
@@ -295,7 +296,7 @@ def test_multi_polygon(test_elements):
         multi_poly.grid_contained(np.array([1, 1, 1, 1]), np.array([1, 2, 3, 4, 5]))
     # grid_x and grid_y must be one dimensional
     with pytest.raises(ValueError, match='grid_x and grid_y must be one dimensional'):
-        multi_poly.grid_contained(np.array([[1,2,3], [3, 4, 5]]), np.array([1, 2, 3]))
+        multi_poly.grid_contained(np.array([[1, 2, 3], [3, 4, 5]]), np.array([1, 2, 3]))
 
     assert np.all(multi_poly.grid_contained(np.array([1, 2, 3]), np.array([0, 1, 2])))
 

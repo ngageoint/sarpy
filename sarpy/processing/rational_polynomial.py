@@ -179,7 +179,7 @@ def rational_poly_fit_1d(
     except LinAlgError as e:
         raise SarpyRatPolyError(str(e))
 
-    #if len(residuals) != 0:
+    # if len(residuals) != 0:
     residuals /= float(x.size)
     logger.info(
         'Performed rational polynomial fit, got\n\t'
@@ -346,7 +346,7 @@ def rational_poly_fit_3d(
     except LinAlgError as e:
         raise SarpyRatPolyError(str(e))
 
-    #if len(residuals) != 0:
+    # if len(residuals) != 0:
     residuals /= float(x.size)
     logger.info(
         'Performed rational polynomial fit, got\n\t'

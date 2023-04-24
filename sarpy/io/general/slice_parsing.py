@@ -162,6 +162,7 @@ def verify_subscript(
     else:
         raise ValueError('Got unhandled subscript {}'.format(subscript))
 
+
 def get_slice_result_size(slice_in: slice) -> int:
     """
     Gets the size of the slice result. This assumes a normalized slice definition.

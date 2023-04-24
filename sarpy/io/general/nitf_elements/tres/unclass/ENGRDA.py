@@ -5,7 +5,6 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
-
 class RECORD(TREElement):
     def __init__(self, value):
         super(RECORD, self).__init__()

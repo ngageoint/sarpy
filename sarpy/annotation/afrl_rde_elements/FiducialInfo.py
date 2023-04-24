@@ -12,7 +12,7 @@ import numpy
 
 from sarpy.io.xml.base import Serializable
 from sarpy.io.xml.descriptors import IntegerDescriptor, SerializableDescriptor, \
-    SerializableListDescriptor, StringDescriptor, StringEnumDescriptor
+    SerializableListDescriptor, StringDescriptor
 from sarpy.io.complex.sicd_elements.blocks import RowColType
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 
@@ -252,7 +252,7 @@ class TheFiducialType(Serializable):
     )  # type: Optional[PhysicalLocationType]
     ProjectionPerturbation = SerializableDescriptor(
         'ProjectionPerturbation', ProjectionPerturbationType, _required, 
-        docstring='') # type: Optional[ProjectionPerturbationType]
+        docstring='')  # type: Optional[ProjectionPerturbationType]
 
     def __init__(self, Name=None, SerialNumber=None, FiducialType=None,
                  DatasetFiducialNumber=None, ImageLocation=None, GeoLocation=None,
@@ -308,6 +308,7 @@ class TheFiducialType(Serializable):
         Parameters
         ----------
         sicd : SICDType
+        populate_in_periphery : bool
 
         Returns
         -------

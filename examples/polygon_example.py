@@ -98,7 +98,7 @@ def compound_poly_check():
 
     # create our polygon object with coordinates bounded by square [0, 1]x[-1, 1]
     outer_coords = numpy.array([
-        [-1, 0], [-0.5, -1], [0.5, -1], [1, 0], [0.5, 1], [-0.5, 1], [-1, 0],], dtype='float64')
+        [-1, 0], [-0.5, -1], [0.5, -1], [1, 0], [0.5, 1], [-0.5, 1], [-1, 0], ], dtype='float64')
     inner_coords = 0.5*generate_random_polygon()
     poly = Polygon(coordinates=[outer_coords, inner_coords])
 

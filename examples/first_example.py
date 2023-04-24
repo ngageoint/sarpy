@@ -104,7 +104,7 @@ The recommended methodology uses slice notation. The basic syntax is as:
 """
 # in the event of a single image segment
 all_data = reader[:]  # or reader[:, :] - reads all data
-decimated_data = reader[::10, ::10] # reads every 10th pixel
+decimated_data = reader[::10, ::10]  # reads every 10th pixel
 
 # in the event of multiple image segments, use another slice index like
 all_data = reader[:, :, 0]
@@ -141,7 +141,6 @@ file_object = smart_open.open(
     'https://six-library.s3.amazonaws.com/sicd_example_RMA_RGZERO_RE32F_IM32F_cropped_multiple_image_segments.nitf',
     mode='rb',  # must be opened in binary mode
     buffering=4*1024*1024)  # it has been observed that setting a manual buffer size may help
-
 
 
 """
