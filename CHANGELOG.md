@@ -22,7 +22,6 @@ sarpy/io/complex/sicd_elements/RadarCollection.py
 - Fixed bug in Sarpy correctly raising error when testing length of array in 
 RadarCollection.py TxFrequencyType.from_array.
 - Fixed bug in Sarpy correctly setting RcvFMRate in RadarCollection.py WaveformParametersType.
-- Fixed bug in Sarpy correctly reach assertions in test_consistency.py
 
 ## [1.3.28] - 2023-04-21
 ### Fixed

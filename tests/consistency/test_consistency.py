@@ -36,8 +36,8 @@ class DummyConsistency(con.ConsistencyChecker):
     def check_pre_need_pass(self):
         with self.precondition():
             assert True
-        with self.need('need pass'):
-            assert True
+            with self.need('need pass'):
+                assert True
 
     def check_nopre_need_pass(self):
         with self.precondition():
@@ -56,8 +56,8 @@ class DummyConsistency(con.ConsistencyChecker):
     def check_pre_want_pass(self):
         with self.precondition():
             assert True
-        with self.want('want pass'):
-            assert True
+            with self.want('want pass'):
+                assert True
 
     def check_nopre_want_pass(self):
         with self.precondition():
