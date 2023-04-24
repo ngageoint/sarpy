@@ -14,7 +14,7 @@ from sarpy.io.xml.base import Serializable, Arrayable, SerializableArray
 from sarpy.io.xml.descriptors import SerializableDescriptor, SerializableArrayDescriptor, \
     IntegerDescriptor, FloatDescriptor
 
-from .base import DEFAULT_STRICT, FLOAT_FORMAT
+from .base import DEFAULT_STRICT
 
 
 _len2_array_text = 'Expected array to be of length 2,\n\t' \

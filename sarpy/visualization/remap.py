@@ -367,7 +367,7 @@ class RemapFunction(object):
     def _validate_pixel_bounds(
             reader: SICDTypeReader,
             index: int,
-            pixel_bounds: Union[None, Tuple, List, numpy.ndarray] ):
+            pixel_bounds: Union[None, Tuple, List, numpy.ndarray]):
         data_size = reader.get_data_size_as_tuple()[index]
         if pixel_bounds is None:
             return 0, data_size[0], 0, data_size[1]
@@ -412,7 +412,7 @@ class MonochromaticRemap(RemapFunction):
     """
 
     _name = '_Monochromatic'
-    __slots__ = ('_override_name', '_bit_depth', '_dimension','_max_output_value')
+    __slots__ = ('_override_name', '_bit_depth', '_dimension', '_max_output_value')
     _allowed_dimension = {0, }
 
     def __init__(
@@ -1747,8 +1747,6 @@ def get_registered_remap(
     if default is not None:
         return default
     raise KeyError('Unregistered remap name `{}`'.format(remap_name))
-
-
 
 
 #################

@@ -39,7 +39,7 @@ class AggregateComplexReader(AggregateReader, SICDTypeReader):
         self._check_sizes()
 
     @staticmethod
-    def _validate_readers(readers : Sequence[SICDTypeReader]) -> Tuple[SICDTypeReader, ...]:
+    def _validate_readers(readers: Sequence[SICDTypeReader]) -> Tuple[SICDTypeReader, ...]:
         """
         Validate the input reader/file collection.
 
@@ -77,7 +77,7 @@ class AggregateComplexReader(AggregateReader, SICDTypeReader):
             the_readers.append(reader)
         return tuple(the_readers)
 
-    def _define_sicds(self)-> Tuple[SICDType, ...]:
+    def _define_sicds(self) -> Tuple[SICDType, ...]:
         sicds = []
         for reader_index, sicd_index in self.index_mapping:
             reader = self._readers[reader_index]

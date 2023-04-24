@@ -23,6 +23,7 @@ _disallowed_text = 'Got disallowed type {}'
 ##########
 # utility functions
 
+
 def _compress_identical(coords):
     """
     Eliminate consecutive points with same first two coordinates.
@@ -2320,7 +2321,6 @@ class MultiPolygon(GeometryObject):
                         maxs[i-num_mins] = entry
         mins.extend(maxs)
         return mins
-
 
     @classmethod
     def from_dict(cls, geometry):

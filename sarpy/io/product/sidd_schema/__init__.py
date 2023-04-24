@@ -129,7 +129,7 @@ def get_versions() -> List[str]:
     return list(sorted(urn_mapping.keys()))
 
 
-def validate_xml_ns(xml_ns: Dict[str, str], ns_key: str='default') -> bool:
+def validate_xml_ns(xml_ns: Dict[str, str], ns_key: str = 'default') -> bool:
     """
     Validate the parsed SIDD xml namespace dictionary. This is expected to
     accompany the use of :func:`sarpy.io.general.utils.parse_xml_from_string`.

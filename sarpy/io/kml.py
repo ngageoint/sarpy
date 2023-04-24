@@ -1171,7 +1171,7 @@ class Document(object):
             [1-c1, c1, 0, 0],
             [1-c2, c2, 0, 0],
             [0, 0, c2, 1-c2],
-            [0, 0, c1, 1-c1],], dtype='float64')
+            [0, 0, c1, 1-c1], ], dtype='float64')
 
         split = col_split.dot(row_split)
 

@@ -7,7 +7,7 @@ __author__ = "Thomas McCullough"
 
 from collections import OrderedDict
 from xml.etree import ElementTree
-from typing import List, Union, Dict
+from typing import List, Dict
 
 import numpy
 from sarpy.io.xml.base import Serializable, ParametersCollection, \

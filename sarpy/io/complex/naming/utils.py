@@ -6,8 +6,6 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 import logging
-import os
-import sys
 import pkgutil
 from importlib import import_module
 from datetime import datetime

@@ -28,6 +28,7 @@ class YIDC(TREElement):
         super(YIDC, self).__init__()
         self.add_field('YIDC', 's', 22, value)
 
+
 class IMRFCAType(TREElement):
     def __init__(self, value):
         super(IMRFCAType, self).__init__()

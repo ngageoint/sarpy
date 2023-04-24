@@ -28,10 +28,10 @@ class FullImageType(Serializable, Arrayable):
     _required = _fields
     # descriptors
     NumRows = IntegerDescriptor(
-        'NumRows', _required, strict=True,
+        'NumRows', _required, strict=DEFAULT_STRICT,
         docstring='Number of rows in the original full image product. May include zero pixels.')  # type: int
     NumCols = IntegerDescriptor(
-        'NumCols', _required, strict=True,
+        'NumCols', _required, strict=DEFAULT_STRICT,
         docstring='Number of columns in the original full image product. May include zero pixels.')  # type: int
 
     def __init__(
@@ -88,7 +88,7 @@ class FullImageType(Serializable, Arrayable):
 
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 2:
-                raise ValueError('Expected array to be of length 2, and received {}'.format(array))
+                raise ValueError('Expected array to be of length 2, and received {}'.format(len(array)))
             return cls(NumRows=array[0], NumCols=array[1])
         raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
 

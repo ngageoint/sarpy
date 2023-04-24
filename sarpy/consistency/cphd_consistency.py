@@ -361,9 +361,9 @@ class CphdConsistency(con.ConsistencyChecker):
         with self.precondition():
             assert self.header is not None
             with self.need("Header CLASSIFICATION matches XML Classification"):
-                assert self.header['CLASSIFICATION'] == self.xml.findtext('./CollectionID/Classification') != None
+                assert self.header['CLASSIFICATION'] == self.xml.findtext('./CollectionID/Classification') is not None
             with self.need("Header RELEASE_INFO matches XML ReleaseInfo"):
-                assert self.header['RELEASE_INFO'] == self.xml.findtext('./CollectionID/ReleaseInfo') != None
+                assert self.header['RELEASE_INFO'] == self.xml.findtext('./CollectionID/ReleaseInfo') is not None
 
     def check_against_schema(self):
         """
