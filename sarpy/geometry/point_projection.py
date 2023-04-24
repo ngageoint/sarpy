@@ -62,7 +62,7 @@ Examples
 
 .. Note::
 
-    Virtually any SIDD/SICD structure which follows the standard will have a
+    Virtually any SIDD/SICD structure which follows the standard will have an
     appropriate metadata populated to permit these projection methods.
     **In the case that your structure does not have sufficient metadata populated**,
     as may happen during research experimentation, an exception will be raised
@@ -275,9 +275,9 @@ def _get_sicd_type_specific_projection(sicd) -> Callable:
             Tuple[numpy.ndarray, numpy.ndarray]
             """
 
-            # compute range/time of closest approach
+            # compute range/time of the closest approach
             R_CA_TGT = r_ca_scp + row_transform  # Range at closest approach
-            t_CA_TGT = time_ca_poly(col_transform)  # Time of closest approach
+            t_CA_TGT = time_ca_poly(col_transform)  # Time of the closest approach
             # Compute ARP velocity magnitude (actually squared, since that's how it's used) at t_CA_TGT
             # noinspection PyProtectedMember
             VEL2_CA_TGT = numpy.sum(instance._varp_poly(t_CA_TGT)**2, axis=-1)
@@ -1077,7 +1077,7 @@ def ground_to_image(
     ref_point, ref_pixel, row_ss, col_ss, uRow, uCol, \
     uGPN, uSPN = _extract_plane_params(structure)
 
-    uIPN = numpy.cross(uRow, uCol)  # NB: only outward pointing if Row/Col are right handed system
+    uIPN = numpy.cross(uRow, uCol)  # NB: only outward pointing if Row/Col are right-handed system
     uIPN /= numpy.linalg.norm(uIPN)  # NB: uRow/uCol may not be perpendicular
 
     cos_theta = numpy.dot(uRow, uCol)
@@ -1835,7 +1835,7 @@ def image_to_ground_dem(
         `dem_interpolator` is the search path.
     geoid_file : None|str|GeoidHeight
         The `GeoidHeight` object, an egm file name, or root directory containing
-        one of the egm files in the sub-directory "geoid". If `None`, then default
+        one of the egm files in the subdirectory "geoid". If `None`, then default
         to the root directory of `dted_list`. Only used if `dem_interpolator` is
         the search path.
     pad_value : float

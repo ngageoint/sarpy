@@ -24,8 +24,8 @@ class CRSDTypeReader(BaseReader):
     def __init__(self,
                  data_segment: Union[None, DataSegment, Sequence[DataSegment]],
                  crsd_meta: Union[None, CRSDType1_0],
-                 close_segments: bool=True,
-                 delete_files: Union[None, str, Sequence[str]]=None):
+                 close_segments: bool = True,
+                 delete_files: Union[None, str, Sequence[str]] = None):
         """
 
         Parameters
@@ -100,7 +100,7 @@ class CRSDTypeReader(BaseReader):
             self,
             variable: str,
             index: Union[int, str],
-            the_range: Union[None, int, Tuple[int, ...], slice]=None) -> Optional[numpy.ndarray]:
+            the_range: Union[None, int, Tuple[int, ...], slice] = None) -> Optional[numpy.ndarray]:
         """
         Read the vector parameter for the given `variable` and CRSD channel.
 
@@ -125,7 +125,7 @@ class CRSDTypeReader(BaseReader):
     def read_pvp_array(
             self,
             index: Union[int, str],
-            the_range: Union[None, int, Tuple[int, ...], slice]=None) -> numpy.ndarray:
+            the_range: Union[None, int, Tuple[int, ...], slice] = None) -> numpy.ndarray:
         """
         Read the PVP array from the requested channel.
 

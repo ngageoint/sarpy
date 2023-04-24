@@ -7,5 +7,5 @@ class TestClassString(unittest.TestCase):
         results_dict = check_classification('sarpy')
         key = '__NO_CLASSIFICATION__'
         if key in results_dict:
-           raise ValueError(
+            raise ValueError(
                'The following modules have no classification string defined {}'.format(results_dict[key]))

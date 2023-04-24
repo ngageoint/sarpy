@@ -20,14 +20,14 @@ def input():
                        [0, 0, POLAR_RADIUS],
                        [0, 0, -POLAR_RADIUS],
                        [0, EQUATORIAL_RADIUS, 0]], dtype='float64')
-    ned = numpy.array([[ 0,  0,  0],
+    ned = numpy.array([[0,  0,  0],
                        [0,  0,  EQUATORIAL_RADIUS*2],
-                       [ POLAR_RADIUS,  0,  EQUATORIAL_RADIUS],
+                       [POLAR_RADIUS,  0,  EQUATORIAL_RADIUS],
                        [-POLAR_RADIUS,  0,  EQUATORIAL_RADIUS],
                        [0,  EQUATORIAL_RADIUS,  EQUATORIAL_RADIUS]], dtype='float64')
-    enu = numpy.array([[ 0,  0,  0],
+    enu = numpy.array([[0,  0,  0],
                        [0,  0,  -EQUATORIAL_RADIUS*2],
-                       [ 0,  POLAR_RADIUS,  -EQUATORIAL_RADIUS],
+                       [0,  POLAR_RADIUS,  -EQUATORIAL_RADIUS],
                        [0,  -POLAR_RADIUS,  -EQUATORIAL_RADIUS],
                        [EQUATORIAL_RADIUS, 0,  -EQUATORIAL_RADIUS]], dtype='float64')
     orp = ecf[0, :]
@@ -196,9 +196,9 @@ def test_ecf_to_enu_roundtrip(input):
 
 def test_wgs84_norm(input):
     wgs84_norm = geocoords.wgs_84_norm(input['ecf'])
-    expected = numpy.array([[ 1.,  0.,  0.],
+    expected = numpy.array([[1.,  0.,  0.],
                             [-1.,  0.,  0.],
-                            [ 0.,  0.,  1.],
-                            [ 0.,  0., -1.],
-                            [ 0.,  1.,  0.]])
+                            [0.,  0.,  1.],
+                            [0.,  0., -1.],
+                            [0.,  1.,  0.]])
     assert wgs84_norm == pytest.approx(expected, abs=TOLERANCE)

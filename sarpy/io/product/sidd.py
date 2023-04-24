@@ -659,12 +659,12 @@ class SIDDWritingDetails(NITFWritingDetails):
         else:
             return None
 
-    def _get_ostaid(self, index: int=0) -> str:
+    def _get_ostaid(self, index: int = 0) -> str:
         sidd = self.sidd_meta[index]
         ostaid = sidd.NITF.get('OSTAID', 'Unknown')
         return ostaid
 
-    def _get_isorce(self, index: int=0) -> str:
+    def _get_isorce(self, index: int = 0) -> str:
         sidd = self.sidd_meta[index]
         isorce = sidd.NITF.get('ISORCE', sidd.ExploitationFeatures.Collections[0].Information.SensorName)
         if isorce is None:
@@ -721,7 +721,7 @@ class SIDDWritingDetails(NITFWritingDetails):
         basic_args = {
             'ICAT': 'SAR',
             'IC': 'NC',
-            'IID2' : self._get_iid2(sidd_index),
+            'IID2': self._get_iid2(sidd_index),
             'ISORCE': self._get_isorce(sidd_index),
             'IDATIM': self._get_fdt(sidd_index)
         }
@@ -775,7 +775,7 @@ class SIDDWritingDetails(NITFWritingDetails):
                 NPPBH=0 if this_cols > 8192 else this_cols,
                 NPPBV=0 if this_rows > 8192 else this_rows,
                 IDLVL=sidd_index + i + 2,
-                IALVL=sidd_index + i+ 1,
+                IALVL=sidd_index + i + 1,
                 ILOC=iloc,
                 Bands=ImageBands(values=[ImageBand(ISUBCAT='', IREPBAND=entry) for entry in irepband]),
                 Security=self._sidd_security_tags[sidd_index],

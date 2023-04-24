@@ -4,6 +4,27 @@ SarPy follows a continuous release process, so there are fairly frequent release
 Since essentially every (squash merge) commit corresponds to a release, specific 
 release points are not being annotated in GitHub.
 
+## [1.3.29] - 2023-04-24
+### Added
+- Added Radiometric and Timeline.IPP nodes to tests/data/example.sicd.xml
+- Added Radiometric and Timeline.IPP nodes to tests/data/example.sicd.rma.xml
+- Added tests for Radiometric.py, RgAzComp.py, Timeline.py, ImageData.py, and RadarCollection.py
+to tests/io/complex/sicd_elements/test_sicd_elements.py
+
+### Changed
+- Updated code to align with PEP. 
+- Changed deprecated methods in test_remap.py to use classes.
+
+### Fixed
+- Fixed bug in Sarpy correctly raising error when testing length of array in 
+- sarpy/io/complex/sicd_elements/ImageData.py FullImageType
+- Fixed bug in Sarpy correctly returning frequency band name for Hz in 
+sarpy/io/complex/sicd_elements/RadarCollection.py
+- Fixed bug in Sarpy correctly raising error when testing length of array in 
+RadarCollection.py TxFrequencyType.from_array.
+- Fixed bug in Sarpy correctly setting RcvFMRate in RadarCollection.py WaveformParametersType.
+- Fixed bug in Sarpy correctly reach assertions in test_consistency.py
+
 ## [1.3.28] - 2023-04-21
 ### Fixed
 - Fixed bug in Sarpy correctly handling negative longitudes when calculating longitude grid size in 

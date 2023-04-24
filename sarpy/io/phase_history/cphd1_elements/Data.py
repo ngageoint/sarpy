@@ -243,5 +243,5 @@ class DataType(Serializable):
         if self.SignalCompressionID is not None:
             return sum([c.CompressedSignalSize for c in self.Channels])
         else:
-             num_bytes_per_sample = binary_format_string_to_dtype(self.SignalArrayFormat).itemsize
-             return num_bytes_per_sample * sum([c.NumVectors * c.NumSamples for c in self.Channels])
+            num_bytes_per_sample = binary_format_string_to_dtype(self.SignalArrayFormat).itemsize
+            return num_bytes_per_sample * sum([c.NumVectors * c.NumSamples for c in self.Channels])

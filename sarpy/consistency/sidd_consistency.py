@@ -288,7 +288,7 @@ def check_sidd_file(nitf_details):
             if pixel_type is None:
                 continue  # we already noted the failure here
 
-            exp_nbpp, exp_pvtype  = type_information['nbpp'], type_information['pvtype']
+            exp_nbpp, exp_pvtype = type_information['nbpp'], type_information['pvtype']
             if img_header.PVTYPE.strip() != exp_pvtype:
                 valid_images = False
                 logger.error(

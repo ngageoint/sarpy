@@ -412,7 +412,7 @@ class ErrorComponentsType(Serializable):
             self._xml_ns_key = kwargs['_xml_ns_key']
         self.PosVelErr = PosVelErr
         self.RadarSensor = RadarSensor
-        self.TropoError= TropoError
+        self.TropoError = TropoError
         self.IonoError = IonoError
         super(ErrorComponentsType, self).__init__(**kwargs)
 

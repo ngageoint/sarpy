@@ -207,7 +207,7 @@ def _get_sicd_time_args(sicd, subdivisions=24):
 
     beg_time = sicd.Timeline.CollectStart.astype('datetime64[us]')
     if sicd.Timeline.CollectDuration is None:
-        return {'when': str(beg_time)+'Z',}, None
+        return {'when': str(beg_time)+'Z', }, None
 
     end_time = beg_time + int(sicd.Timeline.CollectDuration*1e6)
     if not isinstance(subdivisions, int) or subdivisions < 2:

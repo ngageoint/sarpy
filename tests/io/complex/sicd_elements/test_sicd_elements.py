@@ -24,6 +24,7 @@ from sarpy.io.xml.base import parse_xml_from_string
 TOLERANCE = 1e-8
 KWARGS = {'_xml_ns': 'ns', '_xml_ns_key': 'key'}
 
+
 @pytest.fixture(scope='module')
 def sicd():
     xml_file = pathlib.Path(pathlib.Path.cwd(), 'tests/data/example.sicd.xml')
@@ -125,7 +126,7 @@ def test_pfa(sicd):
     assert stdeskew._xml_ns == KWARGS['_xml_ns']
     assert stdeskew._xml_ns_key == KWARGS['_xml_ns_key']
 
-    #Nominal instantiation
+    # Nominal instantiation
     pfa_nom = PFA.PFAType(sicd.PFA.FPN,
                           sicd.PFA.IPN,
                           sicd.PFA.PolarAngRefTime, 
@@ -664,4 +665,4 @@ def test_radarcollection_waveformparamtype():
     assert rc.RcvFMRate == 0.0
 
     rc = RadarCollection.WaveformParametersType(RcvDemodType='cHiRp', RcvFMRate=None)
-    assert rc.RcvFMRate == None
+    assert rc.RcvFMRate is None
