@@ -2447,7 +2447,7 @@ class FileReadDataSegment(DataSegment):
         row_stride = self.raw_dtype.itemsize*pixel_per_row
 
         start_row = init_slice.start
-        rows = out_shape[0] * init_slice.step
+        rows = init_slice.stop - init_slice.start
 
         # read the whole contiguous chunk from start_row up to the final row
         # seek to the proper start location
