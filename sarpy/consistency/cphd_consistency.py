@@ -815,6 +815,39 @@ class CphdConsistency(con.ConsistencyChecker):
                 assert con.Approx(float(toa_ext_saved_text)) == np.nanmax(pvp['TOAE2']) - np.nanmin(pvp['TOAE1'])
 
     @per_channel
+    def check_channel_fx_osr(self, channel_id, channel_node):
+        """
+        FX domain vectors are sufficiently sampled
+        """
+        with self.precondition():
+            assert self.xml.findtext('./Global/DomainType') == 'FX'
+            pvp = self._get_channel_pvps(channel_id)
+            if {'TOAE1', 'TOAE2'}.issubset(pvp.dtype.fields):
+                toa_xtnt = pvp['TOAE2'] - pvp['TOAE1']
+            else:
+                toa_xtnt = pvp['TOA2'] - pvp['TOA1']
+            fx_osr = 1 / (pvp['SCSS'] * toa_xtnt)
+            with self.need('FX_OSR is at least 1.1'):
+                assert np.nanmin(fx_osr) >= 1.1
+            with self.want('FX_OSR is at least 1.2'):
+                assert np.nanmin(fx_osr) >= 1.2
+
+    @per_channel
+    def check_channel_toa_osr(self, channel_id, channel_node):
+        """
+        TOA domain vectors are sufficiently sampled
+        """
+        with self.precondition():
+            assert self.xml.findtext('./Global/DomainType') == 'TOA'
+            pvp = self._get_channel_pvps(channel_id)
+            fx_bw = pvp['FX2'] - pvp['FX1']
+            toa_osr = 1 / (pvp['SCSS'] * fx_bw)
+            with self.need('TOA_OSR is at least 1.1'):
+                assert np.nanmin(toa_osr) >= 1.1
+            with self.want('TOA_OSR is at least 1.2'):
+                assert np.nanmin(toa_osr) >= 1.2
+
+    @per_channel
     def check_channel_global_txtime(self, channel_id, channel_node):
         """
         PVP within global TxTime1 and TxTime2.
