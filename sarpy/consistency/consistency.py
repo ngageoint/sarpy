@@ -14,7 +14,7 @@ import linecache
 import re
 import sys
 import textwrap
-from typing import List, Dict, Callable
+from typing import List, Dict
 
 import numpy as np
 

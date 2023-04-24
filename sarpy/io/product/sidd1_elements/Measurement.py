@@ -10,7 +10,7 @@ from typing import Union
 from sarpy.io.product.sidd2_elements.base import DEFAULT_STRICT
 from sarpy.io.xml.base import Serializable
 from sarpy.io.xml.descriptors import SerializableDescriptor
-from sarpy.io.product.sidd2_elements.blocks import RowColIntType, XYZPolyType, ReferencePointType
+from sarpy.io.product.sidd2_elements.blocks import RowColIntType, XYZPolyType
 from sarpy.io.product.sidd2_elements.Measurement import PolynomialProjectionType, \
     GeographicProjectionType, PlaneProjectionType, CylindricalProjectionType
 

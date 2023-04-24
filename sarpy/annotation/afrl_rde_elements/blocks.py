@@ -388,7 +388,7 @@ class ProjectionPerturbationType(Serializable):
     """
     
     _fields = ('CoordinateFrame', 'DeltaArp', 'DeltaVarp', 'DeltaRange')
-    _required=('CoordinateFrame', )
+    _required = ('CoordinateFrame', )
     _numeric_format = {'Lat': '0.17G', }
     CoordinateFrame = StringEnumDescriptor(
         'CoordinateFrame', {'ECF', 'RIC_ECI', 'RIC_ECF'}, _required)  # type: str

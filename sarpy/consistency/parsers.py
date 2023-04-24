@@ -8,7 +8,7 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Nathan Bombaci, Valkyrie"
 
 
-from typing import List, Callable
+from typing import List
 import numpy as np
 
 

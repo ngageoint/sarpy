@@ -26,7 +26,7 @@ class SymbolSegmentHeader(NITFElement):
     _lengths = {
         'SY': 2, 'SID': 10, 'SNAME': 20, 'ENCRYP': 1, 'STYPE': 1,
         'NLIPS': 4, 'NPIXPL': 4, 'NWDTH': 4, 'NBPP': 1,
-        'SDLVL': 3, 'SALVL': 3, 'SLOC': 10, 'SLOC2': 10,'SCOLOR': 1,
+        'SDLVL': 3, 'SALVL': 3, 'SLOC': 10, 'SLOC2': 10, 'SCOLOR': 1,
         'SNUM': 6, 'SROT': 3}
     SY = _StringEnumDescriptor('SY', True, 2, {'SY', })  # type: str
     SID = _StringDescriptor('SID', True, 10)  # type: str

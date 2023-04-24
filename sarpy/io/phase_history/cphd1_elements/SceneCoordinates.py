@@ -14,7 +14,7 @@ from sarpy.io.xml.descriptors import FloatDescriptor, IntegerDescriptor, \
 from sarpy.io.complex.sicd_elements.base import SerializableCPArray, SerializableCPArrayDescriptor
 from sarpy.io.complex.sicd_elements.blocks import XYZType, LatLonType, LatLonCornerType
 from sarpy.io.complex.sicd_elements.GeoData import SCPType
-from .base import DEFAULT_STRICT, FLOAT_FORMAT
+from .base import DEFAULT_STRICT
 from .blocks import AreaType, LSType, LSVertexType
 
 

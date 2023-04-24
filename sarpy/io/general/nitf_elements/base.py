@@ -6,7 +6,6 @@ __author__ = "Thomas McCullough"
 
 
 import logging
-import sys
 from weakref import WeakKeyDictionary
 from typing import Union, List, Tuple
 from collections import OrderedDict
@@ -244,7 +243,7 @@ def _parse_nitf_element(val, nitf_type, default_args, name, instance):
 # NITF Descriptors
 
 class _BasicDescriptor(object):
-    """A descriptor object for reusable properties. Note that is is required that the calling instance is hashable."""
+    """A descriptor object for reusable properties. Note that is required that the calling instance is hashable."""
     _typ_string = None
 
     def __init__(self, name, required, length, docstring=''):

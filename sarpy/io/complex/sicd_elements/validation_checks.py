@@ -293,7 +293,7 @@ def _pfa_check_kaz_krg(PFA, Grid) -> bool:
         pass
 
     try:
-        if abs(Grid.Col.KCtr) > 1e-5 and abs(Grid.Col.KCtr - 0.5*(PFA.Kaz2 +PFA.Kaz1)) > 1e-5:
+        if abs(Grid.Col.KCtr) > 1e-5 and abs(Grid.Col.KCtr - 0.5*(PFA.Kaz2 + PFA.Kaz1)) > 1e-5:
             PFA.log_validity_error(
                 'Grid.Col.KCtr ({}) not within 1e-5 of 0.5*(PFA.Kaz2 + PFA.Kaz1) ({})'.format(
                     Grid.Col.KCtr, 0.5*(PFA.Kaz2 + PFA.Kaz1)))

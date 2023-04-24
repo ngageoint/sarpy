@@ -27,8 +27,8 @@ class CPHDTypeReader(BaseReader):
             self,
             data_segment: Union[None, DataSegment, Sequence[DataSegment]],
             cphd_meta: Union[None, CPHDType1_0, CPHDType0_3],
-            close_segments: bool=True,
-            delete_files: Union[None, str, Sequence[str]]=None):
+            close_segments: bool = True,
+            delete_files: Union[None, str, Sequence[str]] = None):
         """
 
         Parameters
@@ -104,7 +104,7 @@ class CPHDTypeReader(BaseReader):
             self,
             variable: str,
             index: Union[int, str],
-            the_range: Union[None, int, Tuple[int, ...], slice]=None) -> Optional[numpy.ndarray]:
+            the_range: Union[None, int, Tuple[int, ...], slice] = None) -> Optional[numpy.ndarray]:
         """
         Read the vector parameter for the given `variable` and CPHD channel.
 
@@ -129,7 +129,7 @@ class CPHDTypeReader(BaseReader):
     def read_pvp_array(
             self,
             index: Union[int, str],
-            the_range: Union[None, int, Tuple[int, ...], slice]=None) -> numpy.ndarray:
+            the_range: Union[None, int, Tuple[int, ...], slice] = None) -> numpy.ndarray:
         """
         Read the PVP array from the requested channel.
 

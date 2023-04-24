@@ -140,7 +140,7 @@ class AntParamType(Serializable):
     def __init__(
             self,
             XAxisPoly: XYZPolyType = None,
-            YAxisPoly: XYZPolyType =None,
+            YAxisPoly: XYZPolyType = None,
             FreqZero: float = None,
             EB: Optional[EBType] = None,
             Array: GainPhasePolyType = None,

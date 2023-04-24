@@ -212,7 +212,7 @@ class SensorInfoType(Serializable):
     _numeric_format = {
         'Bandwidth': '0.17G', 'CenterFrequency': '0.17G', 'NearRange': '0.17G',
         'SlantRangeSwathWidth': '0.17G', 'Range': '0.17G', 'DepressionAngle': '0.17G',
-        'LinearDynamicRange': '0.17G', 'AircraftHeading': '0.17G', 'AircraftTrackAngle': '0.17G',}
+        'LinearDynamicRange': '0.17G', 'AircraftHeading': '0.17G', 'AircraftTrackAngle': '0.17G', }
     # descriptors
     Name = StringDescriptor(
         'Name', _required,

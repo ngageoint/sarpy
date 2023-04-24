@@ -60,7 +60,7 @@ class FFTCalculator(FullResolutionFetcher):
         """
 
         self._platform_direction = None  # set with the index setter
-        self._fill = None # set implicitly with _set_fill()
+        self._fill = None  # set implicitly with _set_fill()
         super(FFTCalculator, self).__init__(reader, dimension=dimension, index=index, block_size=block_size)
 
     @property

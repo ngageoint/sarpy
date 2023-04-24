@@ -306,13 +306,13 @@ class CRSDReader(CRSDTypeReader):
             self,
             variable: str,
             index: Union[int, str],
-            the_range: Union[None, int, Tuple[int, ...], slice]=None) -> Optional[numpy.ndarray]:
+            the_range: Union[None, int, Tuple[int, ...], slice] = None) -> Optional[numpy.ndarray]:
         raise NotImplementedError
 
     def read_pvp_array(
             self,
             index: Union[int, str],
-            the_range: Union[None, int, Tuple[int, ...], slice]=None) -> numpy.ndarray:
+            the_range: Union[None, int, Tuple[int, ...], slice] = None) -> numpy.ndarray:
         raise NotImplementedError
 
     def read_pvp_block(self) -> Dict[str, numpy.ndarray]:

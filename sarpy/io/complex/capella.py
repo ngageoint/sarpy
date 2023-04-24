@@ -191,7 +191,7 @@ class CapellaDetails(object):
                 Classification='UNCLASSIFIED',
                 CollectType='MONOSTATIC')
 
-        def get_image_creation()-> ImageCreationType:
+        def get_image_creation() -> ImageCreationType:
             from sarpy.__about__ import __version__
             return ImageCreationType(
                 Application=self._tiff_details.tags['Software'],

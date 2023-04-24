@@ -307,7 +307,6 @@ class CSICalculator(FFTCalculator):
         # parse the slicing to ensure consistent structure
         row_range, col_range, _ = self._parse_slicing(item)
 
-
         if self.dimension == 0:
             # we will proceed fetching full row resolution
             filter_map, row_block_size, this_row_range = get_dimension_details(row_range)

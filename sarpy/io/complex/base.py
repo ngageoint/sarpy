@@ -26,8 +26,8 @@ class SICDTypeReader(BaseReader):
     def __init__(self,
                  data_segment: Union[None, DataSegment, Sequence[DataSegment]],
                  sicd_meta: Union[None, SICDType, Sequence[SICDType]],
-                 close_segments: bool=True,
-                 delete_files: Union[None, str, Sequence[str]]=None):
+                 close_segments: bool = True,
+                 delete_files: Union[None, str, Sequence[str]] = None):
         """
 
         Parameters
@@ -98,7 +98,7 @@ class SICDTypeReader(BaseReader):
             # noinspection PyRedundantParentheses
             return (self.sicd_meta, )
 
-    def get_sicd_partitions(self, match_function: Callable=is_general_match) -> Tuple[Tuple[int, ...], ...]:
+    def get_sicd_partitions(self, match_function: Callable = is_general_match) -> Tuple[Tuple[int, ...], ...]:
         """
         Partition the sicd collection into sub-collections according to `match_function`,
         which is assumed to establish an equivalence relation.
