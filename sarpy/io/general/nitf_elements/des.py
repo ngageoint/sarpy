@@ -287,7 +287,7 @@ class DataExtensionHeader(NITFElement):
 
     def _get_attribute_length(self, fld):
         if fld == 'DESOFLW':
-            return 0 if self._DESOFLW is None else self._lengths['DESOFLOW']
+            return 0 if self._DESOFLW is None else self._lengths['DESOFLW']
         elif fld == 'DESITEM':
             return 0 if self._DESITEM is None else self._lengths['DESITEM']
         else:
@@ -475,7 +475,7 @@ class DataExtensionHeader0(NITFElement):
 
     def _get_attribute_length(self, fld):
         if fld == 'DESOFLW':
-            return 0 if self._DESOFLW is None else self._lengths['DESOFLOW']
+            return 0 if self._DESOFLW is None else self._lengths['DESOFLW']
         elif fld == 'DESITEM':
             return 0 if self._DESITEM is None else self._lengths['DESITEM']
         else:
