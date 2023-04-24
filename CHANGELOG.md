@@ -4,6 +4,12 @@ SarPy follows a continuous release process, so there are fairly frequent release
 Since essentially every (squash merge) commit corresponds to a release, specific 
 release points are not being annotated in GitHub.
 
+## [1.3.30] - 2023-04-24
+### Added
+- Added OSR checks to consistency.
+### Fixed
+- Fixed misspelling of DESOFLW in des.py
+
 ## [1.3.29] - 2023-04-24
 ### Added
 - Added Radiometric and Timeline.IPP nodes to tests/data/example.sicd.xml
