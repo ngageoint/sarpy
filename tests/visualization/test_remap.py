@@ -336,18 +336,18 @@ class TestRemap(unittest.TestCase):
     def test_flat_interface(self):
         data = np.random.lognormal(size=1000).astype(np.complex128)
         with self.assertWarns(DeprecationWarning):
-            np.testing.assert_array_equal(remap.Density(data), remap.Density()(data))
+            np.testing.assert_array_equal(remap.density(data), remap.Density()(data))
         with self.assertWarns(DeprecationWarning):
-            np.testing.assert_array_equal(remap.Brighter(data), remap.Brighter()(data))
+            np.testing.assert_array_equal(remap.brighter(data), remap.Brighter()(data))
         with self.assertWarns(DeprecationWarning):
-            np.testing.assert_array_equal(remap.Darker(data), remap.Darker()(data))
+            np.testing.assert_array_equal(remap.darker(data), remap.Darker()(data))
         with self.assertWarns(DeprecationWarning):
-            np.testing.assert_array_equal(remap.High_Contrast(data), remap.High_Contrast()(data))
+            np.testing.assert_array_equal(remap.high_contrast(data), remap.High_Contrast()(data))
         with self.assertWarns(DeprecationWarning):
-            np.testing.assert_array_equal(remap.Linear(data), remap.Linear()(data))
+            np.testing.assert_array_equal(remap.linear(data), remap.Linear()(data))
         with self.assertWarns(DeprecationWarning):
-            np.testing.assert_array_equal(remap.Logarithmic(data), remap.Logarithmic()(data))
+            np.testing.assert_array_equal(remap.log(data), remap.Logarithmic()(data))
         with self.assertWarns(DeprecationWarning):
-            np.testing.assert_array_equal(remap.PEDF(data), remap.PEDF()(data))
+            np.testing.assert_array_equal(remap.pedf(data), remap.PEDF()(data))
         with self.assertWarns(DeprecationWarning):
-            np.testing.assert_array_equal(remap.NRL(data), remap.NRL()(data))
+            np.testing.assert_array_equal(remap.nrl(data), remap.NRL()(data))

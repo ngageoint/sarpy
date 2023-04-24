@@ -12,8 +12,7 @@ release points are not being annotated in GitHub.
 to tests/io/complex/sicd_elements/test_sicd_elements.py
 
 ### Changed
-- Updated code to align with PEP. 
-- Changed deprecated methods in test_remap.py to use classes.
+- Updated code to align with PEP.
 
 ### Fixed
 - Fixed bug in Sarpy correctly raising error when testing length of array in 
