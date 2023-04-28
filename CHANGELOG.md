@@ -4,6 +4,11 @@ SarPy follows a continuous release process, so there are fairly frequent release
 Since essentially every (squash merge) commit corresponds to a release, specific 
 release points are not being annotated in GitHub.
 
+## [1.3.31] - 2023-04-28
+### Fixed
+- Fixed bug in SARPY correctly reading data with odd number of rows with a stride that is not a 
+multiple of the input size.
+
 ## [1.3.30] - 2023-04-24
 ### Added
 - Added OSR checks to consistency.
