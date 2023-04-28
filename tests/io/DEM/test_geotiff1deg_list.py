@@ -6,6 +6,7 @@ temporary, DEM files on-the-fly, so there is no need to provide any actual DEM f
 """
 import logging
 import pathlib
+import re
 import tempfile
 
 import pytest
@@ -22,22 +23,52 @@ MAX_LON = 4
 
 logging.basicConfig(level=logging.WARNING)
 
-dataset_ff = {
-    "high_res": ["tdt_{ns:1s}{abslat:02}{ew:1s}{abslon:03}_{ver:2s}",
-                 "DEM",
-                 "TDT_{NS:1s}{abslat:02}{EW:1s}{abslon:03}_{ver:2s}_DEM.tif"],
-    "low_res": ["TDM1_DEM__30_{NS:1s}{abslat:02}{EW:1s}{abslon:03}_V{ver:2s}_C",
-                "DEM",
-                "TDM1_DEM__30_{NS:1s}{abslat:02}{EW:1s}{abslon:03}_DEM.tif"
-                ]
-}
+
+def infer_filename_format(root_dir_path):
+    """
+    This is a helper function used to generate a dem_filename_pattern string without explicit
+    knowledge of the DEM filenames.  It assumes the Lat/Lon is encoded in the filename using
+    a string like his: {NS}{abslat:02}{EW}{abslon:03}.
+    """
+    lat_lon_regex = '(n|s)([0-8][0-9])(e|w)((0[0-9][0-9])|(1[0-7][0-9])|180)'
+    lat_lon_munge = [{'fmt_str': '{ns}{abslat:02}{ew}{abslon:03}', 'regex': lat_lon_regex},
+                     {'fmt_str': '{NS}{abslat:02}{EW}{abslon:03}', 'regex': lat_lon_regex.upper()}]
+
+    filename_formats = []
+
+    tiff_filenames = [str(f) for f in root_dir_path.glob("**/*DEM.tif")]
+
+    if len(tiff_filenames) == 0:
+        raise FileNotFoundError(f"Could not find any TIFF files in ({str(root_dir_path)}).")
+
+    for tiff_filename in tiff_filenames:
+        munged_filename = tiff_filename
+        for munge in lat_lon_munge:
+            munged_filename = re.sub(munge['regex'], munge['fmt_str'], munged_filename)
+
+        if munged_filename == tiff_filename:
+            raise ValueError(f"Could not find a Lat/Lon substring in filename ({tiff_filename}).")
+
+        if munged_filename not in filename_formats:
+            filename_formats.append(munged_filename)
+
+    fmt_ref = list(filename_formats[0])
+    for tst_str in filename_formats[1:]:
+        fmt_tst = list(tst_str)
+        if len(fmt_ref) != len(fmt_tst):
+            raise ValueError('Format string lengths do not match')
+        for i, (c0, c1) in enumerate(zip(fmt_ref, fmt_tst)):
+            if c0 != c1:
+                fmt_ref[i] = '?'
+
+    filename_format = ''.join(fmt_ref)
+    return filename_format
 
 
 @pytest.fixture(scope='module')
 def dem_file_path():
     """
-    Create a directory of empty files that satisfy the DEM "high_res" naming convention.
-
+    Create a directory of empty files that satisfy the DEM naming convention.
     """
     ver_choice = ('01', '02')
 
@@ -70,37 +101,42 @@ def dem_file_path():
 
 
 def test_filename_from_lat_lon():
-    filename_format = "Test_{lat:02d}_{lon:03d}_{abslat:02d}_{abslon:03d}_{ns:1s}{NS:1s}_{ew:1s}{EW:1s}_{ver:2s}"
-    obj = GeoTIFF1DegList('/tmp', filename_format=filename_format)
-    filename = obj.filename_from_lat_lon(-1, -2, 'V1')
-    assert filename == "/tmp/Test_-1_-02_01_002_sS_wW_V1"
+    obj = GeoTIFF1DegList('dummy_format')
 
-    obj = GeoTIFF1DegList('/tmp', filename_format=filename_format+'_{bad}')
-    filename = obj.filename_from_lat_lon(-1, -2, 'V1')
-    assert filename == "/tmp/Test_-1_-02_01_002_sS_wW_V1_{bad}"
+    # Test fully specified filename_format
+    filename_format = "Test_{lat:02d}_{lon:03d}_{abslat:02d}_{abslon:03d}_{ns:1s}{NS:1s}_{ew:1s}{EW:1s}"
+    filename = obj.filename_from_lat_lon(-1, -2, filename_format)
+    assert filename == "Test_-1_-02_01_002_sS_wW"
 
-    filename_format = "Test_{lat:02d}_{lon:03d}_{abslat:02d}_{abslon:03d}_{ns}{NS}_{ew}{EW}_{ver:2s}"
-    obj = GeoTIFF1DegList('/tmp', filename_format=filename_format)
-    filename = obj.filename_from_lat_lon(-1, -2, 'V1')
-    assert filename == "/tmp/Test_-1_-02_01_002_sS_wW_V1"
+    # Test fully specified filename_format with an extra {*}
+    filename_format = "Test_{lat:02d}_{lon:03d}_{abslat:02d}_{abslon:03d}_{ns:1s}{NS:1s}_{ew:1s}{EW:1s}_{bad}"
+    filename = obj.filename_from_lat_lon(-1, -2, filename_format)
+    assert filename == "Test_-1_-02_01_002_sS_wW_{bad}"
+
+    # Test filename_format where field width is omitted for single character fields
+    filename_format = "Test_{lat:02d}_{lon:03d}_{abslat:02d}_{abslon:03d}_{ns}{NS}_{ew}{EW}"
+    filename = obj.filename_from_lat_lon(-1, -2, filename_format)
+    assert filename == "Test_-1_-02_01_002_sS_wW"
 
 
 def test_find_dem_files(dem_file_path):
-    obj = GeoTIFF1DegList(str(dem_file_path), dataset_ff["high_res"])
+    filename_format = infer_filename_format(dem_file_path)
+
+    obj = GeoTIFF1DegList(filename_format)
 
     filenames = obj.find_dem_files(MIN_LAT - 1, MIN_LON - 1)
     assert len(filenames) == 0
 
     filenames = obj.find_dem_files(MIN_LAT, MIN_LON)
-    expected_filename = obj.filename_from_lat_lon(MIN_LAT, MIN_LON, '01')
+    expected_filename = obj.filename_from_lat_lon(MIN_LAT, MIN_LON, filename_format).replace('?', '1')
     assert len(filenames) == 1 and filenames[0].endswith(expected_filename)
 
     filenames = obj.find_dem_files(MIN_LAT + 0.5, MIN_LON + 0.5)
-    assert len(filenames) == 1 and filenames[0].endswith(expected_filename)
+    assert len(filenames) == 1 and filenames[0] == expected_filename
 
     filenames = obj.find_dem_files(MAX_LAT, MAX_LON)
-    expected_filename = obj.filename_from_lat_lon(MAX_LAT-1, MAX_LON-1, '01')
-    assert len(filenames) == 1 and filenames[0].endswith(expected_filename)
+    expected_filename = obj.filename_from_lat_lon(MAX_LAT-1, MAX_LON-1, filename_format).replace('?', '1')
+    assert len(filenames) == 1 and filenames[0] == expected_filename
 
     filenames = obj.find_dem_files(MIN_LAT+1, MIN_LON)
     assert len(filenames) == 2
@@ -111,14 +147,11 @@ def test_find_dem_files(dem_file_path):
     filenames = obj.find_dem_files(MIN_LAT+1, MIN_LON + 1)
     assert len(filenames) == 4
 
-    # Zero files because the low_res dataset does not exist in dem_file_path
-    obj = GeoTIFF1DegList(str(dem_file_path), dataset_ff["low_res"])
-    filenames = obj.find_dem_files(MIN_LAT, MIN_LON)
-    assert len(filenames) == 0
-
 
 def test_file_list(dem_file_path):
-    obj = GeoTIFF1DegList(str(dem_file_path), dataset_ff["high_res"])
+    filename_format = infer_filename_format(dem_file_path)
+
+    obj = GeoTIFF1DegList(filename_format)
 
     # Zero files
     lat_lon_box = [MIN_LAT - 10, MIN_LAT - 9, MIN_LON - 10, MIN_LON - 9]
@@ -147,10 +180,9 @@ def test_file_list(dem_file_path):
 
 
 def test_exceptions(dem_file_path, caplog):
-    with pytest.raises(ValueError, match="^The top level directory \\(/bad_dir\\) does not exist\\."):
-        GeoTIFF1DegList("/bad_dir", dataset_ff["high_res"])
+    filename_format = infer_filename_format(dem_file_path)
 
-    obj = GeoTIFF1DegList(str(dem_file_path), dataset_ff["high_res"])
+    obj = GeoTIFF1DegList(filename_format)
     with pytest.raises(ValueError) as info:
         obj.find_dem_files(999, 999)
 
@@ -174,7 +206,7 @@ def test_exceptions(dem_file_path, caplog):
     assert caplog.text.startswith("WARNING  sarpy.io.DEM.geotiff1deg:geotiff1deg.py")
     assert "Missing expected DEM file for tile with lower left lat/lon corner (45.0, 90.0)" in caplog.text
 
-    obj = GeoTIFF1DegList(str(dem_file_path), dataset_ff["high_res"], missing_error=True)
+    obj = GeoTIFF1DegList(filename_format, missing_error=True)
     with pytest.raises(ValueError,
                        match="^Missing expected DEM file for tile with lower left lat/lon corner \\(45.0, 90.0\\)"):
         obj.get_file_list([45.1, 45.3, 90.1, 90.3])

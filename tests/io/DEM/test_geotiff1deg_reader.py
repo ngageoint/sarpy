@@ -4,10 +4,7 @@ data points as needed.  Most of these tests use fabricated data, so the GeoTIFF1
 well tests without providing external DEM data.  However, when available, real DEM data is used for some tests.
 The location of the real DEM data files and real Geoid data files are defined by the parameters:
 
-    GEOTIFF_ROOT_PATH        - A pathlib.Path to the root directory containing DEM data files in GeoTIFF
-    GEOID_ROOT_PATH          - A pathlib.Path to the root directory containing Geoid data files in PGM format
-    FILENAME_FORMAT_HIGH_RES - A format string for a high-res DEM filenames relative to GEOTIFF_ROOT_PATH
-    FILENAME_FORMAT_LOW_RES  - A format string for a low-res DEM filenames relative to GEOTIFF_ROOT_PATH
+    GEOTIFF_ROOT_PATH        - A pathlib.Path to the root directory containing DEM data GeoTIFF files
 
     Low resolution GeoTIFF data files can be downloaded from here:
         https://download.geoservice.dlr.de/TDM90/
@@ -21,6 +18,7 @@ The location of the real DEM data files and real Geoid data files are defined by
 If real DEM files and/or real Geoid files are not available then tests that require these files will be skipped.
 
 """
+import json
 import os
 import pathlib
 import re
@@ -32,14 +30,15 @@ import pytest
 
 from sarpy.io.DEM.geotiff1deg import GeoTIFF1DegInterpolator
 
-GEOTIFF_ROOT_PATH = pathlib.Path(__file__).parent / "dem_data"
-GEOID_ROOT_PATH = pathlib.Path(__file__).parent / "dem"
+SRC_FILE_PATH = pathlib.Path(__file__).parent
+GEOTIFF_ROOT_PATH = SRC_FILE_PATH / "dem_data"
 
-FILENAME_FORMAT_HIGH_RES = ["tdt_{ns:1s}{abslat:02}{ew:1s}{abslon:03}_{ver:2s}", "DEM",
-                            "TDT_{NS:1s}{abslat:02}{EW:1s}{abslon:03}_{ver:2s}_DEM.tif"]
-FILENAME_FORMAT_LOW_RES = ["TDM1_DEM__30_{NS:1s}{abslat:02}{EW:1s}{abslon:03}_V{ver:2s}_C", "DEM",
-                           "TDM1_DEM__30_{NS:1s}{abslat:02}{EW:1s}{abslon:03}_DEM.tif"]
-FILENAME_FORMAT_DICT = {"high_res": FILENAME_FORMAT_HIGH_RES, "low_res": FILENAME_FORMAT_LOW_RES}
+# The geoid.json file, used by test_geoid, is reused here to define the location of the geoid files.
+geoid_json_path = SRC_FILE_PATH / "geoid.json"
+geoid_file_info = json.loads(geoid_json_path.read_text())
+geoid_path_type = geoid_file_info['geoid_files'][-1]['path_type']
+geoid_path_sufx = geoid_file_info['geoid_files'][-1]['path']
+GEOID_FILE_PATH = SRC_FILE_PATH / geoid_path_sufx if geoid_path_type == 'relative' else pathlib.Path(geoid_path_sufx)
 
 NUM_LATS_DUMMY = 201
 NUM_LONS_DUMMY = 101
@@ -60,6 +59,42 @@ def lat_lon_from_filename(filename):
     lon_abs = int(m.group(4))
 
     return lat_sgn * lat_abs, lon_sgn * lon_abs
+
+
+def infer_filename_format(root_dir_path):
+    lat_lon_regex = '(n|s)([0-8][0-9])(e|w)((0[0-9][0-9])|(1[0-7][0-9])|180)'
+    lat_lon_munge = [{'fmt_str': '{ns}{abslat:02}{ew}{abslon:03}', 'regex': lat_lon_regex},
+                     {'fmt_str': '{NS}{abslat:02}{EW}{abslon:03}', 'regex': lat_lon_regex.upper()}]
+
+    filename_formats = []
+
+    tiff_filenames = [str(f) for f in root_dir_path.glob("**/*DEM.tif")]
+
+    if len(tiff_filenames) == 0:
+        raise FileNotFoundError(f"Could not find any TIFF files in ({str(root_dir_path)}).")
+
+    for tiff_filename in tiff_filenames:
+        munged_filename = tiff_filename
+        for munge in lat_lon_munge:
+            munged_filename = re.sub(munge['regex'], munge['fmt_str'], munged_filename)
+
+        if munged_filename == tiff_filename:
+            raise ValueError(f"Could not find a Lat/Lon substring in filename ({tiff_filename}).")
+
+        if munged_filename not in filename_formats:
+            filename_formats.append(munged_filename)
+
+    fmt_ref = list(filename_formats[0])
+    for tst_str in filename_formats[1:]:
+        fmt_tst = list(tst_str)
+        if len(fmt_ref) != len(fmt_tst):
+            raise ValueError('Format string lengths do not match')
+        for i, (c0, c1) in enumerate(zip(fmt_ref, fmt_tst)):
+            if c0 != c1:
+                fmt_ref[i] = '?'
+
+    filename_format = ''.join(fmt_ref)
+    return filename_format
 
 
 def dummy_pil_image_open(filename, ref_surface):
@@ -88,7 +123,8 @@ def dummy_pil_image_open(filename, ref_surface):
 @pytest.fixture(scope='module')
 def dummy_dem_file_path_high_res():
     dataset = 'high_res'
-    filename_format = FILENAME_FORMAT_HIGH_RES
+    filename_format = ["tdt_{ns}{abslat:02}{ew}{abslon:03}_{ver:2s}", "DEM",
+                       "TDT_{NS}{abslat:02}{EW}{abslon:03}_{ver:2s}_DEM.tif"]
     with tempfile.TemporaryDirectory() as temp_dir:
         root_path = pathlib.Path(temp_dir) / dataset
         dummy_dem_file_path(root_path, filename_format)
@@ -98,7 +134,8 @@ def dummy_dem_file_path_high_res():
 @pytest.fixture(scope='module')
 def dummy_dem_file_path_low_res():
     dataset = 'low_res'
-    filename_format = FILENAME_FORMAT_LOW_RES
+    filename_format = ["TDM1_DEM__30_{NS:1s}{abslat:02}{EW:1s}{abslon:03}_V{ver:2s}_C", "DEM",
+                       "TDM1_DEM__30_{NS:1s}{abslat:02}{EW:1s}{abslon:03}_DEM.tif"]
     with tempfile.TemporaryDirectory() as temp_dir:
         root_path = pathlib.Path(temp_dir) / dataset
         dummy_dem_file_path(root_path, filename_format)
@@ -129,11 +166,11 @@ def dummy_dem_file_path(root_path, filename_format):
                 filename.touch()
 
 
-def lat_lon_bounds(root_dir):
+def lat_lon_bounds(root_dir_path):
     """
     Determine the min/max lat/lon covered by DEM files in a specified directory.
     """
-    filenames = list(pathlib.Path(root_dir).glob("**/*DEM.tif"))
+    filenames = list(root_dir_path.glob("**/*DEM.tif"))
     lats = np.zeros(len(filenames))
     lons = np.zeros(len(filenames))
     for i, filename in enumerate(filenames):
@@ -148,7 +185,8 @@ def lat_lon_bounds(root_dir):
 
 
 def test_setter_getter(dummy_dem_file_path_high_res):
-    obj = GeoTIFF1DegInterpolator(str(dummy_dem_file_path_high_res), FILENAME_FORMAT_HIGH_RES)
+    obj = GeoTIFF1DegInterpolator('/dummy', interp_method="smarty")
+    assert obj.interp_method == "smarty"
     obj.interp_method = "dummy"
     assert obj.interp_method == "dummy"
 
@@ -159,10 +197,11 @@ def test_setter_getter(dummy_dem_file_path_high_res):
     pytest.param("low_res", marks=pytest.mark.skipif(not (GEOTIFF_ROOT_PATH / "low_res").exists(),
                                                      reason="GeoTIFF test data does not exist."))])
 def test_get_elevation_native(dataset):
-    root_dir = str(GEOTIFF_ROOT_PATH / dataset)
-    sw_lat, ne_lat, sw_lon, ne_lon = lat_lon_bounds(root_dir)
+    root_dir_path = GEOTIFF_ROOT_PATH / dataset
+    sw_lat, ne_lat, sw_lon, ne_lon = lat_lon_bounds(root_dir_path)
+    filename_format = infer_filename_format(root_dir_path)
 
-    obj = GeoTIFF1DegInterpolator(root_dir, FILENAME_FORMAT_DICT[dataset])
+    obj = GeoTIFF1DegInterpolator(filename_format)
 
     num_points = 8
     d_offset = 1 / 18111    # Offset used to avoid exact Lat/Lon samples which occur ever 1/9000
@@ -198,7 +237,8 @@ def test_get_elevation_native_dummy(dummy_dem_file_path_high_res, monkeypatch):
     sw_lon = -1
     ne_lon = 2
 
-    obj = GeoTIFF1DegInterpolator(str(dummy_dem_file_path_high_res), FILENAME_FORMAT_HIGH_RES)
+    filename_format = infer_filename_format(dummy_dem_file_path_high_res)
+    obj = GeoTIFF1DegInterpolator(filename_format)
 
     num_points = 8
     d_offset = 1 / 18000
@@ -238,7 +278,8 @@ def test_get_min_max_native_dummy(dummy_dem_file_path_high_res, monkeypatch):
         assert (lt_or_close(lat_lon_to_dummy_height(box[1] - lat_ss, box[3] - lon_ss), pars['max']['height']) and
                 lt_or_close(pars['max']['height'], lat_lon_to_dummy_height(box[1], box[3] + lon_ss)))
 
-    obj = GeoTIFF1DegInterpolator(str(dummy_dem_file_path_high_res), FILENAME_FORMAT_HIGH_RES, "EGM2008")
+    filename_format = infer_filename_format(dummy_dem_file_path_high_res)
+    obj = GeoTIFF1DegInterpolator(filename_format)
 
     # Test bounding box outside the DEM tiles
     lat_lon_bounding_box = [sw_lat-10, ne_lat - 10, sw_lon - 10, ne_lon - 10]
@@ -271,10 +312,8 @@ def test_get_min_max_native_dummy(dummy_dem_file_path_high_res, monkeypatch):
 
 
 @pytest.mark.parametrize("ref_surface", [
-    pytest.param("egm2008", marks=pytest.mark.skipif(not (GEOID_ROOT_PATH / "geoid" / 'egm2008-1.pgm').exists(),
-                                                     reason="Geoid data does not exist.")),
-    pytest.param("wgs84", marks=pytest.mark.skipif(not (GEOID_ROOT_PATH / "geoid" / 'egm2008-1.pgm').exists(),
-                                                   reason="Geoid data does not exist."))])
+    pytest.param("egm2008", marks=pytest.mark.skipif(not GEOID_FILE_PATH.exists(), reason="Geoid data does not exist")),
+    pytest.param("wgs84", marks=pytest.mark.skipif(not GEOID_FILE_PATH.exists(), reason="Geoid data does not exist"))])
 def test_get_elevation_hae_geoid(ref_surface, dummy_dem_file_path_high_res, monkeypatch):
     if ref_surface == "egm2008":
         monkeypatch.setattr(Image, 'open', lambda filename: dummy_pil_image_open(filename, "EGM2008"))
@@ -286,16 +325,17 @@ def test_get_elevation_hae_geoid(ref_surface, dummy_dem_file_path_high_res, monk
     sw_lon = -1
     ne_lon = 2
 
-    obj = GeoTIFF1DegInterpolator(str(dummy_dem_file_path_high_res), FILENAME_FORMAT_HIGH_RES, str(GEOID_ROOT_PATH))
+    filename_format = infer_filename_format(dummy_dem_file_path_high_res)
+    obj = GeoTIFF1DegInterpolator(filename_format, str(GEOID_FILE_PATH.parent.parent))
 
     num_points = 8
     d_offset = 1 / 18000
 
     lats = np.linspace(sw_lat + d_offset, ne_lat - d_offset, num_points)
     lons = np.linspace(sw_lon + d_offset, ne_lon/2 - d_offset, num_points)
-    hght1 = obj.get_elevation_hae(lats, lons)
-    hght2 = obj.get_elevation_geoid(lats, lons)
-    assert np.all(np.abs(hght1 - hght2) > 0)
+    hght_wgs84 = obj.get_elevation_hae(lats, lons)
+    hght_geoid = obj.get_elevation_geoid(lats, lons)
+    assert np.all(np.abs(hght_wgs84 - hght_geoid) > 0)
 
     min_hae = obj.get_min_hae([lats[0], lats[-1], lons[0], lons[-1]])
     max_hae = obj.get_max_hae([lats[0], lats[-1], lons[0], lons[-1]])
@@ -304,26 +344,31 @@ def test_get_elevation_hae_geoid(ref_surface, dummy_dem_file_path_high_res, monk
     assert np.all(np.abs(min_hae - min_geoid))
     assert np.all(np.abs(max_hae - max_geoid))
 
+    obj2 = GeoTIFF1DegInterpolator(filename_format, str(GEOID_FILE_PATH))
+    hght_geoid2 = obj2.get_elevation_geoid(lats, lons)
+    assert np.all(hght_geoid2 == hght_geoid)
+
 
 def test_exceptions(dummy_dem_file_path_high_res, monkeypatch):
-    obj = GeoTIFF1DegInterpolator(str(dummy_dem_file_path_high_res), FILENAME_FORMAT_HIGH_RES)
+    filename_format = infer_filename_format(dummy_dem_file_path_high_res)
+    obj = GeoTIFF1DegInterpolator(filename_format)
     with pytest.raises(ValueError, match="^The lat and lon arrays are not the same shape\\."):
         obj.get_elevation_native([1, 2, 3], [1, 2])
 
     monkeypatch.setattr(Image, 'open', lambda filename: dummy_pil_image_open(filename, "WGS84"))
-    obj = GeoTIFF1DegInterpolator(str(dummy_dem_file_path_high_res), FILENAME_FORMAT_HIGH_RES)
+    obj = GeoTIFF1DegInterpolator(filename_format)
     with pytest.raises(ValueError,
                        match="^The geoid_dir parameter was not defined so geoid calculations are disabled\\."):
         obj.get_elevation_geoid(1, 1)
 
     monkeypatch.setattr(Image, 'open', lambda filename: dummy_pil_image_open(filename, "EGM2008"))
-    obj = GeoTIFF1DegInterpolator(str(dummy_dem_file_path_high_res), FILENAME_FORMAT_HIGH_RES)
+    obj = GeoTIFF1DegInterpolator(filename_format)
     with pytest.raises(ValueError,
                        match="^The geoid_dir parameter was not defined so geoid calculations are disabled\\."):
         obj.get_elevation_hae(1, 1)
 
     monkeypatch.setattr(Image, 'open', lambda filename: dummy_pil_image_open(filename, "Unknown"))
-    obj = GeoTIFF1DegInterpolator(str(dummy_dem_file_path_high_res), FILENAME_FORMAT_HIGH_RES)
+    obj = GeoTIFF1DegInterpolator(filename_format)
     with pytest.raises(ValueError, match="^The reference surface is Unknown, which is not supported"):
         obj.get_elevation_geoid(1, 1)
     with pytest.raises(ValueError, match="^The reference surface is Unknown, which is not supported"):
