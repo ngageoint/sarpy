@@ -950,6 +950,39 @@ def test_check_channel_toaextsaved_no_toae1(dataset_with_toaextsaved):
     assert cphd_con.failures()
 
 
+def test_channel_fx_osr(good_cphd):
+    cphd_con = CphdConsistency.from_file(good_cphd, check_signal_data=True)
+    cphd_con = copy.deepcopy(cphd_con)
+    channel_pvps = next(iter(cphd_con.pvps.values()))
+    channel_pvps['TOA2'][0] = channel_pvps['TOA1'][0] + 1.0 / channel_pvps['SCSS'][0]
+    cphd_con.check('check_channel_fx_osr', allow_prefix=True)
+    assert cphd_con.failures()
+    assert not cphd_con.skips()
+
+    cphd_con.check('check_channel_toa_osr', allow_prefix=True)
+    assert cphd_con.skips()
+
+
+def test_channel_toa_osr(good_cphd):
+    cphd_con = CphdConsistency.from_file(good_cphd, check_signal_data=True)
+    cphd_con = copy.deepcopy(cphd_con)
+    cphd_con.xml.find('./Global/DomainType').text = 'TOA'
+    for channel_pvps in cphd_con.pvps.values():
+        needed_ss = 1.0 / (1.25 * (channel_pvps['FX2'] - channel_pvps['FX1']))
+        channel_pvps['SCSS'][:] = needed_ss
+    cphd_con.check('check_channel_toa_osr', allow_prefix=True)
+    assert not cphd_con.failures()
+    assert not cphd_con.skips()
+
+    channel_pvps['FX2'][0] = channel_pvps['FX1'][0] + 1.0 / channel_pvps['SCSS'][0]
+    cphd_con.check('check_channel_toa_osr', allow_prefix=True)
+    assert cphd_con.failures()
+    assert not cphd_con.skips()
+
+    cphd_con.check('check_channel_fx_osr', allow_prefix=True)
+    assert cphd_con.skips()
+
+
 def test_check_channel_afdop(good_cphd):
     cphd_con = CphdConsistency.from_file(good_cphd, check_signal_data=True)
     cphd_con = copy.deepcopy(cphd_con)
