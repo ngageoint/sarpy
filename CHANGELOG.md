@@ -4,6 +4,12 @@ SarPy follows a continuous release process, so there are fairly frequent release
 Since essentially every (squash merge) commit corresponds to a release, specific 
 release points are not being annotated in GitHub.
 
+## [1.3.32] - 2023-05-01
+### Fixed
+- Fixed bug in SARPY correctly reading numerous nitf files in linux OS.
+### Changed
+- Minor cleaning in nitf.py.
+
 ## [1.3.31] - 2023-04-28
 ### Fixed
 - Fixed bug in SARPY correctly reading data with odd number of rows with a stride that is not a 
