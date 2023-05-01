@@ -10,6 +10,7 @@ __author__ = "Thomas McCullough"
 
 import logging
 import os
+
 from typing import Union, List, Tuple, BinaryIO, Sequence, Optional
 from tempfile import mkstemp
 from collections import OrderedDict
@@ -56,7 +57,15 @@ try:
     ImageFile.LOAD_TRUNCATED_IMAGES = True
 except ImportError:
     PIL_Image = None
+    ImageFile = None
 
+import platform
+system_os = platform.system()
+if system_os == 'Linux':
+    try:
+        import resource
+    except ImportError:
+        resource = None
 
 logger = logging.getLogger(__name__)
 
@@ -119,7 +128,7 @@ def find_jpeg_delimiters(the_bytes: bytes) -> List[Tuple[int, int]]:
     Raises
     ------
     ValueError
-        If the bytes doesn't start with the begin jpeg delimiter and end with the
+        If the bytes doesn't start with the begininning jpeg delimiter and end with the
         end jpeg delimiter.
     """
 
@@ -1478,7 +1487,7 @@ class NITFReader(BaseReader):
         -------
         mask_offsets : Optional[numpy.ndarray]
             The mask byte offset from the end of the mask subheader definition.
-            If `IMODE = S`, then this is two dimensional, otherwise it is one
+            If `IMODE = S`, then this is two-dimensional, otherwise it is one
             dimensional
         exclude_value : int
             The offset value for excluded block, should always be `0xFFFFFFFF`.
@@ -1829,7 +1838,6 @@ class NITFReader(BaseReader):
             # noinspection PyUnresolvedReferences
             the_image_bytes = the_bytes[jpeg_delim[0]:jpeg_delim[1]]
             img = PIL_Image.open(BytesIO(the_image_bytes))
-            poo = numpy.array(img)
             # handle block padding situation
             row_start, row_end = block_bound[0], min(block_bound[1], image_header.NROWS)
             col_start, col_end = block_bound[2], min(block_bound[3], image_header.NCOLS)
@@ -1976,9 +1984,18 @@ class NITFReader(BaseReader):
 
         data_segments = []
         child_arrangement = []
+
+        # Linux runs out of file handles for some NITF files,
+        # so pre-detect that catastrophic failure
+        if system_os == 'Linux':
+            # Get the max number of file handles allowed by the OS
+            soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+
         for block_index, (block_definition, block_offset) in enumerate(zip(block_bounds, block_offsets)):
             if block_offset == exclude_value:
                 continue  # just skip this, since it's masked out
+            if system_os == 'Linux' and block_index > hard/6 - 4:
+                continue  # stop loading segments for fear of too many file handles
 
             b_rows = block_definition[1] - block_definition[0]
             b_cols = block_definition[3] - block_definition[2]
@@ -2145,7 +2162,6 @@ class NITFReader(BaseReader):
         # get mask definition details
         mask_offsets, exclude_value, additional_offset = self._get_mask_details(image_segment_index)
 
-        bytes_per_pixel = raw_dtype.itemsize  # one band at a time
         block_size = image_header.get_uncompressed_block_size()
         if mask_offsets is not None:
             block_offsets = mask_offsets
@@ -2251,7 +2267,7 @@ class NITFReader(BaseReader):
             return self._handle_jpeg(image_segment_index, apply_format)
         elif image_header.IC == 'C8':
             return self._handle_jpeg2k_no_mask(image_segment_index, apply_format)
-        elif image_header.IC == 'M8':
+        elif image_header.IC == 'C8':
             return self._handle_jpeg2k_with_mask(image_segment_index, apply_format)
         else:
             raise ValueError('Got unhandled IC `{}`'.format(image_header.IC))
@@ -2431,8 +2447,7 @@ class NITFReader(BaseReader):
 
     def close(self) -> None:
         self._image_segment_data_segments = None
-        if BaseReader is not None:
-            BaseReader.close(self)
+        BaseReader.close(self)
 
 
 ########
@@ -2793,7 +2808,7 @@ class ImageSubheaderManager(SubheaderManager):
         """
         ImageSegmentHeader: The image subheader. Any image mask subheader should
         be populated in the `mask_subheader` property. The size of this will be
-        handled independently from the image bytes.
+        handled independently of the image bytes.
         """
 
         return self._subheader
@@ -3323,7 +3338,7 @@ class NITFWritingDetails(object):
         Parameters
         ----------
         require : bool
-            Require all sizes to be set? `0` will be used a as placeholder for
+            Require all sizes to be set? `0` will be used as a placeholder for
             header information population.
 
         Returns
@@ -4151,11 +4166,6 @@ class NITFWriter(BaseWriter):
             return
 
     def close(self) -> None:
-        """
-        This should perform any necessary final steps, like closing
-        open file handles, deleting any temp files, etc.
-        Trying to read newly created file without closing may raise a ValueError.
-        """
         BaseWriter.close(self)  # NB: flush called here
         try:
             if self.nitf_writing_details is not None:
