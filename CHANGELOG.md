@@ -4,6 +4,13 @@ SarPy follows a continuous release process, so there are fairly frequent release
 Since essentially every (squash merge) commit corresponds to a release, specific 
 release points are not being annotated in GitHub.
 
+## [1.3.33] - 2023-05-02
+### Added
+- Added support for DEMs in GeoTIFF format.
+- Added projection to a DEM for SCP and image corner coordinates in 
+sarpy/utils/convert_to_sicd.py and sarpy/io/complex/converter.py modules when a GeoTIFF DEM file is
+used as a CLI argument in convert_to_sicd program. 
+
 ## [1.3.32] - 2023-05-01
 ### Fixed
 - Fixed bug in SARPY correctly reading numerous nitf files in linux OS.
