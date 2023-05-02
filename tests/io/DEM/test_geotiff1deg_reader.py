@@ -156,7 +156,7 @@ def dummy_dem_file_path(root_path, filename_format):
         for lon in range(min_lon, max_lon):
             anti_lon = (lon + 360) % 360 - 180
             # Make empty files that span the prime meridian and the equator,
-            # then make more empty files that span the antimeridian and the equator.
+            # then make more empty files that span the anti-meridian and the equator.
             for xlon, ver in zip([lon, anti_lon], ver_choice):
                 pars = {"abslat": int(abs(np.floor(lat))), "abslon": int(abs(np.floor(xlon))),
                         "ns": 's' if lat < 0 else 'n', "ew": 'w' if xlon < 0 else 'e',

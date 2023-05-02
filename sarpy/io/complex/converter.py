@@ -177,7 +177,6 @@ class Converter(object):
 
         # fetch the appropriate sicd instance
         sicds = self._reader.get_sicds_as_tuple()
-        shapes = self._reader.get_data_size_as_tuple()
         if frame is None:
             self._frame = 0
         else:

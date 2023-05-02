@@ -87,7 +87,7 @@ def dem_file_path():
                 filename.parent.mkdir(parents=True, exist_ok=True)
                 filename.touch()
 
-                # Make files that span the antimeridian and the equator
+                # Make files that span the anti-meridian and the equator
                 lon2 = lon + 180
                 lon2 = (lon2 + 180) % 360 - 180
                 ew = 'w' if lon2 < 0 else 'e'
@@ -168,7 +168,7 @@ def test_file_list(dem_file_path):
     filenames = obj.get_file_list(lat_lon_box)
     assert len(filenames) == 30
 
-    # All files near the Antimeridian
+    # All files near the anti-meridian
     lat_lon_box = [MIN_LAT + 0.3, MAX_LAT - 0.5, 180 + MIN_LON + 0.2, MAX_LON - 180 - 0.5]
     filenames = obj.get_file_list(lat_lon_box)
     assert len(filenames) == 30

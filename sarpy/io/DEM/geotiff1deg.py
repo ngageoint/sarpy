@@ -6,7 +6,7 @@ This code makes the following assumptions.
     2. There is one pixel of overlap between adjacent tiles.
     3. The south-west corner of each tile is at an integer (degrees) latitude and longitude.
     4. The latitude and longitude of south-west corner point is encoded in the GeoTIFF filename.
-    5. The antimerdian is at W180 rather than at E180 so that valid longitude values are (-180 <= lon < 180) degrees.
+    5. The anti-merdian is at W180 rather than at E180 so that valid longitude values are (-180 <= lon < 180) degrees.
     6. The GeoTIFF tag 34737 (GeoAsciiParamsTag) indicates the reference surface (e.g., EGM2008 or WGS84).
 """
 import glob
@@ -31,7 +31,7 @@ __author__ = "Valkyrie Systems Corporation"
 Image.MAX_IMAGE_PIXELS = None  # get rid of decompression bomb checking
 
 
-class GeoTIFF1DegReader():
+class GeoTIFF1DegReader:
     """Class to read in a GeoTIFF file, if necessary, and cache the data."""
 
     def __init__(self, filename):
@@ -573,7 +573,7 @@ class GeoTIFF1DegList(DEMList):
         """
         This will return the list of files associated with covering the `lat_lon_box` using a DEM.
 
-        If the bounding box spans the antimeridian (180th meridian), then the maximum longitude
+        If the bounding box spans the anti-meridian (180th meridian), then the maximum longitude
         will be less than the minimum longitude.
 
         Args
