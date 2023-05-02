@@ -31,15 +31,26 @@ import pytest
 from sarpy.io.DEM.geotiff1deg import GeoTIFF1DegInterpolator
 
 SRC_FILE_PATH = pathlib.Path(__file__).parent
-GEOTIFF_ROOT_PATH = SRC_FILE_PATH / "dem_data"
+parent_path = os.environ.get('SARPY_TEST_PATH', None)
+if parent_path == 'NONE':
+    parent_path = None
+if parent_path is None:
+    GEOTIFF_ROOT_PATH = SRC_FILE_PATH / "dem_data"
+if parent_path is not None:
+    parent_path = pathlib.Path(os.path.expanduser(parent_path))
+    GEOTIFF_ROOT_PATH = pathlib.Path(parent_path, "dem")
+
 
 # The geoid.json file, used by test_geoid, is reused here to define the location of the geoid files.
 geoid_json_path = SRC_FILE_PATH / "geoid.json"
 geoid_file_info = json.loads(geoid_json_path.read_text())
 geoid_path_type = geoid_file_info['geoid_files'][-1]['path_type']
 geoid_path_sufx = geoid_file_info['geoid_files'][-1]['path']
-GEOID_FILE_PATH = SRC_FILE_PATH / geoid_path_sufx if geoid_path_type == 'relative' else pathlib.Path(geoid_path_sufx)
-
+if parent_path is None:
+    GEOID_FILE_PATH = SRC_FILE_PATH / geoid_path_sufx if geoid_path_type == 'relative' else pathlib.Path(geoid_path_sufx)
+elif parent_path:
+    GEOID_FILE_PATH = parent_path / geoid_path_sufx if geoid_path_type == 'relative' else pathlib.Path(
+        geoid_path_sufx)
 NUM_LATS_DUMMY = 201
 NUM_LONS_DUMMY = 101
 
