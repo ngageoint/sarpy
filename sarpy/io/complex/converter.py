@@ -4,21 +4,24 @@ read to SICD or SIO format. The same conversion utility can be used to subset da
 """
 
 __classification__ = "UNCLASSIFIED"
-__author__ = ("Wade Schwartzkopf", "Thomas McCullough")
-
+__author__ = ("Wade Schwartzkopf", "Thomas McCullough", "Valkyrie Systems Corporation")
 
 import os
-import numpy
 import logging
 from typing import Union, List, Tuple, Callable, BinaryIO
 
-from sarpy.io.general.base import SarpyIOError, check_for_openers
-from sarpy.io.general.nitf import NITFReader
-from sarpy.io.general.utils import is_file_like
+import numpy
+
+from sarpy.geometry.geocoords import ecf_to_geodetic
+from sarpy.geometry.point_projection import image_to_ground_dem
 from sarpy.io.complex.base import SICDTypeReader
 from sarpy.io.complex.sicd import SICDWriter
 from sarpy.io.complex.sio import SIOWriter
-
+from sarpy.io.DEM.geotiff1deg import GeoTIFF1DegInterpolator
+from sarpy.io.general.base import SarpyIOError
+from sarpy.io.general.base import check_for_openers
+from sarpy.io.general.nitf import NITFReader
+from sarpy.io.general.utils import is_file_like
 
 logger = logging.getLogger(__name__)
 
@@ -174,7 +177,6 @@ class Converter(object):
 
         # fetch the appropriate sicd instance
         sicds = self._reader.get_sicds_as_tuple()
-        shapes = self._reader.get_data_size_as_tuple()
         if frame is None:
             self._frame = 0
         else:
@@ -266,7 +268,8 @@ class Converter(object):
 def conversion_utility(
         input_file, output_directory, output_files=None, frames=None, output_format='SICD',
         row_limits=None, column_limits=None, max_block_size=None, check_older_version=False,
-        preserve_nitf_information=False, check_existence=True):
+        preserve_nitf_information=False, check_existence=True,
+        dem_filename_pattern=None, dem_type=None, geoid_file=None):
     """
     Copy SAR complex data to a file of the specified format.
 
@@ -296,6 +299,16 @@ def conversion_utility(
         is actually a NITF file.
     check_existence : bool
         Check for the existence of any possibly overwritten file?
+    dem_filename_pattern : str | None
+        Optional string specifying a Digital Elevation Model (DEM) filename pattern.
+        This is a format string that specifies a glob pattern that will
+        uniquely specify a DEM file from the Lat/Lon of the SW corner of
+        the DEM tile.  See the utils/convert_to_sicd help text for more details.
+    dem_type : str | None
+        Optional DEM type ('GeoTIFF', etc.).
+        This parameter is required when dem_filename_pattern is specified.
+    geoid_file : str | None
+        Optional Geoid file which might be needed when dem_filename_pattern is specified.
 
     Returns
     -------
@@ -362,6 +375,46 @@ def conversion_utility(
 
     sicds = reader.get_sicds_as_tuple()
     sizes = reader.get_data_size_as_tuple()
+
+    if dem_filename_pattern is not None:
+        # Update the SICD metadata base on a projection of the SCP to a DEM.
+        if dem_type.upper() == 'GEOTIFF':
+            dem_interpolator = GeoTIFF1DegInterpolator(dem_filename_pattern, geoid_path=geoid_file)
+        else:
+            raise NotImplementedError(f'DEM type ({dem_type}) is not implemented.')
+
+        for sicd in sicds:
+            # project SCP and corner points to DEM
+            scp = (sicd.ImageData.SCPPixel.Row, sicd.ImageData.SCPPixel.Col)
+            frfc = (sicd.ImageData.FirstRow, sicd.ImageData.FirstCol)
+            frlc = (sicd.ImageData.FirstRow, sicd.ImageData.FirstCol + sicd.ImageData.NumCols - 1)
+            lrfc = (sicd.ImageData.FirstRow + sicd.ImageData.NumRows - 1, sicd.ImageData.FirstCol)
+            lrlc = (sicd.ImageData.FirstRow + sicd.ImageData.NumRows - 1,
+                    sicd.ImageData.FirstCol + sicd.ImageData.NumCols - 1)
+
+            img_points = [scp, frfc, frlc, lrfc, lrlc]
+            ecf_points = image_to_ground_dem(img_points, sicd,
+                                             block_size=None,
+                                             dem_interpolator=dem_interpolator,
+                                             pad_value=0.2,
+                                             vertical_step_size=1.0,
+                                             use_structure_coa=True,
+                                             )
+
+            llh_points = ecf_to_geodetic(ecf_points)
+
+            sicd.GeoData.SCP.LLH.Lat = llh_points[0][0]
+            sicd.GeoData.SCP.LLH.Lon = llh_points[0][1]
+            sicd.GeoData.SCP.LLH.HAE = llh_points[0][2]
+
+            sicd.GeoData.SCP.ECF.X = ecf_points[0][0]
+            sicd.GeoData.SCP.ECF.Y = ecf_points[0][1]
+            sicd.GeoData.SCP.ECF.Z = ecf_points[0][2]
+
+            for i in range(4):
+                index = int(sicd.GeoData.ImageCorners[i].index.split(':')[0])    # index = 1|2|3|4, SCP is index 0
+                sicd.GeoData.ImageCorners[i].Lat = llh_points[index][0]          # FRFC is index 1, FRLC is index 2,
+                sicd.GeoData.ImageCorners[i].Lon = llh_points[index][1]          # LRFC is index 3, LRLC is index 4
 
     # check that frames is valid
     if frames is None:
