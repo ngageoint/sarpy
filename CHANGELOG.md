@@ -7,6 +7,7 @@ release points are not being annotated in GitHub.
 ## [1.3.35] - 2023-05-08
 ### Fixed
 - Fixed bug with readthedocs correctly building documentation per [readthedocs.org issue #10290](https://github.com/readthedocs/readthedocs.org/issues/10290)
+and [sphinx-doc issue #10378](https://github.com/sphinx-doc/sphinx/issues/10378)
 
 ## [1.3.34] - 2023-05-08
 ### Added
