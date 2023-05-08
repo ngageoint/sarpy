@@ -4,6 +4,10 @@ SarPy follows a continuous release process, so there are fairly frequent release
 Since essentially every (squash merge) commit corresponds to a release, specific 
 release points are not being annotated in GitHub.
 
+## [1.3.34] - 2023-05-08
+### Added
+- Added X1Y1 vs X2Y2 checks to cphd_consistency and test_cphd_consistency.
+- 
 ## [1.3.33] - 2023-05-02
 ### Added
 - Added support for DEMs in GeoTIFF format.
