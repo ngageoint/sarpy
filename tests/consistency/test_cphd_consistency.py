@@ -726,6 +726,23 @@ def test_channel_image_area(xml_with_channel_imagearea):
     assert len(cphd_con.failures()) == 0
 
 
+def test_check_imagearea_x1y1_x2y2(good_cphd):
+    cphd_con = CphdConsistency.from_file(str(good_cphd))
+    scene_imagearea = cphd_con.xml.find('./SceneCoordinates/ImageArea')
+    scene_imagearea.find('./X1Y1/X').text = scene_imagearea.findtext('./X2Y2/X')
+    cphd_con.check('check_imagearea_x1y1_x2y2')
+    assert cphd_con.failures()
+
+
+def test_check_channel_imagearea_x1y1(xml_with_channel_imagearea):
+    root, nsmap = xml_with_channel_imagearea
+    channel_imagearea = root.find('./{*}Channel/{*}Parameters/{*}ImageArea')
+    channel_imagearea.find('./{*}X1Y1/{*}Y').text = channel_imagearea.findtext('./{*}X2Y2/{*}Y')
+    cphd_con = CphdConsistency(root, pvps=None, header=None, filename=None)
+    cphd_con.check('check_channel_imagearea_x1y1', allow_prefix=True)
+    assert cphd_con.failures()
+
+
 @pytest.fixture
 def xml_with_extendedarea(good_xml):
     root = copy_xml(good_xml['with_ns'])
@@ -769,6 +786,18 @@ def test_extended_imagearea(xml_with_extendedarea):
 
     cphd_con.check(['check_extended_imagearea_polygon', 'check_extended_imagearea_x1y1_x2y2'])
     assert len(cphd_con.failures()) == 0
+
+
+def test_check_extended_imagearea_x1y1_x2y2(xml_with_extendedarea):
+    root, nsmap = xml_with_extendedarea
+    x1 = root.findtext('./ns:SceneCoordinates/ns:ExtendedArea/ns:X1Y1/ns:X', namespaces=nsmap)
+    root.find('./ns:SceneCoordinates/ns:ExtendedArea/ns:X2Y2/ns:X', namespaces=nsmap).text = x1
+
+    cphd_con = CphdConsistency(
+        root, pvps=None, header=None, filename=None, check_signal_data=False)
+
+    cphd_con.check('check_extended_imagearea_x1y1_x2y2')
+    assert cphd_con.failures()
 
 
 def test_extended_imagearea_polygon_bad_extent(xml_with_extendedarea):
