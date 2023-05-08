@@ -1,3 +1,2 @@
-sphinx.ext.napoleon
 numpy
 scipy
