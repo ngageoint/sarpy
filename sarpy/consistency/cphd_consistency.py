@@ -1137,12 +1137,25 @@ class CphdConsistency(con.ConsistencyChecker):
             assert channel_node.find('./ImageArea') is not None
             x1y1 = parsers.parse_xy(channel_node.find('./ImageArea/X1Y1'))
             x2y2 = parsers.parse_xy(channel_node.find('./ImageArea/X2Y2'))
+            with self.need("Channel/Parameters/ImageArea/X1Y1 < Channel/Parameters/ImageArea/X2Y2"):
+                assert x1y1[0] < x2y2[0]
+                assert x1y1[1] < x2y2[1]
             global_x1y1 = parsers.parse_xy(self.xml.find('./SceneCoordinates/ImageArea/X1Y1'))
             global_x2y2 = parsers.parse_xy(self.xml.find('./SceneCoordinates/ImageArea/X2Y2'))
-            with self.need("X1Y1"):
+            with self.need("Channel/Parameters/ImageArea/X1Y1 bounded by SceneCoordinates/ImageArea/X1Y1"):
                 assert x1y1 >= con.Approx(global_x1y1)
-            with self.need("X2Y2"):
+            with self.need("Channel/Parameters/ImageArea/X2Y2 bounded by SceneCoordinates/ImageArea/X2Y2"):
                 assert x2y2 <= con.Approx(global_x2y2)
+
+    def check_imagearea_x1y1_x2y2(self):
+        """
+        SceneCoordinates/ImageArea is self-consistent.
+        """
+        x1, y1 = parsers.parse_xy(self.xml.find('./SceneCoordinates/ImageArea/X1Y1'))
+        x2, y2 = parsers.parse_xy(self.xml.find('./SceneCoordinates/ImageArea/X2Y2'))
+        with self.need("SceneCoordinates/ImageArea/X1Y1 < SceneCoordinates/ImageArea/X2Y2"):
+            assert x1 < x2
+            assert y1 < y2
 
     def check_extended_imagearea_x1y1_x2y2(self):
         """
@@ -1153,6 +1166,9 @@ class CphdConsistency(con.ConsistencyChecker):
             assert self.xml.find('./SceneCoordinates/ExtendedArea') is not None
             extended_x1y1 = parsers.parse_xy(self.xml.find('./SceneCoordinates/ExtendedArea/X1Y1'))
             extended_x2y2 = parsers.parse_xy(self.xml.find('./SceneCoordinates/ExtendedArea/X2Y2'))
+            with self.need("SceneCoordinates/ExtendedArea/X1Y1 < SceneCoordinates/ExtendedArea/X2Y2"):
+                assert extended_x1y1[0] < extended_x2y2[0]
+                assert extended_x1y1[1] < extended_x2y2[1]
             global_x1y1 = parsers.parse_xy(self.xml.find('./SceneCoordinates/ImageArea/X1Y1'))
             global_x2y2 = parsers.parse_xy(self.xml.find('./SceneCoordinates/ImageArea/X2Y2'))
             with self.need("Extended X1Y1 less than image area X1Y1"):
