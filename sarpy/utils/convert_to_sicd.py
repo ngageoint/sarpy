@@ -36,8 +36,11 @@ def convert(input_file, output_dir, preserve_nitf_information=False,
         uniquely specify a DEM file from the Lat/Lon of the SW corner of
         the DEM tile.  See the convert_to_sicd help text for more details.
     dem_type : str | None
-        Optional DEM type ('GeoTIFF', etc.).
-        This parameter is required when dem_filename_pattern is specified.
+        Optional DEM type ('GeoTIFF', 'GeoTIFF:WGS84', 'GeoTIFF:EGM2008', etc.).
+        This parameter is required when dem_filename_pattern is specified.  For 'GeoTIFF'
+        DEM files, the reference surface can be either WGS84 or any of the geoid models.
+        The reference surface is appended to the DEM type with a ':' separator.  If the
+        reference surface is not specified, then EGM2008 is assumed.
     geoid_file : str | None
         Optional Geoid file which might be needed when dem_filename_pattern is specified.
     """
