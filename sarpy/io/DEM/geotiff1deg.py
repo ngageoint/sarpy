@@ -377,7 +377,7 @@ class GeoTIFF1DegInterpolator(DEMInterpolator):
               }
         """
         if np.all(self._bounding_box_cache.get("box", []) == lat_lon_box):
-            # If we have already done this calculation, so don't do it again.
+            # If we have already done this calculation then don't do it again.
             return self._bounding_box_cache
 
         box_lat_min, box_lat_max, box_lon_min, box_lon_max = lat_lon_box
