@@ -27,6 +27,7 @@ from .CollectionInfo import CollectionInfoType
 from .ImageCreation import ImageCreationType
 from .ImageData import ImageDataType
 from .GeoData import GeoDataType
+from .GeoData import SCPType
 from .Grid import GridType
 from .Timeline import TimelineType
 from .Position import PositionType
@@ -311,7 +312,7 @@ class SICDType(Serializable):
         """
 
         if self.GeoData is None:
-            self.GeoData = GeoDataType()
+            self.GeoData = GeoDataType(SCP=SCPType(self.RadarCollection.Area.Plane.RefPt.ECF))
 
         if self.GeoData.ImageCorners is not None and not override:
             return  # nothing to be done
@@ -684,7 +685,7 @@ class SICDType(Serializable):
             delta_varp: Union[None, numpy.ndarray, list, tuple] = None,
             range_bias: Optional[float] = None,
             adj_params_frame: str = 'ECF',
-            overide: bool = True) -> None:
+            override: bool = True) -> None:
         """
         Define the COAProjection object.
 
@@ -699,7 +700,7 @@ class SICDType(Serializable):
         adj_params_frame : str
             One of ['ECF', 'RIC_ECF', 'RIC_ECI'], specifying the coordinate frame used for
             expressing `delta_arp` and `delta_varp` parameters.
-        overide : bool
+        override : bool
             should we redefine, if it is previously defined?
 
         Returns
@@ -711,7 +712,7 @@ class SICDType(Serializable):
             logger.error('The COAProjection object cannot be defined.')
             return
 
-        if self._coa_projection is not None and not overide:
+        if self._coa_projection is not None and not override:
             return
 
         self._coa_projection = point_projection.COAProjection.from_sicd(
