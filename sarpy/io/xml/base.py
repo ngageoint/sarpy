@@ -625,7 +625,7 @@ class Serializable(object):
     """collection of field names"""
     _required = ()
     """subset of `_fields` defining the required (for the given object, according to the sicd standard) fields"""
-    _tag_overide = {}
+    _tag_override = {}
     """On occasion, the xml tag and the corresponding variable name may need to differ. 
     This dictionary should be populated as `{<variable name> : <tag name>}`."""
 
@@ -969,7 +969,7 @@ class Serializable(object):
             # Note that we want to try explicitly setting to None to trigger descriptor behavior
             # for required fields (warning or error)
 
-            base_tag_name = cls._tag_overide.get(attribute, attribute)
+            base_tag_name = cls._tag_override.get(attribute, attribute)
 
             # determine any expected xml namespace for the given entry
             if attribute in cls._child_xml_ns_key:
@@ -1153,7 +1153,7 @@ class Serializable(object):
             if value is None:
                 continue
             fmt_func = self._get_formatter(attribute)
-            base_tag_name = self._tag_overide.get(attribute, attribute)
+            base_tag_name = self._tag_override.get(attribute, attribute)
             if attribute in self._set_as_attribute:
                 xml_ns_key = self._child_xml_ns_key.get(attribute, ns_key)
                 serialize_attribute(nod, base_tag_name, value, fmt_func, xml_ns_key)

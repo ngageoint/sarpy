@@ -63,7 +63,7 @@ class ProjectionHelper(object):
             raise TypeError('sicd must be a SICDType instance. Got type {}'.format(type(sicd)))
         if not sicd.can_project_coordinates():
             raise ValueError('Ortho-rectification requires the SICD ability to project coordinates.')
-        sicd.define_coa_projection(overide=False)
+        sicd.define_coa_projection(override=False)
         self._sicd = sicd
         self.row_spacing = row_spacing
         self.col_spacing = col_spacing

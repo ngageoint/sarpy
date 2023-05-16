@@ -11,7 +11,8 @@ release points are not being annotated in GitHub.
 - test_sicd_elements.py was split up into smaller more easily manageable python files.
 ### Fixed
 - Fixed bug in SARPY correctly specifying SCP when instantiating GeoDataType in SICD.py
-- Fixed spelling error for override parameter in SICD.py
+- Fixed spelling error for override parameter in SICD.py, base.py, SIDD.py, Fiduciallnfo.py, 
+ObjectInfo.py, blocks.py, projection_helper.py.
 
 ## [1.3.36] - 2023-05-15
 ### Changed

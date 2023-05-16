@@ -308,7 +308,7 @@ class ImageLocationType(Serializable):
             return None
 
         # make sure this is defined, for the sake of efficiency
-        the_structure.define_coa_projection(overide=False)
+        the_structure.define_coa_projection(override=False)
 
         kwargs = {}
 
@@ -504,7 +504,7 @@ class GeoLocationType(Serializable):
             return None
 
         # make sure this is defined, for the sake of efficiency
-        the_structure.define_coa_projection(overide=False)
+        the_structure.define_coa_projection(override=False)
 
         if isinstance(the_structure, SICDType):
             image_shift = numpy.array(
