@@ -71,6 +71,7 @@ def test_radarcollection_txfreqtype(sicd, kwargs, caplog):
 
 wf_input = [(1.0, 2.0, None), (1.0, None, 2.0), (None, 1.0, 2.0)]
 
+
 @pytest.mark.parametrize("tx_pulse_len, tx_rf_bw, tx_fm_rate", wf_input)
 def test_radarcollection_waveformparamtype(tx_pulse_len, tx_rf_bw, tx_fm_rate):
     wf_params = RadarCollection.WaveformParametersType(RcvDemodType='STRETCH', RcvFMRate=1.0)
@@ -129,6 +130,7 @@ def test_radarcollection_segmentarrayelement(kwargs):
     seg_arr_elem = RadarCollection.SegmentArrayElement(0, 0, 2000, 5000, 'AA', 1, **kwargs)
     assert seg_arr_elem._xml_ns == kwargs['_xml_ns']
     assert seg_arr_elem._xml_ns_key == kwargs['_xml_ns_key']
+
 
 def test_radarcollection_referenceplanetype(sicd, kwargs):
     seg_arr_elem1 = RadarCollection.SegmentArrayElement(0, 0, 500, 1501, 'XY', 1)

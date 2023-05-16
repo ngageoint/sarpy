@@ -22,7 +22,7 @@ def test_pfa(sicd, tol, kwargs):
     assert stdeskew._xml_ns == kwargs['_xml_ns']
     assert stdeskew._xml_ns_key == kwargs['_xml_ns_key']
 
-    #Nominal instantiation
+    # Nominal instantiation
     pfa_nom = PFA.PFAType(sicd.PFA.FPN,
                           sicd.PFA.IPN,
                           sicd.PFA.PolarAngRefTime, 

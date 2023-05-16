@@ -50,8 +50,7 @@ def _rgazcomp_check_kaz_poly(
             else:
                 krg_coa = Grid.Row.KCtr
             delta_kaz_per_deltav = look * krg_coa * numpy.linalg.norm(ARP_Vel) * numpy.sin(
-                numpy.deg2rad(SCPCOA.DopplerConeAng)) / \
-                                   (SCPCOA.SlantRange * st_rate_coa)
+                numpy.deg2rad(SCPCOA.DopplerConeAng)) / (SCPCOA.SlantRange * st_rate_coa)
             if isinstance(delta_kaz_per_deltav, numpy.ndarray):
                 derived_kaz_poly = delta_kaz_per_deltav.dot(Timeline.IPP[0].IPPPoly.get_array(dtype='float64'))
             else:
@@ -1143,7 +1142,7 @@ def _validate_image_segment_id(the_sicd) -> bool:
             'but RadarCollection.Area.Plane.SegmentList is not populated.'.format(seg_id))
         return False
 
-    # let's double check that seg_id is sensibly populated
+    # let's double-check that seg_id is sensibly populated
     the_ids = [entry.Identifier for entry in seg_list]
     if seg_id not in the_ids:
         the_sicd.log_validity_error(

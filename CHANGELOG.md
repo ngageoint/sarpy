@@ -4,6 +4,15 @@ SarPy follows a continuous release process, so there are fairly frequent release
 Since essentially every (squash merge) commit corresponds to a release, specific 
 release points are not being annotated in GitHub.
 
+## [1.3.37] - 2023-05-16
+### Added
+- Added tests for sicd_elements for SICD.py and RadarCollection.py.
+### Changed
+- test_sicd_elements.py was split up into smaller more easily manageable python files.
+### Fixed
+- Fixed bug in SARPY correctly specifying SCP when instantiating GeoDataType in SICD.py
+- Fixed spelling error for override parameter in SICD.py
+
 ## [1.3.36] - 2023-05-15
 ### Changed
 - Changed geotiff2deg.py, user must now explicitly specify DEM reference surface, or accept default value of EGM2008.

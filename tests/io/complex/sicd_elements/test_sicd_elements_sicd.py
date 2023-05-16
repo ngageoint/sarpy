@@ -167,7 +167,8 @@ def test_missing_image_formation(sicd):
 
 
 def test_apply_reference_frequency_errors(sicd):
-    with pytest.raises(ValueError, match='RadarCollection.RefFreqIndex is not defined. The reference frequency should not be applied.'):
+    with pytest.raises(ValueError, match='RadarCollection.RefFreqIndex is not defined. '
+                                         'The reference frequency should not be applied.'):
         sicd.apply_reference_frequency(10000)
     sicd.RadarCollection.RefFreqIndex = 1
     sicd.apply_reference_frequency(10000)
@@ -179,10 +180,12 @@ def test_apply_reference_frequency_errors(sicd):
 
 def test_create_subset_structure_errors(sicd):
     min_max_vals = (10, 100000)
-    with pytest.raises(ValueError, match=re.escape(f'row bounds ({min_max_vals[0]}, {min_max_vals[1]}) are not sensible for NumRows {sicd.ImageData.NumRows}')):
+    with pytest.raises(ValueError, match=re.escape(f'row bounds ({min_max_vals[0]}, {min_max_vals[1]}) '
+                                                   f'are not sensible for NumRows {sicd.ImageData.NumRows}')):
         sicd.create_subset_structure(row_bounds=min_max_vals)
     min_max_vals = (100000, 100)
-    with pytest.raises(ValueError, match=re.escape(f'column bounds ({min_max_vals[0]}, {min_max_vals[1]}) are not sensible for NumCols {sicd.ImageData.NumCols}')):
+    with pytest.raises(ValueError, match=re.escape(f'column bounds ({min_max_vals[0]}, {min_max_vals[1]}) '
+                                                   f'are not sensible for NumCols {sicd.ImageData.NumCols}')):
         sicd.create_subset_structure(column_bounds=min_max_vals)
 
 

@@ -518,9 +518,8 @@ class SICDType(Serializable):
         row_ss = self.Grid.Row.SS
         col_ss = self.Grid.Col.SS
 
-        row_ground = abs(float(row_ss/numpy.cos(graze)))
-        col_ground = float(numpy.sqrt((numpy.tan(graze)*numpy.tan(twist)*row_ss)**2
-            + (col_ss/numpy.cos(twist))**2))
+        row_ground = abs(float(row_ss / numpy.cos(graze)))
+        col_ground = float(numpy.sqrt((numpy.tan(graze) * numpy.tan(twist) * row_ss)**2 + (col_ss/numpy.cos(twist))**2))
         return row_ground, col_ground
 
     def can_project_coordinates(self) -> bool:
@@ -1053,7 +1052,7 @@ class SICDType(Serializable):
     @classmethod
     def from_xml_string(cls, xml_string):
         """
-        Construct the sicd object from an xml string.
+        Construct the sicd object from a xml string.
 
         Parameters
         ----------

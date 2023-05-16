@@ -113,7 +113,7 @@ def test_grid_gridtype(sicd, rma_sicd, caplog):
     new_row = Grid.DirParamType(ImpRespBW=0.88798408351600244,
                                 WgtType=Grid.WgtTypeType(WindowName='UNIFORM'))
 
-    # Define the weight function so we can get the slant plane area
+    # Define the weight function, so we can get the slant plane area
     new_row.define_weight_function(weight_size=512, populate=True)
     assert np.all(new_row.WgtFunct == 1.0)
 
