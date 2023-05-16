@@ -4,10 +4,15 @@ SarPy follows a continuous release process, so there are fairly frequent release
 Since essentially every (squash merge) commit corresponds to a release, specific 
 release points are not being annotated in GitHub.
 
+## [1.3.36] - 2023-05-15
+### Changed
+- Changed geotiff2deg.py, user must now explicitly specify DEM reference surface, or accept default value of EGM2008.
+- Changed converter.py, and convert_to_sicd.py updated to reflect changes to geotiff2deg.py.
+
 ## [1.3.35] - 2023-05-08
 ### Fixed
 - Fixed bug with readthedocs correctly building documentation per [readthedocs.org issue #10290](https://github.com/readthedocs/readthedocs.org/issues/10290)
-and [sphinx-doc issue #10378](https://github.com/sphinx-doc/sphinx/issues/10378)
+and [sphinx-doc issue #10378](https://github.com/sphinx-doc/sphinx/issues/10378).
 
 ## [1.3.34] - 2023-05-08
 ### Added
