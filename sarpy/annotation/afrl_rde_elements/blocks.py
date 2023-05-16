@@ -440,7 +440,7 @@ class ProjectionPerturbationType(Serializable):
             delta_varp=None if self.DeltaVarp is None else self.DeltaVarp.get_array(dtype='float64'),
             range_bias=self.DeltaRange,
             adj_params_frame=self.CoordinateFrame,
-            overide=True)
+            override=True)
 
 
 class LabelSourceType(Serializable):

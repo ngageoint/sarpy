@@ -4,14 +4,27 @@ SarPy follows a continuous release process, so there are fairly frequent release
 Since essentially every (squash merge) commit corresponds to a release, specific 
 release points are not being annotated in GitHub.
 
+## [1.3.37] - 2023-05-16
+### Added
+- Added tests for sicd_elements for SICD.py and RadarCollection.py.
+### Changed
+- test_sicd_elements.py was split up into smaller more easily manageable python files.
+### Fixed
+- Fixed bug in SARPY correctly specifying SCP when instantiating GeoDataType in SICD.py
+- Fixed spelling error for override parameter in SICD.py, base.py, SIDD.py, Fiduciallnfo.py, 
+ObjectInfo.py, blocks.py, projection_helper.py.
+
 ## [1.3.36] - 2023-05-15
 ### Changed
-- Changed geotiff2deg.py, user must now explicitly specify DEM reference surface, or accept default value of EGM2008.
-- Changed converter.py, and convert_to_sicd.py updated to reflect changes to geotiff2deg.py.
+- Changed geotiff2deg.py, user must now explicitly specify DEM reference
+surface, or accept default value of EGM2008.
+- Changed converter.py, and convert_to_sicd.py updated to reflect changes 
+to geotiff2deg.py.
 
 ## [1.3.35] - 2023-05-08
 ### Fixed
-- Fixed bug with readthedocs correctly building documentation per [readthedocs.org issue #10290](https://github.com/readthedocs/readthedocs.org/issues/10290)
+- Fixed bug with readthedocs correctly building documentation per 
+[readthedocs.org issue #10290](https://github.com/readthedocs/readthedocs.org/issues/10290)
 and [sphinx-doc issue #10378](https://github.com/sphinx-doc/sphinx/issues/10378).
 
 ## [1.3.34] - 2023-05-08
@@ -22,8 +35,8 @@ and [sphinx-doc issue #10378](https://github.com/sphinx-doc/sphinx/issues/10378)
 ### Added
 - Added support for DEMs in GeoTIFF format.
 - Added projection to a DEM for SCP and image corner coordinates in 
-sarpy/utils/convert_to_sicd.py and sarpy/io/complex/converter.py modules when a GeoTIFF DEM file is
-used as a CLI argument in convert_to_sicd program. 
+sarpy/utils/convert_to_sicd.py and sarpy/io/complex/converter.py modules 
+when a GeoTIFF DEM file is used as a CLI argument in convert_to_sicd program. 
 
 ## [1.3.32] - 2023-05-01
 ### Fixed
@@ -33,8 +46,8 @@ used as a CLI argument in convert_to_sicd program.
 
 ## [1.3.31] - 2023-04-28
 ### Fixed
-- Fixed bug in SARPY correctly reading data with odd number of rows with a stride that is not a 
-multiple of the input size.
+- Fixed bug in SARPY correctly reading data with odd number of rows with a 
+stride that is not a multiple of the input size.
 
 ## [1.3.30] - 2023-04-24
 ### Added
@@ -46,7 +59,8 @@ multiple of the input size.
 ### Added
 - Added Radiometric and Timeline.IPP nodes to tests/data/example.sicd.xml
 - Added Radiometric and Timeline.IPP nodes to tests/data/example.sicd.rma.xml
-- Added tests for Radiometric.py, RgAzComp.py, Timeline.py, ImageData.py, and RadarCollection.py
+- Added tests for Radiometric.py, RgAzComp.py, Timeline.py, ImageData.py, 
+and RadarCollection.py
 to tests/io/complex/sicd_elements/test_sicd_elements.py
 
 ### Changed
@@ -63,8 +77,8 @@ RadarCollection.py TxFrequencyType.from_array.
 
 ## [1.3.28] - 2023-04-21
 ### Fixed
-- Fixed bug in Sarpy correctly handling negative longitudes when calculating longitude grid size in 
-point_projection.image_to_ground_dem.
+- Fixed bug in Sarpy correctly handling negative longitudes when calculating 
+longitude grid size in point_projection.image_to_ground_dem.
 
 ## [1.3.27] - 2023-04-17
 ### Added
@@ -72,7 +86,8 @@ point_projection.image_to_ground_dem.
 ### Fixed
 - Fixed bug in Sarpy correctly calling _derive_unit_vector_params with correct RMAParam.
 - Fixed bug in Sarpy correctly checking Grid.type is RGAZIM and resetting type if not.
-- Fixed bug in Sarpy returning 0 and not None in _derive_rg_az_comp when Grid.Col.DeltaKCOAPoly does not exist.
+- Fixed bug in Sarpy returning 0 and not None in _derive_rg_az_comp 
+when Grid.Col.DeltaKCOAPoly does not exist.
 
 ## [1.3.26] - 2023-03-17
 ### Changed
@@ -116,8 +131,8 @@ when trying to read them.
 
 ## [1.3.20] - 2023-02-16
 ### Fixed
-- Fixed bug with walrus operator and other modern syntax to ensure code is backwards compatible with
-older python versions. 3.8 and below.
+- Fixed bug with walrus operator and other modern syntax to ensure code is backwards 
+compatible with older python versions. 3.8 and below.
 ### Changed
 - Changed CPHD Consistency to remove antenna file tests. 
 
@@ -133,12 +148,13 @@ older python versions. 3.8 and below.
 - Added two new optional PVP checks, check_optional_pvps_fx, and check_optional_pvps_toa
 - Added passes and skips to ConsistencyChecker
 ### Changed
-- Changed cphd_consistency testing dependencies to be optional, skips the check if networkx, and shapely are not installed.
+- Changed cphd_consistency testing dependencies to be optional, skips the check if networkx, 
+and shapely are not installed.
 - Simplified pytest.skip usage in test_cphd_consistency.
 
 ## [1.3.18] - 2023-02-10
 ### Fixed
-- Fixed a bug in SICD get_format_function correctly checking for PixelType .
+- Fixed a bug in SICD get_format_function correctly checking for PixelType.
 ### Added
 - Added more tests to test_geocoords.py, switched from unittests to pytest.
 
@@ -170,7 +186,7 @@ older python versions. 3.8 and below.
 ### Fixed
 - Fixed bug in correctly setting attribution for populate_nitf_information_into_sicd().
 ### Changed
-- Changed links for SAR standards in the readme file, pointed links to the newest versions.  
+- Changed links for SAR standards in the readme file, pointed links to the newest versions.
 
 ## [1.3.12] - 2022-11-15
 ### Fixed
@@ -178,7 +194,8 @@ older python versions. 3.8 and below.
 
 ## [1.3.11] - 2022-11-08
 ### Fixed
-- Fixed bug with conditional testing of NITF image header for jpeg2k files correctly testing and applying format for C8/regular and M8/with masking. 
+- Fixed bug with conditional testing of NITF image header for jpeg2k files correctly 
+testing and applying format for C8/regular and M8/with masking. 
 ### Added
 - Added links to SAR data for Capella, NISAR, and CPHD file formats.
 ### Changed
@@ -188,8 +205,10 @@ older python versions. 3.8 and below.
 ### Fixed
 - Updated error message for IQ handing in CPHD reader.
 - Refactored reference to MIL-STD-2500C NITF spec to "Joint BIIF Profile (JBP)".
-- Fixed bug in correctly accounting for row stride from file like object. [Pull Request 348](https://github.com/ngageoint/sarpy/pull/348)
-- Fixed bug with SICD converter correctly conform to described relationship in the SICD D&I.  [Pull Request 349](https://github.com/ngageoint/sarpy/pull/349)
+- Fixed bug in correctly accounting for row stride from file like object.
+[Pull Request 348](https://github.com/ngageoint/sarpy/pull/348)
+- Fixed bug with SICD converter correctly conform to described relationship in the SICD D&I.
+[Pull Request 349](https://github.com/ngageoint/sarpy/pull/349)
 - Fixed bug with Grid.Col.DeltaKCOA poly correctly populated based on collection metadate 
 and constant COA. [Pull Request 350](https://github.com/ngageoint/sarpy/pull/350)
 ### Added
