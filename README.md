@@ -78,7 +78,7 @@ Documentation for the project is available at
 
 If this documentation is inaccessible, it can be built locally after checking out 
 this repository using sphinx via the command `python setup.py build_sphinx`. 
-This depends on python packages `sphinx` and `sphinxcontrib-napoleon`.
+This depends on python package `sphinx`.
 
 Origins
 -------
@@ -125,7 +125,7 @@ message indicating the missing optional dependency.
   and interpretation of UTM coordinates, and this requires the `pyproj` package. 
 
 - Building sphinx documentation (mentioned below) requires packages `sphinx`, 
-  `sphinxcontrib-napoleon`, and `sphinx_gallery`.
+  and `sphinx_gallery`.
 
 - Optional portions of running unit tests (unlikely to be of relevance to anyone 
   not performing development on the core sarpy package itself) require the `lxml`
@@ -147,7 +147,7 @@ package update mechanism, while `python setup.py install` **does not**.
 Issues and Bugs
 ---------------
 Support for Python 2 has been dropped. The core sarpy functionality has been 
-tested for Python 3.6, 3.7, 3.8, 3.9, and 3.10. 
+tested for Python 3.6, 3.7, 3.8, 3.9, 3.10, and 3.11. 
 
 Changes to sarpy for the sole purpose of supporting a Python version beyond 
 end-of-life are unlikely to be considered.
