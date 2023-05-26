@@ -159,6 +159,23 @@ def parse_ll(node):
     return np.radians(float(node.findtext('Lon'))), np.radians(float(node.findtext('Lat')))
 
 
+def parse_llh(node):
+    """
+    Parse a node with ``'Lat'``, ``'Lon'``, ``'HAE'`` children.
+    Parameters
+    ----------
+    node: lxml.etree.ElementTree.Element
+        Element containing a Lat/Lon/HAE sequence node.
+    Returns
+    -------
+    List
+        List [Lon, Lat, HAE]. Parsed Lon, Lat values as radians, HAE value as meters.
+    """
+    return np.radians(float(node.findtext('Lon'))),\
+        np.radians(float(node.findtext('Lat'))),\
+        float(node.findtext('HAE'))
+
+
 def parse_poly2d(node):
     """
     Parse a node with ``'exponent1'`` and ``'exponent2'`` children.
