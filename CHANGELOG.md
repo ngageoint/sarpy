@@ -4,6 +4,13 @@ SarPy follows a continuous release process, so there are fairly frequent release
 Since essentially every (squash merge) commit corresponds to a release, specific 
 release points are not being annotated in GitHub.
 
+## [1.3.39] - 2023-05-26
+### Added
+- Added new tests in test_sicd_elements_imageformation.py
+### Fixed
+- Fixed bug in Sarpy correctly setting self.TxFrequencyProc to TxFrequencyProcType when it 
+doesn't exist.
+
 ## [1.3.38] - 2023-05-23
 ### Added
 - Added llh parser to parsers.py.
