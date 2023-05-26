@@ -4,6 +4,11 @@ SarPy follows a continuous release process, so there are fairly frequent release
 Since essentially every (squash merge) commit corresponds to a release, specific 
 release points are not being annotated in GitHub.
 
+## [1.3.40] - 2023-05-26
+### Fixed
+- Fixed bug in Sarpy correctly not running a test if there is no geoid file, 
+in test_geotiff1deg_reader.py 
+
 ## [1.3.39] - 2023-05-26
 ### Added
 - Added new tests in test_sicd_elements_imageformation.py

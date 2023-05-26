@@ -45,13 +45,13 @@ class GeoTIFF1DegReader:
     @property
     def dem_data(self):
         if self._dem_data is None:
-            self._read()        # pragma no cover
+            self._read()  # pragma no cover
         return self._dem_data
 
     @property
     def tiff_tags(self):
         if self._tiff_tags is None:
-            self._read()        # pragma no cover
+            self._read()  # pragma no cover
         return self._tiff_tags
 
     def _read(self):
@@ -158,7 +158,7 @@ class GeoTIFF1DegInterpolator(DEMInterpolator):
             The elevation relative to the reference surface of the DEM.
         """
         if block_size is not None:
-            warnings.warn("Block processing is not implemented.  Full size processing will be used.")   # pragma nocover
+            warnings.warn("Block processing is not implemented.  Full size processing will be used.")  # pragma nocover
 
         lat = np.atleast_1d(lat)
         lon = np.atleast_1d(lon)
@@ -196,7 +196,7 @@ class GeoTIFF1DegInterpolator(DEMInterpolator):
                                    'WGS84' if any([p in gpars for p in ['WGS84', 'WGS 84', 'WGS-84']]) else
                                    'Unknown')
             if ((self._ref_surface.startswith('EGM') and implied_ref_surface.startswith('WGS')) or
-                (self._ref_surface.startswith('WGS') and implied_ref_surface.startswith('EGM'))):
+                    (self._ref_surface.startswith('WGS') and implied_ref_surface.startswith('EGM'))):
                 msg = (f"{filename}\n"
                        f"The GeoAsciiParamsTag tag implies that the reference surface is {implied_ref_surface},\n"
                        f"but the explicit reference surface was defined to be {self._ref_surface}.\n"
@@ -425,7 +425,7 @@ class GeoTIFF1DegInterpolator(DEMInterpolator):
             col_start = int(np.ceil(lon_start_offset * (tile_num_lons - 1)))
             col_stop = int(np.floor(lon_stop_offset * (tile_num_lons - 1)))
 
-            dem_slice = dem_data[row_start:row_stop+1, col_start:col_stop+1]
+            dem_slice = dem_data[row_start:row_stop + 1, col_start:col_stop + 1]
             max_index = np.unravel_index(np.argmax(dem_slice), shape=dem_slice.shape)
             min_index = np.unravel_index(np.argmin(dem_slice), shape=dem_slice.shape)
 
@@ -543,16 +543,16 @@ class GeoTIFF1DegList(DEMList):
         if msg:
             raise ValueError('\n'.join(msg))
 
-        sw_lats = [89 if lat == 90 else np.floor(lat)]      # The latitude of the south-west corner in integer degrees
-        sw_lons = [np.floor(lon)]                           # The longitude of the south-west corner in integer degrees
+        sw_lats = [89 if lat == 90 else np.floor(lat)]  # The latitude of the south-west corner in integer degrees
+        sw_lons = [np.floor(lon)]  # The longitude of the south-west corner in integer degrees
 
         if lat == np.floor(lat) and np.abs(lat) < 90:
             # lat is an integer, so it is in the overlap region of at least two files
-            sw_lats.append(np.floor(lat)-1)
+            sw_lats.append(np.floor(lat) - 1)
 
         if lon == np.floor(lon):
             # lon is an integer, so it is in the overlap region of at least two files.
-            sw_lons.append(179 if lon == -180 else np.floor(lon)-1)
+            sw_lons.append(179 if lon == -180 else np.floor(lon) - 1)
 
         filenames = []
         for sw_lat in sw_lats:
