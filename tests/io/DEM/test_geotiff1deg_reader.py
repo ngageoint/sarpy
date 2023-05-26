@@ -389,8 +389,8 @@ def test_exceptions(dummy_dem_file_path_high_res, monkeypatch, caplog):
 
     caplog.clear()
     caplog.set_level(logging.WARNING)
-    obj = GeoTIFF1DegInterpolator(filename_format, ref_surface="WGS84", geoid_path=str(GEOID_FILE_PATH))
-    obj.get_elevation_geoid(1, 1)
+    obj = GeoTIFF1DegInterpolator(filename_format, ref_surface="WGS84")
+    obj.get_elevation_native(1, 1)
     assert caplog.text.startswith("WARNING  sarpy.io.DEM.geotiff1deg:geotiff1deg.py")
     assert "The GeoAsciiParamsTag tag implies that the reference surface is EGM2008" in caplog.text
 
