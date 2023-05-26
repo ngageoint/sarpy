@@ -246,7 +246,7 @@ class DistortionType(Serializable):
     A = FloatDescriptor(
         'A', _required, strict=DEFAULT_STRICT,
         docstring='Absolute amplitude scale factor.')  # type: float
-    # receive distorion matrix
+    # receive distortion matrix
     F1 = ComplexDescriptor(
         'F1', _required, strict=DEFAULT_STRICT,
         docstring='Receive distortion element (2,2).')  # type: complex
