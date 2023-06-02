@@ -4,6 +4,13 @@ SarPy follows a continuous release process, so there are fairly frequent release
 Since essentially every (squash merge) commit corresponds to a release, specific 
 release points are not being annotated in GitHub.
 
+## [1.3.41] - 2023-06-02
+### Fixed
+- Fixed bug in Sarpy not correctly validating schema versions.
+### Changed
+- Changed 2 term versioning to 3 term versioning for sicd, cphd, sidd, crsd schemas. 
+- Changed schema version dates for 1.3.0 sicd and cphd
+
 ## [1.3.40] - 2023-05-26
 ### Fixed
 - Fixed bug in Sarpy correctly not running a test if there is no geoid file, 
