@@ -9,7 +9,8 @@ release points are not being annotated in GitHub.
 - Fixed bug in Sarpy not correctly validating schema versions.
 ### Changed
 - Changed 2 term versioning to 3 term versioning for sicd, cphd, sidd, crsd schemas. 
-- Changed schema version dates for 1.3.0 sicd and cphd
+- Changed schema version dates for 1.3.0 sicd and cphd.
+- Changed test_sicd_elements_sicd.py to test for version 1.3.0. 
 
 ## [1.3.40] - 2023-05-26
 ### Fixed
