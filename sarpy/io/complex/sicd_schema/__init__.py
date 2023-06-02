@@ -17,63 +17,63 @@ _the_directory = os.path.split(__file__)[0]
 urn_mapping = {
     'urn:SICD:0.3.1': {
         'tuple': (0, 3, 1),
-        'version': '0.3',
+        'version': '0.3.1',
         'release': '0.3.1',
         'date': '2009-03-17T00:00:00Z',
         'schema': os.path.join(_the_directory, 'SICD_schema_V0.3.1_2009_03_17.xsd')},
     'urn:SICD:0.4.0': {
         'tuple': (0, 4, 0),
-        'version': '0.4',
+        'version': '0.4.0',
         'release': '0.4.0',
         'date': '2010-02-12T00:00:00Z',
         'schema': os.path.join(_the_directory, 'SICD_schema_V0.4.0_2010_02_12.xsd')},
     'urn:SICD:0.4.1': {
         'tuple': (0, 4, 1),
-        'version': '0.4',
+        'version': '0.4.1',
         'release': '0.4.1',
         'date': '2010-07-15T00:00:00Z',
         'schema': os.path.join(_the_directory, 'SICD_schema_V0.4.1_2010_07_15.xsd')},
     'urn:SICD:0.5.0': {
         'tuple': (0, 5, 0),
-        'version': '0.5',
+        'version': '0.5.0',
         'release': '0.5.0',
         'date': '2011-01-12T00:00:00Z',
         'schema': os.path.join(_the_directory, 'SICD_schema_V0.5.0_2011_01_12.xsd')},
     'urn:SICD:1.0.0': {
         'tuple': (1, 0, 0),
-        'version': '1.0',
+        'version': '1.0.0',
         'release': '1.0.0',
         'date': '2011-08-31T00:00:00Z',
         'schema': os.path.join(_the_directory, 'SICD_schema_V1.0.0_2011_08_31.xsd')},
     'urn:SICD:1.0.1': {
         'tuple': (1, 0, 1),
-        'version': '1.0',
+        'version': '1.0.1',
         'release': '1.0.1',
         'date': '2013-02-25T00:00:00Z',
         'schema': os.path.join(_the_directory, 'SICD_schema_V1.0.1_2013_02_25.xsd')},
     'urn:SICD:1.1.0': {
         'tuple': (1, 1, 0),
-        'version': '1.1',
+        'version': '1.1.0',
         'release': '1.1.0',
         'date': '2014-09-30T00:00:00Z',
         'schema': os.path.join(_the_directory, 'SICD_schema_V1.1.0_2014_09_30.xsd')},
     'urn:SICD:1.2.0': {
         'tuple': (1, 2, 0),
-        'version': '1.2',
+        'version': '1.2.0',
         'release': '1.2.0',
         'date': '2016-06-30T00:00:00Z',
         'schema': os.path.join(_the_directory, 'SICD_schema_V1.2.0_2016_06_30.xsd')},
     'urn:SICD:1.2.1': {
         'tuple': (1, 2, 1),
-        'version': '1.2',
+        'version': '1.2.1',
         'release': '1.2.1',
         'date': '2018-12-13T00:00:00Z',
         'schema': os.path.join(_the_directory, 'SICD_schema_V1.2.1_2018_12_13.xsd')},
     'urn:SICD:1.3.0': {
         'tuple': (1, 3, 0),
-        'version': '1.3',
+        'version': '1.3.0',
         'release': '1.3.0',
-        'date': '2022-06-09T00:00:00Z',
+        'date': '2022-11-30T00:00:00Z',
         'schema': os.path.join(_the_directory, 'SICD_schema_V1.3.0_2021_11_30.xsd')}
 }
 WRITABLE_VERSIONS = tuple(entry['release'] for key, entry in urn_mapping.items() if entry['tuple'] >= (1, 0, 0))

@@ -17,20 +17,20 @@ _the_directory = os.path.split(__file__)[0]
 urn_mapping = {
     'urn:CPHD:0.3.0': {
         'tuple': (0, 3, 0),
-        'version': '0.3',
+        'version': '0.3.0',
         'release': '0.3.0',
         'date': ''},
     'urn:CPHD:1.0.1': {
         'tuple': (1, 0, 1),
-        'version': '1.0',
+        'version': '1.0.1',
         'release': '1.0.1',
         'date': '2018-05-21T00:00:00Z',
         'schema': os.path.join(_the_directory, 'CPHD_schema_V1.0.1_2018_05_21.xsd')},
     'urn:CPHD:1.1.0': {
         'tuple': (1, 1, 0),
-        'version': '1.1',
+        'version': '1.1.0',
         'release': '1.1.0',
-        'date': '2022-06-09T00:00:00Z',
+        'date': '2021-11-30T00:00:00Z',
         'schema': os.path.join(_the_directory, 'CPHD_schema_V1.1.0_2021_11_30_FINAL.xsd')},
 }
 WRITABLE_VERSIONS = ('1.0.1', '1.1.0')
