@@ -25,7 +25,7 @@ _type_text = 'Field {} of class {} got incompatible type {}.'
 
 
 class BasicDescriptor(object):
-    """A descriptor object for reusable properties. Note that is is required that the calling instance is hashable."""
+    """A descriptor object for reusable properties. Note that it is required that the calling instance is hashable."""
     _typ_string = None
 
     def __init__(self, name, required, strict=DEFAULT_STRICT, default_value=None, docstring=''):

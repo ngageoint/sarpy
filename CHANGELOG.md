@@ -4,6 +4,33 @@ SarPy follows a continuous release process, so there are fairly frequent release
 Since essentially every (squash merge) commit corresponds to a release, specific 
 release points are not being annotated in GitHub.
 
+## [1.3.41] - 2023-06-02
+### Fixed
+- Fixed bug in Sarpy not correctly validating schema versions.
+### Changed
+- Changed 2 term versioning to 3 term versioning for sicd, cphd, sidd, crsd schemas. 
+- Changed schema version dates for 1.3.0 sicd and cphd.
+- Changed test_sicd_elements_sicd.py to test for version 1.3.0. 
+
+## [1.3.40] - 2023-05-26
+### Fixed
+- Fixed bug in Sarpy correctly not running a test if there is no geoid file, 
+in test_geotiff1deg_reader.py 
+
+## [1.3.39] - 2023-05-26
+### Added
+- Added new tests in test_sicd_elements_imageformation.py
+### Fixed
+- Fixed bug in Sarpy correctly setting self.TxFrequencyProc to TxFrequencyProcType when it 
+doesn't exist.
+
+## [1.3.38] - 2023-05-23
+### Added
+- Added llh parser to parsers.py.
+### Changed
+- Changed readme to align with changes to removal of sphinxcontrib-napoleon dependency.
+- Changed dependencies in setup.py to align with readme. 
+
 ## [1.3.37] - 2023-05-16
 ### Added
 - Added tests for sicd_elements for SICD.py and RadarCollection.py.
