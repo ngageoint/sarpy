@@ -16,7 +16,7 @@ _the_directory = os.path.split(__file__)[0]
 
 urn_mapping = {
     'urn:CRSD:1.0.0': {
-        'version': '1.0',
+        'version': '1.0.0',
         'release': '1.0.0',
         'date': '2021-06-12T00:00:00Z',
         'schema': os.path.join(_the_directory, 'CRSD_schema_V1.0.0_2021_06_12.xsd')},

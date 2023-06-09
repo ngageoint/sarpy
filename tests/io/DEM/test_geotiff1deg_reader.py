@@ -19,6 +19,7 @@ If real DEM files and/or real Geoid files are not available then tests that requ
 
 """
 import json
+import logging
 import os
 import pathlib
 import re
@@ -277,7 +278,6 @@ def test_get_min_max_native_dummy(dummy_dem_file_path_high_res, monkeypatch):
             return lower < upper or np.isclose(lower, upper)
 
         assert pars['box'] == box
-        assert pars['ref_surface'] == 'geoid'
 
         assert lt_or_close(box[0], pars['min']['lat']) and lt_or_close(pars['min']['lat'], box[0] + lat_ss)
         assert lt_or_close(box[2], pars['min']['lon']) and lt_or_close(pars['min']['lon'], box[2] + lon_ss)
@@ -296,7 +296,6 @@ def test_get_min_max_native_dummy(dummy_dem_file_path_high_res, monkeypatch):
     lat_lon_bounding_box = [sw_lat-10, ne_lat - 10, sw_lon - 10, ne_lon - 10]
     result = obj.get_min_max_native(lat_lon_bounding_box)
     expected_result = {'box': lat_lon_bounding_box,
-                       'ref_surface': 'geoid',
                        'min': {'lat': lat_lon_bounding_box[0], 'lon': lat_lon_bounding_box[2], 'height': 0.0},
                        'max': {'lat': lat_lon_bounding_box[0], 'lon': lat_lon_bounding_box[2], 'height': 0.0}}
     assert result == expected_result
@@ -323,10 +322,10 @@ def test_get_min_max_native_dummy(dummy_dem_file_path_high_res, monkeypatch):
 
 
 @pytest.mark.parametrize("ref_surface", [
-    pytest.param("egm2008", marks=pytest.mark.skipif(not GEOID_FILE_PATH.exists(), reason="Geoid data does not exist")),
-    pytest.param("wgs84", marks=pytest.mark.skipif(not GEOID_FILE_PATH.exists(), reason="Geoid data does not exist"))])
+    pytest.param("EGM2008", marks=pytest.mark.skipif(not GEOID_FILE_PATH.exists(), reason="Geoid data does not exist")),
+    pytest.param("WGS84", marks=pytest.mark.skipif(not GEOID_FILE_PATH.exists(), reason="Geoid data does not exist"))])
 def test_get_elevation_hae_geoid(ref_surface, dummy_dem_file_path_high_res, monkeypatch):
-    if ref_surface == "egm2008":
+    if ref_surface == "EGM2008":
         monkeypatch.setattr(Image, 'open', lambda filename: dummy_pil_image_open(filename, "EGM2008"))
     else:
         monkeypatch.setattr(Image, 'open', lambda filename: dummy_pil_image_open(filename, "WGS84"))
@@ -337,7 +336,9 @@ def test_get_elevation_hae_geoid(ref_surface, dummy_dem_file_path_high_res, monk
     ne_lon = 2
 
     filename_format = infer_filename_format(dummy_dem_file_path_high_res)
-    obj = GeoTIFF1DegInterpolator(filename_format, str(GEOID_FILE_PATH.parent.parent))
+    obj = GeoTIFF1DegInterpolator(filename_format,
+                                  ref_surface=ref_surface,
+                                  geoid_path=str(GEOID_FILE_PATH.parent.parent))
 
     num_points = 8
     d_offset = 1 / 18000
@@ -355,22 +356,30 @@ def test_get_elevation_hae_geoid(ref_surface, dummy_dem_file_path_high_res, monk
     assert np.all(np.abs(min_hae - min_geoid))
     assert np.all(np.abs(max_hae - max_geoid))
 
-    obj2 = GeoTIFF1DegInterpolator(filename_format, str(GEOID_FILE_PATH))
+    # Test that the default value of ref_surface is "EGM2008"
+    obj2 = GeoTIFF1DegInterpolator(filename_format, geoid_path=str(GEOID_FILE_PATH))
     hght_geoid2 = obj2.get_elevation_geoid(lats, lons)
-    assert np.all(hght_geoid2 == hght_geoid)
+    assert np.all(hght_geoid2 == hght_geoid) if ref_surface == "EGM2008" else not np.all(hght_geoid2 == hght_geoid)
 
 
-def test_exceptions(dummy_dem_file_path_high_res, monkeypatch):
+def test_exceptions(dummy_dem_file_path_high_res, monkeypatch, caplog):
     filename_format = infer_filename_format(dummy_dem_file_path_high_res)
     obj = GeoTIFF1DegInterpolator(filename_format)
     with pytest.raises(ValueError, match="^The lat and lon arrays are not the same shape\\."):
         obj.get_elevation_native([1, 2, 3], [1, 2])
 
     monkeypatch.setattr(Image, 'open', lambda filename: dummy_pil_image_open(filename, "WGS84"))
-    obj = GeoTIFF1DegInterpolator(filename_format)
+    obj = GeoTIFF1DegInterpolator(filename_format, ref_surface="WGS84")
     with pytest.raises(ValueError,
                        match="^The geoid_dir parameter was not defined so geoid calculations are disabled\\."):
         obj.get_elevation_geoid(1, 1)
+
+    caplog.clear()
+    caplog.set_level(logging.WARNING)
+    obj = GeoTIFF1DegInterpolator(filename_format, ref_surface="EGM2008")
+    obj.get_elevation_geoid(1, 1)
+    assert caplog.text.startswith("WARNING  sarpy.io.DEM.geotiff1deg:geotiff1deg.py")
+    assert "The GeoAsciiParamsTag tag implies that the reference surface is WGS84" in caplog.text
 
     monkeypatch.setattr(Image, 'open', lambda filename: dummy_pil_image_open(filename, "EGM2008"))
     obj = GeoTIFF1DegInterpolator(filename_format)
@@ -378,9 +387,16 @@ def test_exceptions(dummy_dem_file_path_high_res, monkeypatch):
                        match="^The geoid_dir parameter was not defined so geoid calculations are disabled\\."):
         obj.get_elevation_hae(1, 1)
 
+    caplog.clear()
+    caplog.set_level(logging.WARNING)
+    obj = GeoTIFF1DegInterpolator(filename_format, ref_surface="WGS84")
+    obj.get_elevation_native(1, 1)
+    assert caplog.text.startswith("WARNING  sarpy.io.DEM.geotiff1deg:geotiff1deg.py")
+    assert "The GeoAsciiParamsTag tag implies that the reference surface is EGM2008" in caplog.text
+
     monkeypatch.setattr(Image, 'open', lambda filename: dummy_pil_image_open(filename, "Unknown"))
-    obj = GeoTIFF1DegInterpolator(filename_format)
-    with pytest.raises(ValueError, match="^The reference surface is Unknown, which is not supported"):
+    obj = GeoTIFF1DegInterpolator(filename_format, ref_surface="Unknown")
+    with pytest.raises(ValueError, match="^The reference surface is UNKNOWN, which is not supported"):
         obj.get_elevation_geoid(1, 1)
-    with pytest.raises(ValueError, match="^The reference surface is Unknown, which is not supported"):
+    with pytest.raises(ValueError, match="^The reference surface is UNKNOWN, which is not supported"):
         obj.get_elevation_hae(1, 1)

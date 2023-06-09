@@ -5,9 +5,8 @@ This code makes the following assumptions.
     1. The GeoTIFF files tile the earth with one degree offsets in both latitude and longitude.
     2. There is one pixel of overlap between adjacent tiles.
     3. The south-west corner of each tile is at an integer (degrees) latitude and longitude.
-    4. The latitude and longitude of south-west corner point is encoded in the GeoTIFF filename.
-    5. The anti-merdian is at W180 rather than at E180 so that valid longitude values are (-180 <= lon < 180) degrees.
-    6. The GeoTIFF tag 34737 (GeoAsciiParamsTag) indicates the reference surface (e.g., EGM2008 or WGS84).
+    4. The latitude and longitude of south-west corner points is encoded in the GeoTIFF filename.
+    5. The anti-meridian is at W180 rather than at E180 so that valid longitude values are (-180 <= lon < 180) degrees.
 """
 import glob
 import logging
@@ -46,13 +45,13 @@ class GeoTIFF1DegReader:
     @property
     def dem_data(self):
         if self._dem_data is None:
-            self._read()        # pragma no cover
+            self._read()  # pragma no cover
         return self._dem_data
 
     @property
     def tiff_tags(self):
         if self._tiff_tags is None:
-            self._read()        # pragma no cover
+            self._read()  # pragma no cover
         return self._tiff_tags
 
     def _read(self):
@@ -71,31 +70,37 @@ class GeoTIFF1DegInterpolator(DEMInterpolator):
     ----
     dem_filename_pattern : str
         This is a format string that provides a glob pattern that will uniquely specify a DEM file from
-        the Lat/Lon of the SW corner of the DEM tile.  See the note below for more details.
+        the Lat/Lon of the SW corner of the DEM tile.  See the GeoTIFF1DegList docstring for more details.
+    ref_surface: str (default: "EGM2008")
+        A case-insensitive string specifying the DEM reference surface. (eg., "WGS84" | "EGM2008" | "EGM96" | "EGM84")
     geoid_path: str | pathlib.Path | None (default: None)
         Optional filename of a specific Geoid file or a directory containing geoid files to choose from.
+        If a directory is specified, then one or more of the following geoid files (in order of preference)
+        will be chosen from this directory.
+            'egm2008-1.pgm', 'egm2008-2_5.pgm', 'egm2008-5.pgm',
+            'egm96-5.pgm', 'egm96-15.pgm', 'egm84-15.pgm', 'egm84-30.pgm'
     missing_error: bool (default: False)
-         Optional flag indicating whether an exception will be raised when missing DEM data files are encountered.
-         If True then a ValueError will be raised when a needed data file does not exist in root_dir.
-         If False then a DEM value of zero will be silently used when a needed data file does not exist in root_dir.
+        Optional flag indicating whether an exception will be raised when missing DEM data files are encountered.
+        If True then a ValueError will be raised when a needed DEM data file can not be found.
+        If False then a DEM value of zero will be used when a needed DEM data file is not found.
     interp_method: str (default: 'linear')
-         Optional interpolation method. Any scipy.interpolate.RegularGridInterpolator method is valid here.
+        Optional interpolation method. Any scipy.interpolate.RegularGridInterpolator method is valid here.
     max_readers: init (default: 4)
         Optional maximum number of DEM file readers.  A DEM file reader will read a DEM file and cache the results.
-        DEM file readers can use a lot of memory, but can also make processing much faster.
+        DEM file readers can use a lot of memory (~8 bytes x number-of-DEM-samples), but will make processing faster.
 
      """
     __slots__ = ('_geoid_path', '_interp_method', '_ref_surface', '_geotiff_list_obj',
                  '_bounding_box_cache', '_max_readers', '_readers')
 
-    def __init__(self, dem_filename_pattern, geoid_path=None, *,
+    def __init__(self, dem_filename_pattern, ref_surface='EGM2008', geoid_path=None, *,
                  missing_error=False, interp_method="linear", max_readers=4):
         self._geoid_path = pathlib.Path(geoid_path) if geoid_path else None
-        self._interp_method = interp_method
-        self._ref_surface = "Unknown"
+        self._interp_method = str(interp_method)
+        self._ref_surface = str(ref_surface).upper()
         self._geotiff_list_obj = GeoTIFF1DegList(dem_filename_pattern, missing_error=missing_error)
         self._bounding_box_cache = {}
-        self._max_readers = max(1, max_readers)
+        self._max_readers = max(1, int(max_readers))
         self._readers = []
 
         # get the geoid object - we prefer egm2008*.pgm files, but in reality, it makes very little difference.
@@ -137,23 +142,23 @@ class GeoTIFF1DegInterpolator(DEMInterpolator):
 
     def get_elevation_native(self, lat, lon, block_size=None):
         """
-        Get the elevation value relative to the reference surface specified in the GeoTIFF GeoAsciiParamsTag tag.
+        Get the elevation value relative to the DEM file's reference surface.
 
         Parameters
         ----------
-        lat : numpy.ndarray|list|tuple|int|float
-        lon : numpy.ndarray|list|tuple|int|float
-        block_size : int|None
+        lat : numpy.ndarray | list | tuple | int | float
+        lon : numpy.ndarray | list | tuple | int | float
+        block_size : int | None (default: None)
             Block processing is not supported; this argument is present to maintain a common interface with
             the DEMInterpolator parent class.  A value other than None will result in a warning.
 
         Returns
         -------
         numpy.ndarray
-            the elevation relative to the reference surface of the DEM.
+            The elevation relative to the reference surface of the DEM.
         """
         if block_size is not None:
-            warnings.warn("Block processing is not implemented.  Full size processing will be used.")   # pragma nocover
+            warnings.warn("Block processing is not implemented.  Full size processing will be used.")  # pragma nocover
 
         lat = np.atleast_1d(lat)
         lon = np.atleast_1d(lon)
@@ -184,16 +189,19 @@ class GeoTIFF1DegInterpolator(DEMInterpolator):
             tiff_tags, dem_data = self._read_dem_file(filename)
 
             gpars = tiff_tags.get('GeoAsciiParamsTag', ('',))[0].upper()
-            this_ref_surface = ('EGM84' if any([p in gpars for p in ['EGM84', 'EGM 84', 'EGM-84']]) else
-                                'EGM96' if any([p in gpars for p in ['EGM96', 'EGM 96', 'EGM-96']]) else
-                                'EGM2008' if any([p in gpars for p in ['EGM2008', 'EGM 2008', 'EGM-2008']]) else
-                                'EGM2020' if any([p in gpars for p in ['EGM2020', 'EGM 2020', 'EGM-2020']]) else
-                                'WGS84' if any([p in gpars for p in ['WGS84', 'WGS 84', 'WGS-84']]) else
-                                'Unknown')
-            if self._ref_surface == "Unknown":
-                self._ref_surface = this_ref_surface
-            elif self._ref_surface != this_ref_surface:
-                raise ValueError(f'Reference surface missmatch in file {filename}')    # pragma: no cover
+            implied_ref_surface = ('EGM84' if any([p in gpars for p in ['EGM84', 'EGM 84', 'EGM-84']]) else
+                                   'EGM96' if any([p in gpars for p in ['EGM96', 'EGM 96', 'EGM-96']]) else
+                                   'EGM2008' if any([p in gpars for p in ['EGM2008', 'EGM 2008', 'EGM-2008']]) else
+                                   'EGM2020' if any([p in gpars for p in ['EGM2020', 'EGM 2020', 'EGM-2020']]) else
+                                   'WGS84' if any([p in gpars for p in ['WGS84', 'WGS 84', 'WGS-84']]) else
+                                   'Unknown')
+            if ((self._ref_surface.startswith('EGM') and implied_ref_surface.startswith('WGS')) or
+                    (self._ref_surface.startswith('WGS') and implied_ref_surface.startswith('EGM'))):
+                msg = (f"{filename}\n"
+                       f"The GeoAsciiParamsTag tag implies that the reference surface is {implied_ref_surface},\n"
+                       f"but the explicit reference surface was defined to be {self._ref_surface}.\n"
+                       f"This might cause the elevation values to be calculated incorrectly.\n")
+                logger.warning(msg)
 
             tile_num_lats, tile_num_lons = dem_data.shape
             tile_lats = np.linspace(tile_ne_lat, tile_sw_lat, tile_num_lats)
@@ -220,20 +228,20 @@ class GeoTIFF1DegInterpolator(DEMInterpolator):
 
         Parameters
         ----------
-        lat : numpy.ndarray|list|tuple|int|float
-        lon : numpy.ndarray|list|tuple|int|float
-        block_size : int|None
+        lat : numpy.ndarray | list | tuple | int | float
+        lon : numpy.ndarray | list | tuple | int | float
+        block_size : int | None (default: None)
             Block processing is not supported; this argument is present to maintain a common interface with
             the DEMInterpolator parent class.  A value other than None will result in a warning.
 
         Returns
         -------
         numpy.ndarray
-            the elevation relative to the geoid
+            The elevation relative to the ellipsoid
         """
         height_native = self.get_elevation_native(lat, lon, block_size=block_size)
 
-        if self._ref_surface == "WGS84":
+        if self._ref_surface.startswith('WGS'):
             return height_native
         elif self._ref_surface.startswith("EGM"):
             if self._geoid_obj is None:
@@ -249,9 +257,9 @@ class GeoTIFF1DegInterpolator(DEMInterpolator):
 
         Parameters
         ----------
-        lat : numpy.ndarray|list|tuple|int|float
-        lon : numpy.ndarray|list|tuple|int|float
-        block_size : int|None
+        lat : numpy.ndarray | list | tuple | int | float
+        lon : numpy.ndarray | list | tuple | int | float
+        block_size : int | None (default: None)
             Block processing is not supported; this argument is present to maintain a common interface with
             the DEMInterpolator parent class.  A value other than None will result in a warning.
 
@@ -264,7 +272,7 @@ class GeoTIFF1DegInterpolator(DEMInterpolator):
 
         if self._ref_surface.startswith("EGM"):
             return height_native
-        elif self._ref_surface == "WGS84":
+        elif self._ref_surface.startswith('WGS'):
             if self._geoid_obj is None:
                 raise ValueError("The geoid_dir parameter was not defined so geoid calculations are disabled.")
 
@@ -274,7 +282,7 @@ class GeoTIFF1DegInterpolator(DEMInterpolator):
 
     def get_max_hae(self, lat_lon_box=None):
         """
-        Get the maximum dem value with respect to HAE, which should be assumed **approximately** correct.
+        Get the maximum dem value with respect to the ellipsoid, which should be assumed **approximately** correct.
 
         Parameters
         ----------
@@ -287,14 +295,14 @@ class GeoTIFF1DegInterpolator(DEMInterpolator):
         """
         result = self.get_min_max_native(lat_lon_box)
 
-        if result['ref_surface'] == 'ellipsoid':
+        if self._ref_surface.startswith('WGS'):
             return result['max']['height']
         else:
             return self.get_elevation_hae(result['max']['lat'], result['max']['lon'])[0]
 
     def get_min_hae(self, lat_lon_box=None):
         """
-        Get the minimum dem value with respect to HAE, which should be assumed **approximately** correct.
+        Get the minimum dem value with respect to the ellipsoid, which should be assumed **approximately** correct.
 
         Parameters
         ----------
@@ -307,7 +315,7 @@ class GeoTIFF1DegInterpolator(DEMInterpolator):
         """
         result = self.get_min_max_native(lat_lon_box)
 
-        if result['ref_surface'] == 'ellipsoid':
+        if self._ref_surface.startswith('WGS'):
             return result['min']['height']
         else:
             return self.get_elevation_hae(result['min']['lat'], result['min']['lon'])[0]
@@ -327,7 +335,7 @@ class GeoTIFF1DegInterpolator(DEMInterpolator):
         """
         result = self.get_min_max_native(lat_lon_box)
 
-        if result['ref_surface'] == 'geoid':
+        if self._ref_surface.startswith('EGM'):
             return result['max']['height']
         else:
             return self.get_elevation_geoid(result['max']['lat'], result['max']['lon'])[0]
@@ -347,7 +355,7 @@ class GeoTIFF1DegInterpolator(DEMInterpolator):
         """
         result = self.get_min_max_native(lat_lon_box)
 
-        if result['ref_surface'] == 'geoid':
+        if self._ref_surface.startswith('EGM'):
             return result['min']['height']
         else:
             return self.get_elevation_geoid(result['min']['lat'], result['min']['lon'])[0]
@@ -364,19 +372,18 @@ class GeoTIFF1DegInterpolator(DEMInterpolator):
         Returns
         -------
         dict: {"box": lat_lon_box,
-               "ref_surface": ref_surface,
                "min": {"lat": lat_deg, "lon": lon_deg, "height": height},
                "max": {"lat": lat_deg, "lon": lon_deg, "height": height}
               }
         """
         if np.all(self._bounding_box_cache.get("box", []) == lat_lon_box):
-            # If we have already done this calculation, don't do it again.
+            # If we have already done this calculation then don't do it again.
             return self._bounding_box_cache
 
         box_lat_min, box_lat_max, box_lon_min, box_lon_max = lat_lon_box
 
         filename_info = []
-        for sw_lat in np.arange(np.floor(box_lat_min), np.floor(box_lat_max)+1):
+        for sw_lat in np.arange(np.floor(box_lat_min), np.floor(box_lat_max) + 1):
             for sw_lon in np.arange(np.floor(box_lon_min), np.floor(box_lon_max) + 1):
                 files = self._geotiff_list_obj.find_dem_files(sw_lat + 0.1, sw_lon + 0.1)
                 if files:
@@ -384,7 +391,6 @@ class GeoTIFF1DegInterpolator(DEMInterpolator):
 
         # Initialize so that the global min and max occur at the same lat/lon and have a value of zero.
         # These values will be returned if the bounding box is completely outside the available DEM tiles.
-        ref_surface = 'geoid'
         global_min_lat = box_lat_min
         global_max_lat = box_lat_min
         global_min_lon = box_lon_min
@@ -402,7 +408,6 @@ class GeoTIFF1DegInterpolator(DEMInterpolator):
 
             tile_num_lats = tiff_tags['ImageLength'][0]
             tile_num_lons = tiff_tags['ImageWidth'][0]
-            ref_surface = 'geoid' if 'EGM' in tiff_tags.get('GeoAsciiParamsTag', ('',))[0] else 'ellipsoid'
 
             # Lat index is in descending order, so calculate the offset from the north edge (lowest index)
             lat_start_offset = max(0, tile_ne_lat - box_lat_max)
@@ -420,7 +425,7 @@ class GeoTIFF1DegInterpolator(DEMInterpolator):
             col_start = int(np.ceil(lon_start_offset * (tile_num_lons - 1)))
             col_stop = int(np.floor(lon_stop_offset * (tile_num_lons - 1)))
 
-            dem_slice = dem_data[row_start:row_stop+1, col_start:col_stop+1]
+            dem_slice = dem_data[row_start:row_stop + 1, col_start:col_stop + 1]
             max_index = np.unravel_index(np.argmax(dem_slice), shape=dem_slice.shape)
             min_index = np.unravel_index(np.argmin(dem_slice), shape=dem_slice.shape)
 
@@ -435,7 +440,6 @@ class GeoTIFF1DegInterpolator(DEMInterpolator):
                 global_min_lon = tile_sw_lon + lon_start_offset + min_index[1] / (tile_num_lons - 1)
 
         self._bounding_box_cache = {"box": lat_lon_box,
-                                    "ref_surface": ref_surface,
                                     "min": {"lat": global_min_lat, "lon": global_min_lon, "height": float(global_min)},
                                     "max": {"lat": global_max_lat, "lon": global_max_lon, "height": float(global_max)}
                                     }
@@ -460,14 +464,14 @@ class GeoTIFF1DegList(DEMList):
         the Lat/Lon of the SW corner of the DEM tile.  See the note below for more details.
     missing_error: bool (default: False)
         Optional flag indicating whether an exception will be raised when missing DEM data files are encountered.
-        If True then a ValueError will be raised when a needed data file does not exist in root_dir.
-        If False then a DEM value of zero will be silently used when a needed data file does not exist in root_dir.
+        If True then a ValueError will be raised when a needed DEM data file can not be found.
+        If False then a DEM value of zero will be used when a needed DEM data file is not found.
 
     Notes
     -----
     The DEM files must have the SW corner Lat/Lon encoded in their filenames.
-    The filename_format argument contains a format string that when populated will
-    create as glob pattern that will specify the desired DEM file.  The following
+    The dem_filename_pattern argument contains a format string that, when populated,
+    will create a glob pattern that will specify the desired DEM file.  The following
     arguments are provided to the format string.
         lat = int(numpy.floor(lat))
         lon = int(numpy.floor(lon))
@@ -478,22 +482,25 @@ class GeoTIFF1DegList(DEMList):
         ew = 'w' if lon < 0 else 'e'
         EW = 'W' if lon < 0 else 'E'
 
-    An example with Linux file separators:
-        "/dem_root/tdt_{ns}{abslat:02}{ew}{abslon:03}_01/DEM/TDT_{NS}{abslat:02}{EW}{abslon:03}_*_DEM.tif",
+    An example (with Linux file separators):
+        "/dem_root/tdt_{ns}{abslat:02}{ew}{abslon:03}_*/DEM/TDT_{NS}{abslat:02}{EW}{abslon:03}_*_DEM.tif"
+
+    will match filenames like:
+        "/dem_root/tdt_n45e013_02/DEM/TDT_N45E013_02_DEM.tif"
+        "/dem_root/tdt_s09w140_01/DEM/TDT_S09W140_01_DEM.tif"
 
     """
 
     __slots__ = ('_dem_filename_pattern', '_missing_error')
 
     def __init__(self, dem_filename_pattern, missing_error=False):
-        self._dem_filename_pattern = dem_filename_pattern
+        self._dem_filename_pattern = str(dem_filename_pattern)
         self._missing_error = bool(missing_error)
 
     @staticmethod
     def filename_from_lat_lon(lat, lon, pattern):
         """
-        This method will return the filename glob of the GeoTIFF file that contains the specified
-        latitude/longitude and version number.
+        This method will return the filename glob of the GeoTIFF file that contains the specified latitude/longitude.
 
         """
         pars = {
@@ -536,16 +543,16 @@ class GeoTIFF1DegList(DEMList):
         if msg:
             raise ValueError('\n'.join(msg))
 
-        sw_lats = [89 if lat == 90 else np.floor(lat)]      # The latitude of the south-west corner in integer degrees
-        sw_lons = [np.floor(lon)]                           # The longitude of the south-west corner in integer degrees
+        sw_lats = [89 if lat == 90 else np.floor(lat)]  # The latitude of the south-west corner in integer degrees
+        sw_lons = [np.floor(lon)]  # The longitude of the south-west corner in integer degrees
 
         if lat == np.floor(lat) and np.abs(lat) < 90:
             # lat is an integer, so it is in the overlap region of at least two files
-            sw_lats.append(np.floor(lat)-1)
+            sw_lats.append(np.floor(lat) - 1)
 
         if lon == np.floor(lon):
             # lon is an integer, so it is in the overlap region of at least two files.
-            sw_lons.append(179 if lon == -180 else np.floor(lon)-1)
+            sw_lons.append(179 if lon == -180 else np.floor(lon) - 1)
 
         filenames = []
         for sw_lat in sw_lats:

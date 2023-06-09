@@ -201,6 +201,7 @@ def test_exceptions(dem_file_path, caplog):
     assert info.match("The minimum longitude value must be between \\[-180, \\+180\\)")
     assert info.match("The maximum longitude value must be between \\[-180, \\+180\\)")
 
+    caplog.clear()
     caplog.set_level(logging.WARNING)
     obj.get_file_list([45.1, 45.3, 90.1, 90.3])
     assert caplog.text.startswith("WARNING  sarpy.io.DEM.geotiff1deg:geotiff1deg.py")

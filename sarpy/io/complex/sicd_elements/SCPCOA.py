@@ -508,7 +508,7 @@ class SCPCOAType(Serializable):
             val2 = getattr(calculator, attribute)
             if abs(val1/val2 - 1) > 1e-6:
                 self.log_validity_error(
-                    'attribute {} is expected to have value {}, but is populated as {}'.format(attribute, val1, val2))
+                    'attribute {} is expected to have value {}, but is populated as {}'.format(attribute, val2, val1))
                 cond = False
 
         for attribute in [
@@ -517,6 +517,6 @@ class SCPCOAType(Serializable):
             val2 = getattr(calculator, attribute)
             if abs(val1 - val2) > 1e-3:
                 self.log_validity_error(
-                    'attribute {} is expected to have value {}, but is populated as {}'.format(attribute, val1, val2))
+                    'attribute {} is expected to have value {}, but is populated as {}'.format(attribute, val2, val1))
                 cond = False
         return cond

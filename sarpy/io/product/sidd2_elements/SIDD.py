@@ -209,7 +209,7 @@ class SIDDType(Serializable):
         return True
 
     def define_coa_projection(self, delta_arp=None, delta_varp=None, range_bias=None,
-                              adj_params_frame='ECF', overide=True):
+                              adj_params_frame='ECF', override=True):
         """
         Define the COAProjection object.
 
@@ -224,7 +224,7 @@ class SIDDType(Serializable):
         adj_params_frame : str
             One of ['ECF', 'RIC_ECF', 'RIC_ECI'], specifying the coordinate frame used for
             expressing `delta_arp` and `delta_varp` parameters.
-        overide : bool
+        override : bool
             should we redefine, if it is previously defined?
 
         Returns
@@ -236,7 +236,7 @@ class SIDDType(Serializable):
             logger.error('The COAProjection object cannot be defined.')
             return
 
-        if self._coa_projection is not None and not overide:
+        if self._coa_projection is not None and not override:
             return
 
         self._coa_projection = point_projection.COAProjection.from_sidd(

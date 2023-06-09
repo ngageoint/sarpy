@@ -27,6 +27,7 @@ from .CollectionInfo import CollectionInfoType
 from .ImageCreation import ImageCreationType
 from .ImageData import ImageDataType
 from .GeoData import GeoDataType
+from .GeoData import SCPType
 from .Grid import GridType
 from .Timeline import TimelineType
 from .Position import PositionType
@@ -311,7 +312,7 @@ class SICDType(Serializable):
         """
 
         if self.GeoData is None:
-            self.GeoData = GeoDataType()
+            self.GeoData = GeoDataType(SCP=SCPType(self.RadarCollection.Area.Plane.RefPt.ECF))
 
         if self.GeoData.ImageCorners is not None and not override:
             return  # nothing to be done
@@ -517,9 +518,8 @@ class SICDType(Serializable):
         row_ss = self.Grid.Row.SS
         col_ss = self.Grid.Col.SS
 
-        row_ground = abs(float(row_ss/numpy.cos(graze)))
-        col_ground = float(numpy.sqrt((numpy.tan(graze)*numpy.tan(twist)*row_ss)**2
-            + (col_ss/numpy.cos(twist))**2))
+        row_ground = abs(float(row_ss / numpy.cos(graze)))
+        col_ground = float(numpy.sqrt((numpy.tan(graze) * numpy.tan(twist) * row_ss)**2 + (col_ss/numpy.cos(twist))**2))
         return row_ground, col_ground
 
     def can_project_coordinates(self) -> bool:
@@ -684,7 +684,7 @@ class SICDType(Serializable):
             delta_varp: Union[None, numpy.ndarray, list, tuple] = None,
             range_bias: Optional[float] = None,
             adj_params_frame: str = 'ECF',
-            overide: bool = True) -> None:
+            override: bool = True) -> None:
         """
         Define the COAProjection object.
 
@@ -699,7 +699,7 @@ class SICDType(Serializable):
         adj_params_frame : str
             One of ['ECF', 'RIC_ECF', 'RIC_ECI'], specifying the coordinate frame used for
             expressing `delta_arp` and `delta_varp` parameters.
-        overide : bool
+        override : bool
             should we redefine, if it is previously defined?
 
         Returns
@@ -711,7 +711,7 @@ class SICDType(Serializable):
             logger.error('The COAProjection object cannot be defined.')
             return
 
-        if self._coa_projection is not None and not overide:
+        if self._coa_projection is not None and not override:
             return
 
         self._coa_projection = point_projection.COAProjection.from_sicd(
@@ -1052,7 +1052,7 @@ class SICDType(Serializable):
     @classmethod
     def from_xml_string(cls, xml_string):
         """
-        Construct the sicd object from an xml string.
+        Construct the sicd object from a xml string.
 
         Parameters
         ----------

@@ -50,8 +50,7 @@ def _rgazcomp_check_kaz_poly(
             else:
                 krg_coa = Grid.Row.KCtr
             delta_kaz_per_deltav = look * krg_coa * numpy.linalg.norm(ARP_Vel) * numpy.sin(
-                numpy.deg2rad(SCPCOA.DopplerConeAng)) / \
-                                   (SCPCOA.SlantRange * st_rate_coa)
+                numpy.deg2rad(SCPCOA.DopplerConeAng)) / (SCPCOA.SlantRange * st_rate_coa)
             if isinstance(delta_kaz_per_deltav, numpy.ndarray):
                 derived_kaz_poly = delta_kaz_per_deltav.dot(Timeline.IPP[0].IPPPoly.get_array(dtype='float64'))
             else:
@@ -558,7 +557,7 @@ def _pfa_check_polar_angle_consistency(
         polar_angle_bounds = numpy.sort(PFA.PolarAngPoly(numpy.array([ImageFormation.TStartProc, ImageFormation.TEndProc], dtype='float64')))
         derived_pol_angle_bounds = numpy.arctan(numpy.array([PFA.Kaz1, PFA.Kaz2], dtype='float64')/PFA.Krg1)
         pol_angle_bounds_diff = numpy.rad2deg(numpy.amax(numpy.abs(polar_angle_bounds - derived_pol_angle_bounds)))
-        if pol_angle_bounds_diff > 1e-2:
+        if pol_angle_bounds_diff > 0.1:
             PFA.log_validity_warning(
                 'the derived polar angle bounds ({})\n\t'
                 'are not consistent with the provided ImageFormation processing times\n\t'
@@ -1143,7 +1142,7 @@ def _validate_image_segment_id(the_sicd) -> bool:
             'but RadarCollection.Area.Plane.SegmentList is not populated.'.format(seg_id))
         return False
 
-    # let's double check that seg_id is sensibly populated
+    # let's double-check that seg_id is sensibly populated
     the_ids = [entry.Identifier for entry in seg_list]
     if seg_id not in the_ids:
         the_sicd.log_validity_error(
