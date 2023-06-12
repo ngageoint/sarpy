@@ -1103,6 +1103,158 @@ def _validate_image_formation(the_sicd) -> bool:
     return _validate_image_form_parameters(the_sicd, alg_types[0])
 
 
+def _validate_antenna(the_sicd) -> bool:
+    """
+    Validate the Antenna Node
+
+    Parameters
+    ----------
+    the_sicd : sarpy.io.complex.sicd_elements.SICD.SICDType
+
+    Returns
+    -------
+    bool
+    """
+    if the_sicd.Antenna is None:
+        return True
+    valid = True
+    for branch_name in ['Tx', 'Rcv', 'TwoWay']:
+        branch = getattr(the_sicd.Antenna, branch_name)
+        if branch is None:
+            continue
+        for pattern_name in ['Array', 'Elem']:
+            pattern = getattr(branch, pattern_name)
+            if pattern is not None:
+                if pattern.GainPoly is not None:
+                    gbs = pattern.GainPoly(0, 0)
+                    if gbs != 0.0:
+                        branch.log_validity_error(f'The constant coefficient of the {branch_name}.{pattern_name}.GainPoly is {gbs} and should be 0.0')
+                        valid = False
+                if pattern.PhasePoly is not None:
+                    pbs = pattern.PhasePoly(0, 0)
+                    if pbs != 0.0:
+                        branch.log_validity_error(f'The constant coefficient of the {branch_name}.{pattern_name}.PhasePoly is {pbs} and should be 0.0')
+                        valid = False
+        if branch.GainBSPoly is not None:
+            gz = branch.GainBSPoly(0)
+            if gz != 0.0:
+                branch.log_validity_error(f'The constant coefficient of the {branch_name}.GainBSPoly is {gz} and should be 0.0')
+    return valid
+
+
+
+
+def _validate_ippsets(the_sicd) -> bool:
+    """
+    Validate IPP sets
+
+    Parameters
+    ----------
+    the_sicd : sarpy.io.complex.sicd_elements.SICD.SICDType
+
+    Returns
+    -------
+    bool
+    """
+    if the_sicd.Timeline is None:
+        return True
+    if the_sicd.Timeline.IPP is None:
+        return True
+    ippsets = the_sicd.Timeline.IPP
+    tstarts = [x.TStart for x in ippsets]
+    tends = [x.TEnd for x in ippsets]
+    ippstarts = [x.IPPStart for x in ippsets]
+    ippends = [x.IPPEnd for x in ippsets]
+    ipppolys = [x.IPPPoly for x in ippsets]
+    ippstart_from_poly = [round(x.IPPPoly(x.TStart)) for x in ippsets]
+    ippend_from_poly = [round(x.IPPPoly(x.TEnd) - 1) for x in ippsets]
+
+    valid = True
+    if tstarts != sorted(tstarts):
+        the_sicd.Timeline.log_validity_error(f'The IPPSets are not in start time order. TStart: {tstarts}')
+        valid = False
+    if ippstarts != ippstart_from_poly:
+        the_sicd.Timeline.log_validity_error(f'The IPPSet IPPStart do not match the polynomials. IPPStart: {ippstarts}'
+                                             f'IPPPoly(TStart): {ippstart_from_poly}')
+    if ippends != ippend_from_poly:
+        the_sicd.Timeline.log_validity_error(f'The IPPSet IPPEnd do not match the polynomials. IPPEnd: {ippends} '
+                                             f'IPPPoly(TEnd) - 1: {ippend_from_poly}')
+    if tends != sorted(tends):
+        the_sicd.Timeline.log_validity_error(f'The IPPSets are not in end time order. TEnd: {tends}')
+        valid = False
+    for iset in range(len(ippsets)):
+        if tstarts[iset] > tends[iset]:
+            the_sicd.Timeline.log_validity_error(f'IPPSet[index={iset+1}] ends ({tends[iset]}) '
+                                                 f'before it starts ({tstarts[iset]}) in time')
+            valid = False
+        if ippstarts[iset] > ippends[iset]:
+            the_sicd.Timeline.log_validity_error(f'IPPSet[index={iset+1}] ends ({ippends[iset]}) '
+                                                 f'before it starts ({ippstarts[iset]}) in index')
+            valid = False
+        prf = ipppolys[iset].derivative_eval((tstarts[iset] + tends[iset])/2)
+        if prf < 0:
+            the_sicd.Timeline.log_validity_error(f'IPPSet[index={iset+1}] has a negative PRF: {prf}')
+            valid = False
+        if prf > 100e3:
+            the_sicd.Timeline.log_validity_warning(f'IPPSet[index={iset+1}] has an unreasonable PRF: {prf}')
+            valid = False
+    if len(ippsets) > 1:
+        tgaps = [ts - te for ts, te in zip(tstarts[1:], tends[:-1])]
+        for ig, g in enumerate(tgaps):
+            if g > 0:
+                the_sicd.Timeline.log_validity_error(f'There is a gap between IPPSet[index={ig+1}] and '
+                                                     f'IPPSet[index={ig+2}] of {g} seconds')
+                valid = False
+            if g < 0:
+                the_sicd.Timeline.log_validity_error(f'There is overlap between IPPSet[index={ig+1}] and '
+                                                     f'IPPSet[index={ig+2}] of {-g} seconds')
+                valid = False
+
+        igaps = [i_s - i_e for i_s, i_e in zip(ippstarts[1:], ippends[:-1])]
+        for ig, g in enumerate(igaps):
+            if g > 1:
+                the_sicd.Timeline.log_validity_error(f'There is a gap between IPPSet[index={ig+1}] and '
+                                                     f'IPPSet[index={ig+2}] of {g-1} IPPs')
+                valid = False
+            if g < 1:
+                the_sicd.Timeline.log_validity_error(f'There is overlap between IPPSet[index={ig+1}] and '
+                                                     f'IPPSet[index={ig+2}] of {1-g} IPPs')
+                valid = False
+
+    return valid
+
+def _validate_acp(the_sicd) -> bool:
+    """
+    Validate the RadarCollection/Area/Corner/ACP nodes
+
+    Parameters
+    ----------
+    the_sicd : sarpy.io.complex.sicd_elements.SICD.SICDType
+
+    Returns
+    -------
+    bool
+    """
+    if (the_sicd.RadarCollection is None
+            or the_sicd.RadarCollection.Area is None
+            or the_sicd.RadarCollection.Area.Corner is None):
+        return False
+    acp = the_sicd.RadarCollection.Area.Corner.get_array(dtype='float64')
+    linear_ring = LinearRing(coordinates=acp)
+    area = linear_ring.get_area()
+    if area == 0:
+        the_sicd.GeoData.log_validity_error(
+            'Corner encloses no area.\n\t'
+            '**disregard if crosses the +/-180 boundary')
+        return False
+    elif area < 0:
+        the_sicd.GeoData.log_validity_error(
+            "Corner must be traversed in clockwise direction.\n\t"
+            "**disregard if crosses the +/-180 boundary")
+        return False
+    return True
+
+
 def _validate_image_segment_id(the_sicd) -> bool:
     """
     Validate the image segment id.
@@ -1216,6 +1368,13 @@ def _validate_valid_data(the_sicd) -> bool:
         the_sicd.log_validity_error('ValidData is populated in GeoData, but not ImageData')
         return False
 
+    if the_sicd.GeoData.ValidData is not None and the_sicd.ImageData.ValidData is not None:
+        num_geo_vert = the_sicd.GeoData.ValidData.get_array().shape[0]
+        num_image_vert = the_sicd.ImageData.ValidData.get_array().shape[-1]
+        if num_geo_vert != num_image_vert:
+            the_sicd.log_validity_error('ValidData has different number of vertices in '
+                                        f'the ImageData ({num_image_vert}) '
+                                        f'and GeoData ({num_geo_vert})')
     return True
 
 
@@ -1264,6 +1423,10 @@ def _validate_polygons(the_sicd) -> bool:
 
     if the_sicd.GeoData.ValidData is not None:
         valid_data = the_sicd.GeoData.ValidData.get_array(dtype='float64')
+        if numpy.all(valid_data[0] == valid_data[-1]):
+            the_sicd.GeoData.log_validity_warning(
+                'ValidData has the same value for the first and last point')
+            return False
         if numpy.any(~numpy.isfinite(valid_data)):
             the_sicd.GeoData.log_validity_error(
                 'ValidData populated with some infinite or NaN values')
@@ -1517,6 +1680,9 @@ def detailed_validation_checks(the_sicd) -> bool:
     out &= _validate_polygons(the_sicd)
     out &= _validate_polarization(the_sicd)
     out &= _check_deltak(the_sicd)
+    out &= _validate_acp(the_sicd)
+    out &= _validate_ippsets(the_sicd)
+    out &= _validate_antenna(the_sicd)
 
     if the_sicd.SCPCOA is not None:
         out &= the_sicd.SCPCOA.check_values(the_sicd.GeoData)
