@@ -418,25 +418,26 @@ class Approx:
         return self.__le__(rhs)
 
     def __le__(self, rhs):
-        return np.all(np.logical_or(np.less(self.value, rhs),
-                                    np.isclose(self.value, rhs, rtol=self.rtol, atol=self.atol)))
+        return np.all(np.logical_or(np.less(self.value, rhs), self._isclose(rhs)))
 
     def __eq__(self, rhs):
-        return np.all(np.isclose(self.value, rhs, rtol=self.rtol, atol=self.atol))
+        return np.all(self._isclose(rhs))
 
     def __ne__(self, rhs):
         return not self.__eq__(rhs)
 
     def __ge__(self, rhs):
-        return np.all(np.logical_or(np.greater(self.value, rhs),
-                                    np.isclose(self.value, rhs, rtol=self.rtol, atol=self.atol)))
+        return np.all(np.logical_or(np.greater(self.value, rhs), self._isclose(rhs)))
 
     def __gt__(self, rhs):
         return self.__ge__(rhs)
 
     def __repr__(self):
-        tol = np.maximum(self.atol, np.asarray(self.value) * self.rtol)
-        return "{} +/- {}".format(self.value, tol)
+        tol = self.atol + np.abs(np.asarray(self.value)) * self.rtol
+        return f"{self.value} ± {tol}"
+
+    def _isclose(self, rhs):
+        return np.isclose(rhs, self.value, rtol=self.rtol, atol=self.atol)
 
 
 def in_color(string, *color):

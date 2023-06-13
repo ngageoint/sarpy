@@ -4,6 +4,11 @@ SarPy follows a continuous release process, so there are fairly frequent release
 Since essentially every (squash merge) commit corresponds to a release, specific 
 release points are not being annotated in GitHub.
 
+## [1.3.43] - 2023-06-09
+### Fixed
+- Fixed bug in Sarpy in correctly performing approximate value comparisons in consistency.py.
+
+
 ## [1.3.42] - 2023-06-02
 ### Fixed
 - Fixed bug in Sarpy in correctly logging expected and populated value in SPCPCOA.py.
