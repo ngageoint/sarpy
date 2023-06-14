@@ -258,6 +258,12 @@ class Document(object):
         elif 'when' in params:
             ts = self._create_new_node(container, 'TimeStamp')
             self._add_text_node(ts, 'when', params['when'])
+        elif 'visibility' in params:
+            if isinstance(params['visibility'], str):
+                visibility = params['visibility']
+            else:
+                visibility = '1' if params['visibility'] else '0'
+            self._add_text_node(container, 'visibility', visibility)
         return container
 
     # Styles
