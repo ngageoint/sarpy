@@ -1,5 +1,5 @@
 """
-Create kmz products based on SICD type reader.
+Create kmz products based on CPHD or SICD.
 
 For a basic help on the command-line, check
 
@@ -16,12 +16,15 @@ import os
 
 import sarpy
 from sarpy.io.complex.converter import open_complex
+import sarpy.io.general.base
+import sarpy.io.phase_history
 from sarpy.visualization.kmz_product_creation import create_kmz_view
+from sarpy.visualization.cphd_kmz_product_creation import cphd_create_kmz_view
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
-        description="Create derived product is SIDD format from a SICD type file.",
+        description="Create KMZ product from a CPHD or Complex Image.",
         formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument(
         'input_file', metavar='input_file',
@@ -49,7 +52,11 @@ if __name__ == '__main__':
     logger = logging.getLogger('sarpy')
     logger.setLevel(level)
 
-    reader = open_complex(args.input_file)
-    file_stem = os.path.splitext(os.path.split(args.input_file)[1])[0]
-    pixel_limit = None if args.size == -1 else args.size
-    create_kmz_view(reader, args.output_directory, pixel_limit=pixel_limit, file_stem='View-{}'.format(file_stem))
+    file_stem = 'View-' + os.path.splitext(os.path.split(args.input_file)[1])[0]
+    try:
+        reader = sarpy.io.phase_history.open(args.input_file)
+        cphd_create_kmz_view(reader, args.output_directory, file_stem=file_stem)
+    except sarpy.io.general.base.SarpyIOError:
+        reader = open_complex(args.input_file)
+        pixel_limit = None if args.size == -1 else args.size
+        create_kmz_view(reader, args.output_directory, pixel_limit=pixel_limit, file_stem=file_stem)
