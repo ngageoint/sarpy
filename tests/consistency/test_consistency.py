@@ -161,7 +161,7 @@ def test_invalid(dummycon):
 
 
 def test_approx():
-    apx = con.Approx(10.0, atol=.1)
+    apx = con.Approx(10.0, atol=.1, rtol=0)
     assert apx == 10.0
     assert apx == 10.01
     assert not apx != 10.01
@@ -171,4 +171,4 @@ def test_approx():
     assert not apx <= 0
     assert apx < 10.01
     assert apx <= 10.01
-    assert repr(apx) == "10.0 +/- 0.1"
+    assert repr(apx) == "10.0 ± 0.1"

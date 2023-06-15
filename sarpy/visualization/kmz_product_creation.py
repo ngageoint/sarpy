@@ -292,7 +292,7 @@ def _write_valid_area(kmz_document, sicd, time_args, folder):
 
 def _write_scp(kmz_document, sicd, time_args, folder):
     """
-    Write the csp location.
+    Write the scp location.
 
     Parameters
     ----------
