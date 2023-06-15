@@ -4,6 +4,10 @@ SarPy follows a continuous release process, so there are fairly frequent release
 Since essentially every (squash merge) commit corresponds to a release, specific 
 release points are not being annotated in GitHub.
 
+## [1.3.46] - 2023-06-15
+### Added
+- Added consistency checks to the SICD validation_checks.py.
+
 ## [1.3.45] - 2023-06-15
 ### Added
 - Added tests for sicd_elements module in test_sicd_elements_position.py

@@ -1142,8 +1142,6 @@ def _validate_antenna(the_sicd) -> bool:
     return valid
 
 
-
-
 def _validate_ippsets(the_sicd) -> bool:
     """
     Validate IPP sets
@@ -1222,6 +1220,7 @@ def _validate_ippsets(the_sicd) -> bool:
                 valid = False
 
     return valid
+
 
 def _validate_acp(the_sicd) -> bool:
     """
