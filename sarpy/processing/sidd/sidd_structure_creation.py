@@ -13,19 +13,38 @@ import numpy
 from sarpy.io.complex.utils import two_dim_poly_fit, get_im_physical_coords
 from sarpy.processing.ortho_rectify import OrthorectificationHelper, ProjectionHelper, \
     PGProjection
-# agnostic to version
+# agnostic to versions 1 & 2
 from sarpy.io.product.sidd2_elements.Measurement import PlaneProjectionType, ProductPlaneType
+from sarpy.io.product.sidd2_elements.blocks import ReferencePointType, Poly2DType, XYZPolyType, \
+    FilterType, FilterBankType, PredefinedFilterType, NewLookupTableType, PredefinedLookupType
+# version 3 elements
+from sarpy.io.product.sidd3_elements.SIDD import SIDDType as SIDDType3
+from sarpy.io.product.sidd3_elements.Display import ProductDisplayType as ProductDisplayType3, \
+    NonInteractiveProcessingType as NonInteractiveProcessingType3, \
+    ProductGenerationOptionsType as ProductGenerationOptionsType3, RRDSType as RRDSType3, \
+    InteractiveProcessingType as InteractiveProcessingType3, GeometricTransformType as GeometricTransformType3, \
+    SharpnessEnhancementType as SharpnessEnhancementType3, DynamicRangeAdjustmentType as DynamicRangeAdjustmentType3, \
+    ScalingType as ScalingType3, OrientationType as OrientationType3
+from sarpy.io.product.sidd3_elements.GeoData import GeoDataType as GeoDataType3
+from sarpy.io.product.sidd3_elements.Measurement import MeasurementType as MeasurementType3, \
+    PlaneProjectionType as PlaneProjectionType3, ProductPlaneType as ProductPlaneType3
+from sarpy.io.product.sidd3_elements.ExploitationFeatures import ExploitationFeaturesType as ExploitationFeaturesType3
+from sarpy.io.product.sidd3_elements.ProductCreation import ProductCreationType as ProductCreationType3
+from sarpy.io.product.sidd3_elements.blocks import ReferencePointType as ReferencePointType3, \
+    Poly2DType as Poly2DType3, XYZPolyType as XYZPolyType3, FilterType as FilterType3, \
+    FilterBankType as FilterBankType3, PredefinedFilterType as PredefinedFilterType3, \
+    NewLookupTableType as NewLookupTableType3, PredefinedLookupType as PredefinedLookupType3
 # version 2 elements
 from sarpy.io.product.sidd2_elements.SIDD import SIDDType as SIDDType2
 from sarpy.io.product.sidd2_elements.Display import ProductDisplayType as ProductDisplayType2, \
-    NonInteractiveProcessingType, ProductGenerationOptionsType, RRDSType, \
-    InteractiveProcessingType, GeometricTransformType, SharpnessEnhancementType, \
-    DynamicRangeAdjustmentType, ScalingType, OrientationType
+    NonInteractiveProcessingType as NonInteractiveProcessingType2, \
+    ProductGenerationOptionsType as ProductGenerationOptionsType2, RRDSType as RRDSType2, \
+    InteractiveProcessingType as InteractiveProcessingType2, GeometricTransformType as GeometricTransformType2, \
+    SharpnessEnhancementType as SharpnessEnhancementType2, DynamicRangeAdjustmentType as DynamicRangeAdjustmentType2, \
+    ScalingType as ScalingType2, OrientationType as OrientationType2
 from sarpy.io.product.sidd2_elements.GeoData import GeoDataType as GeoDataType2
 from sarpy.io.product.sidd2_elements.Measurement import MeasurementType as MeasurementType2
 from sarpy.io.product.sidd2_elements.ExploitationFeatures import ExploitationFeaturesType as ExploitationFeaturesType2
-from sarpy.io.product.sidd2_elements.blocks import ReferencePointType, Poly2DType, XYZPolyType, \
-    FilterType, FilterBankType, PredefinedFilterType, NewLookupTableType, PredefinedLookupType
 from sarpy.io.product.sidd2_elements.ProductCreation import ProductCreationType as ProductCreationType2
 # version 1 elements
 from sarpy.io.product.sidd1_elements.SIDD import SIDDType as SIDDType1
@@ -115,6 +134,192 @@ def _create_plane_projection(proj_helper, bounds):
         ProductPlane=ProductPlaneType(RowUnitVector=proj_helper.row_vector,
                                       ColUnitVector=proj_helper.col_vector))
 
+def _fit_timecoa_poly_v3(proj_helper, bounds):
+    """
+    Fit the TimeCOA in new pixel coordinates.
+
+    Parameters
+    ----------
+    proj_helper : ProjectionHelper
+    bounds : numpy.ndarray
+        The orthorectification pixel bounds of the form `(min row, max row, min col, max col)`.
+
+    Returns
+    -------
+    Poly2DType3
+    """
+
+    # what is the order of the sicd timecoapoly?
+    in_poly = proj_helper.sicd.Grid.TimeCOAPoly
+    use_order = max(in_poly.order1, in_poly.order2)
+    if use_order == 0:
+        # this is a constant polynomial, must be a spotlight collect
+        return Poly2DType3(Coefs=in_poly.get_array())
+    # create an ortho coordinate grid
+    samples = use_order+10
+    ortho_grid = numpy.zeros((samples, samples, 2), dtype=numpy.float64)
+    ortho_grid[:, :, 1], ortho_grid[:, :, 0] = numpy.meshgrid(
+        numpy.linspace(bounds[2], bounds[3], num=samples),
+        numpy.linspace(bounds[0], bounds[1], num=samples))
+    # map to pixel grid coordinates
+    pixel_grid = proj_helper.ortho_to_pixel(ortho_grid)
+    pixel_rows_m = get_im_physical_coords(
+        pixel_grid[:, :, 0], proj_helper.sicd.Grid, proj_helper.sicd.ImageData, 'row')
+    pixel_cols_m = get_im_physical_coords(
+        pixel_grid[:, :, 1], proj_helper.sicd.Grid, proj_helper.sicd.ImageData, 'col')
+    # evaluate the sicd timecoapoly
+    timecoa_values = proj_helper.sicd.Grid.TimeCOAPoly(pixel_rows_m, pixel_cols_m)
+    # fit this at the ortho_grid coordinates
+    sidd_timecoa_coeffs, residuals, rank, sing_values = two_dim_poly_fit(
+        ortho_grid[:, :, 0] - bounds[0],
+        ortho_grid[:, :, 1] - bounds[2], timecoa_values,
+        x_order=use_order, y_order=use_order, x_scale=1e-3, y_scale=1e-3, rcond=1e-40)
+    logger.warning(
+        'The time_coa_fit details:\n\t'
+        'root mean square residuals = {}\n\t'
+        'rank = {}\n\t'
+        'singular values = {}'.format(residuals, rank, sing_values))
+    return Poly2DType3(Coefs=sidd_timecoa_coeffs)
+
+def _create_plane_projection_v3(proj_helper, bounds):
+    """
+    Construct the PlaneProjection structure for both version 1 & 2.
+
+    Parameters
+    ----------
+    proj_helper : PGProjection
+    bounds : numpy.ndarray
+    The orthorectification pixel bounds of the form `(min row, max row, min col, max col)`.
+
+    Returns
+    -------
+    PlaneProjectionType3
+    """
+
+    ref_pixels = proj_helper.reference_pixels
+    return PlaneProjectionType3(
+	ReferencePoint=ReferencePointType3(ECEF=proj_helper.reference_point,
+		                           Point=(float(ref_pixels[0]-bounds[0]), float(ref_pixels[1]-bounds[2]))),
+	SampleSpacing=(proj_helper.row_spacing, proj_helper.col_spacing),
+	TimeCOAPoly=_fit_timecoa_poly_v3(proj_helper, bounds),
+	ProductPlane=ProductPlaneType3(RowUnitVector=proj_helper.row_vector,
+		                       ColUnitVector=proj_helper.col_vector))
+
+#########################
+# Version 3 element creation
+
+def create_sidd_structure_v3(ortho_helper, bounds, product_class, pixel_type):
+    """
+    Create a SIDD version 3.0 structure based on the orthorectification helper
+    and pixel bounds.
+
+    Parameters
+    ----------
+    ortho_helper : OrthorectificationHelper
+    bounds : numpy.ndarray|list|tuple
+        The orthorectification pixel bounds of the form `(min row, max row, min col, max col)`.
+    product_class : str
+        A descriptive name for the product class. Examples -
+        :code:`Dynamic Image, Amplitude Change Detection, Coherent Change Detection`
+    pixel_type : str
+        Must be one of `MONO8I, MONO16I` or `RGB24I`.
+
+    Returns
+    -------
+    SIDDType3
+    """
+
+    def _create_display_v3():
+        if pixel_type in ('MONO8I', 'MONO16I'):
+            bands = 1
+        elif pixel_type == 'RGB24I':
+            bands = 3
+        else:
+            raise ValueError('pixel_type must be one of MONO8I, MONO16I, RGB24I. Got {}'.format(pixel_type))
+
+        return ProductDisplayType3(
+            PixelType=pixel_type,
+            NumBands=bands,
+            NonInteractiveProcessing=[NonInteractiveProcessingType3(
+                ProductGenerationOptions=ProductGenerationOptionsType3(
+                    DataRemapping=NewLookupTableType3(
+                        LUTName='DENSITY',
+                        Predefined=PredefinedLookupType3(
+                            DatabaseName='DENSITY'))),
+                RRDS=RRDSType3(DownsamplingMethod='DECIMATE'),
+                band=i+1) for i in range(bands)],
+            InteractiveProcessing=[InteractiveProcessingType3(
+                GeometricTransform=GeometricTransformType3(
+                    Scaling=ScalingType3(
+                        AntiAlias=FilterType3(
+                            FilterName='AntiAlias',
+                            FilterBank=FilterBankType3(
+                                Predefined=PredefinedFilterType3(DatabaseName='BILINEAR')),
+                            Operation='CONVOLUTION'),
+                        Interpolation=FilterType3(
+                            FilterName='Interpolation',
+                            FilterBank=FilterBankType3(
+                                Predefined=PredefinedFilterType3(DatabaseName='BILINEAR')),
+                            Operation='CONVOLUTION')),
+                    Orientation=OrientationType3(ShadowDirection='ARBITRARY')),
+                SharpnessEnhancement=SharpnessEnhancementType3(
+                    ModularTransferFunctionEnhancement=FilterType3(
+                        FilterName='ModularTransferFunctionEnhancement',
+                        FilterBank=FilterBankType3(
+                            Predefined=PredefinedFilterType3(DatabaseName='BILINEAR')),
+                        Operation='CONVOLUTION')),
+                DynamicRangeAdjustment=DynamicRangeAdjustmentType3(
+                    AlgorithmType='NONE',
+                    BandStatsSource=1),
+                band=i+1) for i in range(bands)])
+
+    def _create_measurement_v3():
+        proj_helper = ortho_helper.proj_helper
+        rows = bounds[1] - bounds[0]
+        cols = bounds[3] - bounds[2]
+        if isinstance(proj_helper, PGProjection):
+            # fit the time coa polynomial in ortho-pixel coordinates
+            plane_projection = _create_plane_projection_v3(proj_helper, bounds)
+            return MeasurementType3(PixelFootprint=(rows, cols),
+                                    ValidData=((0, 0), (0, cols), (rows, cols), (rows, 0)),
+                                    PlaneProjection=plane_projection,
+                                    ARPPoly=XYZPolyType3(
+                                        X=proj_helper.sicd.Position.ARPPoly.X.get_array(),
+                                        Y=proj_helper.sicd.Position.ARPPoly.Y.get_array(),
+                                        Z=proj_helper.sicd.Position.ARPPoly.Z.get_array()))
+        else:
+            return None
+
+    def _create_exploitation_v3():
+        proj_helper = ortho_helper.proj_helper
+        if isinstance(proj_helper, PGProjection):
+            return ExploitationFeaturesType3.from_sicd(
+                proj_helper.sicd, proj_helper.row_vector, proj_helper.col_vector)
+        else:
+            raise ValueError(_proj_helper_text.format(type(proj_helper)))
+
+    pixel_type = pixel_type.upper()
+    # validate bounds and get pixel coordinates rectangle
+    bounds, ortho_pixel_corners = ortho_helper.bounds_to_rectangle(bounds)
+    # construct appropriate SIDD elements
+    prod_create = ProductCreationType3.from_sicd(ortho_helper.proj_helper.sicd, product_class)
+    prod_create.Classification.ISMCATCESVersion = '201903'
+    prod_create.Classification.compliesWith = 'USGov'
+
+    # Display requires more product specifics
+    display = _create_display_v3()
+    # GeoData
+    llh_corners = ortho_helper.proj_helper.ortho_to_llh(ortho_pixel_corners)
+    geo_data = GeoDataType3(ImageCorners=llh_corners[:, :2], ValidData=llh_corners[:, :2])
+    # Measurement
+    measurement = _create_measurement_v3()
+    # ExploitationFeatures
+    exploit_feats = _create_exploitation_v3()
+    return SIDDType3(ProductCreation=prod_create,
+                     GeoData=geo_data,
+                     Display=display,
+                     Measurement=measurement,
+                     ExploitationFeatures=exploit_feats)
 
 #########################
 # Version 2 element creation
@@ -151,17 +356,17 @@ def create_sidd_structure_v2(ortho_helper, bounds, product_class, pixel_type):
         return ProductDisplayType2(
             PixelType=pixel_type,
             NumBands=bands,
-            NonInteractiveProcessing=[NonInteractiveProcessingType(
-                ProductGenerationOptions=ProductGenerationOptionsType(
+            NonInteractiveProcessing=[NonInteractiveProcessingType2(
+                ProductGenerationOptions=ProductGenerationOptionsType2(
                     DataRemapping=NewLookupTableType(
                         LUTName='DENSITY',
                         Predefined=PredefinedLookupType(
                             DatabaseName='DENSITY'))),
-                RRDS=RRDSType(DownsamplingMethod='DECIMATE'),
+                RRDS=RRDSType2(DownsamplingMethod='DECIMATE'),
                 band=i+1) for i in range(bands)],
-            InteractiveProcessing=[InteractiveProcessingType(
-                GeometricTransform=GeometricTransformType(
-                    Scaling=ScalingType(
+            InteractiveProcessing=[InteractiveProcessingType2(
+                GeometricTransform=GeometricTransformType2(
+                    Scaling=ScalingType2(
                         AntiAlias=FilterType(
                             FilterName='AntiAlias',
                             FilterBank=FilterBankType(
@@ -172,14 +377,14 @@ def create_sidd_structure_v2(ortho_helper, bounds, product_class, pixel_type):
                             FilterBank=FilterBankType(
                                 Predefined=PredefinedFilterType(DatabaseName='BILINEAR')),
                             Operation='CONVOLUTION')),
-                    Orientation=OrientationType(ShadowDirection='ARBITRARY')),
-                SharpnessEnhancement=SharpnessEnhancementType(
+                    Orientation=OrientationType2(ShadowDirection='ARBITRARY')),
+                SharpnessEnhancement=SharpnessEnhancementType2(
                     ModularTransferFunctionEnhancement=FilterType(
                         FilterName='ModularTransferFunctionEnhancement',
                         FilterBank=FilterBankType(
                             Predefined=PredefinedFilterType(DatabaseName='BILINEAR')),
                         Operation='CONVOLUTION')),
-                DynamicRangeAdjustment=DynamicRangeAdjustmentType(
+                DynamicRangeAdjustment=DynamicRangeAdjustmentType2(
                     AlgorithmType='NONE',
                     BandStatsSource=1),
                 band=i+1) for i in range(bands)])
@@ -314,7 +519,7 @@ def create_sidd_structure_v1(ortho_helper, bounds, product_class, pixel_type):
 ##########################
 # Switchable version SIDD structure
 
-def create_sidd_structure(ortho_helper, bounds, product_class, pixel_type, version=2):
+def create_sidd_structure(ortho_helper, bounds, product_class, pixel_type, version=3):
     """
     Create a SIDD structure, with version specified, based on the orthorectification
     helper and pixel bounds.
@@ -330,17 +535,19 @@ def create_sidd_structure(ortho_helper, bounds, product_class, pixel_type, versi
     pixel_type : str
         Must be one of `MONO8I, MONO16I` or `RGB24I`.
     version : int
-        The SIDD version, must be either 1 or 2.
+        The SIDD version, must be either 1 or 2 or 3.
 
     Returns
     -------
-    SIDDType1|SIDDType2
+    SIDDType1|SIDDType2|SIDDType3
     """
 
-    if version not in [1, 2]:
-        raise ValueError('version must be 1 or 2. Got {}'.format(version))
+    if version not in [1, 2, 3]:
+        raise ValueError('version must be 1 or 2 or 3. Got {}'.format(version))
 
     if version == 1:
         return create_sidd_structure_v1(ortho_helper, bounds, product_class, pixel_type)
+    elif version == 2:
+        return create_sidd_structure_v2(ortho_helper, bounds, product_class, pixel_type)    
     else:
-        return create_sidd_structure_v2(ortho_helper, bounds, product_class, pixel_type)
+        return create_sidd_structure_v3(ortho_helper, bounds, product_class, pixel_type)

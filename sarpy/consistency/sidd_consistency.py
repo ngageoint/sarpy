@@ -30,6 +30,7 @@ from sarpy.io.xml.base import parse_xml_from_string, validate_xml_from_string
 from sarpy.io.product.sidd_schema import get_schema_path, get_urn_details, \
     get_specification_identifier
 
+from sarpy.io.product.sidd3_elements.SIDD import SIDDType as SIDDType3
 from sarpy.io.product.sidd2_elements.SIDD import SIDDType as SIDDType2
 from sarpy.io.product.sidd1_elements.SIDD import SIDDType as SIDDType1
 
@@ -76,7 +77,7 @@ def _evaluate_xml_string_validity(xml_string=None):
     -------
     is_valid : bool
     sidd_urn : str
-    sidd : SIDDType1|SIDDType2
+    sidd : SIDDType1|SIDDType2|SIDDType3
     """
 
     root_node, xml_ns = parse_xml_from_string(xml_string)
@@ -106,6 +107,9 @@ def _evaluate_xml_string_validity(xml_string=None):
     elif sidd_urn == 'urn:SIDD:2.0.0':
         the_sidd = SIDDType2.from_node(root_node, xml_ns=xml_ns)
         valid_sidd_contents = the_sidd.is_valid(recursive=True, stack=False)
+    elif sidd_urn == 'urn:SIDD:3.0.0':
+        the_sidd = SIDDType3.from_node(root_node, xml_ns=xml_ns)
+        valid_sidd_contents = the_sidd.is_valid(recursive=True, stack=False)
     else:
         raise ValueError('Got unhandled urn {}'.format(sidd_urn))
     return valid_xml & valid_sidd_contents, sidd_urn, the_sidd
@@ -124,7 +128,7 @@ def check_sidd_data_extension(nitf_details, des_header, xml_string):
     Returns
     -------
     is_valid : bool
-    sidd : SIDDType1|SIDDType2
+    sidd : SIDDType1|SIDDType2|SIDDType3
     """
 
     def check_des_header_fields():

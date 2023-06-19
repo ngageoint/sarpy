@@ -1,0 +1,68 @@
+<?oxygen SCHSchema="./iso8601.sch"?>
+<schema xmlns:gmlxbt="http://www.opengis.net/gml/3.3/xbt" xmlns:gml="http://www.opengis.net/gml/3.2" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns="http://www.w3.org/2001/XMLSchema" xmlns:xml="http://www.w3.org/XML/1998/namespace" targetNamespace="http://www.opengis.net/gml/3.3/xbt" elementFormDefault="qualified" version="3.3.0">
+    <annotation>
+        <documentation>extdBasicTypes.xsd, part of GML 3.3. Copyright (c) [2011] Open Geospatial Consortium, Inc. To obtain additional rights of use, visit http://www.opengeospatial.org/legal/.</documentation>
+    </annotation>
+    <import namespace="http://www.opengis.net/gml/3.2" schemaLocation="../../../ogc/gml/3.2.1/gml.xsd"/>
+    <import namespace="http://www.w3.org/XML/1998/namespace" schemaLocation="../../../w3/2001/xml.xsd"/>
+    <complexType name="LanguageStringType">
+        <annotation>
+            <documentation>gmlxbt:LanguageStringType adds an optional xml:lang attribute to xs:string for the use within the GML schema and in GML application schemas.</documentation>
+        </annotation>
+        <simpleContent>
+            <extension base="string">
+                <attribute ref="xml:lang"/>
+            </extension>
+        </simpleContent>
+    </complexType>
+    <complexType name="CodeType">
+        <annotation>
+            <documentation>gmlxbt:CodeType is a generalized type to be used for a term, keyword or name. It adds a XML attribute codeSpace to a term, where the value of the codeSpace attribute (if present) shall indicate a dictionary, thesaurus, classification scheme, authority, or pattern for the term.</documentation>
+        </annotation>
+        <simpleContent>
+            <extension base="gmlxbt:LanguageStringType">
+                <attribute name="codeSpace" type="anyURI"/>
+            </extension>
+        </simpleContent>
+    </complexType>
+    <complexType name="CodeWithAuthorityType">
+        <annotation>
+            <documentation>gmlxbt:CodeWithAuthorityType requires that the codeSpace attribute is provided in an instance.</documentation>
+        </annotation>
+        <simpleContent>
+            <restriction base="gmlxbt:CodeType">
+                <attribute name="codeSpace" type="anyURI" use="required"/>
+            </restriction>
+        </simpleContent>
+    </complexType>
+    <complexType name="LanguageStringAuxType">
+        <simpleContent>
+            <extension base="gml:StringOrRefType">
+                <attribute ref="xml:lang"/>
+            </extension>
+        </simpleContent>
+    </complexType>
+    <element name="description" type="gmlxbt:LanguageStringAuxType" substitutionGroup="gml:description">
+        <annotation>
+            <documentation>The value of this property is a text description of the object with optional xml:lang attribute.</documentation>
+        </annotation>
+    </element>
+    <element name="remarks" type="gmlxbt:LanguageStringType" substitutionGroup="gml:remarks">
+        <annotation>
+            <documentation>The value of this property is a text description of the object with optional xml:lang attribute.</documentation>
+        </annotation>
+    </element>
+    <simpleType name="TimePositionUnion">
+        <union memberTypes="gml:CalDate gmlxbt:OrdDate gmlxbt:WeekDate time dateTime anyURI decimal"/>
+    </simpleType>
+    <simpleType name="OrdDate">
+        <restriction base="string">
+            <pattern value="-?[0-9]{4}-[0-9]{3}"/>
+        </restriction>
+    </simpleType>
+    <simpleType name="WeekDate">
+        <restriction base="string">
+            <pattern value="-?[0-9]{4}-W(0[1-9]|[1-4][0-9]|5[0-3])(-[1-7])?"/>
+        </restriction>
+    </simpleType>
+</schema>

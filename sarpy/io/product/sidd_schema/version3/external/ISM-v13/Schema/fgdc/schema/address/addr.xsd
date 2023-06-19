@@ -1,0 +1,255 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:addr="http://www.fgdc.gov/schema/address/addr" xmlns:addr_type="http://www.fgdc.gov/schema/address/addr_type" xmlns:gml="http://www.opengis.net/gml/3.2" targetNamespace="http://www.fgdc.gov/schema/address/addr" elementFormDefault="qualified" version="1.0.0">
+    <!--
+	FGDC Document Number FGDC-STD-016-2011
+	United States Thoroughfare, Landmark, and Postal Address Data Standard
+		Sponsored by the Urban and Regional Information Systems Association (URISA)
+		and the National Emergency Number Association (NENA)
+	FGDC Subcommittee for Cultural and Demographic Data
+	February 2011
+	Appendix A (Normative): XSD Schemas
+    -->
+    <xsd:import namespace="http://www.fgdc.gov/schema/address/addr_type" schemaLocation="addr_type.xsd">
+        <xsd:annotation>
+            <xsd:documentation>Base types form the AddressStandard</xsd:documentation>
+        </xsd:annotation>
+    </xsd:import>
+    <!-- Begin Support Groups -->
+    <xsd:group name="IntersectionAddress_StreetName_group">
+        <xsd:sequence>
+            <xsd:element name="SeparatorElement" type="addr_type:Separator_type" minOccurs="1" maxOccurs="1"/>
+            <xsd:element name="CompleteStreetName" type="addr_type:CompleteStreetName_type" minOccurs="1" maxOccurs="1"/>
+        </xsd:sequence>
+    </xsd:group>
+    <!-- Begin Base Class Types -->
+    <!-- Thoroughfare Addresses -->
+    <xsd:complexType name="NumberedThoroughfareAddress_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">Defining Characteristics:
+1. Addresses of this class must include a Complete Address Number and a Complete Street Name.
+2. In addition, all thoroughfare, landmark, and postal addresses must include a Place Name and a State Name. A Zip Code is recommended but not mandatory.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:sequence>
+            <xsd:choice>
+                <xsd:element name="CompleteLandmarkName" type="addr_type:CompleteLandmarkName_type" minOccurs="0" maxOccurs="1"/>
+                <xsd:element name="CompletePlaceName" type="addr_type:CompletePlaceName_type" minOccurs="0" maxOccurs="1"/>
+            </xsd:choice>
+            <xsd:element name="CompleteAddressNumber" type="addr_type:CompleteAddressNumber_type" minOccurs="1" maxOccurs="1"/>
+            <xsd:element name="CompleteStreetName" type="addr_type:CompleteStreetName_type" minOccurs="1" maxOccurs="1"/>
+            <xsd:element name="CompleteSubaddress" type="addr_type:CompleteSubaddress_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:group ref="addr_type:PlaceStateZip_group" minOccurs="0" maxOccurs="unbounded"/>
+            <xsd:group ref="addr_type:AddressAttributes_group" minOccurs="0" maxOccurs="1"/>
+        </xsd:sequence>
+        <xsd:attribute name="action" type="addr_type:Action_type" use="optional"/>
+    </xsd:complexType>
+    <xsd:complexType name="IntersectionAddress_type">
+        <xsd:annotation>
+            <xsd:documentation>Defining Characteristics:
+1. An address of this class must include two or more Complete Street Names, each separated by a Separator Element.
+2. In addition, all thoroughfare, landmark, and postal addresses must include a Place Name and a State Name. A Zip Code is recommended but not mandatory.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:sequence>
+            <xsd:choice>
+                <xsd:element name="CompleteLandmarkName" type="addr_type:CompleteLandmarkName_type" minOccurs="0" maxOccurs="1"/>
+                <xsd:element name="CompletePlaceName" type="addr_type:CompletePlaceName_type" minOccurs="0" maxOccurs="1"/>
+            </xsd:choice>
+            <xsd:element name="CornerOf" type="addr_type:CornerOf_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="CompleteStreetName" type="addr_type:CompleteStreetName_type" minOccurs="1" maxOccurs="1"/>
+            <xsd:group ref="addr:IntersectionAddress_StreetName_group" minOccurs="1" maxOccurs="unbounded"/>
+            <xsd:group ref="addr_type:PlaceStateZip_group" minOccurs="1" maxOccurs="1"/>
+            <xsd:group ref="addr_type:AddressAttributes_group" minOccurs="0" maxOccurs="1"/>
+        </xsd:sequence>
+        <xsd:attribute name="action" type="addr_type:Action_type" use="optional"/>
+    </xsd:complexType>
+    <xsd:complexType name="TwoNumberAddressRange_type">
+        <xsd:annotation>
+            <xsd:documentation>Defining Characteristics
+1. Addresses of this class must include two Complete Address Numbers separated by a hyphen. The first Complete Address Number must be less than or equal to the second.
+2. The two Complete Address Numbers must be followed by a Complete Street Name.
+3. In addition, all thoroughfare, landmark, and postal addresses must include a Place Name and a State Name. A Zip Code is recommended but not mandatory.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:sequence>
+            <xsd:choice>
+                <xsd:element name="CompleteLandmarkName" type="addr_type:CompleteLandmarkName_type" minOccurs="0" maxOccurs="1"/>
+                <xsd:element name="CompletePlaceName" type="addr_type:CompletePlaceName_type" minOccurs="0" maxOccurs="1"/>
+            </xsd:choice>
+            <xsd:element name="CompleteAddressNumber" type="addr_type:CompleteAddressNumber_type" minOccurs="1" maxOccurs="1"/>
+            <xsd:element name="SeparatorElement" type="addr_type:Separator_type" minOccurs="1" maxOccurs="1"/>
+            <xsd:element name="CompleteAddressNumber" type="addr_type:CompleteAddressNumber_type" minOccurs="1" maxOccurs="1"/>
+            <xsd:element name="CompleteStreetName" type="addr_type:CompleteStreetName_type" minOccurs="1" maxOccurs="1"/>
+            <xsd:group ref="addr_type:PlaceStateZip_group" minOccurs="1" maxOccurs="unbounded"/>
+            <xsd:group ref="addr_type:AddressAttributes_group" minOccurs="0" maxOccurs="1"/>
+        </xsd:sequence>
+        <xsd:attribute name="action" type="addr_type:Action_type" use="optional"/>
+    </xsd:complexType>
+    <xsd:complexType name="FourNumberAddressRange_type">
+        <xsd:annotation>
+            <xsd:documentation>Defining Characteristics:
+1. Addresses of this class must include four Complete Address Numbers, representing respectively the left low, left high, right low, and right high four Complete Address Numbers for the block or transportation segment(s), followed by a Complete Street Name.
+2. In addition, all thoroughfare, landmark, and postal addresses must include a Place Name and a State Name. A Zip Code is recommended but not mandatory.
+3. The Four Number Address Range syntax follows the structure established by the U.S. Census Bureau for TIGER/Line file street segment address ranges (see http://www.census.gov/geo/www/tiger/tgrshp2008/TGRSHP08.pdf ("All Lines Shapefile" attribute table layout)).
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:sequence>
+            <xsd:choice>
+                <xsd:element name="CompleteLandmarkName" type="addr_type:CompleteLandmarkName_type" minOccurs="0" maxOccurs="1"/>
+                <xsd:element name="CompletePlaceName" type="addr_type:CompletePlaceName_type" minOccurs="0" maxOccurs="1"/>
+            </xsd:choice>
+            <xsd:element name="CompleteAddressNumber" type="addr_type:CompleteAddressNumber_type" minOccurs="1" maxOccurs="1"/>
+            <xsd:element name="SeparatorElement" type="addr_type:Separator_type" minOccurs="1" maxOccurs="1"/>
+            <xsd:element name="CompleteAddressNumber" type="addr_type:CompleteAddressNumber_type" minOccurs="1" maxOccurs="1"/>
+            <xsd:element name="CompleteAddressNumber" type="addr_type:CompleteAddressNumber_type" minOccurs="1" maxOccurs="1"/>
+            <xsd:element name="SeparatorElement" type="addr_type:Separator_type" minOccurs="1" maxOccurs="1"/>
+            <xsd:element name="CompleteAddressNumber" type="addr_type:CompleteAddressNumber_type" minOccurs="1" maxOccurs="1"/>
+            <xsd:element name="CompleteStreetName" type="addr_type:CompleteStreetName_type" minOccurs="1" maxOccurs="1"/>
+            <xsd:group ref="addr_type:PlaceStateZip_group" minOccurs="1" maxOccurs="1"/>
+            <xsd:group ref="addr_type:AddressAttributes_group" minOccurs="0" maxOccurs="1"/>
+        </xsd:sequence>
+        <xsd:attribute name="action" type="addr_type:Action_type" use="optional"/>
+    </xsd:complexType>
+    <xsd:complexType name="UnnumberedThoroughfareAddress_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">Defining Characteristics:
+1. Addresses of this class must contain a Complete Street Name with no Complete Address Number preceding it.
+2. In addition, all thoroughfare, landmark, and postal addresses must include a Place Name and a State Name. A Zip Code is recommended but not mandatory.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:sequence>
+            <xsd:choice>
+                <xsd:element name="CompleteLandmarkName" type="addr_type:CompleteLandmarkName_type" minOccurs="0" maxOccurs="1"/>
+                <xsd:element name="CompletePlaceName" type="addr_type:CompletePlaceName_type" minOccurs="0" maxOccurs="1"/>
+            </xsd:choice>
+            <xsd:element name="CompleteStreetName" type="addr_type:CompleteStreetName_type" minOccurs="1" maxOccurs="1"/>
+            <xsd:element name="CompleteSubaddress" type="addr_type:CompleteSubaddress_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:group ref="addr_type:PlaceStateZip_group" minOccurs="1" maxOccurs="1"/>
+            <xsd:group ref="addr_type:AddressAttributes_group" minOccurs="0" maxOccurs="1"/>
+        </xsd:sequence>
+        <xsd:attribute name="action" type="addr_type:Action_type" use="optional"/>
+    </xsd:complexType>
+    <!-- Landmark Address Classes -->
+    <xsd:complexType name="LandmarkAddress_type">
+        <xsd:annotation>
+            <xsd:documentation>Defining Characteristics:
+1. Addresses of this class must include a Complete Landmark Name, with no Complete Address Number preceding it and no Complete Street Name following it.
+2. In addition, all thoroughfare, landmark, and postal addresses must include a Place Name and a State Name. A Zip Code is recommended but not mandatory.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:sequence>
+            <xsd:element name="CompleteLandmarkName" type="addr_type:CompleteLandmarkName_type" minOccurs="1" maxOccurs="1"/>
+            <xsd:element name="CompleteSubaddress" type="addr_type:CompleteSubaddress_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:group ref="addr_type:PlaceStateZip_group" minOccurs="1" maxOccurs="1"/>
+            <xsd:group ref="addr_type:AddressAttributes_group" minOccurs="0" maxOccurs="1"/>
+        </xsd:sequence>
+        <xsd:attribute name="action" type="addr_type:Action_type" use="optional"/>
+    </xsd:complexType>
+    <xsd:complexType name="CommunityAddress_type">
+        <xsd:annotation>
+            <xsd:documentation>Defining Characteristics:
+1. Addresses of this class must include a Complete Address Number followed by a Complete Landmark Name or a Complete Place Name, and they must not include a Complete Street Name.
+2. In addition, all thoroughfare, landmark, and postal addresses must include a Place Name and a State Name. A Zip Code is recommended but not mandatory. </xsd:documentation>
+        </xsd:annotation>
+        <xsd:sequence>
+            <xsd:element name="CompleteAddressNumber" type="addr_type:CompleteAddressNumber_type" minOccurs="1" maxOccurs="1"/>
+            <xsd:choice>
+                <xsd:element name="CompleteLandmarkName" type="addr_type:CompleteLandmarkName_type" minOccurs="1" maxOccurs="1"/>
+                <xsd:element name="CompletePlaceName" type="addr_type:CompletePlaceName_type" minOccurs="1" maxOccurs="1"/>
+            </xsd:choice>
+            <xsd:element name="CompleteSubaddress" type="addr_type:CompleteSubaddress_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:group ref="addr_type:PlaceStateZip_group" minOccurs="1" maxOccurs="1"/>
+            <xsd:group ref="addr_type:AddressAttributes_group" minOccurs="0" maxOccurs="1"/>
+        </xsd:sequence>
+        <xsd:attribute name="action" type="addr_type:Action_type" use="optional"/>
+    </xsd:complexType>
+    <!-- Postal Delivery Address Classes -->
+    <xsd:complexType name="USPSPostalDeliveryBox_type">
+        <xsd:annotation>
+            <xsd:documentation>Defining Characteristics:
+1. Addresses of this class must include a USPS Box in the required format, and must not include a USPS Route.
+2. In addition, all thoroughfare, landmark, and postal addresses must include a Place Name and a State Name. A Zip Code is recommended but not mandatory.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:sequence>
+            <xsd:element name="USPSBox" type="addr_type:USPSBox_type" minOccurs="1" maxOccurs="1"/>
+            <xsd:element name="CompleteSubaddress" type="addr_type:CompleteSubaddress_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:group ref="addr_type:PlaceStateZip_group" minOccurs="1" maxOccurs="1"/>
+            <xsd:group ref="addr_type:AddressAttributes_group" minOccurs="0" maxOccurs="1"/>
+        </xsd:sequence>
+        <xsd:attribute name="action" type="addr_type:Action_type" use="optional"/>
+    </xsd:complexType>
+    <xsd:complexType name="USPSPostalDeliveryRoute_type">
+        <xsd:annotation>
+            <xsd:documentation>Defining Characteristics:
+1. Addresses of this class must include a USPS Address in the specified RR or HC or overseas military delivery format.
+2. In addition, all thoroughfare, landmark, and postal addresses must include a Place Name and a State Name. A Zip Code is recommended but not mandatory.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:sequence>
+            <xsd:element name="USPSAddress" type="addr_type:USPSAddress_type" minOccurs="1" maxOccurs="1"/>
+            <xsd:group ref="addr_type:PlaceStateZip_group" minOccurs="1" maxOccurs="1"/>
+            <xsd:group ref="addr_type:AddressAttributes_group" minOccurs="0" maxOccurs="1"/>
+        </xsd:sequence>
+        <xsd:attribute name="action" type="addr_type:Action_type" use="optional"/>
+    </xsd:complexType>
+    <xsd:complexType name="USPSGeneralDeliveryOffice_type">
+        <xsd:annotation>
+            <xsd:documentation>Defining Characteristics:
+1. Addresses of this class must include a USPSGeneral Delivery Point in the specified format.
+2. In addition, all thoroughfare, landmark, and postal addresses must include a Place Name and a State Name. A Zip Code is recommended but not mandatory.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:sequence>
+            <xsd:element name="USPSGeneralDeliveryPoint" type="addr_type:USPSGeneralDeliveryPoint_type"/>
+            <xsd:group ref="addr_type:PlaceStateZip_group" minOccurs="1" maxOccurs="1"/>
+            <xsd:group ref="addr_type:AddressAttributes_group" minOccurs="0" maxOccurs="1"/>
+        </xsd:sequence>
+        <xsd:attribute name="action" type="addr_type:Action_type" use="optional"/>
+    </xsd:complexType>
+    <xsd:complexType name="GeneralAddressClass_type">
+        <xsd:annotation>
+            <xsd:documentation>Defining Characteristic:
+In addresses of this class the Delivery Address must be unparsed (except that in Types 2 and 3 the Complete Subaddress may be separated from the rest of the Delivery Address) and may contain thoroughfare, landmark, or postal syntaxes. This class may also include addresses that do not conform to any of the thoroughfare, landmark, or postal classes, including non-U.S. addresses.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:choice>
+            <xsd:element name="GeneralAddress" type="addr_type:GeneralAddress_type"/>
+            <xsd:sequence>
+                <xsd:element name="USPSGeneralDeliveryPoint" type="addr_type:USPSGeneralDeliveryPoint_type"/>
+                <xsd:group ref="addr_type:PlaceStateZip_group" minOccurs="1" maxOccurs="1"/>
+                <xsd:group ref="addr_type:AddressAttributes_group" minOccurs="0" maxOccurs="1"/>
+            </xsd:sequence>
+        </xsd:choice>
+        <xsd:attribute name="action" type="addr_type:Action_type"/>
+    </xsd:complexType>
+    <xsd:group name="AddressCollection_group">
+        <xsd:annotation>
+            <xsd:documentation>The Single Choice Union of all Address Types</xsd:documentation>
+        </xsd:annotation>
+        <xsd:choice>
+            <xsd:element name="NumberedThoroughfareAddress" type="addr:NumberedThoroughfareAddress_type" minOccurs="0" maxOccurs="unbounded"/>
+            <xsd:element name="IntersectionAddress" type="addr:IntersectionAddress_type" minOccurs="0" maxOccurs="unbounded"/>
+            <xsd:element name="TwoNumberAddressRange" type="addr:TwoNumberAddressRange_type" minOccurs="0" maxOccurs="unbounded"/>
+            <xsd:element name="FourNumberAddressRange" type="addr:FourNumberAddressRange_type" minOccurs="0" maxOccurs="unbounded"/>
+            <xsd:element name="UnnumberedThoroughfareAddress" type="addr:UnnumberedThoroughfareAddress_type" minOccurs="0" maxOccurs="unbounded"/>
+            <xsd:element name="LandmarkAddress" type="addr:LandmarkAddress_type" minOccurs="0" maxOccurs="unbounded"/>
+            <xsd:element name="CommunityAddress" type="addr:CommunityAddress_type" minOccurs="0" maxOccurs="unbounded"/>
+            <xsd:element name="USPSPostalDeliveryBox" type="addr:USPSPostalDeliveryBox_type" minOccurs="0" maxOccurs="unbounded"/>
+            <xsd:element name="USPSPostalDeliveryRoute" type="addr:USPSPostalDeliveryRoute_type" minOccurs="0" maxOccurs="unbounded"/>
+            <xsd:element name="USPSGeneralDeliveryOffice" type="addr:USPSGeneralDeliveryOffice_type" minOccurs="0" maxOccurs="unbounded"/>
+            <xsd:element name="GeneralAddressClass" type="addr:GeneralAddressClass_type" minOccurs="0" maxOccurs="unbounded"/>
+            <xsd:element name="AddressReferenceSystem" type="addr_type:AddressReferenceSystem_type" minOccurs="0" maxOccurs="unbounded"/>
+        </xsd:choice>
+    </xsd:group>
+    <!-- End Complex Types -->
+    <!-- Wrapper collecting a set of addresses -->
+    <xsd:element name="AddressCollection">
+        <xsd:complexType mixed="false">
+            <xsd:choice minOccurs="1" maxOccurs="unbounded">
+                <xsd:group ref="addr:AddressCollection_group"/>
+            </xsd:choice>
+            <xsd:attribute name="version" type="addr_type:version_type" use="required"/>
+        </xsd:complexType>
+    </xsd:element>
+</xsd:schema>
