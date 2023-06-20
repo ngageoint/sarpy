@@ -19,11 +19,11 @@ from sarpy.io.xml.descriptors import IntegerDescriptor, StringEnumDescriptor, \
 from .base import DEFAULT_STRICT, FLOAT_FORMAT
 
 
-_len2_array_text = 'Expected array to be of length 2,\n\t' \
+_len2_array_text = 'Expected array to be of length 2, ' \
                    'and received `{}`'
-_len3_array_text = 'Expected array to be of length 3,\n\t' \
+_len3_array_text = 'Expected array to be of length 3, ' \
                    'and received `{}`'
-_array_type_text = 'Expected array to be numpy.ndarray, list, or tuple,\n\tgot `{}`'
+_array_type_text = 'Expected array to be numpy.ndarray, list, or tuple, got `{}`'
 
 
 #########
@@ -534,7 +534,7 @@ class LatLonCornerType(LatLonType):
             return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 2:
-                raise ValueError('Expected coords to be of length 2, and received {}'.format(array))
+                raise ValueError(_len2_array_text.format(array))
             return cls(Lat=array[0], Lon=array[1], index=index)
         raise ValueError(_array_type_text.format(type(array)))
 
@@ -1483,7 +1483,7 @@ class XYZPolyType(Serializable, Arrayable):
         """
         Evaluate the polynomial at points `t`. This passes `t` straight through
         to :func:`polyval` of `numpy.polynomial.polynomial` for each of
-        `X,Y,Z` components. If any of `X,Y,Z` is not populated, then None is returned.
+        `X,Y,Z` components.
 
         Parameters
         ----------
