@@ -4160,7 +4160,7 @@ class NITFWriter(BaseWriter):
 
             check = self.nitf_writing_details.verify_all_offsets(require=False)
             if check:
-                self.nitf_writing_details.write_header(self._file_object, overwrite=False)
+                self.nitf_writing_details.write_header(self._file_object, overwrite=True)
             self.nitf_writing_details.write_all_populated_items(self._file_object)
         except AttributeError:
             return
