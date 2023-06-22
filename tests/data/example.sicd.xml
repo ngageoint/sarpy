@@ -1039,6 +1039,79 @@
             </GainBSPoly>
             <MLFreqDilation>false</MLFreqDilation>
         </Rcv>
+        <TwoWay>
+            <XAxisPoly>
+                <X order1="2">
+                    <Coef exponent1="0">0.13982986262005959</Coef>
+                    <Coef exponent1="1">-0.0027594341203054122</Coef>
+                    <Coef exponent1="2">-2.642141233211328e-06</Coef>
+                </X>
+                <Y order1="2">
+                    <Coef exponent1="0">-0.985103968766331</Coef>
+                    <Coef exponent1="1">-0.00072022999981332595</Coef>
+                    <Coef exponent1="2">8.6929909937280073e-06</Coef>
+                </Y>
+                <Z order1="2">
+                    <Coef exponent1="0">0.10008886172036295</Coef>
+                    <Coef exponent1="1">-0.0032336279155612555</Coef>
+                    <Coef exponent1="2">-3.6150726160461875e-06</Coef>
+                </Z>
+            </XAxisPoly>
+            <YAxisPoly>
+                <X order1="2">
+                    <Coef exponent1="0">-0.85523535607199153</Coef>
+                    <Coef exponent1="1">-0.00010473716447760117</Coef>
+                    <Coef exponent1="2">1.0612386361416289e-06</Coef>
+                </X>
+                <Y order1="2">
+                    <Coef exponent1="0">-0.06921308838843146</Coef>
+                    <Coef exponent1="1">0.00073787526119144643</Coef>
+                    <Coef exponent1="2">7.399077245060788e-08</Coef>
+                </Y>
+                <Z order1="2">
+                    <Coef exponent1="0">0.51359715158881925</Coef>
+                    <Coef exponent1="1">-7.4969848184029868e-05</Coef>
+                    <Coef exponent1="2">1.2309351838082699e-06</Coef>
+                </Z>
+            </YAxisPoly>
+            <FreqZero>10000000000</FreqZero>
+            <EB>
+                <DCXPoly order1="0">
+                    <Coef exponent1="0">0</Coef>
+                </DCXPoly>
+                <DCYPoly order1="0">
+                    <Coef exponent1="0">0</Coef>
+                </DCYPoly>
+            </EB>
+            <Array>
+                <GainPoly order1="2" order2="2">
+                    <Coef exponent1="0" exponent2="0">0</Coef>
+                    <Coef exponent1="0" exponent2="1">-4.1430777012935061e-12</Coef>
+                    <Coef exponent1="0" exponent2="2">-25810177.686242383</Coef>
+                    <Coef exponent1="1" exponent2="0">-4.1430777012935061e-12</Coef>
+                    <Coef exponent1="1" exponent2="1">0</Coef>
+                    <Coef exponent1="1" exponent2="2">0</Coef>
+                    <Coef exponent1="2" exponent2="0">-25810177.686242383</Coef>
+                    <Coef exponent1="2" exponent2="1">0</Coef>
+                    <Coef exponent1="2" exponent2="2">0</Coef>
+                </GainPoly>
+                <PhasePoly order1="0" order2="0">
+                    <Coef exponent1="0" exponent2="0">0</Coef>
+                </PhasePoly>
+            </Array>
+            <Elem>
+                <GainPoly order1="0" order2="0">
+                    <Coef exponent1="0" exponent2="0">0</Coef>
+                </GainPoly>
+                <PhasePoly order1="0" order2="0">
+                    <Coef exponent1="0" exponent2="0">0</Coef>
+                </PhasePoly>
+            </Elem>
+            <GainBSPoly order1="0">
+                <Coef exponent1="0">0</Coef>
+            </GainBSPoly>
+            <MLFreqDilation>false</MLFreqDilation>
+        </TwoWay>
     </Antenna>
     <PFA>
         <FPN>
