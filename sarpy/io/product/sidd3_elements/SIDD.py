@@ -455,7 +455,7 @@ class SIDDType(Serializable):
     @classmethod
     def from_xml_string(cls, xml_string):
         """
-        Construct the sidd object from an xml string.
+        Construct the sidd object from a xml string.
 
         Parameters
         ----------

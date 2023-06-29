@@ -117,7 +117,7 @@ def create_detected_image_sidd(
         The sicd pixel bounds of the form `(min row, max row, min col, max col)`.
         This will default to the full image.
     version : int
-        The SIDD version to use, must be one of 1 or 2 or 3.
+        The SIDD version to use, must be one of 1, 2, or 3.
     include_sicd : bool
         Include the SICD structure in the SIDD file?
     remap_function : None|MonochromaticRemap
@@ -203,7 +203,7 @@ def create_csi_sidd(
         The sicd pixel bounds of the form `(min row, max row, min col, max col)`.
         This will default to the full image.
     version : int
-        The SIDD version to use, must be one of 1 or 2 or 3.
+        The SIDD version to use, must be one of 1, 2, or 3.
     include_sicd : bool
         Include the SICD structure in the SIDD file?
     remap_function : None|MonochromaticRemap
@@ -301,7 +301,7 @@ def create_dynamic_image_sidd(
         The subaperture processing method, which must be one of
         `('NORMAL', 'FULL', 'MINIMAL')`.
     version : int
-        The SIDD version to use, must be one of 1 or 2 or 3.
+        The SIDD version to use, must be one of 1, 2, or 3.
     include_sicd : bool
         Include the SICD structure in the SIDD file?
     remap_function : None|MonochromaticRemap

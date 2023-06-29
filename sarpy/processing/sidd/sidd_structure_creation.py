@@ -134,6 +134,7 @@ def _create_plane_projection(proj_helper, bounds):
         ProductPlane=ProductPlaneType(RowUnitVector=proj_helper.row_vector,
                                       ColUnitVector=proj_helper.col_vector))
 
+
 def _fit_timecoa_poly_v3(proj_helper, bounds):
     """
     Fit the TimeCOA in new pixel coordinates.
@@ -181,6 +182,7 @@ def _fit_timecoa_poly_v3(proj_helper, bounds):
         'singular values = {}'.format(residuals, rank, sing_values))
     return Poly2DType3(Coefs=sidd_timecoa_coeffs)
 
+
 def _create_plane_projection_v3(proj_helper, bounds):
     """
     Construct the PlaneProjection structure for both version 1 & 2.
@@ -198,12 +200,14 @@ def _create_plane_projection_v3(proj_helper, bounds):
 
     ref_pixels = proj_helper.reference_pixels
     return PlaneProjectionType3(
-	ReferencePoint=ReferencePointType3(ECEF=proj_helper.reference_point,
-		                           Point=(float(ref_pixels[0]-bounds[0]), float(ref_pixels[1]-bounds[2]))),
-	SampleSpacing=(proj_helper.row_spacing, proj_helper.col_spacing),
-	TimeCOAPoly=_fit_timecoa_poly_v3(proj_helper, bounds),
-	ProductPlane=ProductPlaneType3(RowUnitVector=proj_helper.row_vector,
-		                       ColUnitVector=proj_helper.col_vector))
+        ReferencePoint=ReferencePointType3(ECEF=proj_helper.reference_point,
+                                           Point=(float(ref_pixels[0]-bounds[0]),
+                                                  float(ref_pixels[1]-bounds[2]))),
+        SampleSpacing=(proj_helper.row_spacing, proj_helper.col_spacing),
+        TimeCOAPoly=_fit_timecoa_poly_v3(proj_helper, bounds),
+        ProductPlane=ProductPlaneType3(RowUnitVector=proj_helper.row_vector,
+                                       ColUnitVector=proj_helper.col_vector))
+
 
 #########################
 # Version 3 element creation
@@ -320,6 +324,7 @@ def create_sidd_structure_v3(ortho_helper, bounds, product_class, pixel_type):
                      Display=display,
                      Measurement=measurement,
                      ExploitationFeatures=exploit_feats)
+
 
 #########################
 # Version 2 element creation
@@ -535,7 +540,7 @@ def create_sidd_structure(ortho_helper, bounds, product_class, pixel_type, versi
     pixel_type : str
         Must be one of `MONO8I, MONO16I` or `RGB24I`.
     version : int
-        The SIDD version, must be either 1 or 2 or 3.
+        The SIDD version, must be either 1, 2, or 3.
 
     Returns
     -------
@@ -543,7 +548,7 @@ def create_sidd_structure(ortho_helper, bounds, product_class, pixel_type, versi
     """
 
     if version not in [1, 2, 3]:
-        raise ValueError('version must be 1 or 2 or 3. Got {}'.format(version))
+        raise ValueError('version must be 1, 2, or 3. Got {}'.format(version))
 
     if version == 1:
         return create_sidd_structure_v1(ortho_helper, bounds, product_class, pixel_type)

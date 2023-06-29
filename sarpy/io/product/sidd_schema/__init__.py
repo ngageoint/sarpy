@@ -31,7 +31,7 @@ urn_mapping = {
         'ism_urn': 'urn:us:gov:ic:ism:13',
         'sfa_urn': 'urn:SFA:1.2.0',
         'sicommon_urn': 'urn:SICommon:1.0',
-        'version': '3.0',
+        'version': '3.0.0',
         'release': '3.0.0',
         'date': '2020-06-02T00:00:00Z',
         'schema': os.path.join(_the_directory, 'version3', 'SIDD_schema_V3.0.0.xsd')},

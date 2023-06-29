@@ -126,7 +126,7 @@ class BasicDescriptor(object):
         instance : object
             the calling class instance
         value
-            the value to use in setting - the type depends of the specific extension of this base class
+            the value to use in setting - the type depends on the specific extension of this base class
 
         Returns
         -------
@@ -135,7 +135,7 @@ class BasicDescriptor(object):
             a return. This returns True if this the setting value was None, and False otherwise.
         """
 
-        # NOTE: This is intended to handle this case for every extension of this class. Hence the boolean return,
+        # NOTE: This is intended to handle this case for every extension of this class. Hence, the boolean return,
         # which extensions SHOULD NOT implement. This is merely to follow DRY principles.
         if value is None:
             if self.default_value is not None:
