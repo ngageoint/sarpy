@@ -1,0 +1,3047 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- As originally specified in OGC Best Practices Document:
+            Gazetteer Service - Application Profile of the Web Feature Service Implementation Specification
+            Version 0.9.4, OGC 11-122r1, 2011-08-18
+      - Revised from GML 3.1.1 to GML 3.2.1
+  -->
+<gml:Dictionary
+   xmlns:gml="http://www.opengis.net/gml/3.2"
+   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+   xsi:schemaLocation="http://www.opengis.net/gml/3.2 ../../../../ogc/gml/3.2.1/gml.xsd"
+   gml:id="ISO639-3">
+    <gml:description>
+      ISO 639-3 is a code that aims to define three-letter identifiers for all known human languages. At the core of ISO 639-3 are the individual languages already accounted for in ISO 639-2. The large number of living languages in the initial inventory of ISO 639-3 beyond those already included in ISO 639-2 was derived primarily from Ethnologue (15th edition). Additional extinct, ancient, historic, and constructed languages have been obtained from Linguist List.
+   </gml:description>
+    <gml:identifier codeSpace="">ISO639-3</gml:identifier>
+    <gml:name>Codes for the Representation of Names of Languages</gml:name>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aaa">
+            <gml:identifier codeSpace="">aaa</gml:identifier>
+            <gml:name>Ghotuo</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aab">
+            <gml:identifier codeSpace="">aab</gml:identifier>
+            <gml:name>Alumu-Tesu</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aac">
+            <gml:identifier codeSpace="">aaa</gml:identifier>
+            <gml:name>Ari</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aad">
+            <gml:identifier codeSpace="">aac</gml:identifier>
+            <gml:name>Amal</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aae">
+            <gml:identifier codeSpace="">aae</gml:identifier>
+            <gml:name>Arbereshe Albanian</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aaf">
+            <gml:identifier codeSpace="">aac</gml:identifier>
+            <gml:name>Aranadan</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aag">
+            <gml:identifier codeSpace="">aae</gml:identifier>
+            <gml:name>Ambrak</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aah">
+            <gml:identifier codeSpace="">aae</gml:identifier>
+            <gml:name>Abu' Arapesh</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aai">
+            <gml:identifier codeSpace="">aac</gml:identifier>
+            <gml:name>Arifama-Miniafia</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aak">
+            <gml:identifier codeSpace="">aak</gml:identifier>
+            <gml:name>Ankave</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aal">
+            <gml:identifier codeSpace="">aae</gml:identifier>
+            <gml:name>Afade</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aam">
+            <gml:identifier codeSpace="">aal</gml:identifier>
+            <gml:name>Aramanik</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aan">
+            <gml:identifier codeSpace="">aac</gml:identifier>
+            <gml:name>Anambe</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aao">
+            <gml:identifier codeSpace="">aah</gml:identifier>
+            <gml:name>Algerian Saharan Arabic</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aap">
+            <gml:identifier codeSpace="">aan</gml:identifier>
+            <gml:name>Para Arara</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aaq">
+            <gml:identifier codeSpace="">aaa</gml:identifier>
+            <gml:name>Eastern Abnaki</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aar">
+            <gml:identifier codeSpace="">aae</gml:identifier>
+            <gml:name>Afar</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aas">
+            <gml:identifier codeSpace="">aai</gml:identifier>
+            <gml:name>Aasax</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aat">
+            <gml:identifier codeSpace="">aan</gml:identifier>
+            <gml:name>Arvanitika Albanian</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aau">
+            <gml:identifier codeSpace="">aar</gml:identifier>
+            <gml:name>Abau</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aaw">
+            <gml:identifier codeSpace="">aaw</gml:identifier>
+            <gml:name>Solong</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aax">
+            <gml:identifier codeSpace="">aab</gml:identifier>
+            <gml:name>Mandobo Atas</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aaz">
+            <gml:identifier codeSpace="">aae</gml:identifier>
+            <gml:name>Amarasi</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aba">
+            <gml:identifier codeSpace="">aah</gml:identifier>
+            <gml:name>Abe</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="abb">
+            <gml:identifier codeSpace="">aal</gml:identifier>
+            <gml:name>Bankon</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="abc">
+            <gml:identifier codeSpace="">aao</gml:identifier>
+            <gml:name>Ambala Ayta</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="abd">
+            <gml:identifier codeSpace="">aar</gml:identifier>
+            <gml:name>Camarines Norte Agta</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="abe">
+            <gml:identifier codeSpace="">aau</gml:identifier>
+            <gml:name>Western Abnaki</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="abf">
+            <gml:identifier codeSpace="">aaz</gml:identifier>
+            <gml:name>Abai Sungai</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="abg">
+            <gml:identifier codeSpace="">abc</gml:identifier>
+            <gml:name>Abaga</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="abh">
+            <gml:identifier codeSpace="">abf</gml:identifier>
+            <gml:name>Tajiki Arabic</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="abi">
+            <gml:identifier codeSpace="">abi</gml:identifier>
+            <gml:name>Abidji</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="abj">
+            <gml:identifier codeSpace="">aaa</gml:identifier>
+            <gml:name>Aka-Bea</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="abk">
+            <gml:identifier codeSpace="">aac</gml:identifier>
+            <gml:name>Abkhazian</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="abl">
+            <gml:identifier codeSpace="">aae</gml:identifier>
+            <gml:name>Lampung Nyo</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="abm">
+            <gml:identifier codeSpace="">aag</gml:identifier>
+            <gml:name>Abanyom</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="abn">
+            <gml:identifier codeSpace="">aai</gml:identifier>
+            <gml:name>Abua</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="abo">
+            <gml:identifier codeSpace="">aal</gml:identifier>
+            <gml:name>Abon</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="abp">
+            <gml:identifier codeSpace="">aan</gml:identifier>
+            <gml:name>Abenlen Ayta</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="abq">
+            <gml:identifier codeSpace="">aap</gml:identifier>
+            <gml:name>Abaza</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="abr">
+            <gml:identifier codeSpace="">aar</gml:identifier>
+            <gml:name>Abron</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="abs">
+            <gml:identifier codeSpace="">aat</gml:identifier>
+            <gml:name>Ambonese Malay</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="abt">
+            <gml:identifier codeSpace="">aaw</gml:identifier>
+            <gml:name>Ambulas</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="abu">
+            <gml:identifier codeSpace="">aaz</gml:identifier>
+            <gml:name>Abure</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="abv">
+            <gml:identifier codeSpace="">abb</gml:identifier>
+            <gml:name>Baharna Arabic</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="abw">
+            <gml:identifier codeSpace="">abd</gml:identifier>
+            <gml:name>Pal</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="abx">
+            <gml:identifier codeSpace="">abf</gml:identifier>
+            <gml:name>Inabaknon</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aby">
+            <gml:identifier codeSpace="">abh</gml:identifier>
+            <gml:name>Aneme Wake</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="abz">
+            <gml:identifier codeSpace="">abj</gml:identifier>
+            <gml:name>Abui</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aca">
+            <gml:identifier codeSpace="">abl</gml:identifier>
+            <gml:name>Achagua</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="acb">
+            <gml:identifier codeSpace="">abn</gml:identifier>
+            <gml:name>Anca</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="acd">
+            <gml:identifier codeSpace="">abp</gml:identifier>
+            <gml:name>Gikyode</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ace">
+            <gml:identifier codeSpace="">abr</gml:identifier>
+            <gml:name>Achinese</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="acf">
+            <gml:identifier codeSpace="">abt</gml:identifier>
+            <gml:name>Saint Lucian Creole French</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ach">
+            <gml:identifier codeSpace="">abv</gml:identifier>
+            <gml:name>Acoli</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aci">
+            <gml:identifier codeSpace="">abx</gml:identifier>
+            <gml:name>Aka-Cari</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ack">
+            <gml:identifier codeSpace="">abz</gml:identifier>
+            <gml:name>Aka-Kora</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="acl">
+            <gml:identifier codeSpace="">acb</gml:identifier>
+            <gml:name>Akar-Bale</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="acm">
+            <gml:identifier codeSpace="">ace</gml:identifier>
+            <gml:name>Mesopotamian Arabic</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="acn">
+            <gml:identifier codeSpace="">acf</gml:identifier>
+            <gml:name>Achang</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="acp">
+            <gml:identifier codeSpace="">ach</gml:identifier>
+            <gml:name>Eastern Acipa</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="acq">
+            <gml:identifier codeSpace="">aci</gml:identifier>
+            <gml:name>Ta'izzi-Adeni Arabic</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="acr">
+            <gml:identifier codeSpace="">ack</gml:identifier>
+            <gml:name>Achi</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="acs">
+            <gml:identifier codeSpace="">acl</gml:identifier>
+            <gml:name>Acroa</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="act">
+            <gml:identifier codeSpace="">acm</gml:identifier>
+            <gml:name>Achterhoeks</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="acu">
+            <gml:identifier codeSpace="">acn</gml:identifier>
+            <gml:name>Achuar-Shiwiar</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="acv">
+            <gml:identifier codeSpace="">acp</gml:identifier>
+            <gml:name>Achumawi</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="acw">
+            <gml:identifier codeSpace="">acq</gml:identifier>
+            <gml:name>Hijazi Arabic</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="acx">
+            <gml:identifier codeSpace="">acr</gml:identifier>
+            <gml:name>Omani Arabic</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="acy">
+            <gml:identifier codeSpace="">acs</gml:identifier>
+            <gml:name>Cypriot Arabic</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="acz">
+            <gml:identifier codeSpace="">act</gml:identifier>
+            <gml:name>Acheron</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ada">
+            <gml:identifier codeSpace="">acu</gml:identifier>
+            <gml:name>Adangme</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="adb">
+            <gml:identifier codeSpace="">acv</gml:identifier>
+            <gml:name>Adabe</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="add">
+            <gml:identifier codeSpace="">acw</gml:identifier>
+            <gml:name>Dzodinka</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ade">
+            <gml:identifier codeSpace="">acx</gml:identifier>
+            <gml:name>Adele</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="adf">
+            <gml:identifier codeSpace="">acy</gml:identifier>
+            <gml:name>Dhofari Arabic</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="adg">
+            <gml:identifier codeSpace="">acz</gml:identifier>
+            <gml:name>Andegerebinha</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="adh">
+            <gml:identifier codeSpace="">ada</gml:identifier>
+            <gml:name>Adhola</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="adi">
+            <gml:identifier codeSpace="">adb</gml:identifier>
+            <gml:name>Adi</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="adj">
+            <gml:identifier codeSpace="">add</gml:identifier>
+            <gml:name>Adioukrou</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="adl">
+            <gml:identifier codeSpace="">ade</gml:identifier>
+            <gml:name>Galo</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="adn">
+            <gml:identifier codeSpace="">adf</gml:identifier>
+            <gml:name>Adang</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ado">
+            <gml:identifier codeSpace="">adg</gml:identifier>
+            <gml:name>Abu</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="adp">
+            <gml:identifier codeSpace="">adh</gml:identifier>
+            <gml:name>Adap</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="adq">
+            <gml:identifier codeSpace="">adi</gml:identifier>
+            <gml:name>Adangbe</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="adr">
+            <gml:identifier codeSpace="">adj</gml:identifier>
+            <gml:name>Adonara</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ads">
+            <gml:identifier codeSpace="">adl</gml:identifier>
+            <gml:name>Adamorobe Sign Language</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="adt">
+            <gml:identifier codeSpace="">adn</gml:identifier>
+            <gml:name>Adnyamathanha</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="adu">
+            <gml:identifier codeSpace="">ado</gml:identifier>
+            <gml:name>Aduge</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="adw">
+            <gml:identifier codeSpace="">adp</gml:identifier>
+            <gml:name>Amundava</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="adx">
+            <gml:identifier codeSpace="">adq</gml:identifier>
+            <gml:name>Amdo Tibetan</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ady">
+            <gml:identifier codeSpace="">adr</gml:identifier>
+            <gml:name>Adyghe</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="adz">
+            <gml:identifier codeSpace="">ads</gml:identifier>
+            <gml:name>Adzera</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aea">
+            <gml:identifier codeSpace="">adt</gml:identifier>
+            <gml:name>Areba</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aeb">
+            <gml:identifier codeSpace="">adu</gml:identifier>
+            <gml:name>Tunisian Arabic</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aec">
+            <gml:identifier codeSpace="">adw</gml:identifier>
+            <gml:name>Saidi Arabic</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aed">
+            <gml:identifier codeSpace="">adx</gml:identifier>
+            <gml:name>Argentine Sign Language</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aee">
+            <gml:identifier codeSpace="">ady</gml:identifier>
+            <gml:name>Northeast Pashayi</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aek">
+            <gml:identifier codeSpace="">adz</gml:identifier>
+            <gml:name>Haeke</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ael">
+            <gml:identifier codeSpace="">aea</gml:identifier>
+            <gml:name>Ambele</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aem">
+            <gml:identifier codeSpace="">aeb</gml:identifier>
+            <gml:name>Arem</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aen">
+            <gml:identifier codeSpace="">aec</gml:identifier>
+            <gml:name>Armenian Sign Language</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aeq">
+            <gml:identifier codeSpace="">aed</gml:identifier>
+            <gml:name>Aer</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aer">
+            <gml:identifier codeSpace="">aee</gml:identifier>
+            <gml:name>Eastern Arrernte</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aes">
+            <gml:identifier codeSpace="">aek</gml:identifier>
+            <gml:name>Alsea</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aeu">
+            <gml:identifier codeSpace="">ael</gml:identifier>
+            <gml:name>Akeu</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aew">
+            <gml:identifier codeSpace="">aem</gml:identifier>
+            <gml:name>Ambakich</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aey">
+            <gml:identifier codeSpace="">aen</gml:identifier>
+            <gml:name>Amele</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aez">
+            <gml:identifier codeSpace="">aeq</gml:identifier>
+            <gml:name>Aeka</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="afb">
+            <gml:identifier codeSpace="">aer</gml:identifier>
+            <gml:name>Gulf Arabic</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="afd">
+            <gml:identifier codeSpace="">aes</gml:identifier>
+            <gml:name>Andai</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="afe">
+            <gml:identifier codeSpace="">aeu</gml:identifier>
+            <gml:name>Putukwam</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="afg">
+            <gml:identifier codeSpace="">aew</gml:identifier>
+            <gml:name>Afghan Sign Language</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="afh">
+            <gml:identifier codeSpace="">aey</gml:identifier>
+            <gml:name>Afrihili</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="afi">
+            <gml:identifier codeSpace="">aez</gml:identifier>
+            <gml:name>Akrukay</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="afk">
+            <gml:identifier codeSpace="">afb</gml:identifier>
+            <gml:name>Nanubae</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="afn">
+            <gml:identifier codeSpace="">afd</gml:identifier>
+            <gml:name>Defaka</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="afo">
+            <gml:identifier codeSpace="">afe</gml:identifier>
+            <gml:name>Eloyi</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="afp">
+            <gml:identifier codeSpace="">afg</gml:identifier>
+            <gml:name>Tapei</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="afr">
+            <gml:identifier codeSpace="">afh</gml:identifier>
+            <gml:name>Afrikaans</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="afs">
+            <gml:identifier codeSpace="">afi</gml:identifier>
+            <gml:name>Afro-Seminole Creole</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aft">
+            <gml:identifier codeSpace="">afk</gml:identifier>
+            <gml:name>Afitti</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="afu">
+            <gml:identifier codeSpace="">afn</gml:identifier>
+            <gml:name>Awutu</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="afz">
+            <gml:identifier codeSpace="">afo</gml:identifier>
+            <gml:name>Obokuitai</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aga">
+            <gml:identifier codeSpace="">afp</gml:identifier>
+            <gml:name>Aguano</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="agb">
+            <gml:identifier codeSpace="">afr</gml:identifier>
+            <gml:name>Legbo</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="agc">
+            <gml:identifier codeSpace="">afs</gml:identifier>
+            <gml:name>Agatu</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="agd">
+            <gml:identifier codeSpace="">aft</gml:identifier>
+            <gml:name>Agarabi</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="age">
+            <gml:identifier codeSpace="">afu</gml:identifier>
+            <gml:name>Angal</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="agf">
+            <gml:identifier codeSpace="">afz</gml:identifier>
+            <gml:name>Arguni</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="agg">
+            <gml:identifier codeSpace="">aga</gml:identifier>
+            <gml:name>Angor</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="agh">
+            <gml:identifier codeSpace="">agb</gml:identifier>
+            <gml:name>Ngelima</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="agi">
+            <gml:identifier codeSpace="">agc</gml:identifier>
+            <gml:name>Agariya</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="agj">
+            <gml:identifier codeSpace="">agd</gml:identifier>
+            <gml:name>Argobba</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="agk">
+            <gml:identifier codeSpace="">age</gml:identifier>
+            <gml:name>Isarog Agta</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="agl">
+            <gml:identifier codeSpace="">agf</gml:identifier>
+            <gml:name>Fembe</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="agm">
+            <gml:identifier codeSpace="">agg</gml:identifier>
+            <gml:name>Angaataha</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="agn">
+            <gml:identifier codeSpace="">agh</gml:identifier>
+            <gml:name>Agutaynen</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ago">
+            <gml:identifier codeSpace="">agi</gml:identifier>
+            <gml:name>Tainae</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="agp">
+            <gml:identifier codeSpace="">agj</gml:identifier>
+            <gml:name>Paranan</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="agq">
+            <gml:identifier codeSpace="">agk</gml:identifier>
+            <gml:name>Aghem</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="agr">
+            <gml:identifier codeSpace="">agl</gml:identifier>
+            <gml:name>Aguaruna</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ags">
+            <gml:identifier codeSpace="">agm</gml:identifier>
+            <gml:name>Esimbi</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="agt">
+            <gml:identifier codeSpace="">agn</gml:identifier>
+            <gml:name>Central Cagayan Agta</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="agu">
+            <gml:identifier codeSpace="">ago</gml:identifier>
+            <gml:name>Aguacateco</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="agv">
+            <gml:identifier codeSpace="">agp</gml:identifier>
+            <gml:name>Remontado Agta</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="agw">
+            <gml:identifier codeSpace="">agq</gml:identifier>
+            <gml:name>Kahua</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="agx">
+            <gml:identifier codeSpace="">agr</gml:identifier>
+            <gml:name>Aghul</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="agy">
+            <gml:identifier codeSpace="">ags</gml:identifier>
+            <gml:name>Southern Alta</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="agz">
+            <gml:identifier codeSpace="">agt</gml:identifier>
+            <gml:name>Mt. Iriga Agta</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aha">
+            <gml:identifier codeSpace="">agu</gml:identifier>
+            <gml:name>Ahanta</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ahb">
+            <gml:identifier codeSpace="">agv</gml:identifier>
+            <gml:name>Axamb</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ahg">
+            <gml:identifier codeSpace="">agw</gml:identifier>
+            <gml:name>Qimant</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ahh">
+            <gml:identifier codeSpace="">agx</gml:identifier>
+            <gml:name>Aghu</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ahi">
+            <gml:identifier codeSpace="">agy</gml:identifier>
+            <gml:name>Tiagbamrin Aizi</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ahk">
+            <gml:identifier codeSpace="">agz</gml:identifier>
+            <gml:name>Akha</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ahl">
+            <gml:identifier codeSpace="">aha</gml:identifier>
+            <gml:name>Igo</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ahm">
+            <gml:identifier codeSpace="">ahb</gml:identifier>
+            <gml:name>Mobumrin Aizi</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ahn">
+            <gml:identifier codeSpace="">ahg</gml:identifier>
+            <gml:name>Ahan</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aho">
+            <gml:identifier codeSpace="">ahh</gml:identifier>
+            <gml:name>Ahom</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ahp">
+            <gml:identifier codeSpace="">ahi</gml:identifier>
+            <gml:name>Aproumu Aizi</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ahr">
+            <gml:identifier codeSpace="">ahk</gml:identifier>
+            <gml:name>Ahirani</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ahs">
+            <gml:identifier codeSpace="">ahl</gml:identifier>
+            <gml:name>Ashe</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aht">
+            <gml:identifier codeSpace="">ahm</gml:identifier>
+            <gml:name>Ahtena</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aia">
+            <gml:identifier codeSpace="">ahn</gml:identifier>
+            <gml:name>Arosi</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aib">
+            <gml:identifier codeSpace="">aho</gml:identifier>
+            <gml:name>Ainu (China)</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aic">
+            <gml:identifier codeSpace="">ahp</gml:identifier>
+            <gml:name>Ainbai</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aid">
+            <gml:identifier codeSpace="">ahr</gml:identifier>
+            <gml:name>Alngith</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aie">
+            <gml:identifier codeSpace="">ahs</gml:identifier>
+            <gml:name>Amara</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aif">
+            <gml:identifier codeSpace="">aht</gml:identifier>
+            <gml:name>Agi</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aig">
+            <gml:identifier codeSpace="">aia</gml:identifier>
+            <gml:name>Antigua and Barbuda Creole English</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aih">
+            <gml:identifier codeSpace="">aib</gml:identifier>
+            <gml:name>Ai-Cham</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aii">
+            <gml:identifier codeSpace="">aic</gml:identifier>
+            <gml:name>Assyrian Neo-Aramaic</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aij">
+            <gml:identifier codeSpace="">aid</gml:identifier>
+            <gml:name>Lishanid Noshan</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aik">
+            <gml:identifier codeSpace="">aie</gml:identifier>
+            <gml:name>Ake</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ail">
+            <gml:identifier codeSpace="">aif</gml:identifier>
+            <gml:name>Aimele</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aim">
+            <gml:identifier codeSpace="">aig</gml:identifier>
+            <gml:name>Aimol</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ain">
+            <gml:identifier codeSpace="">aih</gml:identifier>
+            <gml:name>Ainu (Japan)</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aio">
+            <gml:identifier codeSpace="">aii</gml:identifier>
+            <gml:name>Aiton</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aip">
+            <gml:identifier codeSpace="">aij</gml:identifier>
+            <gml:name>Burumakok</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aiq">
+            <gml:identifier codeSpace="">aik</gml:identifier>
+            <gml:name>Aimaq</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="air">
+            <gml:identifier codeSpace="">ail</gml:identifier>
+            <gml:name>Airoran</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ais">
+            <gml:identifier codeSpace="">aim</gml:identifier>
+            <gml:name>Nataoran Amis</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ait">
+            <gml:identifier codeSpace="">ain</gml:identifier>
+            <gml:name>Arikem</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aiw">
+            <gml:identifier codeSpace="">aio</gml:identifier>
+            <gml:name>Aari</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aix">
+            <gml:identifier codeSpace="">aip</gml:identifier>
+            <gml:name>Aighon</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aiy">
+            <gml:identifier codeSpace="">aiq</gml:identifier>
+            <gml:name>Ali</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aja">
+            <gml:identifier codeSpace="">air</gml:identifier>
+            <gml:name>Aja (Sudan)</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ajg">
+            <gml:identifier codeSpace="">ais</gml:identifier>
+            <gml:name>Aja (Benin)</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aji">
+            <gml:identifier codeSpace="">ait</gml:identifier>
+            <gml:name>Ajie</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ajp">
+            <gml:identifier codeSpace="">aiw</gml:identifier>
+            <gml:name>South Levantine Arabic</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ajt">
+            <gml:identifier codeSpace="">aix</gml:identifier>
+            <gml:name>Judeo-Tunisian Arabic</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aju">
+            <gml:identifier codeSpace="">aiy</gml:identifier>
+            <gml:name>Judeo-Moroccan Arabic</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ajw">
+            <gml:identifier codeSpace="">aja</gml:identifier>
+            <gml:name>Ajawa</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ajz">
+            <gml:identifier codeSpace="">ajg</gml:identifier>
+            <gml:name>Amri Karbi</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aka">
+            <gml:identifier codeSpace="">aji</gml:identifier>
+            <gml:name>AkanMacrolanguageLivingmore ...</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="akb">
+            <gml:identifier codeSpace="">ajp</gml:identifier>
+            <gml:name>Batak Angkola</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="akc">
+            <gml:identifier codeSpace="">ajt</gml:identifier>
+            <gml:name>Mpur</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="akd">
+            <gml:identifier codeSpace="">aju</gml:identifier>
+            <gml:name>Ukpet-Ehom</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ake">
+            <gml:identifier codeSpace="">ajw</gml:identifier>
+            <gml:name>Akawaio</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="akf">
+            <gml:identifier codeSpace="">ajz</gml:identifier>
+            <gml:name>Akpa</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="akg">
+            <gml:identifier codeSpace="">aka</gml:identifier>
+            <gml:name>Anakalangu</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="akh">
+            <gml:identifier codeSpace="">akb</gml:identifier>
+            <gml:name>Angal Heneng</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aki">
+            <gml:identifier codeSpace="">akc</gml:identifier>
+            <gml:name>Aiome</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="akj">
+            <gml:identifier codeSpace="">akd</gml:identifier>
+            <gml:name>Aka-Jeru</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="akk">
+            <gml:identifier codeSpace="">ake</gml:identifier>
+            <gml:name>Akkadian</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="akl">
+            <gml:identifier codeSpace="">akf</gml:identifier>
+            <gml:name>Aklanon</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="akm">
+            <gml:identifier codeSpace="">akg</gml:identifier>
+            <gml:name>Aka-Bo</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ako">
+            <gml:identifier codeSpace="">akh</gml:identifier>
+            <gml:name>Akurio</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="akp">
+            <gml:identifier codeSpace="">aki</gml:identifier>
+            <gml:name>Siwu</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="akq">
+            <gml:identifier codeSpace="">akj</gml:identifier>
+            <gml:name>Ak</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="akr">
+            <gml:identifier codeSpace="">akk</gml:identifier>
+            <gml:name>Araki</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aks">
+            <gml:identifier codeSpace="">akl</gml:identifier>
+            <gml:name>Akaselem</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="akt">
+            <gml:identifier codeSpace="">akm</gml:identifier>
+            <gml:name>Akolet</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aku">
+            <gml:identifier codeSpace="">ako</gml:identifier>
+            <gml:name>Akum</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="akv">
+            <gml:identifier codeSpace="">akp</gml:identifier>
+            <gml:name>Akhvakh</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="akw">
+            <gml:identifier codeSpace="">akq</gml:identifier>
+            <gml:name>Akwa</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="akx">
+            <gml:identifier codeSpace="">akr</gml:identifier>
+            <gml:name>Aka-Kede</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aky">
+            <gml:identifier codeSpace="">aks</gml:identifier>
+            <gml:name>Aka-Kol</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="akz">
+            <gml:identifier codeSpace="">akt</gml:identifier>
+            <gml:name>Alabama</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ala">
+            <gml:identifier codeSpace="">aku</gml:identifier>
+            <gml:name>Alago</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="alc">
+            <gml:identifier codeSpace="">akv</gml:identifier>
+            <gml:name>Qawasqar</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ald">
+            <gml:identifier codeSpace="">akw</gml:identifier>
+            <gml:name>Alladian</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ale">
+            <gml:identifier codeSpace="">akx</gml:identifier>
+            <gml:name>Aleut</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="alf">
+            <gml:identifier codeSpace="">aky</gml:identifier>
+            <gml:name>Alege</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="alh">
+            <gml:identifier codeSpace="">akz</gml:identifier>
+            <gml:name>Alawa</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ali">
+            <gml:identifier codeSpace="">ala</gml:identifier>
+            <gml:name>Amaimon</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="alj">
+            <gml:identifier codeSpace="">alc</gml:identifier>
+            <gml:name>Alangan</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="alk">
+            <gml:identifier codeSpace="">ald</gml:identifier>
+            <gml:name>Alak</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="all">
+            <gml:identifier codeSpace="">ale</gml:identifier>
+            <gml:name>Allar</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="alm">
+            <gml:identifier codeSpace="">alf</gml:identifier>
+            <gml:name>Amblong</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aln">
+            <gml:identifier codeSpace="">alh</gml:identifier>
+            <gml:name>Gheg Albanian</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="alo">
+            <gml:identifier codeSpace="">ali</gml:identifier>
+            <gml:name>Larike-Wakasihu</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="alp">
+            <gml:identifier codeSpace="">alj</gml:identifier>
+            <gml:name>Alune</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="alq">
+            <gml:identifier codeSpace="">alk</gml:identifier>
+            <gml:name>Algonquin</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="alr">
+            <gml:identifier codeSpace="">all</gml:identifier>
+            <gml:name>Alutor</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="als">
+            <gml:identifier codeSpace="">alm</gml:identifier>
+            <gml:name>Tosk Albanian</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="alt">
+            <gml:identifier codeSpace="">aln</gml:identifier>
+            <gml:name>Southern Altai</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="alu">
+            <gml:identifier codeSpace="">alo</gml:identifier>
+            <gml:name>'Are'are</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="alw">
+            <gml:identifier codeSpace="">alp</gml:identifier>
+            <gml:name>Alaba-K�abeena</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="alx">
+            <gml:identifier codeSpace="">alq</gml:identifier>
+            <gml:name>Amol</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aly">
+            <gml:identifier codeSpace="">alr</gml:identifier>
+            <gml:name>Alyawarr</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="alz">
+            <gml:identifier codeSpace="">als</gml:identifier>
+            <gml:name>Alur</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ama">
+            <gml:identifier codeSpace="">alt</gml:identifier>
+            <gml:name>Amanaye</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="amb">
+            <gml:identifier codeSpace="">alu</gml:identifier>
+            <gml:name>Ambo</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="amc">
+            <gml:identifier codeSpace="">alw</gml:identifier>
+            <gml:name>Amahuaca</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ame">
+            <gml:identifier codeSpace="">alx</gml:identifier>
+            <gml:name>Yanesha'</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="amf">
+            <gml:identifier codeSpace="">aly</gml:identifier>
+            <gml:name>Hamer-Banna</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="amg">
+            <gml:identifier codeSpace="">alz</gml:identifier>
+            <gml:name>Amarag</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="amh">
+            <gml:identifier codeSpace="">ama</gml:identifier>
+            <gml:name>Amharic</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ami">
+            <gml:identifier codeSpace="">amb</gml:identifier>
+            <gml:name>Amis</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="amj">
+            <gml:identifier codeSpace="">amc</gml:identifier>
+            <gml:name>Amdang</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="amk">
+            <gml:identifier codeSpace="">ame</gml:identifier>
+            <gml:name>Ambai</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aml">
+            <gml:identifier codeSpace="">amf</gml:identifier>
+            <gml:name>War-Jaintia</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="amm">
+            <gml:identifier codeSpace="">amg</gml:identifier>
+            <gml:name>Ama (Papua New Guinea)</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="amn">
+            <gml:identifier codeSpace="">amh</gml:identifier>
+            <gml:name>Amanab</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="amo">
+            <gml:identifier codeSpace="">ami</gml:identifier>
+            <gml:name>Amo</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="amp">
+            <gml:identifier codeSpace="">amj</gml:identifier>
+            <gml:name>Alamblak</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="amq">
+            <gml:identifier codeSpace="">amk</gml:identifier>
+            <gml:name>Amahai</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="amr">
+            <gml:identifier codeSpace="">aml</gml:identifier>
+            <gml:name>Amarakaeri</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ams">
+            <gml:identifier codeSpace="">amm</gml:identifier>
+            <gml:name>Southern Amami-Oshima</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="amt">
+            <gml:identifier codeSpace="">amn</gml:identifier>
+            <gml:name>Amto</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="amu">
+            <gml:identifier codeSpace="">amo</gml:identifier>
+            <gml:name>Guerrero Amuzgo</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="amv">
+            <gml:identifier codeSpace="">amp</gml:identifier>
+            <gml:name>Ambelau</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="amw">
+            <gml:identifier codeSpace="">amq</gml:identifier>
+            <gml:name>Western Neo-Aramaic</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="amx">
+            <gml:identifier codeSpace="">amr</gml:identifier>
+            <gml:name>Anmatyerre</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="amy">
+            <gml:identifier codeSpace="">ams</gml:identifier>
+            <gml:name>Ami</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="amz">
+            <gml:identifier codeSpace="">amt</gml:identifier>
+            <gml:name>Atampaya</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ana">
+            <gml:identifier codeSpace="">amu</gml:identifier>
+            <gml:name>Andaqui</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="anb">
+            <gml:identifier codeSpace="">amv</gml:identifier>
+            <gml:name>Andoa</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="anc">
+            <gml:identifier codeSpace="">amw</gml:identifier>
+            <gml:name>Ngas</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="and">
+            <gml:identifier codeSpace="">amx</gml:identifier>
+            <gml:name>Ansus</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ane">
+            <gml:identifier codeSpace="">amy</gml:identifier>
+            <gml:name>Xaracuu</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="anf">
+            <gml:identifier codeSpace="">amz</gml:identifier>
+            <gml:name>Animere</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ang">
+            <gml:identifier codeSpace="">ana</gml:identifier>
+            <gml:name>Old English (ca. 450-1100)</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="anh">
+            <gml:identifier codeSpace="">anb</gml:identifier>
+            <gml:name>Nend</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ani">
+            <gml:identifier codeSpace="">anc</gml:identifier>
+            <gml:name>Andi</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="anj">
+            <gml:identifier codeSpace="">and</gml:identifier>
+            <gml:name>Anor</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ank">
+            <gml:identifier codeSpace="">ane</gml:identifier>
+            <gml:name>Goemai</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="anl">
+            <gml:identifier codeSpace="">anf</gml:identifier>
+            <gml:name>Anu</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="anm">
+            <gml:identifier codeSpace="">ang</gml:identifier>
+            <gml:name>Anal</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ann">
+            <gml:identifier codeSpace="">anh</gml:identifier>
+            <gml:name>Obolo</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ano">
+            <gml:identifier codeSpace="">ani</gml:identifier>
+            <gml:name>Andoque</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="anp">
+            <gml:identifier codeSpace="">anj</gml:identifier>
+            <gml:name>Angika</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="anq">
+            <gml:identifier codeSpace="">ank</gml:identifier>
+            <gml:name>Jarawa (India)</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="anr">
+            <gml:identifier codeSpace="">anl</gml:identifier>
+            <gml:name>Andh</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ans">
+            <gml:identifier codeSpace="">anm</gml:identifier>
+            <gml:name>Anserma</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ant">
+            <gml:identifier codeSpace="">ann</gml:identifier>
+            <gml:name>Antakarinya</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="anu">
+            <gml:identifier codeSpace="">ano</gml:identifier>
+            <gml:name>Anuak</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="anv">
+            <gml:identifier codeSpace="">anp</gml:identifier>
+            <gml:name>Denya</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="anw">
+            <gml:identifier codeSpace="">anq</gml:identifier>
+            <gml:name>Anaang</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="anx">
+            <gml:identifier codeSpace="">anr</gml:identifier>
+            <gml:name>Andra-Hus</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="any">
+            <gml:identifier codeSpace="">ans</gml:identifier>
+            <gml:name>Anyin</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="anz">
+            <gml:identifier codeSpace="">ant</gml:identifier>
+            <gml:name>Anem</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aoa">
+            <gml:identifier codeSpace="">anu</gml:identifier>
+            <gml:name>Angolar</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aob">
+            <gml:identifier codeSpace="">anv</gml:identifier>
+            <gml:name>Abom</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aoc">
+            <gml:identifier codeSpace="">anw</gml:identifier>
+            <gml:name>Pemon</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aod">
+            <gml:identifier codeSpace="">anx</gml:identifier>
+            <gml:name>Andarum</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aoe">
+            <gml:identifier codeSpace="">any</gml:identifier>
+            <gml:name>Angal Enen</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aof">
+            <gml:identifier codeSpace="">anz</gml:identifier>
+            <gml:name>Bragat</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aog">
+            <gml:identifier codeSpace="">aoa</gml:identifier>
+            <gml:name>Angoram</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aoh">
+            <gml:identifier codeSpace="">aob</gml:identifier>
+            <gml:name>Arma</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aoi">
+            <gml:identifier codeSpace="">aoc</gml:identifier>
+            <gml:name>Anindilyakwa</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aoj">
+            <gml:identifier codeSpace="">aod</gml:identifier>
+            <gml:name>Mufian</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aok">
+            <gml:identifier codeSpace="">aoe</gml:identifier>
+            <gml:name>Arho</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aol">
+            <gml:identifier codeSpace="">aof</gml:identifier>
+            <gml:name>Alor</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aom">
+            <gml:identifier codeSpace="">aog</gml:identifier>
+            <gml:name>Omie</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aon">
+            <gml:identifier codeSpace="">aoh</gml:identifier>
+            <gml:name>Bumbita Arapesh</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aor">
+            <gml:identifier codeSpace="">aoi</gml:identifier>
+            <gml:name>Aore</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aos">
+            <gml:identifier codeSpace="">aoj</gml:identifier>
+            <gml:name>Taikat</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aot">
+            <gml:identifier codeSpace="">aok</gml:identifier>
+            <gml:name>A'tong</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aox">
+            <gml:identifier codeSpace="">aol</gml:identifier>
+            <gml:name>Atorada</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aoz">
+            <gml:identifier codeSpace="">aom</gml:identifier>
+            <gml:name>Uab Meto</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="apb">
+            <gml:identifier codeSpace="">aon</gml:identifier>
+            <gml:name>Sa'a</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="apc">
+            <gml:identifier codeSpace="">aor</gml:identifier>
+            <gml:name>North Levantine Arabic</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="apd">
+            <gml:identifier codeSpace="">aos</gml:identifier>
+            <gml:name>Sudanese Arabic</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ape">
+            <gml:identifier codeSpace="">aot</gml:identifier>
+            <gml:name>Bukiyip</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="apg">
+            <gml:identifier codeSpace="">aox</gml:identifier>
+            <gml:name>Ampanang</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aph">
+            <gml:identifier codeSpace="">aoz</gml:identifier>
+            <gml:name>Athpariya</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="api">
+            <gml:identifier codeSpace="">apb</gml:identifier>
+            <gml:name>Apiaka</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="apj">
+            <gml:identifier codeSpace="">apc</gml:identifier>
+            <gml:name>Jicarilla Apache</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="apk">
+            <gml:identifier codeSpace="">apd</gml:identifier>
+            <gml:name>Kiowa Apache</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="apl">
+            <gml:identifier codeSpace="">ape</gml:identifier>
+            <gml:name>Lipan Apache</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="apm">
+            <gml:identifier codeSpace="">apg</gml:identifier>
+            <gml:name>Mescalero-Chiricahua Apache</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="apn">
+            <gml:identifier codeSpace="">aph</gml:identifier>
+            <gml:name>Apinaye</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="apo">
+            <gml:identifier codeSpace="">api</gml:identifier>
+            <gml:name>Apalik</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="app">
+            <gml:identifier codeSpace="">apj</gml:identifier>
+            <gml:name>Apma</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="apq">
+            <gml:identifier codeSpace="">apk</gml:identifier>
+            <gml:name>A-Pucikwar</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="apr">
+            <gml:identifier codeSpace="">apl</gml:identifier>
+            <gml:name>Arop-Lokep</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aps">
+            <gml:identifier codeSpace="">apm</gml:identifier>
+            <gml:name>Arop-Sissano</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="apt">
+            <gml:identifier codeSpace="">apn</gml:identifier>
+            <gml:name>Apatani</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="apu">
+            <gml:identifier codeSpace="">apo</gml:identifier>
+            <gml:name>Apurina</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="apv">
+            <gml:identifier codeSpace="">app</gml:identifier>
+            <gml:name>Alapmunte</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="apw">
+            <gml:identifier codeSpace="">apq</gml:identifier>
+            <gml:name>Western Apache</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="apx">
+            <gml:identifier codeSpace="">apr</gml:identifier>
+            <gml:name>Aputai</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="apy">
+            <gml:identifier codeSpace="">aps</gml:identifier>
+            <gml:name>Apalai</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="apz">
+            <gml:identifier codeSpace="">apt</gml:identifier>
+            <gml:name>Safeyoka</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aqc">
+            <gml:identifier codeSpace="">apu</gml:identifier>
+            <gml:name>Archi</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aqg">
+            <gml:identifier codeSpace="">apv</gml:identifier>
+            <gml:name>Arigidi</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aqm">
+            <gml:identifier codeSpace="">apw</gml:identifier>
+            <gml:name>Atohwaim</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aqn">
+            <gml:identifier codeSpace="">apx</gml:identifier>
+            <gml:name>Northern Alta</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aqp">
+            <gml:identifier codeSpace="">apy</gml:identifier>
+            <gml:name>Atakapa</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aqr">
+            <gml:identifier codeSpace="">apz</gml:identifier>
+            <gml:name>Arh�</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ara">
+            <gml:identifier codeSpace="">aqc</gml:identifier>
+            <gml:name>ArabicMacrolanguageLivingmore ...</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="arb">
+            <gml:identifier codeSpace="">aqg</gml:identifier>
+            <gml:name>Standard Arabic</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="arc">
+            <gml:identifier codeSpace="">aqm</gml:identifier>
+            <gml:name>Official Aramaic (700-300 BCE)</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ard">
+            <gml:identifier codeSpace="">aqn</gml:identifier>
+            <gml:name>Arabana</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="are">
+            <gml:identifier codeSpace="">aqp</gml:identifier>
+            <gml:name>Western Arrarnta</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="arg">
+            <gml:identifier codeSpace="">aqr</gml:identifier>
+            <gml:name>Aragonese</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="arh">
+            <gml:identifier codeSpace="">ara</gml:identifier>
+            <gml:name>Arhuaco</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ari">
+            <gml:identifier codeSpace="">arb</gml:identifier>
+            <gml:name>Arikara</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="arj">
+            <gml:identifier codeSpace="">arc</gml:identifier>
+            <gml:name>Arapaso</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ark">
+            <gml:identifier codeSpace="">ard</gml:identifier>
+            <gml:name>Arikapu</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="arl">
+            <gml:identifier codeSpace="">are</gml:identifier>
+            <gml:name>Arabela</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="arn">
+            <gml:identifier codeSpace="">arg</gml:identifier>
+            <gml:name>Mapudungun</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aro">
+            <gml:identifier codeSpace="">arh</gml:identifier>
+            <gml:name>Araona</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="arp">
+            <gml:identifier codeSpace="">ari</gml:identifier>
+            <gml:name>Arapaho</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="arq">
+            <gml:identifier codeSpace="">arj</gml:identifier>
+            <gml:name>Algerian Arabic</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="arr">
+            <gml:identifier codeSpace="">ark</gml:identifier>
+            <gml:name>Karo (Brazil)</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ars">
+            <gml:identifier codeSpace="">arl</gml:identifier>
+            <gml:name>Najdi Arabic</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aru">
+            <gml:identifier codeSpace="">arn</gml:identifier>
+            <gml:name>Arua (Amazonas State)</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="arv">
+            <gml:identifier codeSpace="">aro</gml:identifier>
+            <gml:name>Arbore</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="arw">
+            <gml:identifier codeSpace="">arp</gml:identifier>
+            <gml:name>Arawak</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="arx">
+            <gml:identifier codeSpace="">arq</gml:identifier>
+            <gml:name>Arua (Rodonia State)</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ary">
+            <gml:identifier codeSpace="">arr</gml:identifier>
+            <gml:name>Moroccan Arabic</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="arz">
+            <gml:identifier codeSpace="">ars</gml:identifier>
+            <gml:name>Egyptian Arabic</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="asa">
+            <gml:identifier codeSpace="">aru</gml:identifier>
+            <gml:name>Asu (Tanzania)</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="asb">
+            <gml:identifier codeSpace="">arv</gml:identifier>
+            <gml:name>Assiniboine</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="asc">
+            <gml:identifier codeSpace="">arw</gml:identifier>
+            <gml:name>Casuarina Coast Asmat</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="asd">
+            <gml:identifier codeSpace="">arx</gml:identifier>
+            <gml:name>Asas</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ase">
+            <gml:identifier codeSpace="">ary</gml:identifier>
+            <gml:name>American Sign Language</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="asf">
+            <gml:identifier codeSpace="">arz</gml:identifier>
+            <gml:name>Australian Sign Language</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="asg">
+            <gml:identifier codeSpace="">asa</gml:identifier>
+            <gml:name>Cishingini</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ash">
+            <gml:identifier codeSpace="">asb</gml:identifier>
+            <gml:name>Abishira</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="asi">
+            <gml:identifier codeSpace="">asc</gml:identifier>
+            <gml:name>Buruwai</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="asj">
+            <gml:identifier codeSpace="">asd</gml:identifier>
+            <gml:name>Nsari</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ask">
+            <gml:identifier codeSpace="">ase</gml:identifier>
+            <gml:name>Ashkun</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="asl">
+            <gml:identifier codeSpace="">asf</gml:identifier>
+            <gml:name>Asilulu</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="asm">
+            <gml:identifier codeSpace="">asg</gml:identifier>
+            <gml:name>Assamese</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="asn">
+            <gml:identifier codeSpace="">ash</gml:identifier>
+            <gml:name>Xingu Asurini</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aso">
+            <gml:identifier codeSpace="">asi</gml:identifier>
+            <gml:name>Dano</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="asp">
+            <gml:identifier codeSpace="">asj</gml:identifier>
+            <gml:name>Algerian Sign Language</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="asq">
+            <gml:identifier codeSpace="">ask</gml:identifier>
+            <gml:name>Austrian Sign Language</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="asr">
+            <gml:identifier codeSpace="">asl</gml:identifier>
+            <gml:name>Asuri</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ass">
+            <gml:identifier codeSpace="">asm</gml:identifier>
+            <gml:name>Ipulo</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ast">
+            <gml:identifier codeSpace="">asn</gml:identifier>
+            <gml:name>Asturian</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="asu">
+            <gml:identifier codeSpace="">aso</gml:identifier>
+            <gml:name>Tocantins Asurini</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="asv">
+            <gml:identifier codeSpace="">asp</gml:identifier>
+            <gml:name>Asoa</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="asw">
+            <gml:identifier codeSpace="">asq</gml:identifier>
+            <gml:name>Australian Aborigines Sign Language</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="asx">
+            <gml:identifier codeSpace="">asr</gml:identifier>
+            <gml:name>Muratayak</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="asy">
+            <gml:identifier codeSpace="">ass</gml:identifier>
+            <gml:name>Yaosakor Asmat</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="asz">
+            <gml:identifier codeSpace="">ast</gml:identifier>
+            <gml:name>As</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ata">
+            <gml:identifier codeSpace="">asu</gml:identifier>
+            <gml:name>Pele-Ata</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="atb">
+            <gml:identifier codeSpace="">asv</gml:identifier>
+            <gml:name>Zaiwa</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="atc">
+            <gml:identifier codeSpace="">asw</gml:identifier>
+            <gml:name>Atsahuaca</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="atd">
+            <gml:identifier codeSpace="">asx</gml:identifier>
+            <gml:name>Ata Manobo</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ate">
+            <gml:identifier codeSpace="">asy</gml:identifier>
+            <gml:name>Atemble</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="atg">
+            <gml:identifier codeSpace="">asz</gml:identifier>
+            <gml:name>Ivbie North-Okpela-Arhe</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ati">
+            <gml:identifier codeSpace="">ata</gml:identifier>
+            <gml:name>Attie</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="atj">
+            <gml:identifier codeSpace="">atb</gml:identifier>
+            <gml:name>Atikamekw</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="atk">
+            <gml:identifier codeSpace="">atc</gml:identifier>
+            <gml:name>Ati</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="atl">
+            <gml:identifier codeSpace="">atd</gml:identifier>
+            <gml:name>Mt. Iraya Agta</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="atm">
+            <gml:identifier codeSpace="">ate</gml:identifier>
+            <gml:name>Ata</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="atn">
+            <gml:identifier codeSpace="">atg</gml:identifier>
+            <gml:name>Ashtiani</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ato">
+            <gml:identifier codeSpace="">ati</gml:identifier>
+            <gml:name>Atong</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="atp">
+            <gml:identifier codeSpace="">atj</gml:identifier>
+            <gml:name>Pudtol Atta</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="atq">
+            <gml:identifier codeSpace="">atk</gml:identifier>
+            <gml:name>Aralle-Tabulahan</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="atr">
+            <gml:identifier codeSpace="">atl</gml:identifier>
+            <gml:name>Waimiri-Atroari</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ats">
+            <gml:identifier codeSpace="">atm</gml:identifier>
+            <gml:name>Gros Ventre</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="att">
+            <gml:identifier codeSpace="">atn</gml:identifier>
+            <gml:name>Pamplona Atta</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="atu">
+            <gml:identifier codeSpace="">ato</gml:identifier>
+            <gml:name>Reel</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="atv">
+            <gml:identifier codeSpace="">atp</gml:identifier>
+            <gml:name>Northern Altai</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="atw">
+            <gml:identifier codeSpace="">atq</gml:identifier>
+            <gml:name>Atsugewi</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="atx">
+            <gml:identifier codeSpace="">atr</gml:identifier>
+            <gml:name>Arutani</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aty">
+            <gml:identifier codeSpace="">ats</gml:identifier>
+            <gml:name>Aneityum</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="atz">
+            <gml:identifier codeSpace="">att</gml:identifier>
+            <gml:name>Arta</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aua">
+            <gml:identifier codeSpace="">atu</gml:identifier>
+            <gml:name>Asumboa</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aub">
+            <gml:identifier codeSpace="">atv</gml:identifier>
+            <gml:name>Alugu</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="auc">
+            <gml:identifier codeSpace="">atw</gml:identifier>
+            <gml:name>Waorani</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aud">
+            <gml:identifier codeSpace="">atx</gml:identifier>
+            <gml:name>Anuta</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aue">
+            <gml:identifier codeSpace="">aty</gml:identifier>
+            <gml:name>=/Kx'au//'ein</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aug">
+            <gml:identifier codeSpace="">atz</gml:identifier>
+            <gml:name>Aguna</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="auh">
+            <gml:identifier codeSpace="">aua</gml:identifier>
+            <gml:name>Aushi</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aui">
+            <gml:identifier codeSpace="">aub</gml:identifier>
+            <gml:name>Anuki</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="auj">
+            <gml:identifier codeSpace="">auc</gml:identifier>
+            <gml:name>Awjilah</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="auk">
+            <gml:identifier codeSpace="">aud</gml:identifier>
+            <gml:name>Heyo</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aul">
+            <gml:identifier codeSpace="">aue</gml:identifier>
+            <gml:name>Aulua</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aum">
+            <gml:identifier codeSpace="">aug</gml:identifier>
+            <gml:name>Asu (Nigeria)</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aun">
+            <gml:identifier codeSpace="">auh</gml:identifier>
+            <gml:name>Molmo One</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="auo">
+            <gml:identifier codeSpace="">aui</gml:identifier>
+            <gml:name>Auyokawa</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aup">
+            <gml:identifier codeSpace="">auj</gml:identifier>
+            <gml:name>Makayam</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="auq">
+            <gml:identifier codeSpace="">auk</gml:identifier>
+            <gml:name>Anus</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aur">
+            <gml:identifier codeSpace="">aul</gml:identifier>
+            <gml:name>Aruek</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aut">
+            <gml:identifier codeSpace="">aum</gml:identifier>
+            <gml:name>Austral</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="auu">
+            <gml:identifier codeSpace="">aun</gml:identifier>
+            <gml:name>Auye</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="auw">
+            <gml:identifier codeSpace="">auo</gml:identifier>
+            <gml:name>Awyi</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aux">
+            <gml:identifier codeSpace="">aup</gml:identifier>
+            <gml:name>Aura</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="auy">
+            <gml:identifier codeSpace="">auq</gml:identifier>
+            <gml:name>Awiyaana</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="auz">
+            <gml:identifier codeSpace="">aur</gml:identifier>
+            <gml:name>Uzbeki Arabic</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ava">
+            <gml:identifier codeSpace="">aut</gml:identifier>
+            <gml:name>Avaric</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="avb">
+            <gml:identifier codeSpace="">auu</gml:identifier>
+            <gml:name>Avau</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="avd">
+            <gml:identifier codeSpace="">auw</gml:identifier>
+            <gml:name>Alviri-Vidari</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ave">
+            <gml:identifier codeSpace="">aux</gml:identifier>
+            <gml:name>Avestan</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="avi">
+            <gml:identifier codeSpace="">auy</gml:identifier>
+            <gml:name>Avikam</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="avk">
+            <gml:identifier codeSpace="">auz</gml:identifier>
+            <gml:name>Kotava</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="avl">
+            <gml:identifier codeSpace="">ava</gml:identifier>
+            <gml:name>Eastern Egyptian Bedawi Arabic</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="avn">
+            <gml:identifier codeSpace="">avb</gml:identifier>
+            <gml:name>Avatime</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="avo">
+            <gml:identifier codeSpace="">avd</gml:identifier>
+            <gml:name>Agavotaguerra</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="avs">
+            <gml:identifier codeSpace="">ave</gml:identifier>
+            <gml:name>Aushiri</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="avt">
+            <gml:identifier codeSpace="">avi</gml:identifier>
+            <gml:name>Au</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="avu">
+            <gml:identifier codeSpace="">avk</gml:identifier>
+            <gml:name>Avokaya</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="avv">
+            <gml:identifier codeSpace="">avl</gml:identifier>
+            <gml:name>Av�-Canoeiro</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="awa">
+            <gml:identifier codeSpace="">avn</gml:identifier>
+            <gml:name>awa Awadhi</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="awb">
+            <gml:identifier codeSpace="">avo</gml:identifier>
+            <gml:name>Awa (Papua New Guinea)</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="awc">
+            <gml:identifier codeSpace="">avs</gml:identifier>
+            <gml:name>Cicipu</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="awe">
+            <gml:identifier codeSpace="">avt</gml:identifier>
+            <gml:name>Aweti</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="awh">
+            <gml:identifier codeSpace="">avu</gml:identifier>
+            <gml:name>Awbono</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="awi">
+            <gml:identifier codeSpace="">avv</gml:identifier>
+            <gml:name>Aekyom</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="awk">
+            <gml:identifier codeSpace="">awa</gml:identifier>
+            <gml:name>Awabakal</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="awm">
+            <gml:identifier codeSpace="">awb</gml:identifier>
+            <gml:name>Arawum</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="awn">
+            <gml:identifier codeSpace="">awc</gml:identifier>
+            <gml:name>Awngi</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="awo">
+            <gml:identifier codeSpace="">awe</gml:identifier>
+            <gml:name>Awak</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="awr">
+            <gml:identifier codeSpace="">awh</gml:identifier>
+            <gml:name>Awera</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aws">
+            <gml:identifier codeSpace="">awi</gml:identifier>
+            <gml:name>South Awyu</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="awt">
+            <gml:identifier codeSpace="">awk</gml:identifier>
+            <gml:name>Arawete</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="awu">
+            <gml:identifier codeSpace="">awm</gml:identifier>
+            <gml:name>Central Awyu</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="awv">
+            <gml:identifier codeSpace="">awn</gml:identifier>
+            <gml:name>Jair Awyu</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aww">
+            <gml:identifier codeSpace="">awo</gml:identifier>
+            <gml:name>Awun</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="awx">
+            <gml:identifier codeSpace="">awr</gml:identifier>
+            <gml:name>Awara</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="awy">
+            <gml:identifier codeSpace="">aws</gml:identifier>
+            <gml:name>Edera Awyu</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="axb">
+            <gml:identifier codeSpace="">awt</gml:identifier>
+            <gml:name>Abipon</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="axg">
+            <gml:identifier codeSpace="">awu</gml:identifier>
+            <gml:name>Mato Grosso Arara</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="axk">
+            <gml:identifier codeSpace="">awv</gml:identifier>
+            <gml:name>Yaka (Central African Republic)</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="axm">
+            <gml:identifier codeSpace="">aww</gml:identifier>
+            <gml:name>Middle Armenian</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="axx">
+            <gml:identifier codeSpace="">awx</gml:identifier>
+            <gml:name>Xaragure</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aya">
+            <gml:identifier codeSpace="">awy</gml:identifier>
+            <gml:name>Awar</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ayb">
+            <gml:identifier codeSpace="">axb</gml:identifier>
+            <gml:name>Ayizo Gbe</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ayc">
+            <gml:identifier codeSpace="">axg</gml:identifier>
+            <gml:name>Southern Aymara</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ayd">
+            <gml:identifier codeSpace="">axk</gml:identifier>
+            <gml:name>Ayabadhu</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aye">
+            <gml:identifier codeSpace="">axm</gml:identifier>
+            <gml:name>Ayere</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ayg">
+            <gml:identifier codeSpace="">axx</gml:identifier>
+            <gml:name>Ginyanga</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ayh">
+            <gml:identifier codeSpace="">aya</gml:identifier>
+            <gml:name>Hadrami Arabic</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ayi">
+            <gml:identifier codeSpace="">ayb</gml:identifier>
+            <gml:name>Leyigha</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ayk">
+            <gml:identifier codeSpace="">ayc</gml:identifier>
+            <gml:name>Akuku</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ayl">
+            <gml:identifier codeSpace="">ayd</gml:identifier>
+            <gml:name>Libyan Arabic</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aym">
+            <gml:identifier codeSpace="">aye</gml:identifier>
+            <gml:name>Aymara</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ayn">
+            <gml:identifier codeSpace="">ayg</gml:identifier>
+            <gml:name>Sanaani Arabic</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ayo">
+            <gml:identifier codeSpace="">ayh</gml:identifier>
+            <gml:name>Ayoreo</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ayp">
+            <gml:identifier codeSpace="">ayi</gml:identifier>
+            <gml:name>North Mesopotamian Arabic</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ayq">
+            <gml:identifier codeSpace="">ayk</gml:identifier>
+            <gml:name>Ayi (Papua New Guinea)</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ayr">
+            <gml:identifier codeSpace="">ayl</gml:identifier>
+            <gml:name>Central Aymara</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ays">
+            <gml:identifier codeSpace="">aym</gml:identifier>
+            <gml:name>Sorsogon Ayta</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ayt">
+            <gml:identifier codeSpace="">ayn</gml:identifier>
+            <gml:name>Bataan Ayta</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ayu">
+            <gml:identifier codeSpace="">ayo</gml:identifier>
+            <gml:name>Ayu</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ayx">
+            <gml:identifier codeSpace="">ayp</gml:identifier>
+            <gml:name>Ayi (China)</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ayy">
+            <gml:identifier codeSpace="">ayq</gml:identifier>
+            <gml:name>Tayabas Ayta</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="ayz">
+            <gml:identifier codeSpace="">ayr</gml:identifier>
+            <gml:name>Mai Brat</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aza">
+            <gml:identifier codeSpace="">ays</gml:identifier>
+            <gml:name>Azha</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="azb">
+            <gml:identifier codeSpace="">ayt</gml:identifier>
+            <gml:name>South Azerbaijani</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="aze">
+            <gml:identifier codeSpace="">ayu</gml:identifier>
+            <gml:name>Azerbaijani</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="azg">
+            <gml:identifier codeSpace="">ayx</gml:identifier>
+            <gml:name>San Pedro Amuzgos Amuzgo</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="azj">
+            <gml:identifier codeSpace="">ayy</gml:identifier>
+            <gml:name>North Azerbaijani</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="azm">
+            <gml:identifier codeSpace="">ayz</gml:identifier>
+            <gml:name>Ipalapa Amuzgo</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="azo">
+            <gml:identifier codeSpace="">aza</gml:identifier>
+            <gml:name>Awing</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+    <gml:dictionaryEntry>
+        <gml:Definition gml:id="azt">
+            <gml:identifier codeSpace="">azb</gml:identifier>
+            <gml:name>Faire Atta</gml:name>
+        </gml:Definition>
+    </gml:dictionaryEntry>
+</gml:Dictionary>

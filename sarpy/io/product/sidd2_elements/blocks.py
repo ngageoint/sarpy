@@ -711,7 +711,7 @@ class PredefinedLookupType(Serializable):
 
 class LUTInfoType(Serializable, Arrayable):
     """
-    The lookup table - basically just a one or two dimensional unsigned integer array of bit depth 8 or 16.
+    The lookup table - basically just a one or two-dimensional unsigned integer array of bit depth 8 or 16.
     """
     __slots__ = ('_lut_values', )
     _fields = ('LUTValues', 'numLuts', 'size')
@@ -738,7 +738,7 @@ class LUTInfoType(Serializable, Arrayable):
     @property
     def LUTValues(self):
         """
-        numpy.ndarray: the two dimensional look-up table, where the dtype must be `uint8` or `uint16`.
+        numpy.ndarray: the two-dimensional look-up table, where the dtype must be `uint8` or `uint16`.
         The first dimension should correspond to entries (i.e. size of the lookup table), and the
         second dimension should correspond to bands (i.e. number of bands).
         """

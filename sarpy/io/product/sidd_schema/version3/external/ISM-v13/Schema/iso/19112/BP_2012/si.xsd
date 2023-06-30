@@ -1,0 +1,371 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<!-- As originally specified in OGC Best Practices Document:
+            Gazetteer Service - Application Profile of the Web Feature Service Implementation Specification
+            Version 0.9.4, OGC 11-122r1, 2011-08-18
+      - Revised from GML 3.1.1 to GML 3.2.1
+      - Removed restriction to GML-SF Level1
+      - In SI_GazetteerType revised scope to optional consistent with ISO 19112
+      - In SI_LocationInstanceType revised geographicIdentifier to a localizable string
+      - In AlternativeGeographicIdentifiersPropertyType revised type from an enumeration to a codeList
+      - Updated with documentation from ISO 19112:2003 & moved developer-type documentation into comments
+  -->
+<xsd:schema xmlns:iso19112="http://www.isotc211.org/19112" xmlns:gmd="http://www.isotc211.org/2005/gmd" xmlns:gml="http://www.opengis.net/gml/3.2" xmlns:xsd="http://www.w3.org/2001/XMLSchema" targetNamespace="http://www.isotc211.org/19112" elementFormDefault="qualified" version="19112_2003">
+    <!-- - - - - - -   Local Resource   - - - - - - - - - - -->
+    <xsd:import namespace="http://www.opengis.net/gml/3.2" schemaLocation="../../../ogc/gml/3.2.1/gml.xsd"/>
+    <xsd:import namespace="http://www.isotc211.org/2005/gmd" schemaLocation="../../../iso/19139/20070417/gmd/gmd.xsd"/>
+    <!-- - - - - - -   MDR-based Resource   - - - - - - - - - - 
+    <xsd:import namespace="http://www.opengis.net/gml/3.2" 
+	           schemaLocation="http://metadata.ces.mil/mdr/ns/GPAS/schemas/ogc/gml/3.2.1/gml.xsd"/>
+    <xsd:import namespace="http://www.isotc211.org/2005/gmd" 
+	           schemaLocation="http://metadata.ces.mil/mdr/ns/GPAS/schemas/iso/19139/TS_2007/gmd/gmd.xsd"/> -->
+    <!-- Import required for xml:lang -->
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace"/>
+    <!-- =================================================================== -->
+    <!-- Generic response collection.                                        -->
+    <!-- =================================================================== -->
+    <xsd:element name="SI_Collection" type="iso19112:SI_CollectionType" substitutionGroup="gml:AbstractFeature">
+        <xsd:annotation>
+            <xsd:documentation>A collection of location instances.</xsd:documentation>
+        </xsd:annotation>
+    </xsd:element>
+    <xsd:complexType name="SI_CollectionType">
+        <xsd:annotation>
+            <xsd:documentation>A collection-type intended for use as a generic container of location instances.</xsd:documentation>
+        </xsd:annotation>
+        <xsd:complexContent>
+            <xsd:extension base="gml:AbstractFeatureType">
+                <xsd:sequence minOccurs="0" maxOccurs="unbounded">
+                    <xsd:element name="featureMember">
+                        <xsd:complexType>
+                            <xsd:sequence>
+                                <xsd:element ref="gml:AbstractFeature"/>
+                            </xsd:sequence>
+                        </xsd:complexType>
+                    </xsd:element>
+                </xsd:sequence>
+            </xsd:extension>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <!-- =================================================================== -->
+    <!-- SI_SpatialReferenceSystemUsingGeographicIdentifiers                 -->
+    <!-- =================================================================== -->
+    <xsd:element name="SI_SpatialReferenceSystemUsingGeographicIdentifiers" type="iso19112:SI_SpatialReferenceSystemUsingGeographicIdentifiersType" substitutionGroup="gml:AbstractFeature">
+        <xsd:annotation>
+            <xsd:documentation>A spatial reference system using geographic identifiers. It is comprised of one or more location types (which may
+be related). Each location instance is uniquely identified by means of a geographic identifier. [ISO 19112:2003 Clause 7.1]  For example, countries as defined in ISO 3166-1 or named population centres in a region.</xsd:documentation>
+        </xsd:annotation>
+    </xsd:element>
+    <xsd:complexType name="SI_SpatialReferenceSystemUsingGeographicIdentifiersType">
+        <xsd:annotation>
+            <xsd:documentation>A spatial reference system using geographic identifiers type. A spatial reference system using geographic identifiers is comprised of a related set of one or more location types, together with their corresponding geographic identifiers. These location types may be related to each other through aggregation or disaggregation, possibly forming a hierarchy. [ISO 19112:2003 Clause 6.2]  For example, countries as defined in ISO 3166-1 or named population centres in a region.</xsd:documentation>
+        </xsd:annotation>
+        <xsd:complexContent>
+            <xsd:extension base="gml:AbstractFeatureType">
+                <xsd:sequence>
+                    <!-- Note that names may be localized to a specific language -->
+                    <xsd:element name="name" type="iso19112:LanguageStringType">
+                        <xsd:annotation>
+                            <xsd:documentation>The name of a spatial reference system using geographic identifiers.</xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                    <!-- Note that instead of using EX_GeographicExtent, gml:GeometryPropertyType is used
+                          in order to allow extent to be expressed using any of the geometric types supported by GML -->
+                    <xsd:element name="domainOfValidity" type="gml:GeometryPropertyType">
+                        <xsd:annotation>
+                            <xsd:documentation>The geographic area within which the reference system occurs.
+                            </xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                    <!-- Used to reference a theme definition in a registered feature catalogue. -->
+                    <xsd:element name="theme" type="xsd:anyURI">
+                        <xsd:annotation>
+                            <xsd:documentation>A characterization of the basis for the spatial reference system. For example: 'administration', 'electoral', and 'postal'.</xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                    <xsd:element name="overallOwner" type="gmd:CI_ResponsibleParty_PropertyType">
+                        <xsd:annotation>
+                            <xsd:documentation>Authority with overall responsibility for the spatial reference system.
+                            </xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                    <xsd:element name="locationType" type="gml:ReferenceType" minOccurs="1" maxOccurs="unbounded">
+                        <xsd:annotation>
+                            <xsd:appinfo source="urn:x-gml:targetElement">iso19112:SI_LocationType</xsd:appinfo>
+                            <xsd:documentation>The location type in the spatial reference system.
+                            </xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                </xsd:sequence>
+            </xsd:extension>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <!-- =================================================================== -->
+    <!-- SI_LocationType                                                     -->
+    <!-- =================================================================== -->
+    <xsd:element name="SI_LocationType" type="iso19112:SI_LocationTypeType" substitutionGroup="gml:AbstractFeature">
+        <xsd:annotation>
+            <xsd:documentation>A location type in a spatial reference system. A location type specifies the nature of the location that is specified by a location instance. For example, a "county", a "town", a "property", or a "river".</xsd:documentation>
+        </xsd:annotation>
+    </xsd:element>
+    <xsd:complexType name="SI_LocationTypeType">
+        <xsd:annotation>
+            <xsd:documentation>A location type type in a spatial reference system.</xsd:documentation>
+        </xsd:annotation>
+        <xsd:complexContent>
+            <xsd:extension base="gml:AbstractFeatureType">
+                <xsd:sequence>
+                    <!-- Note that names may be localized to a specific language -->
+                    <xsd:element name="name" type="iso19112:LanguageStringType">
+                        <xsd:annotation>
+                            <xsd:documentation>The name of the location type.</xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                    <!-- Allowed values are drawn from http://metadata.ces.mil/mdr/ns/GSIP/codelist/GeoIdentifierLocationTypeCode -->
+                    <xsd:element name="identification" type="gml:CodeType" minOccurs="1" maxOccurs="unbounded">
+                        <xsd:annotation>
+                            <xsd:documentation>A method of uniquely identifying location instances. For example, 'name' or 'code'.</xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                    <!-- Note that definitions may be localized to a specific language -->
+                    <xsd:element name="definition" type="iso19112:LanguageStringType">
+                        <xsd:annotation>
+                            <xsd:documentation>The way in which location instances are defined. The definition of the location type shall be in the form of one of the following:
+    - an area, defined by a set of boundaries, for example countries defined by their borders;
+    - a single feature, for example a street defined by its centre line, or a junction of two such streets;
+    - a collection of smaller features, for example trade areas defined by groups of countries.
+Where a location type is defined as a collection of smaller units, an instance of that location need not have a well-defined boundary, for
+example a postal code defined as a collection of postal delivery points.</xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                    <!-- Note that instead of using EX_GeographicExtent, gml:GeometryPropertyType is used
+                          in order to allow extent to be expressed using any of the geometric types supported by GML -->
+                    <xsd:element name="territoryOfUse" type="gml:GeometryPropertyType">
+                        <xsd:annotation>
+                            <xsd:documentation>The geographic area within which the location type occurs. For example, in the case of a gazetteer of "rivers” then the extent of North America.</xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                    <xsd:element name="owner" type="gmd:CI_ResponsibleParty_PropertyType">
+                        <xsd:annotation>
+                            <xsd:documentation>The name of the organization or class of organization that is able to create and destroy location instances.</xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                    <!-- The "theme" property in ISO 19112:2003 but renamed consistent with added SI_LocationInstanceType element "spatialObject" and implemented as a reference to a definition in a registered feature catalogue. -->
+                    <xsd:element name="spatialObjectType" type="xsd:anyURI" minOccurs="0"/>
+                    <xsd:element name="parent" type="gml:ReferenceType" minOccurs="0" maxOccurs="unbounded">
+                        <xsd:annotation>
+                            <xsd:appinfo source="urn:x-gml:targetElement">iso19112:SI_LocationType</xsd:appinfo>
+                            <xsd:documentation>A parent location type (a location type of which this location type is a subdivision). Parent and child location types are linked to the location type by the nesting association.</xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                    <xsd:element name="child" type="gml:ReferenceType" minOccurs="0" maxOccurs="unbounded">
+                        <xsd:annotation>
+                            <xsd:appinfo source="urn:x-gml:targetElement">iso19112:SI_LocationType</xsd:appinfo>
+                            <xsd:documentation>A child location type (a location type which subdivides this location type). Parent and child location types are linked to the location type by the nesting association.</xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                </xsd:sequence>
+            </xsd:extension>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <!-- =================================================================== -->
+    <!-- SI_Gazetteer                                                        -->
+    <!-- =================================================================== -->
+    <xsd:element name="SI_Gazetteer" type="iso19112:SI_GazetteerType" substitutionGroup="gml:AbstractFeature">
+        <xsd:annotation>
+            <xsd:documentation>A gazetteer is a directory of geographic identifiers describing location instances. It will contain additional information regarding the position of each location instance. It may include a coordinate reference, but it may also be purely descriptive. If it contains a coordinate reference, this will enable transformation from the spatial reference system using geographic identifiers to the coordinate reference system. If it contains a descriptive reference, this will be a spatial reference using a different spatial reference system with geographic identifiers, for example the postcode of a property. For any location type, there may be more than one gazetteer.</xsd:documentation>
+        </xsd:annotation>
+    </xsd:element>
+    <xsd:complexType name="SI_GazetteerType">
+        <xsd:annotation>
+            <xsd:documentation>A gazetteer type; a gazetteer is a directory of geographic identifiers describing location instances.</xsd:documentation>
+        </xsd:annotation>
+        <xsd:complexContent>
+            <xsd:extension base="gml:AbstractFeatureType">
+                <xsd:sequence>
+                    <!-- Note that names may be localized to a specific language -->
+                    <xsd:element name="name" type="iso19112:LanguageStringType">
+                        <xsd:annotation>
+                            <xsd:documentation>The name of the gazetteer, including its version date. A new version of the gazetteer shall be created whenever any location instance is created or destroyed, or a new version of a location instance is created.</xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                    <!-- Note that scopes may be localized to a specific language -->
+                    <xsd:element name="scope" type="iso19112:LanguageStringType" minOccurs="0">
+                        <xsd:annotation>
+                            <xsd:documentation>A description of the location types contained in the gazetteer. For example, the “rivers of North America” or the “streets of London”.</xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                    <!-- Note that instead of using EX_GeographicExtent, gml:GeometryPropertyType is used
+                          in order to allow extent to be expressed using any of the geometric types supported by GML -->
+                    <xsd:element name="territoryOfUse" type="gml:GeometryPropertyType">
+                        <xsd:annotation>
+                            <xsd:documentation>The geographic domain covered by the gazetteer. For example, for a gazetteer of rivers the extent of North America, or for a gazetteer of streets the extent of the City of London.</xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                    <xsd:element name="custodian" type="gmd:CI_ResponsibleParty_PropertyType">
+                        <xsd:annotation>
+                            <xsd:documentation>The organization responsible for maintenance of the gazetteer.</xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                    <xsd:element name="coordinateSystem" type="xsd:anyURI" minOccurs="0">
+                        <xsd:annotation>
+                            <xsd:documentation>The coordinate reference system, if any, that is used in the gazetteer for describing position. The coordinate reference system provides a linking mechanism between referencing using geographic identifiers and referencing using coordinates.</xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                    <xsd:element name="locationType" type="gml:ReferenceType" minOccurs="1" maxOccurs="unbounded">
+                        <xsd:annotation>
+                            <xsd:appinfo source="urn:x-gml:targetElement">iso19112:SI_LocationType</xsd:appinfo>
+                            <xsd:documentation>The location type for which instances are recorded in the gazetteer.</xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                </xsd:sequence>
+            </xsd:extension>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <!-- =================================================================== -->
+    <!-- SI_LocationInstance                                                 -->
+    <!-- =================================================================== -->
+    <xsd:element name="SI_LocationInstance" type="iso19112:SI_LocationInstanceType" substitutionGroup="gml:AbstractFeature">
+        <xsd:annotation>
+            <xsd:documentation>A location instance in a spatial reference system. A location instance specifies a location that is characterized by a location type. For example, a particular "county", "town", "property", or "river".</xsd:documentation>
+        </xsd:annotation>
+    </xsd:element>
+    <xsd:complexType name="SI_LocationInstanceType">
+        <xsd:annotation>
+            <xsd:documentation>A location instance in a spatial reference system.</xsd:documentation>
+        </xsd:annotation>
+        <xsd:complexContent>
+            <xsd:extension base="gml:AbstractFeatureType">
+                <xsd:sequence>
+                    <!-- Note that geographicIdentifiers (when, e.g., 'identification' = 'name') may be localized to a specific language -->
+                    <xsd:element name="geographicIdentifier" type="iso19112:LanguageStringType">
+                        <xsd:annotation>
+                            <xsd:documentation>The unique geographic identifier for the location instance. In order to ensure that the geographic identifier is unique within a wider geographic domain, the geographic identifier may need to include an identifier of an instance of a parent location type, for example “Paris, Texas” (as distinguished from "Paris, France").</xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                    <xsd:element name="alternativeGeographicIdentifiers" type="iso19112:AlternativeGeographicIdentifiersPropertyType" minOccurs="0">
+                        <xsd:annotation>
+                            <xsd:documentation>Optional additional geographic identifiers for the location instance.</xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                    <xsd:element name="position" type="gml:PointPropertyType">
+                        <xsd:annotation>
+                            <xsd:documentation>The coordinates of a representative point for the location instance. An example of the position is the coordinates of the centroid of the location instance. This provides a linking mechanism to spatial referencing by coordinates.</xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                    <!-- Note that instead of using EX_GeographicExtent, gml:GeometryPropertyType is used
+                            in order to allow extent to be expressed using any of the geometric types supported by GML. -->
+                    <xsd:element name="geographicExtent" type="gml:GeometryPropertyType" minOccurs="0" maxOccurs="unbounded">
+                        <xsd:annotation>
+                            <xsd:documentation>A description of the location instance. The geographic extent shall be defined in one of the following ways:
+     - as a collection of smaller geographic features, for example the European Union, defined by its constituent countries;
+     - by a bounding polygon, described by either of the following:
+         -- as a closed set of boundary segments (each defined by one or more geographic features), for example a block defined
+by the bounding streets;
+         -- by a set of coordinates, for example, a land parcel defined by the coordinates of its boundary.</xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                    <!-- Renamed and redefined original iso19112:temporalExtent element to align with the actual text description in ISO 19112 -->
+                    <xsd:element name="dateOfCreation" type="xsd:date" minOccurs="0">
+                        <xsd:annotation>
+                            <xsd:documentation>The date of creation of this version of the location instance. The temporal extent will normally be the date of creation of this version of the gazetteer containing this location instance.</xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                    <xsd:element name="administrator" type="gmd:CI_ResponsibleParty_PropertyType">
+                        <xsd:annotation>
+                            <xsd:documentation>The name of organization responsible for defining the characteristics of the location instance.</xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                    <xsd:element name="spatialObject" type="xsd:anyURI" minOccurs="0">
+                        <xsd:annotation>
+                            <xsd:documentation>Optional reference to the feature being identified by this location instance.</xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                    <xsd:element name="parent" type="gml:ReferenceType" minOccurs="0" maxOccurs="unbounded">
+                        <xsd:annotation>
+                            <xsd:appinfo source="urn:x-gml:targetElement">iso19112:SI_LocationInstance</xsd:appinfo>
+                            <xsd:documentation>A location instance of a different location type, for which this location instance is a sub-division.</xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                    <xsd:element name="child" type="gml:ReferenceType" minOccurs="0" maxOccurs="unbounded">
+                        <xsd:annotation>
+                            <xsd:appinfo source="urn:x-gml:targetElement">iso19112:SI_LocationInstance</xsd:appinfo>
+                            <xsd:documentation>A location instance of a different location type, which subdivides this location instance.</xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                    <xsd:element name="locationType" type="gml:ReferenceType">
+                        <xsd:annotation>
+                            <xsd:appinfo source="urn:x-gml:targetElement">iso19112:SI_LocationType</xsd:appinfo>
+                            <xsd:documentation>The location type of this location instance.</xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                </xsd:sequence>
+            </xsd:extension>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <!-- =================================================================== -->
+    <!-- Complex Types                                                       -->
+    <!-- =================================================================== -->
+    <xsd:complexType name="LanguageStringType">
+        <xsd:simpleContent>
+            <xsd:extension base="xsd:string">
+                <xsd:attribute ref="xml:lang"/>
+                <xsd:attribute name="transliterationDomain" type="xsd:string"/>
+            </xsd:extension>
+        </xsd:simpleContent>
+        <!-- See OGC 11-122r1 Annex F: Language and Script domains,
+                                    and Annex G: Dialect domains, which document a subset of
+                                    ISO 639-3:2007 Codes for the representation of names of languages. -->
+        <!-- See OGC 11-122r1 Annex E: Transliteration domains. -->
+    </xsd:complexType>
+    <xsd:complexType name="AlternativeGeographicIdentifiersPropertyType">
+        <xsd:sequence>
+            <xsd:element ref="iso19112:alternativeGeographicIdentifier" maxOccurs="unbounded"/>
+        </xsd:sequence>
+    </xsd:complexType>
+    <xsd:element name="alternativeGeographicIdentifier">
+        <xsd:complexType>
+            <xsd:sequence>
+                <xsd:element name="partner" type="xsd:string" minOccurs="0">
+                    <xsd:annotation>
+                        <xsd:documentation>Optionally identifies partner organization that specified this geographic identifier, such as 'State of Montana'.</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:element>
+                <!-- Note that names may be localized to a specific language -->
+                <xsd:element name="name" type="iso19112:LanguageStringType">
+                    <xsd:annotation>
+                        <xsd:documentation>A unique geographic identifier for a location instance. In order to ensure that the geographic identifier is unique within a wider geographic domain, the geographic identifier may need to include an identifier of an instance of a parent location type, for example “Paris, Texas” (as distinguished from "Paris, France").</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:element>
+                <!-- May need to make this a QName to qualify the name
+                      with a namespace that indicates the source organization (e.g. USGS or NGA). -->
+                <xsd:element name="nameID" type="xsd:string" minOccurs="0">
+                    <xsd:annotation>
+                        <xsd:documentation>An identifier associated with the (e.g., name) geographic identifier.</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:element>
+                <!-- Allowed values are drawn from http://metadata.ces.mil/mdr/ns/GSIP/codelist">GeoIdentifierNameTypeCode -->
+                <xsd:element name="type" type="gml:CodeType" minOccurs="0">
+                    <xsd:annotation>
+                        <xsd:documentation>Domain value describing if the alternativeGeographicIdentifier value (e.g, name) is, for example, an 'official' or 'variant'. For example, Canada has two official languages so there may be two official names; one English and one French.</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:element>
+                <xsd:element name="dateCommitted" type="xsd:date" minOccurs="0">
+                    <xsd:annotation>
+                        <xsd:documentation>Optionally, the date on which this geographic identifier (e.g., a name) was determined.</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:element>
+                <xsd:element name="primary" type="xsd:boolean" minOccurs="0">
+                    <xsd:annotation>
+                        <xsd:documentation>Identifies whether this geographic identifier (e.g., a name) is considered to be primary for the location instance.</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:element>
+                <!-- Allowed values are drawn from http://metadata.ces.mil/mdr/ns/GSIP/codelist/GeoIdentifierBibliographicTypeCode -->
+                <xsd:element name="citationCode" type="gml:CodeType" minOccurs="0">
+                    <xsd:annotation>
+                        <xsd:documentation>Optional bibliographic reference citation codes (e.g., in the case that this geographic identifier is a "name").</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:element>
+            </xsd:sequence>
+        </xsd:complexType>
+    </xsd:element>
+</xsd:schema>

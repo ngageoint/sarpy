@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- As originally specified in OGC Best Practices Document:
+            Gazetteer Service - Application Profile of the Web Feature Service Implementation Specification
+            Version 0.9.4, OGC 11-122r1, 2011-08-18
+  -->
+<gml:Dictionary
+   xmlns:gml="http://www.opengis.net/gml/3.2"
+   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+   xsi:schemaLocation="http://www.opengis.net/gml/3.2 ../../../../ogc/gml/3.2.1/gml.xsd"
+   gml:id="GeoIdentifierIDTypeCode">
+   <gml:description>
+      The type of an identification for a location type in a gazetteer.
+   </gml:description>
+   <gml:identifier codeSpace="http://metadata.ces.mil/mdr/ns/GSIP/codelist">GeoIdentifierIDTypeCode</gml:identifier>
+   <gml:name>DoD/IC Dictionary: GSIP Geographic Identifier Identification Type Code Dictionary</gml:name>
+
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="code">
+         <gml:description>An assigned unique alphanumeric string (or 'code') by which a particular geographic entity is, or was, known.</gml:description>
+	     <gml:identifier codeSpace="http://metadata.ces.mil/dse/ns/GSIP/codelist/GeoIdentifierIDTypeCode">code</gml:identifier>
+         <gml:name>Code</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="name">
+         <gml:description>A unique proper name, specific term, or expression by which a particular geographic entity is, or was, known.</gml:description>
+	     <gml:identifier codeSpace="http://metadata.ces.mil/dse/ns/GSIP/codelist/GeoIdentifierIDTypeCode">name</gml:identifier>
+         <gml:name>Name</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+</gml:Dictionary>
