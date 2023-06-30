@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schema xmlns:tspi-ext="http://metadata.ces.mil/mdr/ns/GSIP/tspi/2.0/ext" xmlns:tspi-core="http://metadata.ces.mil/mdr/ns/GSIP/tspi/2.0/core" xmlns:tspi="http://metadata.ces.mil/mdr/ns/GSIP/tspi/2.0" xmlns:gml="http://www.opengis.net/gml/3.2" xmlns:si="http://www.isotc211.org/19112" xmlns="http://www.w3.org/2001/XMLSchema" targetNamespace="http://metadata.ces.mil/mdr/ns/GSIP/tspi/2.0/ext" elementFormDefault="qualified" version="2.0.0">
+    <!-- - - - - - -   MDR-based Resource   - - - - - - - - - - 
+    <import namespace="http://www.opengis.net/gml/3.2" 
+	        schemaLocation="http://metadata.ces.mil/dse/ns/GPAS/schemas/ogc/gml/3.2.1/gml.xsd"/>
+    <import namespace="http://www.isotc211.org/19112" 
+            schemaLocation="http://metadata.ces.mil/dse/ns/GPAS/schemas/iso/19112/BP_2012/si.xsd"/>
+    <import namespace="http://metadata.ces.mil/mdr/ns/GSIP/tspi/2.0/core" schemaLocation="./tspi-core.xsd"/>
+    <import namespace="http://metadata.ces.mil/mdr/ns/GSIP/tspi/2.0" schemaLocation="./tspi.xsd"/> -->
+    <!-- - - - - - -   Local Resource   - - - - - - - - - - -->
+    <import namespace="http://www.opengis.net/gml/3.2" schemaLocation="../../ogc/gml/3.2.1/gml.xsd"/>
+    <import namespace="http://www.isotc211.org/19112" schemaLocation="../../iso/19112/BP_2012/si.xsd"/>
+    <import namespace="http://metadata.ces.mil/mdr/ns/GSIP/tspi/2.0/core" schemaLocation="./tspi-core.xsd"/>
+    <import namespace="http://metadata.ces.mil/mdr/ns/GSIP/tspi/2.0" schemaLocation="./tspi.xsd"/>
+    <!-- == 
+
+    Accompanying Specification at: http://metadata.ces.mil/mdr/ns/GSIP/tspi/2.0.0/doc
+
+    ==-->
+    <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
+    <annotation>
+        <documentation>TSPI-conformant registered extensions that specify additional representations for spatial position, geographic location, and/or physical address. It is populated with initial high-value extensions, but is dynamically maintained on the MDR. Its use is conditional on the requirements of a given system/application and its accompanying business requirements.</documentation>
+    </annotation>
+    <!-- ========================================================== -->
+    <!-- =========== Situational Awareness Extension ============== -->
+    <!--  A TSPI geometry extension that supports a restricted variant of tspi:PointType
+               in which the coordinate reference system is limited to WGS84E_3D.             -->
+    <!-- ========================================================== -->
+    <element name="Point_WGS84E_3D" type="tspi-ext:PointType_WGS84E_3D" substitutionGroup="gml:AbstractGeometricPrimitive">
+        <annotation>
+            <documentation>Point: A point as profiled from ISO 19136:2007 (GML) for use in the TSPI Schema but limited to the WGS84E_3D coordinate reference system and then extended to include both assessments of the accuracy and/or resolution of the coordinate tuple as well as optional specification of one or more character-oriented presentations of the coordinate tuple based on the sexagesimal, grid-metre, zone-metre, quadrangle and/or numeric-bit location forms.</documentation>
+        </annotation>
+    </element>
+    <!-- A simple type restricting the GML attribute srsName (whose type is 'anyURI')
+          to allow only a single, fixed value.
+    	  WGS84_3D is a geodetic (geographic) coordinate reference system that is
+          based on the World Geodetic System 1984 (WGS84) ellipsoid, extended by
+          an ellipsoidal height position ('Height Above Ellipsoid': HAE).
+    -->
+    <simpleType name="srsName_WGS84E_3D">
+        <restriction base="anyURI">
+            <enumeration value="http://metadata.ces.mil/mdr/ns/GSIP/crs/WGS84E_3D"/>
+        </restriction>
+    </simpleType>
+    <!-- A restricted version of tspi:PointType that is technically incorrect, but which most GML-aware applications
+          should process identically to that defined in ISO 19136. ISO 19136 Clause 21.4.2.1 (User-defined geometry types)
+          states: "Any user-defined geometry subtypes shall inherit the elements and attributes of the base GML geometry
+          types without restriction, but may extend these base types to meet application requirements, such as providing
+          a finer degree of interoperability with legacy systems and data sets."
+          This complex type may be used in lieu of gml:PointType.
+    -->
+    <complexType name="PointType_WGS84E_3D">
+        <annotation>
+            <documentation>Point Type: A restricted point type as profiled from ISO 19136:2007 (GML) for use in the TSPI Schema but limited to the WGS84E_3D coordinate reference system and then extended to include both assessments of the accuracy and/or resolution of the coordinate tuple as well as optional specification of one or more character-oriented presentations of the coordinate tuple based on the sexagesimal, grid-metre, zone-metre, quadrangle and/or numeric-bit location forms.</documentation>
+        </annotation>
+        <complexContent>
+            <extension base="tspi-ext:PointType_WGS84E_3D_primitive">
+                <sequence>
+                    <group ref="tspi-core:resolutionGroup"/>
+                    <group ref="tspi-core:presentationGroup"/>
+                </sequence>
+            </extension>
+        </complexContent>
+    </complexType>
+    <!-- A restricted version of gml:PointType that is technically incorrect, but which most GML-aware applications
+          should process identically to that defined in ISO 19136. ISO 19136 Clause 21.4.2.1 (User-defined geometry types)
+          states: "Any user-defined geometry subtypes shall inherit the elements and attributes of the base GML geometry
+          types without restriction, but may extend these base types to meet application requirements, such as providing
+          a finer degree of interoperability with legacy systems and data sets."
+          This complex type may be used in lieu of gml:PointType.
+    -->
+    <complexType name="PointType_WGS84E_3D_primitive">
+        <complexContent>
+            <restriction base="gml:PointType">
+                <sequence>
+                    <!-- The group gml:StandardObjectProperties is inherited from gml:AbstractGMLType; it is provided
+                          for convenience in the construction of application schema, particularly when it is desired to define
+                          types derived by restriction from gml:AbstractGMLType and gml:AbstractFeatureType. Derivation
+                          by restriction requires that all components that are used unchanged are copied down into
+                          the new type definition.
+                    -->
+                    <group ref="gml:StandardObjectProperties"/>
+                    <choice>
+                        <element ref="gml:pos"/>
+                        <!-- Note that the following element is deprecated, but included in ISO 19136:2007 for backwards compatibility. -->
+                        <element ref="gml:coordinates"/>
+                    </choice>
+                </sequence>
+                <attribute name="srsName" type="tspi-ext:srsName_WGS84E_3D" use="required"/>
+            </restriction>
+            <!-- The substitution group chain in ISO 19136 (GML 3.2.1; OGC 07-036) proceeds from gml:PointType
+                  to gml:AbstractGeometricPrimitiveType to gml:AbstractGeometryType to gml:AbstractGMLType. All
+                  geometry elements are derived directly or indirectly from the gml:AbstractGeometryType abstract supertype.
+                  A geometry element shall have an identifying attribute (gml:id), may have one or more names (elements
+                  gml:identifier and gml:name) and a description (elements gml:description and gml:descriptionReference).
+                  It may be associated with a spatial reference system (attribute group gml:SRSReferenceGroup). The
+                  following rules shall be adhered to:
+                  (1) Every geometry type shall derive from this abstract type.
+                  (2) Every geometry element (i.e. an element of a geometry type) shall be directly or indirectly
+                          in the substitution group of AbstractGeometry.
+            -->
+            <!-- The attribute group gml:SRSReferenceGroup is a reference to the CRS used by this geometry, with optional
+                      additional information to simplify the processing of the coordinates when a more complete definition of the CRS
+                      is not needed. gml:SRSReferenceGroup is inherited from gml:AbstractGeometryType.
+                      In this use we restrict the gml:SRSReferenceGroup to only use attribute srsName, and that with a fixed value.
+                -->
+        </complexContent>
+    </complexType>
+    <!-- ========================================================== -->
+    <!-- ==================== GEOLOC Extension ==================== -->
+    <!-- ========================================================== -->
+    <element name="GEOLOCInstance" type="tspi-ext:GEOLOCInstanceType" substitutionGroup="tspi:AbstractGeographicLocation">
+        <annotation>
+            <documentation>...</documentation>
+        </annotation>
+    </element>
+    <complexType name="GEOLOCInstanceType">
+        <annotation>
+            <documentation>....</documentation>
+        </annotation>
+        <complexContent>
+            <extension base="si:SI_LocationInstanceType">
+                <sequence>
+                    <element name="myProperty" type="string" minOccurs="0">
+                        <annotation>
+                            <documentation>A property of the location instance.</documentation>
+                        </annotation>
+                    </element>
+                </sequence>
+            </extension>
+        </complexContent>
+    </complexType>
+    <!-- ============== Other Extensions ================== -->
+</schema>

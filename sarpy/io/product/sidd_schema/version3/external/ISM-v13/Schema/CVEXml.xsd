@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Last modified: 2009-07-07 ebk --><xs:schema xmlns:cve="urn:us:gov:ic:cve" xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:ism="urn:us:gov:ic:ism"
+           xmlns:ddms="urn:us:mil:ces:metadata:ddms:5"
+           elementFormDefault="qualified"
+           targetNamespace="urn:us:gov:ic:cve">
+  <xs:annotation>
+      <xs:documentation>This schema describes a structure for simple XML files (CVE files) 
+      which list the valid values for elements and attributes defined in an
+      IC Data Encoding Specification. The primary purpose of the CVE files is to 
+      document the valid values in a structured manner.
+    </xs:documentation>
+  </xs:annotation>
+  <!-- **************************************************************** -->
+  <!--        IMPORT IC INFORMATION SECURITY MARKING ATTRIBUTES         -->
+  <!-- **************************************************************** -->
+  <xs:import namespace="urn:us:gov:ic:ism" schemaLocation="./ISM/IC-ISM.xsd"/>
+
+  <!-- **************************************************************** -->
+  <!--        IMPORT IC METADATA STANDARD (DDMS)                        -->
+  <!-- **************************************************************** -->
+  <xs:import namespace="urn:us:mil:ces:metadata:ddms:5" schemaLocation="./DDMS/DDMS-v5.xsd"/>
+
+  <xs:attribute name="codespace" type="xs:string">
+      <xs:annotation>
+         <xs:documentation>An attribute used to declare the namespace/codespace of the term value.</xs:documentation>
+      </xs:annotation>
+  </xs:attribute>
+
+  <xs:element name="CVE">
+      <xs:annotation>
+         <xs:documentation>The root node of a CVEXXX.xml document. This node 
+        carries the overall classification of the entire enumeration
+        and resource metadata through ISM attributes.</xs:documentation>
+      </xs:annotation>
+      <xs:complexType>
+         <xs:sequence>
+            <xs:element ref="cve:IRM" maxOccurs="1"/>
+            <xs:element maxOccurs="1" ref="cve:Enumeration"/>
+         </xs:sequence>
+         <xs:attribute name="CVEVersion" type="xs:int" use="required">
+            <xs:annotation>
+               <xs:documentation xml:lang="en">
+            The version number of the CVE.
+          </xs:documentation>
+            </xs:annotation>
+         </xs:attribute>
+         <xs:attributeGroup ref="ism:ISMRootNodeAttributeGroup"/>
+         <xs:attributeGroup ref="ism:ResourceNodeAttributeGroup"/>
+      </xs:complexType>
+  </xs:element>
+
+  <xs:element name="IRM">
+      <xs:annotation>
+         <xs:documentation>Information resource metadata for this CVE.</xs:documentation>
+      </xs:annotation>
+      <xs:complexType>
+         <xs:sequence>
+            <xs:element ref="ddms:identifier"/>
+            <xs:element ref="ddms:title" minOccurs="0"/>
+            <xs:element ref="ddms:description" minOccurs="0"/>
+            <xs:element ref="cve:Created" minOccurs="0"/>
+            <xs:choice maxOccurs="unbounded">
+               <xs:element ref="ddms:source" maxOccurs="unbounded"/>
+               <xs:element ref="ddms:creator" maxOccurs="unbounded"/>
+               <xs:element ref="ddms:publisher" maxOccurs="unbounded"/>
+               <xs:element ref="ddms:contributor" maxOccurs="unbounded"/>
+               <xs:element ref="ddms:pointOfContact" maxOccurs="unbounded"/>
+            </xs:choice>
+            <xs:element ref="ddms:format" minOccurs="0"/>
+         </xs:sequence>
+      </xs:complexType>
+  </xs:element>
+
+  <xs:element name="Created" type="ddms:CombinedDateType"/>
+
+  <xs:element name="Enumeration">
+      <xs:annotation>
+         <xs:documentation>A container for all of the values represented by this CVE.</xs:documentation>
+      </xs:annotation>
+      <xs:complexType>
+         <xs:sequence>
+            <xs:element maxOccurs="unbounded" minOccurs="0" ref="cve:Term"/>
+         </xs:sequence>
+         <xs:attribute name="multivalue" type="xs:boolean" use="required">
+            <xs:annotation>
+               <xs:documentation>
+            Boolean defining if the validation should allow only 1 occurrence or multiple occurrences of values
+            from this CVE in an instance document true allows multiples.
+          </xs:documentation>
+            </xs:annotation>
+         </xs:attribute>
+         <xs:attributeGroup ref="ism:SecurityAttributesGroup"/>
+      </xs:complexType>
+      <xs:unique name="TermValueUnique">
+         <xs:selector xpath=".//cve:Value"/>
+         <xs:field xpath="."/>
+      </xs:unique>
+  </xs:element>
+
+  <xs:element name="Term">
+      <xs:annotation>
+         <xs:documentation>A single entry in the CVE. Contains the actual 
+        value being specified by the DES and a description to facilitate human
+        understanding of the value. Note, the description is purely informative.</xs:documentation>
+      </xs:annotation>
+      <xs:complexType>
+         <xs:sequence>
+            <xs:element ref="cve:Value"/>
+            <xs:element ref="ddms:description">
+               <xs:annotation>
+                  <xs:documentation>If a CVE is being created at a classification level 
+              at which a particular "Value" is allowed, but the usual description of 
+              that "Value" is at a higher classification level, the description should
+              be rewritten to the desired level.</xs:documentation>
+               </xs:annotation>
+            </xs:element>
+         </xs:sequence>
+         <xs:attribute use="optional" ref="cve:codespace"/>
+         <xs:attribute use="optional" name="deprecated" type="xs:date">
+            <xs:annotation>
+               <xs:documentation>A date indicating when this term is no longer allowed. Presence of
+            this date indicated the value is currently deprecated and processing systems should produce a warning 
+            or error for any occurrences of this term's value or take other action as appropriate.</xs:documentation>
+            </xs:annotation>
+         </xs:attribute>
+         <xs:attributeGroup ref="ism:SecurityAttributesGroup"/>
+      </xs:complexType>
+  </xs:element>
+
+  <xs:element name="Value">
+      <xs:annotation>
+         <xs:documentation>A valid value specified in the CVE.</xs:documentation>
+      </xs:annotation>
+      <xs:complexType>
+         <xs:simpleContent>
+            <xs:extension base="xs:token">
+               <xs:attribute use="optional" name="regularExpression" type="xs:boolean">
+                  <xs:annotation>
+                     <xs:documentation>A boolean indicator that this term is defined via a Regular Express.</xs:documentation>
+                  </xs:annotation>
+               </xs:attribute>
+               <xs:attributeGroup ref="ism:SecurityAttributesGroup"/>
+            </xs:extension>
+         </xs:simpleContent>
+      </xs:complexType>
+  </xs:element>
+
+</xs:schema>
