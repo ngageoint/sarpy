@@ -6,6 +6,7 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 import logging
+import re
 from xml.etree import ElementTree
 from weakref import WeakKeyDictionary
 
@@ -125,7 +126,7 @@ class BasicDescriptor(object):
         instance : object
             the calling class instance
         value
-            the value to use in setting - the type depends of the specific extension of this base class
+            the value to use in setting - the type depends on the specific extension of this base class
 
         Returns
         -------
@@ -134,7 +135,7 @@ class BasicDescriptor(object):
             a return. This returns True if this the setting value was None, and False otherwise.
         """
 
-        # NOTE: This is intended to handle this case for every extension of this class. Hence the boolean return,
+        # NOTE: This is intended to handle this case for every extension of this class. Hence, the boolean return,
         # which extensions SHOULD NOT implement. This is merely to follow DRY principles.
         if value is None:
             if self.default_value is not None:
@@ -256,6 +257,47 @@ class StringEnumDescriptor(BasicDescriptor):
             msg = 'Attribute {} of class {} received {},\n\t' \
                   'but values ARE REQUIRED to be one of {}'.format(
                     self.name, instance.__class__.__name__, value, self.values)
+            if self.strict:
+                raise ValueError(msg)
+            else:
+                logger.error(msg)
+            self.data[instance] = val
+
+
+class StringRegexDescriptor(BasicDescriptor):
+    """A descriptor for a string matching a regex."""
+    _typ_string = 'str:'
+
+    def __init__(self, name, pattern, required, strict=DEFAULT_STRICT, default_value=None, docstring=None):
+        self.pattern = pattern
+        self.matcher = re.compile(pattern)
+        super(StringRegexDescriptor, self).__init__(
+            name, required, strict=strict, default_value=default_value, docstring=docstring)
+        if (self.default_value is not None) and (not self.matcher.fullmatch(self.default_value)):
+            self.default_value = None
+
+    def _docstring_suffix(self):
+        suff = ' Takes values matching :code:`{}`.'.format(self.pattern)
+        if self.default_value is not None:
+            suff += ' Default value is :code:`{}`.'.format(self.default_value)
+        return suff
+
+    def __set__(self, instance, value):
+        if value is None:
+            if self.default_value is not None:
+                self.data[instance] = self.default_value
+            else:
+                super(StringRegexDescriptor, self).__set__(instance, value)
+            return
+
+        val = parse_str(value, self.name, instance)
+
+        if self.matcher.fullmatch(val):
+            self.data[instance] = val
+        else:
+            msg = 'Attribute {} of class {} received {},\n\t' \
+                  'but values ARE REQUIRED to match {}'.format(
+                    self.name, instance.__class__.__name__, value, self.pattern)
             if self.strict:
                 raise ValueError(msg)
             else:

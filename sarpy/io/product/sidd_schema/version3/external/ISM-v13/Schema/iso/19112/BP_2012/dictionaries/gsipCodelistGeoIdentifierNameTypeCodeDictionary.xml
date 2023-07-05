@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- As originally specified in OGC Best Practices Document:
+            Gazetteer Service - Application Profile of the Web Feature Service Implementation Specification
+            Version 0.9.4, OGC 11-122r1, 2011-08-18
+      - Created to support the revision of the alternativeGeographicIdentifier type attribute
+                from an enumeration to a codeList
+  -->
+<gml:Dictionary
+   xmlns:gml="http://www.opengis.net/gml/3.2"
+   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+   xsi:schemaLocation="http://www.opengis.net/gml/3.2 ../../../../ogc/gml/3.2.1/gml.xsd"
+   gml:id="GeoIdentifierNameTypeCode">
+   <gml:description>
+      The type of an alternative geographic identifier (e.g., a name) of a location instance in a gazetteer.
+   </gml:description>
+   <gml:identifier codeSpace="http://metadata.ces.mil/dse/ns/GSIP/codelist">GeoIdentifierNameTypeCode</gml:identifier>
+   <gml:name>DoD/IC Dictionary: GSIP Geographic Identifier Name Type Code Dictionary</gml:name>
+
+<!--
+   The following set of codes equivalent to the original enumeration specification in Version 0.9.4, OGC 11-122r1, 2011-08-18.
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="official">
+	     <gml:identifier codeSpace="http://metadata.ces.mil/dse/ns/GSIP/codelist/GeoIdentifierNameTypeCode">official</gml:identifier>
+         <gml:name>Official</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="variant">
+	     <gml:identifier codeSpace="http://metadata.ces.mil/dse/ns/GSIP/codelist/GeoIdentifierNameTypeCode">variant</gml:identifier>
+         <gml:name>Variant</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+-->
+
+    <!-- The following values are as used in the NGA Geonames Database. -->
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="approved">
+         <gml:description>The approved geographic name for a feature as determined in accordance with the naming policy of the U.S. Board on Geographic Names (BGN).</gml:description>
+	     <gml:identifier codeSpace="http://metadata.ces.mil/dse/ns/GSIP/codelist/GeoIdentifierNameTypeCode">approved</gml:identifier>
+         <gml:name>Approved</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="conventional">
+         <gml:description>An English name that is in widespread usage for a feature that is located in a region where English is not the official language.</gml:description>
+	     <gml:identifier codeSpace="http://metadata.ces.mil/dse/ns/GSIP/codelist/GeoIdentifierNameTypeCode">conventional</gml:identifier>
+         <gml:name>Conventional</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="historicalOriginal">
+         <gml:description>A historical name for a feature that remains in the original (non-Latin/Roman) script.</gml:description>
+	     <gml:identifier codeSpace="http://metadata.ces.mil/dse/ns/GSIP/codelist/GeoIdentifierNameTypeCode">historicalOriginal</gml:identifier>
+         <gml:name>Historical Original</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="historicalTransliterated">
+         <gml:description>A historical name for a feature that has been transliterated to the Latin/Roman script as necessary.</gml:description>
+	     <gml:identifier codeSpace="http://metadata.ces.mil/dse/ns/GSIP/codelist/GeoIdentifierNameTypeCode">historicalTransliterated</gml:identifier>
+         <gml:name>Historical Transliterated</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="nativeOriginal">
+         <gml:description>The official local name for a feature that remains in the original (non-Latin/Roman) script and is approved by the U.S. Board on Geographic Names (BGN).</gml:description>
+	     <gml:identifier codeSpace="http://metadata.ces.mil/dse/ns/GSIP/codelist/GeoIdentifierNameTypeCode">nativeOriginal</gml:identifier>
+         <gml:name>Native Original</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="nativeTransliterated">
+         <gml:description>The official local name for a feature that has been transliterated to the Latin/Roman script as necessary and is approved by the U.S. Board on Geographic Names (BGN).</gml:description>
+	     <gml:identifier codeSpace="http://metadata.ces.mil/dse/ns/GSIP/codelist/GeoIdentifierNameTypeCode">nativeTransliterated</gml:identifier>
+         <gml:name>Native Transliterated</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="provisionalOriginal">
+         <gml:description>A provisional name for a feature that remains in the original (non-Latin/Roman) script.</gml:description>
+	     <gml:identifier codeSpace="http://metadata.ces.mil/dse/ns/GSIP/codelist/GeoIdentifierNameTypeCode">provisionalOriginal</gml:identifier>
+         <gml:name>Provisional Native</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="unverifiedOriginal">
+         <gml:description>A local name for a feature that remains in the original (non-Latin/Roman) script, where a native source for the name was either unavailable or nonexistant and a non-native source for the name was used instead and the resulting name could not be verified from a recent local official source.</gml:description>
+	     <gml:identifier codeSpace="http://metadata.ces.mil/dse/ns/GSIP/codelist/GeoIdentifierNameTypeCode">unverifiedOriginal</gml:identifier>
+         <gml:name>Unverified Original</gml:name>
+         <gml:remarks>An unverified name is usually indicated in a gazetteer using the dagger symbol.</gml:remarks>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="unverifiedTransliterated">
+         <gml:description>A local name for a feature that has been transliterated to the Latin/Roman script as necessary, where a native source for the name was either unavailable or nonexistant and a non-native source for the name was used instead and the resulting name could not be verified from a recent local official source.</gml:description>
+	     <gml:identifier codeSpace="http://metadata.ces.mil/dse/ns/GSIP/codelist/GeoIdentifierNameTypeCode">unverifiedTransliterated</gml:identifier>
+         <gml:name>Unverified Transliterated</gml:name>
+         <gml:remarks>An unverified name is usually indicated in a gazetteer using the dagger symbol.</gml:remarks>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="variantOriginal">
+         <gml:description>A variant or alternate name for a feature that remains in the original (non-Latin/Roman) script.</gml:description>
+	     <gml:identifier codeSpace="http://metadata.ces.mil/dse/ns/GSIP/codelist/GeoIdentifierNameTypeCode">variantOriginal</gml:identifier>
+         <gml:name>Variant Original</gml:name>
+         <gml:remarks>For example, a former name, a name in local usage, alternate name spellings found in various sources, or a derived short name.</gml:remarks>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="variantTransliterated">
+         <gml:description>A variant or alternate name for a feature that has been transliterated to the Latin/Roman script as necessary.</gml:description>
+	     <gml:identifier codeSpace="http://metadata.ces.mil/dse/ns/GSIP/codelist/GeoIdentifierNameTypeCode">variantTransliterated</gml:identifier>
+         <gml:name>Variant Transliterated</gml:name>
+         <gml:remarks>For example, a former name, a name in local usage, alternate name spellings found in various sources, or a derived short name.</gml:remarks>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+</gml:Dictionary>

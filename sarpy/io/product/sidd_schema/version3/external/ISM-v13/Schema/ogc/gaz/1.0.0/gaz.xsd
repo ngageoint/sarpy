@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- As originally specified in OGC Best Practices Document:
+            Gazetteer Service - Application Profile of the Web Feature Service Implementation Specification
+            Version 0.9.4, OGC 11-122r1, 2011-08-18
+      - Revised from GML 3.1.1 to GML 3.2.1
+      - Removed restriction to GML-SF Level1
+      - Derived gaz:PlaceNameInstance fron iso19112:SI_LocationInstance to add place-name-specific element
+  -->
+<xsd:schema xmlns:si="http://www.isotc211.org/19112" xmlns:gml="http://www.opengis.net/gml/3.2" xmlns:gaz="http://www.opengis.net/gaz/1.0" xmlns:xsd="http://www.w3.org/2001/XMLSchema" targetNamespace="http://www.opengis.net/gaz/1.0" elementFormDefault="qualified" version="1.0.0">
+    <xsd:import namespace="http://www.opengis.net/gml/3.2" schemaLocation="../../../ogc/gml/3.2.1/gml.xsd"/>
+    <xsd:import namespace="http://www.isotc211.org/19112" schemaLocation="../../../iso/19112/BP_2012/si.xsd"/>
+    <!-- =================================================================== -->
+    <!-- PlaceNameInstance                                                 -->
+    <!-- =================================================================== -->
+    <xsd:element name="PlaceNameInstance" type="gaz:PlaceNameInstanceType" substitutionGroup="gml:AbstractFeature">
+        <xsd:annotation>
+            <xsd:documentation>A location instance in a spatial reference system. A location instance specifies a location that is characterized by a location type. For example, a particular "county", "town", "property", or "river".</xsd:documentation>
+        </xsd:annotation>
+    </xsd:element>
+    <xsd:complexType name="PlaceNameInstanceType">
+        <xsd:annotation>
+            <xsd:documentation>A location instance in a spatial reference system.</xsd:documentation>
+        </xsd:annotation>
+        <xsd:complexContent>
+            <xsd:extension base="si:SI_LocationInstanceType">
+                <xsd:sequence>
+                    <xsd:element name="guid" type="xsd:anyURI" minOccurs="0">
+                        <xsd:annotation>
+                            <xsd:documentation>A URI for the location instance.</xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                    <xsd:element name="dateModified" type="xsd:date" minOccurs="0">
+                        <xsd:annotation>
+                            <xsd:documentation>Optional date on which this version of the location instance was last changed.</xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                    <!-- Allowed values are drawn from http://metadata.ces.mil/mdr/ns/GSIP/codelist/GeoIdentifierDesignationTypeCode -->
+                    <xsd:element name="designation" type="gml:CodeType" minOccurs="0" maxOccurs="unbounded">
+                        <xsd:annotation>
+                            <xsd:documentation>A value description where the main value is 'Historic'.</xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                    <!-- USGS field for feature history (txt3000) -->
+                    <xsd:element name="history" type="xsd:string" minOccurs="0">
+                        <xsd:annotation>
+                            <xsd:documentation>Optional description of the history of this location instance.</xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                    <!-- USGS field for feature description (txt3000) -->
+                    <xsd:element name="description" type="xsd:string" minOccurs="0">
+                        <xsd:annotation>
+                            <xsd:documentation>Optional description of this location instance.</xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                </xsd:sequence>
+            </xsd:extension>
+        </xsd:complexContent>
+    </xsd:complexType>
+</xsd:schema>

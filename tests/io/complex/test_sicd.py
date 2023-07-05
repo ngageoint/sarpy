@@ -56,6 +56,9 @@ class TestSICDWriting(unittest.TestCase):
             with self.subTest(msg='Test conversion (recreation) of the sicd file {}'.format(fil)):
                 with tempfile.TemporaryDirectory() as tmpdirname:
                     conversion_utility(reader, tmpdirname)
+                    new_filename = os.path.join(tmpdirname, os.listdir(tmpdirname)[0])
+                    reader2 = SICDReader(new_filename)
+                    self.assertEqual(os.stat(new_filename).st_size, reader2.nitf_details.nitf_header.FL)
 
             with self.subTest(msg='Test writing a single row of the sicd file {}'.format(fil)):
                 with tempfile.TemporaryDirectory() as tmpdirname:

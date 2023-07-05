@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- As originally specified in OGC Best Practices Document:
+            Gazetteer Service - Application Profile of the Web Feature Service Implementation Specification
+            Version 0.9.4, OGC 11-122r1, 2011-08-18
+  -->
+<gml:Dictionary
+   xmlns:gml="http://www.opengis.net/gml/3.2"
+   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+   xsi:schemaLocation="http://www.opengis.net/gml/3.2 ../../../../ogc/gml/3.2.1/gml.xsd"
+   gml:id="GeoIdentifierBibliographicTypeCode">
+   <gml:description>
+      The type of a bibliographic reference citation for a location instance in a gazetteer.
+   </gml:description>
+   <gml:identifier codeSpace="http://metadata.ces.mil/dse/ns/GSIP/codelist">GeoIdentifierBibliographicTypeCode</gml:identifier>
+   <gml:name>DoD/IC Dictionary: GSIP Geographic Identifier Bibliographic Reference Citation Type Code Dictionary</gml:name>
+
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="dataset">
+         <gml:description>A collection of data records intended for computer processing.</gml:description>
+	     <gml:identifier codeSpace="http://metadata.ces.mil/dse/ns/GSIP/codelist/GeoIdentifierBibliographicTypeCode">dataset</gml:identifier>
+         <gml:name>Dataset</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="interview">
+         <gml:description>A formal meeting in which one or more persons question, consult, or evaluate another person.</gml:description>
+	     <gml:identifier codeSpace="http://metadata.ces.mil/dse/ns/GSIP/codelist/GeoIdentifierBibliographicTypeCode">interview</gml:identifier>
+         <gml:name>Interview</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="map">
+         <gml:description>A representation of the features of an area of the Earth that portrays them in their respective forms, sizes, and relationships according to some convention of representation on a flat surface.</gml:description>
+	     <gml:identifier codeSpace="http://metadata.ces.mil/dse/ns/GSIP/codelist/GeoIdentifierBibliographicTypeCode">map</gml:identifier>
+         <gml:name>Map</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="text">
+         <gml:description>A book or other written or printed work.</gml:description>
+	     <gml:identifier codeSpace="http://metadata.ces.mil/dse/ns/GSIP/codelist/GeoIdentifierBibliographicTypeCode">text</gml:identifier>
+         <gml:name>Text</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="website">
+         <gml:description>A connected group of pages on the World Wide Web regarded as a single entity, usually maintained by one person or organization and devoted to a single topic or several closely related topics.</gml:description>
+	     <gml:identifier codeSpace="http://metadata.ces.mil/dse/ns/GSIP/codelist/GeoIdentifierBibliographicTypeCode">website</gml:identifier>
+         <gml:name>Website</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+</gml:Dictionary>
