@@ -108,17 +108,17 @@ def ray_intersect_earth(position, direction):
 
 
 def _create_cphd_styles(kmz_document):
-    def _setpolygon(name, *, bbggrr, low_aa, low_width, high_aa, high_width):
+    def _setpolygon(name, *, bbggrr, low_aa, low_width, high_aa, high_width, outline="1"):
         opaque = "ff"
         kmz_document.add_style(
             name + "_high",
             line_style={"color": opaque + bbggrr, "width": high_width},
-            poly_style={"color": high_aa + bbggrr},
+            poly_style={"color": high_aa + bbggrr, "outline": str(outline)},
         )
         kmz_document.add_style(
             name + "_low",
             line_style={"color": opaque + bbggrr, "width": low_width},
-            poly_style={"color": low_aa + bbggrr},
+            poly_style={"color": low_aa + bbggrr, "outline": str(outline)},
         )
         kmz_document.add_style_map(name, name + "_high", name + "_low")
 
@@ -158,18 +158,20 @@ def _create_cphd_styles(kmz_document):
         "mechanical_boresight",
         bbggrr="a00000",
         low_aa="70",
-        low_width="1.0",
+        low_width="2.0",
         high_aa="a0",
-        high_width="1.5",
+        high_width="3.5",
+        outline="0",
     )
 
     _setpolygon(
         "electrical_boresight",
         bbggrr="a0a050",
         low_aa="70",
-        low_width="1.0",
+        low_width="2.0",
         high_aa="a0",
-        high_width="1.5",
+        high_width="3.5",
+        outline="0",
     )
 
     _setpolygon(
@@ -436,16 +438,33 @@ def cphd_create_kmz_view(reader, output_directory, file_stem="view"):
                 placemark = kmz_doc.add_container(
                     par=boresight_folder,
                     name=name,
-                    description=f"{name} for channel {channel_name}",
+                    description=f"{name} for channel {channel_name}<br><br>Highlighted edge indicates start time",
                     styleUrl=f"#{boresight_type}_boresight",
                     visibility=visibility,
                 )
                 boresight_coords = ecef_to_kml_coord(on_earth_ecf)
-                apc_coords = ecef_to_kml_coord(aiming[txrcv]["apc_position"][indices])
-                coords = apc_coords + boresight_coords[::-1] + [apc_coords[0]]
-                kmz_doc.add_polygon(
-                    " ".join(coords), par=placemark, altitudeMode="absolute"
-                )
+
+                # complex 3d polygons don't always render nicely.  So, we'll manually triangluate it.
+                mg = kmz_doc.add_multi_geometry(par=placemark)
+                # Highlight the starting point
+                kmz_doc.add_line_string(coords=' '.join([arp_coords[0], boresight_coords[0]]),
+                                        par=mg,
+                                        altitudeMode='absolute',)
+                for idx in range(len(arp_coords)-1):
+                    coords = [
+                        arp_coords[idx],
+                        boresight_coords[idx],
+                        arp_coords[idx+1],
+                        arp_coords[idx],
+                    ]
+                    kmz_doc.add_polygon(' '.join(coords), par=mg, altitudeMode='absolute')
+                    coords = [
+                        boresight_coords[idx],
+                        boresight_coords[idx+1],
+                        arp_coords[idx+1],
+                        boresight_coords[idx],
+                    ]
+                    kmz_doc.add_polygon(' '.join(coords), par=mg, altitudeMode='absolute')
 
     kmz_file = os.path.join(output_directory, f"{file_stem}_cphd.kmz")
     with prepare_kmz_file(kmz_file, name=reader.file_name) as kmz_doc:
