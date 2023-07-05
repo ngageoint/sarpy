@@ -128,7 +128,7 @@ def find_jpeg_delimiters(the_bytes: bytes) -> List[Tuple[int, int]]:
     Raises
     ------
     ValueError
-        If the bytes doesn't start with the begininning jpeg delimiter and end with the
+        If the bytes doesn't start with the beginning jpeg delimiter and end with the
         end jpeg delimiter.
     """
 
@@ -462,7 +462,7 @@ def _correctly_order_image_segment_collection(
         # all IALVL is 0, and order doesn't matter
         return tuple(range(len(image_headers)))
     if all(entry0[0]+1 == entry1[0] for entry0, entry1 in zip(collection[:-1], collection[1:])):
-        # ordered, uninterupted sequence of IALVL values
+        # ordered, uninterrupted sequence of IALVL values
         return tuple(entry[1] for entry in collection)
 
     raise ValueError(
@@ -513,7 +513,7 @@ def _get_collection_element_coordinate_limits(
         abs_col_start = rel_col_start + previous_indices[2]
         block_definition[i, :] = (abs_row_start, abs_row_start + rows, abs_col_start, abs_col_start + cols)
 
-    # now, renormalize the coordinate system to be sensible
+    # now, re-normalize the coordinate system to be sensible
     min_row = numpy.min(block_definition[:, 0])
     min_col = numpy.min(block_definition[:, 2])
     block_definition[:, 0:2:1] -= min_row
