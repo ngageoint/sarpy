@@ -28,6 +28,7 @@ from sarpy.io.general.nitf_elements.image import ImageSegmentHeader, \
     ImageSegmentHeader0, ImageBands, ImageBand
 
 from sarpy.io.product.base import SIDDTypeReader
+from sarpy.io.product.sidd3_elements.SIDD import SIDDType as SIDDType3
 from sarpy.io.product.sidd2_elements.SIDD import SIDDType as SIDDType2
 from sarpy.io.product.sidd1_elements.SIDD import SIDDType as SIDDType1
 from sarpy.io.complex.sicd_elements.SICD import SICDType
@@ -92,9 +93,9 @@ class SIDDDetails(NITFDetails):
         return self._is_sidd
 
     @property
-    def sidd_meta(self) -> Union[SIDDType2, SIDDType1, List[SIDDType2], List[SIDDType1]]:
+    def sidd_meta(self) -> Union[SIDDType3, SIDDType2, SIDDType1, List[SIDDType3], List[SIDDType2], List[SIDDType1]]:
         """
-        None|SIDDType2|SIDDType1|List[SIDDType2]|List[SIDDType1]: the sidd meta-data structure(s).
+        None|SIDDType3|SIDDType2|SIDDType1|List[SIDDType3]|List[SIDDType2]|List[SIDDType1]: the sidd meta-data structure(s).
         """
 
         return self._sidd_meta
@@ -123,7 +124,7 @@ class SIDDDetails(NITFDetails):
                     root_node, xml_ns = parse_xml_from_string(des_bytes)
                     if 'SIDD' in root_node.tag:
                         self._is_sidd = True
-                        self._sidd_meta.append(SIDDType2.from_node(root_node, xml_ns, ns_key='default'))
+                        self._sidd_meta.append(SIDDType3.from_node(root_node, xml_ns, ns_key='default'))
                     elif 'SICD' in root_node.tag:
                         self._sicd_meta.append(SICDType.from_node(root_node, xml_ns, ns_key='default'))
                 except Exception as e:
@@ -136,7 +137,7 @@ class SIDDDetails(NITFDetails):
                     root_node, xml_ns = parse_xml_from_string(des_bytes)
                     if 'SIDD' in root_node.tag:
                         self._is_sidd = True
-                        self._sidd_meta.append(SIDDType2.from_node(root_node, xml_ns, ns_key='default'))
+                        self._sidd_meta.append(SIDDType3.from_node(root_node, xml_ns, ns_key='default'))
                 except Exception as e:
                     logger.error(
                         'We found an apparent old-style SIDD DES header at index {},\n\t'
@@ -287,20 +288,21 @@ def is_a(file_name: Union[str, BinaryIO]) -> Optional[SIDDReader]:
 # The writer implementation
 
 def validate_sidd_for_writing(
-        sidd_meta: Union[SIDDType2, SIDDType1, List[SIDDType2], List[SIDDType1]]) -> Union[Tuple[SIDDType2, ...], Tuple[SIDDType1, ...]]:
+        sidd_meta: Union[SIDDType3, SIDDType2, SIDDType1, List[SIDDType3], List[SIDDType2],
+                   List[SIDDType1]]) -> Union[Tuple[SIDDType3, ...], Tuple[SIDDType2, ...], Tuple[SIDDType1, ...]]:
     """
     Helper method which ensures the provided SIDD structure is appropriate.
 
     Parameters
     ----------
-    sidd_meta : SIDDType2|List[SIDDType2]|SIDDType1|List[SIDDType1]
+    sidd_meta : SIDDType3|List[SIDDType3]|SIDDType2|List[SIDDType2]|SIDDType1|List[SIDDType1]
 
     Returns
     -------
-    Tuple[SIDDType2, ...]|Tuple[SIDDType1, ...]
+    Tuple[SIDDType3, ...]|Tuple[SIDDType2, ...]|Tuple[SIDDType1, ...]
     """
 
-    def inspect_sidd(the_sidd: Union[SIDDType2, SIDDType1]) -> None:
+    def inspect_sidd(the_sidd: Union[SIDDType3, SIDDType2, SIDDType1]) -> None:
         # we must have the image size
         if the_sidd.Measurement is None:
             raise ValueError('The sidd_meta has un-populated Measurement, '
@@ -338,6 +340,8 @@ def validate_sidd_for_writing(
             urn = 'urn:SIDD:1.0.0'
         elif isinstance(the_sidd, SIDDType2):
             urn = 'urn:SIDD:2.0.0'
+        elif isinstance(the_sidd, SIDDType3):
+            urn = 'urn:SIDD:3.0.0'
         else:
             raise ValueError('Unhandled type {}'.format(type(the_sidd)))
         result = evaluate_xml_versus_schema(xml_str, urn)
@@ -346,14 +350,14 @@ def validate_sidd_for_writing(
                 'The provided SIDD does not properly validate\n\t'
                 'against the schema for {}'.format(urn))
 
-    if isinstance(sidd_meta, (SIDDType2, SIDDType1)):
+    if isinstance(sidd_meta, (SIDDType3, SIDDType2, SIDDType1)):
         inspect_sidd(sidd_meta)
         # noinspection PyRedundantParentheses
         return (sidd_meta, )
     elif isinstance(sidd_meta, (tuple, list)):
         out = []
         for entry in sidd_meta:
-            if not isinstance(entry, (SIDDType2, SIDDType1)):
+            if not isinstance(entry, (SIDDType3, SIDDType2, SIDDType1)):
                 raise TypeError('All entries are required to be an instance of SIDDType, '
                                 'got type {}'.format(type(entry)))
             inspect_sidd(entry)
@@ -395,14 +399,14 @@ def validate_sicd_for_writing(sicd_meta: Union[SICDType, Sequence[SICDType]]) ->
                         'of such instances, got {}'.format(type(sicd_meta)))
 
 
-def extract_clas(the_sidd: Union[SIDDType2, SIDDType1]) -> str:
+def extract_clas(the_sidd: Union[SIDDType3, SIDDType2, SIDDType1]) -> str:
     """
     Extract the classification string from a SIDD as appropriate for NITF Security
     tags CLAS attribute.
 
     Parameters
     ----------
-    the_sidd : SIDDType2|SIDDType1
+    the_sidd : SIDDType3|SIDDType2|SIDDType1
 
     Returns
     -------
@@ -417,14 +421,14 @@ def extract_clas(the_sidd: Union[SIDDType2, SIDDType1]) -> str:
         return class_str[:1]
 
 
-def extract_clsy(the_sidd: Union[SIDDType2, SIDDType1]) -> str:
+def extract_clsy(the_sidd: Union[SIDDType3, SIDDType2, SIDDType1]) -> str:
     """
     Extract the ownerProducer string from a SIDD as appropriate for NITF Security
     tags CLSY attribute.
 
     Parameters
     ----------
-    the_sidd : SIDDType2|SIDDType1
+    the_sidd : SIDDType3|SIDDType2|SIDDType1
 
     Returns
     -------
@@ -447,7 +451,7 @@ def extract_clsy(the_sidd: Union[SIDDType2, SIDDType1]) -> str:
         return owner[:2]
 
 
-def create_security_tags_from_sidd(sidd_meta: Union[SIDDType2, SIDDType1]) -> NITFSecurityTags:
+def create_security_tags_from_sidd(sidd_meta: Union[SIDDType3, SIDDType2, SIDDType1]) -> NITFSecurityTags:
     def get_basic_args():
         out = {}
         sec_tags = sidd_meta.NITF.get('Security', {})
@@ -489,7 +493,7 @@ class SIDDWritingDetails(NITFWritingDetails):
 
     def __init__(
             self,
-            sidd_meta: Union[SIDDType2, SIDDType1, Sequence[SIDDType2], Sequence[SIDDType1]],
+            sidd_meta: Union[SIDDType3, SIDDType2, SIDDType1, Sequence[SIDDType3], Sequence[SIDDType2], Sequence[SIDDType1]],
             sicd_meta: Optional[Union[SICDType, Sequence[SICDType]]],
             row_limit: Optional[int] = None,
             additional_des: Optional[Sequence[DESSubheaderManager]] = None,
@@ -500,7 +504,7 @@ class SIDDWritingDetails(NITFWritingDetails):
 
         Parameters
         ----------
-        sidd_meta : SIDDType2|List[SIDDType2]|SIDDType1|List[SIDDType1]
+        sidd_meta : SIDDType3|List[SIDDType3]|SIDDType2|List[SIDDType2]|SIDDType1|List[SIDDType1]
         sicd_meta : SICDType
         row_limit : None|int
             Desired row limit for the sicd image segments. Non-positive values
@@ -540,9 +544,9 @@ class SIDDWritingDetails(NITFWritingDetails):
             res_managers=res_managers)
 
     @property
-    def sidd_meta(self) -> Union[Tuple[SIDDType2, ...], Tuple[SIDDType1, ...]]:
+    def sidd_meta(self) -> Union[Tuple[SIDDType3, ...], Tuple[SIDDType2, ...], Tuple[SIDDType1, ...]]:
         """
-        Tuple[SIDDType2, ...]: The sidd metadata.
+        Tuple[SIDDType3, ...]: The sidd metadata.
         """
 
         return self._sidd_meta
@@ -684,8 +688,10 @@ class SIDDWritingDetails(NITFWritingDetails):
         None|numpy.ndarray
         """
 
-        sidd = self.sidd_meta[sidd_index]  # type: Union[SIDDType2, SIDDType1]
-        if isinstance(sidd, SIDDType2) and sidd.GeoData is not None and sidd.GeoData.ImageCorners is not None:
+        sidd = self.sidd_meta[sidd_index]  # type: Union[SIDDType3, SIDDType2, SIDDType1]
+        if isinstance(sidd, SIDDType3) and sidd.GeoData is not None and sidd.GeoData.ImageCorners is not None:
+            return sidd.GeoData.ImageCorners.get_array(dtype=numpy.dtype('float64'))
+        elif isinstance(sidd, SIDDType2) and sidd.GeoData is not None and sidd.GeoData.ImageCorners is not None:
             return sidd.GeoData.ImageCorners.get_array(dtype=numpy.dtype('float64'))
         elif isinstance(sidd, SIDDType1) and sidd.GeographicAndTarget is not None and \
                 sidd.GeographicAndTarget.GeographicCoverage is not None and \
@@ -715,7 +721,7 @@ class SIDDWritingDetails(NITFWritingDetails):
         image_managers = []
         sidd = self.sidd_meta[sidd_index]
 
-        if isinstance(sidd, SIDDType2) and sidd.Compression is not None:
+        if isinstance(sidd, (SIDDType2, SIDDType3)) and sidd.Compression is not None:
             raise ValueError('Compression not currently supported.')
 
         basic_args = {
@@ -882,7 +888,8 @@ class SIDDWriter(NITFWriter):
     def __init__(
             self,
             file_object: Union[str, BinaryIO],
-            sidd_meta: Optional[Union[SIDDType2, SIDDType1, Sequence[SIDDType2], Sequence[SIDDType1]]] = None,
+            sidd_meta: Optional[Union[SIDDType3, SIDDType2, SIDDType1, Sequence[SIDDType3],
+                                Sequence[SIDDType2], Sequence[SIDDType1]]] = None,
             sicd_meta: Optional[Union[SICDType, Sequence[SICDType]]] = None,
             sidd_writing_details: Optional[SIDDWritingDetails] = None,
             check_existence: bool = True):
@@ -891,7 +898,7 @@ class SIDDWriter(NITFWriter):
         Parameters
         ----------
         file_object : str|BinaryIO
-        sidd_meta : None|SIDDType2|SIDDType1|Sequence[SIDDType2]|Sequence[SIDDType1]
+        sidd_meta : None|SIDDType3|SIDDType2|SIDDType1|Sequence[SIDDType3]|Sequence[SIDDType2]|Sequence[SIDDType1]
         sicd_meta : None|SICDType|Sequence[SICDType]
         sidd_writing_details : None|SIDDWritingDetails
         check_existence : bool

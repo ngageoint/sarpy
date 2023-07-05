@@ -1,0 +1,5 @@
+version3 schemas are a subset of SIDD_V3.0.0_ISM-v13 from six-library 3.2.3
+The following were not copied, as they don't appear to be needed:
+* SICommonTypes.xsd
+* external/ISM-v13/CVE/
+* external/ISM-v13/XSL/

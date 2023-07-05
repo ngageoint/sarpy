@@ -9,6 +9,7 @@ from sarpy.io.product.sidd import SIDDReader
 from sarpy.io.product.sidd_schema import get_schema_path
 from sarpy.processing.sidd.sidd_product_creation import create_detected_image_sidd, create_dynamic_image_sidd, create_csi_sidd
 from sarpy.processing.ortho_rectify import NearestNeighborMethod
+import sarpy.geometry.geometry_elements as ge
 
 from tests import parse_file_entry
 
@@ -64,6 +65,10 @@ class TestSIDDWriting(unittest.TestCase):
                 create_detected_image_sidd(
                     ortho_helper, temp_directory, output_file='di_2.nitf', version=2)
                 sidd_files.append('di_2.nitf')
+            with self.subTest(msg='Create version 3 detected image for file {}'.format(fil)):
+                create_detected_image_sidd(
+                    ortho_helper, temp_directory, output_file='di_3.nitf', version=3)
+                sidd_files.append('di_3.nitf')
 
             # create a csi image
             with self.subTest(msg='Create version 1 csi for file {}'.format(fil)):
@@ -74,6 +79,10 @@ class TestSIDDWriting(unittest.TestCase):
                 create_csi_sidd(
                     ortho_helper, temp_directory, output_file='csi_2.nitf', version=2)
                 sidd_files.append('csi_2.nitf')
+            with self.subTest(msg='Create version 3 csi for file {}'.format(fil)):
+                create_csi_sidd(
+                    ortho_helper, temp_directory, output_file='csi_3.nitf', version=3)
+                sidd_files.append('csi_3.nitf')
 
             # create a dynamic image
             with self.subTest(msg='Create version 1 subaperture stack for file {}'.format(fil)):
@@ -84,10 +93,14 @@ class TestSIDDWriting(unittest.TestCase):
                 create_dynamic_image_sidd(
                     ortho_helper, temp_directory, output_file='sast_2.nitf', version=2, frame_count=3)
                 sidd_files.append('sast_2.nitf')
+            with self.subTest(msg='Create version 3 subaperture stack for file {}'.format(fil)):
+                create_dynamic_image_sidd(
+                    ortho_helper, temp_directory, output_file='sast_3.nitf', version=3, frame_count=3)
+                sidd_files.append('sast_3.nitf')
 
             # check that each sidd structure serialized according to the schema
             if etree is not None:
-                for vers in [1, 2]:
+                for vers in [1, 2, 3]:
                     schema = get_schema_path('urn:SIDD:{}.0.0'.format(vers))
                     the_fil = 'di_{}.nitf'.format(vers)
                     if the_fil in sidd_files:
@@ -109,3 +122,34 @@ class TestSIDDWriting(unittest.TestCase):
 
             # clean up the temporary directory
             shutil.rmtree(temp_directory)
+
+
+class TestSIDDOptionalFields(unittest.TestCase):
+    def setUp(self):
+        if not sicd_files:
+            return
+        sicd_filename = sicd_files[0]
+        self.temp_directory = tempfile.mkdtemp()
+
+        reader = SICDReader(sicd_filename)
+        ortho_helper = NearestNeighborMethod(reader)
+
+        self.sidd_filename = 'di.nitf'
+        create_detected_image_sidd(
+            ortho_helper, self.temp_directory, output_file=self.sidd_filename, version=3)
+
+        self.schema = get_schema_path('urn:SIDD:3.0.0')
+
+    def is_instance_valid(self, instance_bytes):
+        xml_doc = etree.fromstring(instance_bytes)
+        xml_schema = etree.XMLSchema(file=self.schema)
+        result = xml_schema.validate(xml_doc)
+        if not result:
+            print(xml_schema.error_log)
+        return result
+
+    @unittest.skipIf(len(sicd_files) == 0, 'No sicd files found')
+    def tearDown(self):
+        if not sicd_files:
+            return
+        shutil.rmtree(self.temp_directory)
