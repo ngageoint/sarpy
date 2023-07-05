@@ -19,6 +19,7 @@ from sarpy.io.xml.base import parse_xml_from_string
 LATLONHAE = [33.483888, -112.073706, 100.0]
 ROWCOL = [1, 2]
 
+
 @pytest.fixture
 def poly1d_doc(sicd):
     root = Element("Poly1DType")
@@ -34,6 +35,7 @@ def poly1d_doc(sicd):
 
     doc = ElementTree(root)
     return doc
+
 
 @pytest.fixture
 def poly2d_doc(sicd):
@@ -175,7 +177,7 @@ def test_blocks_latlontype_dmsformat():
 
 
 def test_lltype_restriction(tol):
-    # Lat/Lon outside of restricted range
+    # Lat/Lon outside restricted range
     latlon_restricted_type = blocks.LatLonRestrictionType(Lat=100, Lon=190)
     assert latlon_restricted_type.Lat == pytest.approx(-80.0, abs=tol)
     assert latlon_restricted_type.Lon == pytest.approx(-170.0, abs=tol)
