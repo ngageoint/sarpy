@@ -23,6 +23,7 @@ def tx_ant_param(sicd, kwargs):
                                 MLFreqDilation=sicd.Antenna.Tx.MLFreqDilation,
                                 **kwargs)
 
+
 @pytest.fixture
 def rcv_ant_param(sicd, kwargs):
     return Antenna.AntParamType(XAxisPoly=sicd.Antenna.Rcv.XAxisPoly,
@@ -36,6 +37,7 @@ def rcv_ant_param(sicd, kwargs):
                                 MLFreqDilation=sicd.Antenna.Rcv.MLFreqDilation,
                                 **kwargs)
 
+
 @pytest.fixture
 def twoway_ant_param(sicd, kwargs):
     return Antenna.AntParamType(XAxisPoly=sicd.Antenna.TwoWay.XAxisPoly,
@@ -48,6 +50,7 @@ def twoway_ant_param(sicd, kwargs):
                                 EBFreqShift=True,
                                 MLFreqDilation=sicd.Antenna.TwoWay.MLFreqDilation,
                                 **kwargs)
+
 
 def test_antenna_ebtype(kwargs):
     x_poly = blocks.Poly1DType(Coefs=[10.5, 5.1, 1.2, 0.2])
