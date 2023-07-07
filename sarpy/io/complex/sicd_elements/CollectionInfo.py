@@ -71,8 +71,6 @@ class RadarModeType(Serializable):
             return 'ST'
         elif mode == 'DYNAMIC STRIPMAP':
             return 'DS'
-        elif mode == 'SCANSAR':
-            return 'SS'
         else:
             return 'UN'
 
