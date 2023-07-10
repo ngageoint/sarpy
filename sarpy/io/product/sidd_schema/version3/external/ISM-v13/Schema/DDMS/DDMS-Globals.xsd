@@ -1,0 +1,1017 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns="urn:us:mil:ces:metadata:ddms:5" xmlns:ddms="urn:us:mil:ces:metadata:ddms:5" xmlns:gml="http://www.opengis.net/gml/3.2" xmlns:xlink="http://www.w3.org/1999/xlink" targetNamespace="urn:us:mil:ces:metadata:ddms:5" elementFormDefault="qualified" attributeFormDefault="qualified" version="5">
+	<xs:annotation>
+		<xs:documentation>
+			This XML Schema implements elements and attribute groups of the Department of Defense Discovery Metadata Specification (DDMS Spec), with a version number the same as that in the above 'version' attribute of the 'xs:schema' element.  Unless otherwise stated, all references to the DDMS Spec refer to that version of the document.
+		</xs:documentation>
+		<xs:documentation>
+			Change Log:
+				6/05/2007 (J. Pantella) -- Created pursuant to approved CR 2007-1.  See also http://metadata.dod.mil/irs/DDMS/cm/CR/2007/DDMS_CR_2007-1.
+				1/3/2007 (J. Pantella) -- Modified version attribute to reflect that this is version 1.4.2.
+				7/1/2008 (D. Barclay) -- Made elements "extent" and "medium" optional in type MediaType (per DDMS-CR-2008-6).
+				7/15/2008 (J. Pantella) -- Modified security attributes on creator, publisher, and contributor to be optional, added optional security attributes to pointOfContact for consistency across the elements.
+				7/15/2008 (J. Pantella) -- Modified version to reflect that this is version 2.0.
+				1/5/2010 (P. Lunceford)  -- Created DDMS 3.0.  Implemented CRs 2009-04 (replaced creatorType/publisherType/contributorType/pointOfContactType with contactInfoType), 2009-07 (set minOccurs on RelatedResourceType to 1), 2009-09 (added Unknown entity to accompany Person, Organization, and Service for a choice for Creator, Publisher, Contributor, and PointOfContact), 2009-10 (added extensions to CompoundKeywordIdentifierType and CompoundCategoryIdentifierType), and 2009-12 (added Security Markings to SubjectCoverageType, CompoundSouceIdentifierType, TemporalCoverageType, and VirtualCoverageType).
+				6/05/2011 (E. Hughes) -- Created DDMS 3.1.  Implemented CR 2011-1 to create DDMS-Includes.xsd wherein all IC-ISM references are consolidated.
+				6/05/2011 (E. Hughes) -- Added approvedOn attribute pursuant to CR 2011-5.
+				11/11/2011 (E. Hughes) -- Implemented CR 2011-17 to use IC-ISM POCType.
+				05/25/2012 (E. Hughes and P. Attas) - Implemented CR_2011-18, CR_2012-01, CR_2012-02, and CR2012-03.
+		</xs:documentation>
+	</xs:annotation>
+	<xs:include schemaLocation="DDMS-Includes.xsd"/>
+	<xs:include schemaLocation="DDMS-GeospatialCoverage.xsd"/>
+	<xs:import namespace="http://www.w3.org/1999/xlink" schemaLocation="../w3/1999/xlink/xlink.xsd"/>
+	<!-- Start Global Elements -->
+	<xs:element name="metacardInfo" type="MetacardInfoType">
+		<xs:annotation>
+			<xs:documentation>Information about the metadata card.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="identifier" type="CompoundResourceIdentifierType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">An unambiguous reference to a resource within a given context.  {An attribute stores the source of the tag's value}
+{sources: DCMI: identifier, v. 004;  IC MSP v. 1.0a:  IdentifierList}  An identifier may be an internal, external, and/or universal identification label for representing a resource by means of a string or number conforming to a formal identification system.  An example of an identifier would be an International Standard Serial Number (ISSN), or a Uniform Resource Locator (URL).  Any type of identifier can be accommodated, so long as the identifier qualifier is specified with the identifier value. See also, DDMS Spec Category: Identifier.
+			</xs:appinfo>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="title" type="TitleType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">A name, or names, given to the resource	{from DCMI: title, v. 004}.  The title category must contain at least one title, and may contain subtitles, or supplementary, explanatory titles for use on cover pages and for cataloging and searching.  See also, DDMS Spec Category: Title.
+			</xs:appinfo>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="subtitle" type="SubtitleType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">A subtitle may be any form of the title used as a substitute, or it may be an alternative to the formal title of the resource.  See also, DDMS Spec Category: Title.
+			</xs:appinfo>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="creator" type="ContactInfoType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">Information about the entity responsible for generating the resource  {Source: DCMI:  creator, v. 004; IC MSP v. 1.0a:  AuthorInfo, POCInfo} When a creator is a service or an organization, and not an individual, it is expected that the contact authority (person or organization) for the resource will be listed.  The relations provided in this schema are Organization, Person, Service, Unknown.  See also, DDMS Spec Category: Creator.
+			</xs:appinfo>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="publisher" type="ContactInfoType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">This category is used to tag the identification of the entity responsible for releasing the data asset--the entity primarily responsible for the intellectual content of the product.  It is intended that this category apply whenever applicable to an organization, as opposed to a person.  Typically, the name of a Publisher should be used to indicate the organization, agency, or domain responsible for the resource.  See also, DDMS Spec Category: Publisher.
+			</xs:appinfo>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="contributor" type="ContactInfoType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">Information about an organization, person, or entity, that contributed intellectual content to a resource, other than the publishing organization  {DCMI:  contributor, v. 004; IC MSP v. 1.0a: Contributor} When a creator is a service or an organization, and not an individual, it is expected that the contact authority (person or organization) for the resource will be listed.  The relations provided in this schema are Organization, Person, Service, Unknown.  See also, DDMS Spec Category: Contributor.
+			</xs:appinfo>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="pointOfContact" type="ContactInfoType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">The point of contact, usually a Person, is the entity primarily responsible for accepting inquiries regarding the resource.
+			</xs:appinfo>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="ContactInfoType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">Type used to model the ddms:creator, ddms:publisher, ddms:contributor, and ddms:pointOfContact elements.
+			</xs:appinfo>
+		</xs:annotation>
+		<xs:choice>
+			<xs:element ref="organization"/>
+			<xs:element ref="person"/>
+			<xs:element ref="service"/>
+			<xs:element ref="unknown"/>
+		</xs:choice>
+		<xs:attributeGroup ref="POCAttributesGroup"/>
+	</xs:complexType>
+	<xs:element name="source" type="CompoundSourceIdentifierType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">References to assets or resources from which the tagged data asset is derived.  {Source: DCMI: type, v. 004}
+Sources may be derived partially or wholly, and it is recommended that an identifier (such as a string or number from a formal identification system) be used as a reference.  See also, DDMS Spec Category: Source.
+			</xs:appinfo>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="language" type="CompoundLanguageIdentifierType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">The primary language of the intellectual content of the resource.  {Source: DCMI: language, v. 004IC MSP v. 1.0a: Language} The most specific in-scope language present (if any) should be specified in this category. See DDMS Spec Category: Language.
+			</xs:appinfo>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="description" type="DescriptionType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">
+				An account of the content of the resource.  {Source: DCMI: description, v. 004IC MSP v. 1.0a:  Description} Description may include but is not limited to: an abstract, reference to a graphical representation of content or a free-text account of the content.  See DDMS Spec Category: Description.
+			</xs:appinfo>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="dates" type="DatesType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">
+				The date related properties of this resource.  See DDMS Spec Category: Date.
+			</xs:appinfo>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="rights" type="RightsType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">
+				Information about rights held in and over the resource. Typically, a rights element will contain a rights management statement for the resource, or reference a service providing such information. Rights information often encompasses Intellectual Property Rights (IPR), Copyright, and various Property Rights. If the rights element is absent, no assumptions can be made about the status of these and other rights with respect to the resource.  See DDMS Spec Category: Rights. 
+			</xs:appinfo>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="type" type="CompoundTypeIdentifierType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">
+				The nature or genre of the content of the resource.  See, DCMI Type Vocabulary [DCMITYPE], which includes, Collection, Dataset, Event Image, InteractiveResource, Service, Software, Sound, Text, PhysicalObject, StillImage, MovingImage.  See DDMS Spec Category: Type.
+			</xs:appinfo>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="format" type="FormatType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">
+				The physical or digital manifestation of the resource.  Used to define the medium, extent or duration, and MIME type of the resource.  See DDMS Spec Category: Format.
+			</xs:appinfo>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="medium" type="MediumType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">
+				The physical medium or instantiation of the resource.  See also DDMS Spec Category: Format.  
+			</xs:appinfo>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="mimeType" type="MimeTypeType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">
+				The Internet Media Type [MIME] of the Resource.  See DDMS Spec Category: Format.  
+			</xs:appinfo>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="extent" type="QualifiedExtentValueType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">
+				A related data size, compression rate, or pixel size (etc.) of the resource.  See also, DDMS Spec Category: Format.  
+			</xs:appinfo>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="subjectCoverage" type="SubjectType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">
+				Container for the categorical subject and natural language subject classifications.  It is assumed that all content under subjectCoverage is related to the same subject.  See also SubjectType.  NOTE: At least one of either Keyword or Category must appear, after one instance of either appears, additional categories must appear before additional keywords.  See DDMS Spec Category: Subject.  
+			</xs:appinfo>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="category" type="CompoundCategoryIdentifierType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">
+				Specification of the subject matter by a qualified entry from a controlled vocabulary.  See DDMS Spec Category: Subject.  
+			</xs:appinfo>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="keyword" type="CompoundKeywordIdentifierType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">
+				A natural language indication of the resource's subject matter.  See DDMS Spec Category: Subject.  
+			</xs:appinfo>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="productionMetric" type="ProductionMetricType">
+		<xs:annotation>
+			<xs:documentation>A categorization scheme whose values and use are defined by DDNI-A.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="nonStateActor" type="NonStateActorCoverageType">
+		<xs:annotation>
+			<xs:documentation>Non-state actors that are within the scope of coverage for the described item.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="temporalCoverage" type="TimePeriodType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">
+				The subject-matter coverage in terms of one or more periods of time.  That is, an indication of the time period for which the subject of the resource applies.  (E.g. The 50's, or a span of time indicated by a start and end time.)  See DDMS Spec Category: Temporal Coverage.  
+			</xs:appinfo>
+		</xs:annotation>
+	</xs:element>
+	
+	<xs:element name="organization" type="OrganizationType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">
+				A named organization responsible as indicated by its encompasing element, i.e. as a creator, contributor, or publisher.  See also, DDMS Spec Categories: Contributor, Creator, Publisher.
+			</xs:appinfo>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="person" type="PersonType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">
+				A person responsible as indicated by its encompasing element, i.e. as a creator, contributor, or publisher. See also, DDMS Spec Categories: Contributor, Creator, Publisher. 
+			</xs:appinfo>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="service" type="ServiceType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">
+				A named service responsible as indicated by its encompasing element, i.e. as a creator, contributor, or publisher.  See also, DDMS Spec Categories: Contributor, Creator, Publisher.  
+			</xs:appinfo>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="unknown" type="UnknownType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">
+				Identification that the type of entity of the encompassing element i.e. as a creator, contributor, or publisher, is unknown.  See also, DDMS Spec Categories: Contributor, Creator, Publisher.  
+			</xs:appinfo>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="relatedResource" type="RelatedResourcesType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">
+				Each relatedResources element represents a single type of relationship between the resource described in the enclosing ddms:Resource and other identified resources.
+			</xs:appinfo>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="resourceManagement" type="ResourceManagementType"/>
+	<xs:element name="processingInfo" type="ProcessingInfoType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">Information about when and/or how a product was transformed post-publication, including adding metadata to a published product.</xs:appinfo>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="recordsManagementInfo" type="RecordsManagementInfoType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">A container for information about the format of the publication file and the authoring software used to produce the publication.</xs:appinfo>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="revisionRecall" type="RevisionRecallType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">The memorandum titled Intelligence Community Standards and Procedures for Revised or Recalled Intelligence Products signed by DNI Negroponte on 5 August 2005 specified how to indicate, in a textual form, the revision or recall of a previously released document. This element specifies methods for conveying revision and recall indicators and additional data in XML.</xs:appinfo>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="affiliation" type="simpleTokenType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">
+				The identification of an organization or agency with which an individual, service, or unknown producer has an affiliation.
+			</xs:appinfo>
+		</xs:annotation>
+	</xs:element>
+	<!-- End Global Elements -->
+	<!-- Start Global Types -->
+	<xs:complexType name="MetacardInfoType">
+		<xs:sequence minOccurs="0">
+			<xs:element ref="identifier" maxOccurs="unbounded"/>
+			<xs:element ref="dates"/>
+			<xs:choice maxOccurs="unbounded">
+				<xs:element ref="creator" maxOccurs="unbounded"/>
+				<xs:element ref="publisher" maxOccurs="unbounded"/>
+				<xs:element ref="contributor" maxOccurs="unbounded"/>
+				<xs:element ref="pointOfContact" maxOccurs="unbounded"/>
+			</xs:choice>
+			<xs:element ref="description" minOccurs="0"/>
+			<xs:element ref="processingInfo" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element ref="revisionRecall" minOccurs="0"/>
+			<xs:element ref="recordsManagementInfo" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attributeGroup ref="SecurityAttributesOptionGroup"/>
+	</xs:complexType>
+	<xs:complexType name="CompoundResourceIdentifierType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">
+				Used to represent a Resource Identifier.
+			</xs:appinfo>
+		</xs:annotation>
+		<xs:attribute name="qualifier" type="xs:anyURI" use="required"/>
+		<xs:attribute name="value" type="simpleTokenType" use="required"/>
+	</xs:complexType>
+	<xs:complexType name="TitleType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">
+				Common type for the title element.
+			</xs:appinfo>
+		</xs:annotation>
+		<xs:simpleContent>
+			<xs:extension base="simpleTokenType">
+				<xs:attributeGroup ref="SecurityAttributesGroup"/>
+			</xs:extension>
+		</xs:simpleContent>
+	</xs:complexType>
+	<xs:complexType name="SubtitleType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">
+				Common type for the subtitle element.
+			</xs:appinfo>
+		</xs:annotation>
+		<xs:simpleContent>
+			<xs:extension base="simpleTokenType">
+				<xs:attributeGroup ref="SecurityAttributesGroup"/>
+			</xs:extension>
+		</xs:simpleContent>
+	</xs:complexType>
+	<xs:complexType name="RightsType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">
+			Type used to model the rights element.
+			</xs:appinfo>
+		</xs:annotation>
+		<xs:attribute name="privacyAct" type="xs:boolean" default="false">
+			<xs:annotation>
+				<xs:appinfo xml:lang="en">
+					(TBD:PrivacyActIndicator, 1.0) An indicator that this product is categorized as containing personal information subject to protection by the Privacy Act.  This element has no data content.  Attribute "indicator", a yes/no toggle, is used to specify applicability of the Privacy Act.  The default is "no".  {False = No}
+				</xs:appinfo>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute name="intellectualProperty" type="xs:boolean" default="false">
+			<xs:annotation>
+				<xs:appinfo xml:lang="en">
+					An indicator identifying products under protection against reproduction and distribution without the express written permission of the intellectual property rights owner. A yes/no value used to specify applicability of the rights.  The default is "no". {False = No}
+				</xs:appinfo>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute name="copyright" type="xs:boolean" default="false">
+			<xs:annotation>
+				<xs:appinfo xml:lang="en">
+					An indicator identifying products under protection against reproduction and distribution without the express written permission of the copyright owner.  A yes/no value used to specify applicability of the rights.  The default is "no".  {False = No}  (TBD:CopyrightIndicator, 1.0) An indicator identifying documents under protection against reproduction and distribution without the express written   permission of the copyright owner   This prohibition is binding on individuals and corporations,  as well as the US Government.  Examples of applicability:  books (yes), newspaper photos (yes), US Federal Publications (no), magazine articles  (yes), vendor technical information (yes).
+				</xs:appinfo>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+	<xs:complexType name="ProducerBaseType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">
+				The foundation of the ProducerType complexType.
+			</xs:appinfo>
+		</xs:annotation>
+		<xs:anyAttribute namespace="##other" processContents="lax"/>
+	</xs:complexType>
+	<xs:complexType name="AffiliatedProducerType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">
+				The type used to model the ddms:producer element.
+			</xs:appinfo>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="ProducerBaseType">
+				<xs:sequence minOccurs="0">
+					<xs:element name="name" type="simpleTokenType" maxOccurs="unbounded"/>
+					<xs:element name="phone" type="simpleTokenType" minOccurs="0" maxOccurs="unbounded">
+						<xs:annotation>
+							<xs:appinfo xml:lang="en">
+								A telephone number.  Optional.  This value must include country code and area code, when applicable.
+							</xs:appinfo>
+						</xs:annotation>
+					</xs:element>
+					<xs:element name="email" type="simpleTokenType" minOccurs="0" maxOccurs="unbounded">
+						<xs:annotation>
+							<xs:appinfo xml:lang="en">
+								An address for electronic mail.
+							</xs:appinfo>
+						</xs:annotation>
+					</xs:element>
+					<xs:element ref="affiliation" minOccurs="0" maxOccurs="unbounded"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:complexType name="PersonType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">
+				The type used to model the ddms:Person element.
+			</xs:appinfo>
+		</xs:annotation>
+		<xs:sequence minOccurs="0">
+			<xs:element name="name" type="simpleTokenType" maxOccurs="unbounded"/>
+			<xs:element name="surname" type="simpleTokenType">
+				<xs:annotation>
+					<xs:appinfo xml:lang="en">
+						A name shared in common to identify members of a family; also called "last name".
+					</xs:appinfo>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="phone" type="simpleTokenType" minOccurs="0" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:appinfo xml:lang="en">
+						A telephone number.  Optional.  This value must include country code and area code, when applicable.
+					</xs:appinfo>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="email" type="simpleTokenType" minOccurs="0" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:appinfo xml:lang="en">
+						An address for electronic mail.
+					</xs:appinfo>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="userID" type="simpleTokenType" minOccurs="0">
+				<xs:annotation>
+					<xs:appinfo xml:lang="en">
+						Unique identifier applied by an agency to an author, coauthor, POC, tasking requester or addressee.
+					</xs:appinfo>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="affiliation" minOccurs="0" maxOccurs="unbounded"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="OrganizationType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">
+				The type used to model the ddms:Organization element.
+			</xs:appinfo>
+		</xs:annotation>
+		<xs:sequence minOccurs="0">
+			<xs:element name="name" type="simpleTokenType" maxOccurs="unbounded"/>
+			<xs:element name="phone" type="simpleTokenType" minOccurs="0" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:appinfo xml:lang="en">
+						A telephone number.  Optional.  This value must include country code and area code, when applicable.
+					</xs:appinfo>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="email" type="simpleTokenType" minOccurs="0" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:appinfo xml:lang="en">
+						An address for electronic mail.
+					</xs:appinfo>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="subOrganization" minOccurs="0" maxOccurs="unbounded">
+				<xs:complexType>
+					<xs:simpleContent>
+						<xs:extension base="simpleTokenType">
+							<xs:attributeGroup ref="SecurityAttributesGroup"/>
+						</xs:extension>
+					</xs:simpleContent>
+				</xs:complexType>
+			</xs:element>
+		</xs:sequence>
+		<xs:attribute ref="acronym" use="optional"/>
+	</xs:complexType>
+	<xs:complexType name="ServiceType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">
+				The type used to model the ddms:Service element.
+			</xs:appinfo>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="AffiliatedProducerType"/>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:complexType name="UnknownType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">
+				The type used to model the ddms:Unknown element.
+			</xs:appinfo>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="AffiliatedProducerType"/>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:complexType name="DatesType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">
+				Type used for the dates element.
+			</xs:appinfo>
+		</xs:annotation>
+		<xs:sequence minOccurs="0">
+			<xs:element name="acquiredOn" type="ApproximableDateType" minOccurs="0" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:appinfo xml:lang="en">
+						Date of acquisition of the information
+					</xs:appinfo>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+		<xs:attribute name="created" type="CombinedDateType" use="optional">
+			<xs:annotation>
+				<xs:appinfo xml:lang="en">
+					Date of creation of the resource
+				</xs:appinfo>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute name="posted" type="CombinedDateType" use="optional">
+			<xs:annotation>
+				<xs:appinfo xml:lang="en">
+					The date a product is posted to a shared network or system.
+				</xs:appinfo>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute name="validTil" type="CombinedDateType" use="optional">
+			<xs:annotation>
+				<xs:appinfo xml:lang="en">
+					The date that a product should be removed from a registry, index, or catalog.
+				</xs:appinfo>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute name="infoCutOff" type="CombinedDateType" use="optional">
+			<xs:annotation>
+				<xs:appinfo xml:lang="en">
+					The cutoff date of information in a product.  This is commonly referred to as Information Cutoff Date (ICOD).  It is the date of last input.
+				</xs:appinfo>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute name="approvedOn" type="CombinedDateType" use="optional">
+			<xs:annotation>
+				<xs:appinfo xml:lang="en">
+					The date on which the resource was approved for publishing or posting.
+				</xs:appinfo>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute name="receivedOn" type="CombinedDateType" use="optional">
+			<xs:annotation>
+				<xs:appinfo xml:lang="en">
+					The date on which the resource was received for publishing or posting.
+				</xs:appinfo>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+	<xs:simpleType name="CombinedDateType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">
+				The type used to support the range of date representations.
+			Recommended practice is that date be specified in one of the following formats:
+			YYYY
+			YYYY-MM
+			YYYY-MM-DD
+			YYYY-MM-DDThh:mmTZD
+			YYYY-MM-DDThh:mm.ssTZD
+			YYYY-MM-DDThh:mm:ss.sTZD
+			Where:YYYY	0000 through current year
+			MM	01 through 12  (month)
+			DD	01 through 31  (day)
+			hh	00 through 24  (hour)
+			mm	00 through 59  (minute)
+			ss	00 through 60  (second)
+			.s	.0 through 999 (fractional second)
+			TZD  = time zone designator (Z or +hh:mm or -hh:mm) 
+This profile suggests two ways of handling time zone offsets:   1. Times are expressed in UTC (Coordinated Universal Time), with a special UTC designator ("Z").   2. Times are expressed in local time, together with a time zone offset in hours and minutes. A time zone offset of "+hh:mm" indicates that the date/time uses a local time zone which is "hh" hours and "mm" minutes ahead of UTC. A time zone offset of "-hh:mm" indicates that the date/time uses a local time zone which is "hh" hours and "mm" minutes behind UTC.				
+			</xs:appinfo>
+		</xs:annotation>
+		<xs:union memberTypes="xs:dateTime ddms:DateHourMinType xs:date xs:gYearMonth xs:gYear"/>
+	</xs:simpleType>
+	<xs:simpleType name="DateHourMinType">
+		<xs:restriction base="xs:string">
+			<xs:pattern value="[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(Z|[\-\+][0-9]{2}:[0-9]{2})?"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="ExtendedCombinedDateType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">
+				Type used to model the ddms:dates element.
+			</xs:appinfo>
+		</xs:annotation>
+		<xs:union memberTypes="CombinedDateType DateValueExtensionType"/>
+	</xs:simpleType>
+	<xs:simpleType name="DateValueExtensionType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">
+				Type used to modify the type modeling date to allow "Not Applicable" and "Unknown".
+			</xs:appinfo>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="Not Applicable"/>
+			<xs:enumeration value="Unknown"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:complexType name="ApproximableDateType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">
+				Type used to model dates that are approximate, and may not be processable by search engines.
+				Use of the searchableDate is intended to inform search engines when this record should be returned; without it, query matching is system-dependent.
+				This date can be obfuscated for security or other reasons.
+				Example: The information was received on 2010-06-14 but to reduce the risk of compromising the source it is shown in a document as
+				searchableDate start="2010-05-01T00:00:00Z" end="2010-07-01T00:00:00Z"
+        	</xs:appinfo>
+		</xs:annotation>
+		<xs:all>
+			<xs:element name="description" type="simpleTokenType" minOccurs="0">
+				<xs:annotation>
+					<xs:appinfo xml:lang="en">
+						A string describing a date, such as "Ramadan 2010". This string is descriptive, but not necessarily processable by search engines.
+					</xs:appinfo>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="approximableDate" minOccurs="0">
+				<xs:annotation>
+					<xs:appinfo xml:lang="en">
+						An ISO 8601 date with an approximation attribute to add values such as
+        "early". ISO 8601 allows for dates such as 2010-06; search engines have different
+        interpretations about when to return records marked as such. 
+					</xs:appinfo>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:simpleContent>
+						<xs:extension base="CombinedDateType">
+							<xs:attribute name="approximation" type="DateApproximationEnumerationType"/>
+						</xs:extension>
+					</xs:simpleContent>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="searchableDate" minOccurs="0">
+				<xs:annotation>
+					<xs:appinfo xml:lang="en">
+						A range of dates covering the time period of the approximable date.  A search engine should be able to return DDMS records for queries in which the searched time period intersects this date range.
+					</xs:appinfo>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:sequence minOccurs="0">
+						<xs:element name="start" type="CombinedDateType" minOccurs="0"/>
+						<xs:element name="end" type="CombinedDateType" minOccurs="0"/>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+		</xs:all>
+	</xs:complexType>
+	<xs:simpleType name="DateApproximationEnumerationType">
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="1st qtr"/>
+			<xs:enumeration value="2nd qtr"/>
+			<xs:enumeration value="3rd qtr"/>
+			<xs:enumeration value="4th qtr"/>
+			<xs:enumeration value="circa"/>
+			<xs:enumeration value="early"/>
+			<xs:enumeration value="mid"/>
+			<xs:enumeration value="late"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<!-- Types used to model the source element. -->
+	<xs:complexType name="CompoundSourceIdentifierType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">
+				Type used to model the ddms:source element.
+			</xs:appinfo>
+		</xs:annotation>
+		<xs:attribute name="qualifier" type="simpleTokenType" use="optional"/>
+		<xs:attribute name="value" type="simpleTokenType" use="optional"/>
+		<xs:attribute name="schemaQualifier" type="simpleTokenType" use="optional"/>
+		<xs:attribute name="schemaHref" type="xs:anyURI" use="optional"/>
+		<xs:attributeGroup ref="SecurityAttributesOptionGroup"/>
+	</xs:complexType>
+	<xs:complexType name="CompoundLanguageIdentifierType">
+		<xs:attribute name="qualifier" type="simpleTokenType">
+			<xs:annotation>
+				<xs:appinfo xml:lang="en">
+					The value that specifies the originating agency or discipline of the language vocabulary.  Specifies the domain vocabulary of which the Language Value is a member.  ISO 639-1 and ISO 639-2, Codes for the representation of names of languages, reference 2 and 3 digit language codes.
+				</xs:appinfo>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute name="value" type="simpleTokenType">
+			<xs:annotation>
+				<xs:appinfo xml:lang="en">
+					The primary language of the intellectual content of the resource.  {Source: DCMI: language, v. 004IC MSP v. 1.0a: Language} The most specific in-scope language present (if any) should be specified in this category. 
+				</xs:appinfo>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+	<xs:complexType name="DescriptionType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">
+			Type used to model the description element.		
+			</xs:appinfo>
+		</xs:annotation>
+		<xs:simpleContent>
+			<xs:extension base="simpleTokenType">
+				<xs:attributeGroup ref="SecurityAttributesGroup"/>
+			</xs:extension>
+		</xs:simpleContent>
+	</xs:complexType>
+	<xs:complexType name="CompoundTypeIdentifierType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">
+				Types used to model the type element.
+			</xs:appinfo>
+		</xs:annotation>
+		<xs:simpleContent>
+			<xs:extension base="xs:string">
+				<xs:attribute name="qualifier" type="simpleTokenType"/>
+				<xs:attribute name="value" type="simpleTokenType"/>
+				<xs:attributeGroup ref="SecurityAttributesOptionGroup"/>
+			</xs:extension>
+		</xs:simpleContent>
+	</xs:complexType>
+	<!-- Types used to model the format element -->
+	<xs:complexType name="FormatType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">
+				Type used to model the ddms:format element.
+			</xs:appinfo>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element ref="mimeType"/>
+			<xs:element ref="extent" minOccurs="0"/>
+			<xs:element ref="medium" minOccurs="0"/>
+		</xs:sequence>
+	</xs:complexType>
+	<!-- Types used to model the extent element -->
+	<xs:complexType name="QualifiedExtentValueType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">
+				Type used to model the attributes of the ddms:extent element.
+			</xs:appinfo>
+		</xs:annotation>
+		<xs:attribute name="qualifier" type="xs:anyURI">
+			<xs:annotation>
+				<xs:appinfo xml:lang="en">
+					A vocabulary that specifies the type of format extent that will be supplied.  The qualifier attribute indicates the type of extent value listed.  In the case of data bytes, it may indicate "byte size".  In the case of a document length, it may indicate "page count".  In the case of streaming content, it may indicate "bits per second" or "frames per second".
+				</xs:appinfo>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute name="value" type="simpleTokenType">
+			<xs:annotation>
+				<xs:appinfo xml:lang="en">
+					A related data size, compression rate, or pixel size (etc.) of the resource.
+				</xs:appinfo>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+	<xs:simpleType name="MediumType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">
+				Type used to model the medium attribute of the ddms:medium element.
+			</xs:appinfo>
+		</xs:annotation>
+		<xs:restriction base="simpleTokenType"/>
+	</xs:simpleType>
+	<xs:simpleType name="MimeTypeType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">
+				Type used to model the mimeType element.
+			</xs:appinfo>
+		</xs:annotation>
+		<xs:restriction base="simpleTokenType"/>
+	</xs:simpleType>
+	<xs:complexType name="SubjectType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">
+				The type used to model the subjectCoverage element.
+			</xs:appinfo>
+		</xs:annotation>
+		<xs:choice maxOccurs="unbounded">
+			<xs:element ref="category"/>
+			<xs:element ref="keyword"/>
+			<xs:element ref="productionMetric"/>
+			<xs:element ref="nonStateActor"/>
+		</xs:choice>
+		<xs:attributeGroup ref="SecurityAttributesOptionGroup"/>
+	</xs:complexType>
+	<xs:complexType name="CompoundKeywordIdentifierType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">
+				Type used to model the ddms:keyword element.
+				  Allowed extension for allowing automated populators to give extra values for confidence and relativity.
+			</xs:appinfo>
+		</xs:annotation>
+		<xs:attribute name="value" type="simpleTokenType" use="required"/>
+		<xs:attributeGroup ref="SecurityAttributesOptionGroup"/>
+		<xs:anyAttribute namespace="##other" processContents="lax"/>
+	</xs:complexType>
+	<xs:complexType name="CompoundCategoryIdentifierType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">
+				Type used to model the attributes of the ddms:category element.  The UCore taxonomy is a specific use of category that is permitted.
+				  Allowed attriubute extension for allowing automated populators to give extra values for confidence and relativity.
+			</xs:appinfo>
+		</xs:annotation>
+		<xs:attribute name="qualifier" type="xs:anyURI" use="optional"/>
+		<xs:attribute name="code" type="simpleTokenType" use="optional"/>
+		<xs:attribute name="label" type="simpleTokenType" use="required"/>
+		<xs:attributeGroup ref="SecurityAttributesOptionGroup"/>
+		<xs:anyAttribute namespace="##other" processContents="lax"/>
+	</xs:complexType>
+	<xs:complexType name="TimePeriodType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">
+				Type used to model the TimePeriod sub-element of the ddms:temporalCoverage element.
+			</xs:appinfo>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="name" type="simpleTokenType" default="Unknown" minOccurs="0"/>
+			<xs:choice>
+				<xs:element name="start" type="ExtendedCombinedDateType" default="Unknown"/>
+				<xs:element name="approximableStart" type="ApproximableDateType"/>
+			</xs:choice>
+			<xs:choice>
+				<xs:element name="end" type="ExtendedCombinedDateType" default="Unknown"/>
+				<xs:element name="approximableEnd" type="ApproximableDateType"/>
+			</xs:choice>
+		</xs:sequence>
+		<xs:attributeGroup ref="SecurityAttributesOptionGroup"/>
+	</xs:complexType>
+	
+	<xs:complexType name="RelatedResourcesType">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">
+				The type entity used by the ddms:relationship element.  Each ddms:relatedResource element designates the relationship and the directionality of the relationship between the resource described by the parent ddms:Resource and any ddms:RelatedResource elements.</xs:appinfo>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="CompoundResourceIdentifierType">
+				<xs:sequence>
+					<xs:element name="link" maxOccurs="unbounded">
+						<xs:complexType>
+							<xs:attributeGroup ref="xlink:locatorAttrs"/>
+						</xs:complexType>
+					</xs:element>
+				</xs:sequence>
+				<xs:attribute name="relationship" type="xs:anyURI" use="required">
+					<xs:annotation>
+						<xs:appinfo xml:lang="en">
+							Represents a relationship of some relationship type between the resource described by the parent ddms:Resource element and another resource or resources.
+						</xs:appinfo>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attribute name="direction" use="optional" default="outbound">
+					<xs:simpleType>
+						<xs:restriction base="xs:string">
+							<xs:enumeration value="inbound">
+								<xs:annotation>
+									<xs:appinfo xml:lang="en">
+										Used to indicate that the relationship direction is from the related resource to the resource described in the instance DDMS record.
+									</xs:appinfo>
+								</xs:annotation>
+							</xs:enumeration>
+							<xs:enumeration value="outbound">
+								<xs:annotation>
+									<xs:appinfo xml:lang="en">
+										Used to indicate that the relationship direction is from the resource described in the instance DDMS record to the related resource identified.
+									</xs:appinfo>
+								</xs:annotation>
+							</xs:enumeration>
+							<xs:enumeration value="bidirectional">
+								<xs:annotation>
+									<xs:appinfo xml:lang="en">
+										Used to indicate that the relationship is bidirectional between the resource described in the instance DDMS record and the related resource identified.
+									</xs:appinfo>
+								</xs:annotation>
+							</xs:enumeration>
+						</xs:restriction>
+					</xs:simpleType>
+				</xs:attribute>
+				<xs:attributeGroup ref="SecurityAttributesOptionGroup"/>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<!-- Types used to model the resourceManagment element-->
+	<xs:complexType name="ResourceManagementType">
+		<xs:sequence>
+			<xs:element ref="recordsManagementInfo" minOccurs="0"/>
+			<xs:element ref="revisionRecall" minOccurs="0"/>
+			<xs:element name="taskingInfo" type="TaskingInfoType" minOccurs="0" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:appinfo xml:lang="en">Information about who requested resource be produced.</xs:appinfo>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="processingInfo" minOccurs="0" maxOccurs="unbounded"/>
+		</xs:sequence>
+		<xs:attributeGroup ref="SecurityAttributesOptionGroup"/>
+	</xs:complexType>
+	<xs:complexType name="RevisionRecallType" mixed="true">
+		<xs:annotation>
+			<xs:appinfo xml:lang="en">
+                The memorandum titled Intelligence Community Standards
+                and Procedures for Revised or Recalled Intelligence Products signed by DNI
+                Negroponte on 5 August 2005 specified how to indicate, in a textual form, the
+                revision or recall of a previously released document. This element specifies methods
+                for conveying revision and recall indicators and additional data in XML.
+            </xs:appinfo>
+		</xs:annotation>
+		<xs:sequence minOccurs="0">
+			<xs:element name="link" minOccurs="0" maxOccurs="unbounded">
+				<xs:complexType>
+					<xs:attributeGroup ref="xlink:locatorAttrs"/>
+					<xs:attributeGroup ref="SecurityAttributesGroup"/>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="details" minOccurs="0" maxOccurs="unbounded">
+				<xs:complexType>
+					<xs:simpleContent>
+						<xs:extension base="simpleTokenType">
+							<xs:attributeGroup ref="SecurityAttributesGroup"/>
+						</xs:extension>
+					</xs:simpleContent>
+				</xs:complexType>
+			</xs:element>
+		</xs:sequence>
+		<xs:attribute name="revisionID" type="xs:int" use="required">
+			<xs:annotation>
+				<xs:appinfo xml:lang="en">
+                        A sequential integer for the revision. 
+                        Higher numbers take precedence over lower numbers.
+                    </xs:appinfo>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute name="revisionType" use="required">
+			<xs:simpleType>
+				<xs:restriction base="xs:string">
+					<xs:enumeration value="ADMINISTRATIVE RECALL"/>
+					<xs:enumeration value="ADMINISTRATIVE REVISION"/>
+					<xs:enumeration value="SUBSTANTIVE RECALL"/>
+					<xs:enumeration value="SUBSTANTIVE REVISION"/>
+				</xs:restriction>
+			</xs:simpleType>
+		</xs:attribute>
+		<xs:attributeGroup ref="SecurityAttributesGroup"/>
+		<xs:attributeGroup ref="OptionalResourceLinkAttributesGroup"/>
+	</xs:complexType>
+	<xs:complexType name="ProcessingInfoType">
+		<xs:simpleContent>
+			<xs:extension base="simpleTokenType">
+				<xs:attribute name="dateProcessed" type="CombinedDateType" use="required"/>
+				<xs:attributeGroup ref="SecurityAttributesGroup"/>
+			</xs:extension>
+		</xs:simpleContent>
+	</xs:complexType>
+	<xs:complexType name="RecordsManagementInfoType">
+		<xs:sequence minOccurs="0">
+			<xs:element name="recordKeeper" minOccurs="0">
+				<xs:annotation>
+					<xs:appinfo xml:lang="en">The administrative entity, unit, office, responsible for the custody and ongoing management of the records during their active business use.</xs:appinfo>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:sequence minOccurs="0">
+						<xs:element name="recordKeeperID" type="simpleTokenType" minOccurs="0">
+							<xs:annotation>
+								<xs:appinfo xml:lang="en">A unique identifier for the Record Keeper</xs:appinfo>
+							</xs:annotation>
+						</xs:element>
+						<xs:element ref="organization" minOccurs="0"/>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="applicationSoftware" minOccurs="0">
+				<xs:annotation>
+					<xs:appinfo xml:lang="en">The name or description of the software application(s) used to create the object or product to which this metadata applies.  The application should be described in sufficient detail to ensure readability, retrieval, and preservation. As a minimum, specify the application name and version, and the operating system.
+            </xs:appinfo>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:simpleContent>
+						<xs:extension base="simpleTokenType">
+							<xs:attributeGroup ref="SecurityAttributesGroup"/>
+						</xs:extension>
+					</xs:simpleContent>
+				</xs:complexType>
+			</xs:element>
+		</xs:sequence>
+		<xs:attribute name="vitalRecordIndicator" type="xs:boolean" use="optional" default="false">
+			<xs:annotation>
+				<xs:appinfo xml:lang="en">An indication that a publication is categorized a vital record by the originating agency.  A vital record is a resource that is needed: (a) to restore an enterprise to full operation following a catastrophe, or (b) as a record that is essential to protect the legal and financial rights of the government or the individual directly affected by its activities.</xs:appinfo>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+	<xs:complexType name="TaskingInfoType">
+		<xs:sequence>
+			<xs:element name="requesterInfo" minOccurs="0" maxOccurs="unbounded">
+				<xs:complexType>
+					<xs:choice>
+						<xs:element ref="person"/>
+						<xs:element ref="organization"/>
+					</xs:choice>
+					<xs:attributeGroup ref="SecurityAttributesGroup"/>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="addressee" minOccurs="0" maxOccurs="unbounded">
+				<xs:complexType>
+					<xs:choice>
+						<xs:element ref="person"/>
+						<xs:element ref="organization"/>
+					</xs:choice>
+					<xs:attributeGroup ref="SecurityAttributesGroup"/>
+				</xs:complexType>
+			</xs:element>
+			<xs:element ref="description" minOccurs="0"/>
+			<xs:element name="taskID">
+				<xs:annotation>
+					<xs:appinfo xml:lang="en">A tracking identification number associated with the tasking that resulted in development of this resource. The format of element "TaskID" content is agency-specific, and is not prescribed by this documentation.</xs:appinfo>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:simpleContent>
+						<xs:extension base="simpleTokenType">
+							<xs:attribute name="taskingSystem" type="simpleTokenType" use="optional"/>
+							<xs:attributeGroup ref="SimpleLinkAttributesGroup"/>
+						</xs:extension>
+					</xs:simpleContent>
+				</xs:complexType>
+			</xs:element>
+		</xs:sequence>
+		<xs:attributeGroup ref="SecurityAttributesGroup"/>
+	</xs:complexType>
+	<xs:complexType name="NonStateActorCoverageType">
+		<xs:simpleContent>
+			<xs:extension base="simpleTokenType">
+				<xs:attribute name="order" type="xs:int" use="optional">
+					<xs:annotation>
+						<xs:appinfo xml:lang="en">Specifies a user-defined order of an element within the given document. All elements in the document which specify the order attribute should be interpreted as entries in a single, ordered list even though they may appear on different elements. Values must be sequential, starting at 1, and may not contain duplicates.</xs:appinfo>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attribute name="qualifier" type="xs:anyURI" use="optional"/>
+				<xs:attributeGroup ref="SecurityAttributesOptionGroup"/>
+			</xs:extension>
+		</xs:simpleContent>
+	</xs:complexType>
+	<xs:complexType name="ProductionMetricType">
+		<xs:attribute name="subject" type="simpleTokenType" use="required">
+			<xs:annotation>
+				<xs:appinfo xml:lang="en">A method of categorizing the subject of a document in a fashion understandable by DDNI-A</xs:appinfo>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute name="coverage" type="simpleTokenType" use="required">
+			<xs:annotation>
+				<xs:appinfo xml:lang="en">A method of categorizing the coverage of a document in a fashion understandable by DDNI-A</xs:appinfo>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attributeGroup ref="SecurityAttributesOptionGroup"/>
+	</xs:complexType>
+	<xs:attribute name="acronym" type="simpleTokenType"/>
+	<!-- End Global Types -->
+</xs:schema>

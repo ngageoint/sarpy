@@ -19,11 +19,11 @@ from sarpy.io.xml.descriptors import IntegerDescriptor, StringEnumDescriptor, \
 from .base import DEFAULT_STRICT, FLOAT_FORMAT
 
 
-_len2_array_text = 'Expected array to be of length 2,\n\t' \
+_len2_array_text = 'Expected array to be of length 2, ' \
                    'and received `{}`'
-_len3_array_text = 'Expected array to be of length 3,\n\t' \
+_len3_array_text = 'Expected array to be of length 3, ' \
                    'and received `{}`'
-_array_type_text = 'Expected array to be numpy.ndarray, list, or tuple,\n\tgot `{}`'
+_array_type_text = 'Expected array to be numpy.ndarray, list, or tuple, got `{}`'
 
 
 #########
@@ -214,7 +214,7 @@ class LatLonType(Serializable, Arrayable):
         -------
         tuple
             of the form ((deg lat, mins lat, secs lat, N/S), (deg lon, mins lon, secs lon, E/W))
-        Here degrees and minutes will be int, secs will be float.
+        Here degrees and minutes will be int, secs will be a float.
         """
 
         def reduce(value):
@@ -233,7 +233,7 @@ class LatLonType(Serializable, Arrayable):
 
 
 class LatLonArrayElementType(LatLonType):
-    """An geographic point in an array"""
+    """A geographic point in an array"""
     _fields = ('Lat', 'Lon', 'index')
     _required = _fields
     _set_as_attribute = ('index', )
@@ -534,7 +534,7 @@ class LatLonCornerType(LatLonType):
             return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 2:
-                raise ValueError('Expected coords to be of length 2, and received {}'.format(array))
+                raise ValueError(_len2_array_text.format(array))
             return cls(Lat=array[0], Lon=array[1], index=index)
         raise ValueError(_array_type_text.format(type(array)))
 
@@ -802,7 +802,7 @@ class RowColType(Serializable, Arrayable):
 
 
 class RowColArrayElement(RowColType):
-    """A array element row and column attribute container - used as indices into other array(s)."""
+    """An array element row and column attribute container - used as indices into other array(s)."""
     # Note - in the SICD standard this type is listed as RowColvertexType. This is not a descriptive name
     # and has an inconsistency in camel case
     _fields = ('Row', 'Col', 'index')
@@ -899,7 +899,7 @@ class Poly1DType(Serializable, Arrayable):
     @property
     def order1(self) -> int:
         """
-        int: The order1 attribute [READ ONLY]  - that is, largest exponent
+        int: The order1 attribute [READ ONLY]  - that is, the largest exponent
         presented in the monomial terms of coefs.
         """
 
@@ -1011,7 +1011,7 @@ class Poly1DType(Serializable, Arrayable):
 
     def shift(self, t_0: float, alpha: float = 1, return_poly: bool = False):
         r"""
-        Transform a polynomial with respect to a affine shift in the coordinate system.
+        Transform a polynomial with respect to an affine shift in the coordinate system.
         That is, :math:`P(x) = Q(\alpha\cdot(t-t_0))`.
 
         Be careful to follow the convention that the transformation parameters express the *current coordinate system*
@@ -1267,7 +1267,7 @@ class Poly2DType(Serializable, Arrayable):
             t2_scale: float = 1,
             return_poly: bool = False):
         r"""
-        Transform a polynomial with respect to a affine shift in the coordinate system.
+        Transform a polynomial with respect to an affine shift in the coordinate system.
         That is, :math:`P(x1, x2) = Q(t1_scale\cdot(t1 - t1_shift), t2_scale\cdot(t2 - t2_shift))`.
 
         Be careful to follow the convention that the transformation parameters express the
@@ -1483,7 +1483,7 @@ class XYZPolyType(Serializable, Arrayable):
         """
         Evaluate the polynomial at points `t`. This passes `t` straight through
         to :func:`polyval` of `numpy.polynomial.polynomial` for each of
-        `X,Y,Z` components. If any of `X,Y,Z` is not populated, then None is returned.
+        `X,Y,Z` components.
 
         Parameters
         ----------
@@ -1516,7 +1516,7 @@ class XYZPolyType(Serializable, Arrayable):
         dtype : str|numpy.dtype|numpy.number
             numpy data type of the return.
             If `object`, an array of Poly1DType objects is returned.
-            Otherwise, an ndarray of shape (3, N) of coefficient vectors is returned.
+            Otherwise, a ndarray of shape (3, N) of coefficient vectors is returned.
 
         Returns
         -------
@@ -1615,7 +1615,7 @@ class XYZPolyType(Serializable, Arrayable):
             alpha: float = 1,
             return_poly: bool = False):
         r"""
-        Transform a polynomial with respect to a affine shift in the coordinate system.
+        Transform a polynomial with respect to an affine shift in the coordinate system.
         That is, :math:`P(u) = Q(\alpha\cdot(t-t_0))`.
 
         Be careful to follow the convention that the transformation parameters express the *current coordinate system*

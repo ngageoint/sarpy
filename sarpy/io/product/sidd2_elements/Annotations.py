@@ -674,7 +674,7 @@ class AnnotationObjectType(Serializable):
         if typ is None:
             return node
 
-        coords = getattr(self, typ).get_coordinates_list()
+        coords = getattr(self, typ).get_coordinate_list()
         if typ == 'Point':
             self._serialize_point(coords, doc, 'sfa:Point', node)
         elif typ == 'Line':

@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema xmlns="urn:us:gov:ic:cvenum:virt:network"
+            xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+            elementFormDefault="qualified"
+            xml:lang="en"
+            targetNamespace="urn:us:gov:ic:cvenum:virt:network">
+   <xsd:annotation>
+      <xsd:documentation>
+                    The W3C XML Schema fragment encoding types for CVEnumVIRTNetworkName Version 1 controlled vocabulary enumerations. This file is generated, so edits should be made to the CVEnumVIRTNetworkName.xml CVE it is based on, instead of here.
+                </xsd:documentation>
+   </xsd:annotation>
+   <!--*************************************************************-->
+<!--Generated TYPE DEFINITIONS ..................................-->
+<!--*************************************************************-->
+<xsd:simpleType name="CVEnumVIRTNetworkName">
+      <xsd:annotation>
+         <xsd:documentation>(U) All valid network names
+                         PERMISSIBLE VALUES
+                         
+                         The permissible values for this simple type are defined in the Controlled Value Enumeration:
+                         
+                         CVEnumVIRTNetworkName.xml
+                         
+                     </xsd:documentation>
+      </xsd:annotation>
+      <xsd:union>
+         <xsd:simpleType>
+            <xsd:restriction base="xsd:token">
+               <xsd:pattern value="other:\S{1,256}">
+                  <xsd:annotation>
+                     <xsd:documentation> Other Network
+   	        </xsd:documentation>
+                  </xsd:annotation>
+               </xsd:pattern>
+            </xsd:restriction>
+         </xsd:simpleType>
+         <xsd:simpleType>
+            <xsd:restriction base="xsd:token">
+               <xsd:enumeration value="NIPRNet">
+                  <xsd:annotation>
+                     <xsd:documentation>DISA Non-classified IP Router Network
+			</xsd:documentation>
+                  </xsd:annotation>
+               </xsd:enumeration>
+               <xsd:enumeration value="SIPRNet">
+                  <xsd:annotation>
+                     <xsd:documentation>DoD and DoS Secret Internet Protocol Router Network
+   		    </xsd:documentation>
+                  </xsd:annotation>
+               </xsd:enumeration>
+               <xsd:enumeration value="JWICS">
+                  <xsd:annotation>
+                     <xsd:documentation>Joint Worldwide Intelligence Communications System 
+   	            (JWICS) highside network.
+   	        </xsd:documentation>
+                  </xsd:annotation>
+               </xsd:enumeration>
+               <xsd:enumeration value="ADSN">
+                  <xsd:annotation>
+                     <xsd:documentation>ADSN Network
+   	        </xsd:documentation>
+                  </xsd:annotation>
+               </xsd:enumeration>
+               <xsd:enumeration value="StoneGhost">
+                  <xsd:annotation>
+                     <xsd:documentation>DIA Top Secret Sensitive 
+   	            Compartmented Information Network
+   	        </xsd:documentation>
+                  </xsd:annotation>
+               </xsd:enumeration>
+               <xsd:enumeration value="LOCE">
+                  <xsd:annotation>
+                     <xsd:documentation> Linked Operations-Intelligence Centers Europe
+   	            (LOCE) Network is a USEUCOM system supoorting joint forces with communications
+   	        </xsd:documentation>
+                  </xsd:annotation>
+               </xsd:enumeration>
+               <xsd:enumeration value="CRONOS">
+                  <xsd:annotation>
+                     <xsd:documentation> Crisis Response Operations in NATO Operating Systems 
+   	            (CRONOS) is a system of interconnected computer networks used by NATO to transmit classified information
+   	        </xsd:documentation>
+                  </xsd:annotation>
+               </xsd:enumeration>
+            </xsd:restriction>
+         </xsd:simpleType>
+      </xsd:union>
+   </xsd:simpleType>
+</xsd:schema>

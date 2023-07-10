@@ -1,0 +1,78 @@
+<schema xmlns:gmltin="http://www.opengis.net/gml/3.3/tin" xmlns:gml="http://www.opengis.net/gml/3.2" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns="http://www.w3.org/2001/XMLSchema" xmlns:xml="http://www.w3.org/XML/1998/namespace" targetNamespace="http://www.opengis.net/gml/3.3/tin" elementFormDefault="qualified" version="3.3.0">
+    <annotation>
+        <documentation>tin.xsd, part of GML 3.3. Copyright (c) [2011] Open Geospatial Consortium, Inc. To obtain additional rights of use, visit http://www.opengeospatial.org/legal/.</documentation>
+    </annotation>
+    <import namespace="http://www.opengis.net/gml/3.2" schemaLocation="../../../ogc/gml/3.2.1/gml.xsd"/>
+    <element name="TriangulatedSurface" type="gml:SurfaceType" substitutionGroup="gml:Surface"/>
+    <complexType name="SimpleTrianglePatchType">
+        <complexContent>
+            <extension base="gml:AbstractSurfacePatchType">
+                <sequence>
+                    <choice>
+                        <choice minOccurs="3" maxOccurs="3">
+                            <element ref="gml:pos"/>
+                            <element ref="gml:pointProperty"/>
+                        </choice>
+                        <element ref="gml:posList"/>
+                    </choice>
+                </sequence>
+                <attribute name="interpolation" type="gml:SurfaceInterpolationType" fixed="planar"/>
+            </extension>
+        </complexContent>
+    </complexType>
+    <element name="SimpleTrianglePatch" type="gmltin:SimpleTrianglePatchType" substitutionGroup="gml:AbstractSurfacePatch"/>
+    <complexType name="TINType">
+        <complexContent>
+            <extension base="gml:SurfaceType">
+                <sequence>
+                    <element name="tinElement" type="gmltin:TINElementPropertyType" minOccurs="0" maxOccurs="unbounded"/>
+                    <element name="maxLength" type="gml:LengthType" minOccurs="0"/>
+                </sequence>
+            </extension>
+        </complexContent>
+    </complexType>
+    <element name="TIN" type="gmltin:TINType" substitutionGroup="gmltin:TriangulatedSurface"/>
+    <complexType name="TINElementType">
+        <complexContent>
+            <extension base="gml:AbstractFeatureType">
+                <sequence>
+                    <element name="elementType" type="gmltin:TINElementTypeType"/>
+                    <element name="elementID" type="integer" minOccurs="0"/>
+                    <element name="elementTag" type="string" minOccurs="0"/>
+                    <element name="elementGeometry" type="gml:GeometryPropertyType"/>
+                </sequence>
+            </extension>
+        </complexContent>
+    </complexType>
+    <element name="TINElement" type="gmltin:TINElementType" substitutionGroup="gml:AbstractObject"/>
+    <complexType name="TINElementPropertyType">
+        <sequence minOccurs="0">
+            <element ref="gmltin:TINElement"/>
+        </sequence>
+        <attributeGroup ref="gml:AssociationAttributeGroup"/>
+    </complexType>
+    <simpleType name="TINElementTypeType">
+        <union>
+            <simpleType>
+                <restriction base="string">
+                    <enumeration value="randomPoints"/>
+                    <enumeration value="groupSpot"/>
+                    <enumeration value="boundary"/>
+                    <enumeration value="breakline"/>
+                    <enumeration value="softBreak"/>
+                    <enumeration value="controlContour"/>
+                    <enumeration value="breakVoid"/>
+                    <enumeration value="drapeVoid"/>
+                    <enumeration value="void"/>
+                    <enumeration value="hole"/>
+                    <enumeration value="stopLine"/>
+                </restriction>
+            </simpleType>
+            <simpleType>
+                <restriction base="string">
+                    <pattern value="other:\w{2,}"/>
+                </restriction>
+            </simpleType>
+        </union>
+    </simpleType>
+</schema>

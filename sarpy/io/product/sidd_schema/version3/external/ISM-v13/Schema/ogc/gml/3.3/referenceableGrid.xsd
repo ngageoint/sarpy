@@ -1,0 +1,79 @@
+<schema xmlns:gmlrgrid="http://www.opengis.net/gml/3.3/rgrid" xmlns:gml="http://www.opengis.net/gml/3.2" xmlns="http://www.w3.org/2001/XMLSchema" targetNamespace="http://www.opengis.net/gml/3.3/rgrid" elementFormDefault="qualified" version="3.3.0" xml:lang="en">
+    <annotation>
+        <documentation>referenceableGrid.xsd, part of GML 3.3. Copyright (c) [2011] Open Geospatial Consortium, Inc. To obtain additional rights of use, visit http://www.opengeospatial.org/legal/.</documentation>
+    </annotation>
+    <import namespace="http://www.opengis.net/gml/3.2" schemaLocation="../../../ogc/gml/3.2.1/gml.xsd"/>
+    <complexType name="AbstractReferenceableGridType" abstract="true">
+        <complexContent>
+            <extension base="gml:GridType">
+                <sequence>
+                    <element ref="gmlrgrid:gridCRS" minOccurs="0"/>
+                </sequence>
+            </extension>
+        </complexContent>
+    </complexType>
+    <element name="AbstractReferenceableGrid" type="gmlrgrid:AbstractReferenceableGridType" abstract="true" substitutionGroup="gml:Grid"/>
+    <complexType name="ReferenceableGridPropertyType">
+        <sequence>
+            <element ref="gmlrgrid:AbstractReferenceableGrid"/>
+        </sequence>
+        <attributeGroup ref="gml:AssociationAttributeGroup"/>
+        <attributeGroup ref="gml:OwnershipAttributeGroup"/>
+    </complexType>
+    <element name="referenceableGridProperty" type="gmlrgrid:ReferenceableGridPropertyType"/>
+    <complexType name="ReferenceableGridByArrayType">
+        <complexContent>
+            <extension base="gmlrgrid:AbstractReferenceableGridType">
+                <sequence>
+                    <group ref="gml:geometricPositionListGroup"/>
+                    <element name="sequenceRule" type="gml:SequenceRuleType"/>
+                </sequence>
+            </extension>
+        </complexContent>
+    </complexType>
+    <element name="ReferenceableGridByArray" type="gmlrgrid:ReferenceableGridByArrayType" substitutionGroup="gmlrgrid:AbstractReferenceableGrid"/>
+    <complexType name="ReferenceableGridByVectorsType">
+        <complexContent>
+            <extension base="gmlrgrid:AbstractReferenceableGridType">
+                <sequence>
+                    <element name="origin" type="gml:PointPropertyType"/>
+                    <element name="generalGridAxis" type="gmlrgrid:GeneralGridAxisPropertyType" maxOccurs="unbounded"/>
+                </sequence>
+            </extension>
+        </complexContent>
+    </complexType>
+    <element name="ReferenceableGridByVectors" type="gmlrgrid:ReferenceableGridByVectorsType" substitutionGroup="gmlrgrid:AbstractReferenceableGrid"/>
+    <complexType name="GeneralGridAxisType">
+        <sequence>
+            <element name="offsetVector" type="gml:VectorType"/>
+            <element name="coefficients" type="gml:doubleList"/>
+            <element name="gridAxesSpanned" type="gml:NCNameList"/>
+            <element name="sequenceRule" type="gml:SequenceRuleType"/>
+        </sequence>
+    </complexType>
+    <element name="GeneralGridAxis" type="gmlrgrid:GeneralGridAxisType"/>
+    <complexType name="GeneralGridAxisPropertyType">
+        <sequence minOccurs="0">
+            <element ref="gmlrgrid:GeneralGridAxis"/>
+        </sequence>
+        <attributeGroup ref="gml:AssociationAttributeGroup"/>
+        <attributeGroup ref="gml:OwnershipAttributeGroup"/>
+    </complexType>
+    <element name="ReferenceableGridByTransformation" type="gmlrgrid:ReferenceableGridByTransformationType" substitutionGroup="gmlrgrid:AbstractReferenceableGrid"/>
+    <complexType name="ReferenceableGridByTransformationType">
+        <complexContent>
+            <extension base="gmlrgrid:AbstractReferenceableGridType">
+                <choice>
+                    <element name="transformation" type="gml:TransformationPropertyType"/>
+                    <element name="concatenatedOperation" type="gml:ConcatenatedOperationPropertyType"/>
+                </choice>
+            </extension>
+        </complexContent>
+    </complexType>
+    <element name="gridCRS" type="gmlrgrid:GridCRSPropertyType"/>
+    <complexType name="GridCRSPropertyType">
+        <sequence>
+            <element ref="gml:AbstractCRS"/>
+        </sequence>
+    </complexType>
+</schema>

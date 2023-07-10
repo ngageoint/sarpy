@@ -1,0 +1,1471 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- As originally specified in OGC Best Practices Document:
+            Gazetteer Service - Application Profile of the Web Feature Service Implementation Specification
+            Version 0.9.4, OGC 11-122r1, 2011-08-18
+      - Revised from GML 3.1.1 to GML 3.2.1
+  -->
+<gml:Dictionary
+   xmlns:gml="http://www.opengis.net/gml/3.2"
+   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+   xsi:schemaLocation="http://www.opengis.net/gml/3.2 ../../../../ogc/gml/3.2.1/gml.xsd"
+   gml:id="ISO15924_2004">
+    
+   <gml:description>
+      This International Standard provides a code for the presentation of names of scripts. The codes were devised for use in terminology, lexicography, bibliography, and linguistics, but they may be used for any application requiring the expression of scripts in coded form.
+   </gml:description>
+   <gml:identifier codeSpace="">ISO15924_2004</gml:identifier>
+   <gml:name>Codes for the representation of names of scripts</gml:name>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Arab">
+         <gml:description>
+            Arabic
+            arabe
+            Arabic
+         </gml:description>
+         <gml:identifier codeSpace="">Arab</gml:identifier>
+         <gml:name>160</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Armi">
+         <gml:description>
+            Imperial Aramaic
+            arameen imperial
+            Imperial_Aramaic
+         </gml:description>
+         <gml:identifier codeSpace="">Armi</gml:identifier>
+	 <gml:name>124</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Armn">
+         <gml:description>
+            Armenian
+            armenien
+            Armenian
+         </gml:description>
+         <gml:identifier codeSpace="">Armn</gml:identifier>
+         <gml:name>230</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Avst">
+         <gml:description>
+            Avestan
+            avestique
+            Avestan
+         </gml:description>
+         <gml:identifier codeSpace="">Avst</gml:identifier>
+         <gml:name>134</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Bali">
+         <gml:description>
+            Balinese
+            balinais
+            Balinese
+         </gml:description>
+         <gml:identifier codeSpace="">Bali</gml:identifier>
+         <gml:name>360</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Bamu">
+         <gml:description>
+            Bamum
+            bamoum
+            Bamum
+         </gml:description>
+         <gml:identifier codeSpace="">Bamu</gml:identifier>
+         <gml:name>435</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Batk">
+         <gml:description>
+            Batak
+            batak
+         </gml:description>
+         <gml:identifier codeSpace="">Batk</gml:identifier>
+         <gml:name>365</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Beng">
+         <gml:description>
+            Bengali
+            bengali
+            Bengali
+         </gml:description>
+         <gml:identifier codeSpace="">Beng</gml:identifier>
+         <gml:name>325</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Blis">
+         <gml:description>
+            Blissymbols
+            symboles Bliss
+         </gml:description>
+         <gml:identifier codeSpace="">Blis</gml:identifier>
+         <gml:name>550</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Bopo">
+         <gml:description>
+            Bopomofo
+            bopomofo
+            Bopomofo
+         </gml:description>
+         <gml:identifier codeSpace="">Bopo</gml:identifier>
+         <gml:name>285</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Brah">
+         <gml:description>
+            Brahmi
+            brahmi
+         </gml:description>
+         <gml:identifier codeSpace="">Brah</gml:identifier>
+         <gml:name>300</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Brai">
+         <gml:description>
+            Braille
+            braille
+            Braille
+         </gml:description>
+         <gml:identifier codeSpace="">Brai</gml:identifier>
+         <gml:name>570</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Bugi">
+         <gml:description>
+            Buginese
+            bouguis
+            Buginese
+         </gml:description>
+         <gml:identifier codeSpace="">Bugi</gml:identifier>
+         <gml:name>367</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Buhd">
+         <gml:description>
+            Buhid
+            bouhide
+            Buhid
+         </gml:description>
+         <gml:identifier codeSpace="">Buhd</gml:identifier>
+         <gml:name>372</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Cakm">
+         <gml:description>
+            Chakma
+            chakma
+         </gml:description>
+         <gml:identifier codeSpace="">Cakm</gml:identifier>
+         <gml:name>349</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Cans">
+         <gml:description>
+            Unified Canadian Aboriginal Syllabics
+            syllabaire autochtone canadien unifie
+            Canadian_Aboriginal
+         </gml:description>
+         <gml:identifier codeSpace="">Cans</gml:identifier>
+         <gml:name>440</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Cari">
+         <gml:description>
+            Carian
+            carien
+            Carian
+         </gml:description>
+         <gml:identifier codeSpace="">Cari</gml:identifier>
+         <gml:name>201</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Cham">
+         <gml:description>
+            Cham
+            cham (cam, tcham)
+         </gml:description>
+         <gml:identifier codeSpace="">Cham</gml:identifier>
+         <gml:name>358</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Cher">
+         <gml:description>
+            Cherokee
+            tcheroki
+            Cherokee
+         </gml:description>
+         <gml:identifier codeSpace="">Cher</gml:identifier>
+         <gml:name>445</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Cirt">
+         <gml:description>
+            Cirth
+            cirth
+         </gml:description>
+         <gml:identifier codeSpace="">Cirt</gml:identifier>
+         <gml:name>291</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Copt">
+         <gml:description>
+            Coptic
+            copte
+            Coptic
+         </gml:description>
+         <gml:identifier codeSpace="">Copt</gml:identifier>
+         <gml:name>204</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Cprt">
+         <gml:description>
+            Cypriot
+            syllabaire chypriote
+            Cypriot
+         </gml:description>
+         <gml:identifier codeSpace="">Cprt</gml:identifier>
+         <gml:name>403</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Cyrl">
+         <gml:description>
+            Cyrillic
+            cyrillique
+            Cyrillic
+         </gml:description>
+         <gml:identifier codeSpace="">Cyrl</gml:identifier>
+         <gml:name>220</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Cyrs">
+         <gml:description>
+            Cyrillic (Old Church Slavonic variant)
+            cyrillique (variante slavonne)
+         </gml:description>
+         <gml:identifier codeSpace="">Cyrs</gml:identifier>
+         <gml:name>221</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Deva">
+         <gml:description>
+            Devanagari (Nagari)
+            devanagari
+            Devanagari
+         </gml:description>
+         <gml:identifier codeSpace="">Deva</gml:identifier>
+         <gml:name>315</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Dsrt">
+         <gml:description>
+            Deseret (Mormon)
+            deseret (mormon)
+            Deseret
+         </gml:description>
+         <gml:identifier codeSpace="">Dsrt</gml:identifier>
+         <gml:name>250</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Egyd">
+         <gml:description>
+            Egyptian demotic
+            demotique egyptien
+         </gml:description>
+         <gml:identifier codeSpace="">Egyd</gml:identifier>
+         <gml:name>070</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Egyh">
+         <gml:description>
+            Egyptian hieratic
+            hieratique egyptien
+         </gml:description>
+         <gml:identifier codeSpace="">Egyh</gml:identifier>
+         <gml:name>060</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Egyp">
+         <gml:description>
+            Egyptian hieroglyphs
+            hieroglyphes egyptiens
+            Egyptian_Hierogyphs
+         </gml:description>
+         <gml:identifier codeSpace="">Egyp</gml:identifier>
+         <gml:name>050</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Ethi">
+         <gml:description>
+            Ethiopic (Ge'ez)
+            ethiopien (ge'ez, gueze)
+            Ethiopic
+         </gml:description>
+         <gml:identifier codeSpace="">Ethi</gml:identifier>
+         <gml:name>430</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Geor">
+         <gml:description>
+            Georgian (Mkhedruli)
+            georgien (mkhedrouli)
+            Georgian
+         </gml:description>
+         <gml:identifier codeSpace="">Geor</gml:identifier>
+         <gml:name>240</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Geok">
+         <gml:description>
+            Khutsuri (Asomtavruli and Nuskhuri)
+            khoutsouri (assomtavrouli et nouskhouri)
+         </gml:description>
+         <gml:identifier codeSpace="">Geok</gml:identifier>
+         <gml:name>241</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Glag">
+         <gml:description>
+            Glagolitic
+            glagolitique
+            Glagolitic
+         </gml:description>
+         <gml:identifier codeSpace="">Glag</gml:identifier>
+         <gml:name>225</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Goth">
+         <gml:description>
+            Gothic
+            gotique
+            Gothic
+         </gml:description>
+         <gml:identifier codeSpace="">Goth</gml:identifier>
+         <gml:name>206</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Grek">
+         <gml:description>
+            Greek
+            grec
+            Greek
+         </gml:description>
+         <gml:identifier codeSpace="">Grek</gml:identifier>
+         <gml:name>200</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Gujr">
+         <gml:description>
+            Gujarati
+            goudjarati (gujrati)
+            Gujarati
+         </gml:description>
+         <gml:identifier codeSpace="">Gujr</gml:identifier>
+         <gml:name>320</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Guru">
+         <gml:description>
+            Gurmukhi
+            gourmoukhi
+            Gurmukhi
+         </gml:description>
+         <gml:identifier codeSpace="">Guru</gml:identifier>
+         <gml:name>310</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Hang">
+         <gml:description>
+            Hangul (Hangul, Hangeul)
+            hangul (hangul, hangeul)
+            Hangul
+         </gml:description>
+         <gml:identifier codeSpace="">Hang</gml:identifier>
+         <gml:name>286</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Hani">
+         <gml:description>
+            Han (Hanzi, Kanji, Hanja)
+            ideogrammes han (sinogrammes)
+            Han
+         </gml:description>
+         <gml:identifier codeSpace="">Hani</gml:identifier>
+         <gml:name>500</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Hano">
+         <gml:description>
+            Hanunoo (Hanunoo)
+            hanounoo
+            Hanunoo
+         </gml:description>
+         <gml:identifier codeSpace="">Hano</gml:identifier>
+         <gml:name>371</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Hans">
+         <gml:description>
+            Han (Simplified variant)
+            ideogrammes han (variante simplifiee)
+         </gml:description>
+         <gml:identifier codeSpace="">Hans</gml:identifier>
+         <gml:name>501</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Hant">
+         <gml:description>
+            Han (Traditional variant)
+            ideogrammes han (variante traditionnelle)
+         </gml:description>
+         <gml:identifier codeSpace="">Hant</gml:identifier>
+         <gml:name>502</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Hebr">
+         <gml:description>
+            Hebrew
+            hebreu
+            Hebrew
+         </gml:description>
+         <gml:identifier codeSpace="">Hebr</gml:identifier>
+         <gml:name>125</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Hira">
+         <gml:description>
+            Hiragana
+            hiragana
+            Hiragana
+         </gml:description>
+         <gml:identifier codeSpace="">Hira</gml:identifier>
+         <gml:name>410</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Hmng">
+         <gml:description>
+            Pahawh Hmong
+            pahawh hmong
+         </gml:description>
+         <gml:identifier codeSpace="">Hmng</gml:identifier>
+         <gml:name>450</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Hrkt">
+         <gml:description>
+            (alias for Hiragana + Katakana)
+            (alias pour hiragana + katakana)
+            Katakana_Or_Hiragana
+         </gml:description>
+         <gml:identifier codeSpace="">Hrkt</gml:identifier>
+         <gml:name>412</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Hung">
+         <gml:description>
+            Old Hungarian
+            ancien hongrois
+         </gml:description>
+         <gml:identifier codeSpace="">Hung</gml:identifier>
+         <gml:name>176</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Inds">
+         <gml:description>
+            Indus (Harappan)
+            indus
+         </gml:description>
+         <gml:identifier codeSpace="">Inds</gml:identifier>
+         <gml:name>610</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Ital">
+         <gml:description>
+            Old Italic (Etruscan, Oscan, etc.)
+            ancien italique (etrusque, osque, etc.)
+            Old_Italic
+         </gml:description>
+         <gml:identifier codeSpace="">Ital</gml:identifier>
+         <gml:name>210</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Java">
+         <gml:description>
+            Javanese
+            javanais
+            Javanese
+         </gml:description>
+         <gml:identifier codeSpace="">Java</gml:identifier>
+         <gml:name>361</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Jpan">
+         <gml:description>
+            Japanese (alias for Han + Hiragana + Katakana)
+            japonais (alias pour han + hiragana + katakana)
+         </gml:description>
+         <gml:identifier codeSpace="">Jpan</gml:identifier>
+         <gml:name>413</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Kali">
+         <gml:description>
+            Kayah Li
+            kayah li
+            Kayah_Li
+         </gml:description>
+         <gml:identifier codeSpace="">Kali</gml:identifier>
+         <gml:name>357</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Kana">
+         <gml:description>
+            Katakana
+            katakana
+            Katakana
+         </gml:description>
+         <gml:identifier codeSpace="">Kana</gml:identifier>
+         <gml:name>411</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Khar">
+         <gml:description>
+            Kharoshthi
+            kharochthi
+            Kharoshthi
+         </gml:description>
+         <gml:identifier codeSpace="">Khar</gml:identifier>
+         <gml:name>305</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Khmr">
+         <gml:description>
+            Khmer
+            khmer
+            Khmer
+         </gml:description>
+         <gml:identifier codeSpace="">Khmr</gml:identifier>
+         <gml:name>355</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Knda">
+         <gml:description>
+            Kannada
+            kannara (canara)
+            Kannada
+         </gml:description>
+         <gml:identifier codeSpace="">Knda</gml:identifier>
+         <gml:name>345</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Kore">
+         <gml:description>
+            Korean (alias for Hangul + Han)
+            coreen (alias pour hangul + han)
+         </gml:description>
+         <gml:identifier codeSpace="">Kore</gml:identifier>
+         <gml:name>287</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Kthi">
+         <gml:description>
+            Kaithi
+            kaithi
+            Kaithi
+         </gml:description>
+         <gml:identifier codeSpace="">Kthi</gml:identifier>
+         <gml:name>317</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Lana">
+         <gml:description>
+            Tai Tham (Lanna)
+            tai tham (lanna)
+            Tai_Tham
+         </gml:description>
+         <gml:identifier codeSpace="">Lana</gml:identifier>
+         <gml:name>351</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Laoo">
+         <gml:description>
+            Lao
+            laotien
+            Lao
+         </gml:description>
+         <gml:identifier codeSpace="">Laoo</gml:identifier>
+         <gml:name>356</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Latf">
+         <gml:description>
+            Latin (Fraktur variant)
+            latin (variante bris�e)
+         </gml:description>
+         <gml:identifier codeSpace="">Latf</gml:identifier>
+         <gml:name>217</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Latg">
+         <gml:description>
+            Latin (Gaelic variant)
+            latin (variante gaelique)
+         </gml:description>
+         <gml:identifier codeSpace="">Latg</gml:identifier>
+         <gml:name>216</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Latn">
+         <gml:description>
+            Latin
+            latin
+            Latin
+         </gml:description>
+         <gml:identifier codeSpace="">Latn</gml:identifier>
+         <gml:name>215</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Lepc">
+         <gml:description>
+            Lepcha (Rong)
+            lepcha (rong)
+            Lepcha
+         </gml:description>
+         <gml:identifier codeSpace="">Lepc</gml:identifier>
+         <gml:name>335</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Limb">
+         <gml:description>
+            Limbu
+            limbou
+            Limbu
+         </gml:description>
+         <gml:identifier codeSpace="">Limb</gml:identifier>
+         <gml:name>336</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Lina">
+         <gml:description>
+            Linear A
+            lineaire A
+         </gml:description>
+         <gml:identifier codeSpace="">Lina</gml:identifier>
+         <gml:name>400</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Linb">
+         <gml:description>
+            Linear B
+            lineaire B
+            Linear_B
+         </gml:description>
+         <gml:identifier codeSpace="">Linb</gml:identifier>
+         <gml:name>401</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Lisu">
+         <gml:description>
+            Lisu (Fraser)
+            lisu (Fraser)
+            Lisu
+         </gml:description>
+         <gml:identifier codeSpace="">Lisu</gml:identifier>
+         <gml:name>399</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Lyci">
+         <gml:description>
+            Lycian
+            lycien
+            Lycian
+         </gml:description>
+         <gml:identifier codeSpace="">Lyci</gml:identifier>
+         <gml:name>202</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Lydi">
+         <gml:description>
+            Lydian
+            lydien
+            Lydian
+         </gml:description>
+         <gml:identifier codeSpace="">Lydi</gml:identifier>
+         <gml:name>116</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Mand">
+         <gml:description>
+            Mandaic, Mandaean
+            mandeen
+         </gml:description>
+         <gml:identifier codeSpace="">Mand</gml:identifier>
+         <gml:name>140</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Mani">
+         <gml:description>
+            Manichaean
+            manicheen
+         </gml:description>
+         <gml:identifier codeSpace="">Mani</gml:identifier>
+         <gml:name>139</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Maya">
+         <gml:description>
+            Mayan hieroglyphs
+            hieroglyphes mayas
+         </gml:description>
+         <gml:identifier codeSpace="">Maya</gml:identifier>
+         <gml:name>090</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Mero">
+         <gml:description>
+            Meroitic
+            meroitique
+         </gml:description>
+         <gml:identifier codeSpace="">Mero</gml:identifier>
+         <gml:name>100</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Mlym">
+         <gml:description>
+            Malayalam
+            malayalam
+            Malayalam
+         </gml:description>
+         <gml:identifier codeSpace="">Mlym</gml:identifier>
+         <gml:name>347</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Moon">
+         <gml:description>
+            Moon (Moon code, Moon script, Moon type)
+            ecriture Moon
+         </gml:description>
+         <gml:identifier codeSpace="">Moon</gml:identifier>
+         <gml:name>218</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Mong">
+         <gml:description>
+            Mongolian
+            mongol
+            Mongolian
+         </gml:description>
+         <gml:identifier codeSpace="">Mong</gml:identifier>
+         <gml:name>145</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Mtei">
+         <gml:description>
+            Meitei Mayek (Meithei, Meetei)
+            meitei mayek
+            Meetei_Mayek
+         </gml:description>
+         <gml:identifier codeSpace="">Mtei</gml:identifier>
+         <gml:name>337</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Mymr">
+         <gml:description>
+            Myanmar (Burmese)
+            birman
+            Myanmar
+         </gml:description>
+         <gml:identifier codeSpace="">Mymr</gml:identifier>
+         <gml:name>350</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Nkgb">
+         <gml:description>
+            Nakhi Geba ('Na-'Khi 'Ggo-'baw, Naxi Geba)
+            nakhi geba
+         </gml:description>
+         <gml:identifier codeSpace="">Nkgb</gml:identifier>
+         <gml:name>420</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Nkoo">
+         <gml:description>
+            N'Ko
+            n'ko
+            Nko
+         </gml:description>
+         <gml:identifier codeSpace="">Nkoo</gml:identifier>
+         <gml:name>165</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Ogam">
+         <gml:description>
+            Ogham
+            ogam
+            Ogham
+         </gml:description>
+         <gml:identifier codeSpace="">Ogam</gml:identifier>
+         <gml:name>212</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Olck">
+         <gml:description>
+            Ol Chiki (Ol Cemet', Ol, Santali)
+            ol tchiki
+            Ol_Chiki
+         </gml:description>
+         <gml:identifier codeSpace="">Olck</gml:identifier>
+         <gml:name>261</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Orkh">
+         <gml:description>
+            Old Turkic, Orkhon Runic
+            orkhon
+            Old_Turkic
+         </gml:description>
+         <gml:identifier codeSpace="">Orkh</gml:identifier>
+         <gml:name>175</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Orya">
+         <gml:description>
+            Oriya
+            oriya
+            Oriya
+         </gml:description>
+         <gml:identifier codeSpace="">Orya</gml:identifier>
+         <gml:name>327</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Osma">
+         <gml:description>
+            Osmanya
+            osmanais
+            Osmanya
+         </gml:description>
+         <gml:identifier codeSpace="">Osma</gml:identifier>
+         <gml:name>260</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Perm">
+         <gml:description>
+            Old Permic
+            ancien permien
+         </gml:description>
+         <gml:identifier codeSpace="">Perm</gml:identifier>
+         <gml:name>227</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Phag">
+         <gml:description>
+            Phags-pa
+            'phags pa
+            Phags_Pa
+         </gml:description>
+         <gml:identifier codeSpace="">Phag</gml:identifier>
+         <gml:name>331</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Phli">
+         <gml:description>
+            Inscriptional Pahlavi
+            pehlevi des inscriptions
+            Inscriptional_Pahlavi
+         </gml:description>
+         <gml:identifier codeSpace="">Phli</gml:identifier>
+         <gml:name>131</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Phlp">
+         <gml:description>
+            Psalter Pahlavi
+            pehlevi des psautiers
+         </gml:description>
+         <gml:identifier codeSpace="">Phlp</gml:identifier>
+         <gml:name>132</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Phlv">
+         <gml:description>
+            Book Pahlavi
+            pehlevi des livres
+         </gml:description>
+         <gml:identifier codeSpace="">Phlv</gml:identifier>
+         <gml:name>133</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Phnx">
+         <gml:description>
+            Phoenician
+            phenicien
+            Phoenician
+         </gml:description>
+         <gml:identifier codeSpace="">Phnx</gml:identifier>
+         <gml:name>115</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Plrd">
+         <gml:description>
+            Miao (Pollard)
+            miao (Pollard)
+         </gml:description>
+         <gml:identifier codeSpace="">Plrd</gml:identifier>
+         <gml:name>282</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Prti">
+         <gml:description>
+            Inscriptional Parthian
+            parthe des inscriptions
+            Inscriptional_Parthian
+         </gml:description>
+         <gml:identifier codeSpace="">Prti</gml:identifier>
+         <gml:name>130</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Qaaa">
+         <gml:description>
+            Reserved for private use (start)
+            reserve a l'usage prive (debut)
+         </gml:description>
+         <gml:identifier codeSpace="">Qaaa</gml:identifier>
+         <gml:name>900</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Qabx">
+         <gml:description>
+            Reserved for private use (end)
+            reserve a l'usage prive (fin)
+         </gml:description>
+         <gml:identifier codeSpace="">Qabx</gml:identifier>
+         <gml:name>949</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Rjng">
+         <gml:description>
+            Rejang (Redjang, Kaganga)
+            redjang (kaganga)
+            Rejang
+         </gml:description>
+         <gml:identifier codeSpace="">Rjng</gml:identifier>
+         <gml:name>363</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Roro">
+         <gml:description>
+            Rongorongo
+            rongorongo
+         </gml:description>
+         <gml:identifier codeSpace="">Roro</gml:identifier>
+         <gml:name>620</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Runr">
+         <gml:description>
+            Runic
+            runique
+            Runic
+         </gml:description>
+         <gml:identifier codeSpace="">Runr</gml:identifier>
+         <gml:name>211</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Samr">
+         <gml:description>
+            Samaritan
+            samaritain
+            Samaritan
+         </gml:description>
+         <gml:identifier codeSpace="">Samr</gml:identifier>
+         <gml:name>123</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Sara">
+         <gml:description>
+            Sarati
+            sarati
+         </gml:description>
+         <gml:identifier codeSpace="">Sara</gml:identifier>
+         <gml:name>292</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Sarb">
+         <gml:description>
+            Old South Arabian
+            sud-arabique, himyarite
+            Old_South_Arabian
+         </gml:description>
+         <gml:identifier codeSpace="">Sarb</gml:identifier>
+         <gml:name>105</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Saur">
+         <gml:description>
+            Saurashtra
+            saurachtra
+            Saurashtra
+         </gml:description>
+         <gml:identifier codeSpace="">Saur</gml:identifier>
+         <gml:name>344</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Sgnw">
+         <gml:description>
+            SignWriting
+            SignEcriture, SignWriting
+         </gml:description>
+         <gml:identifier codeSpace="">Sgnw</gml:identifier>
+         <gml:name>095</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Shaw">
+         <gml:description>
+            Shavian (Shaw)
+            shavien (Shaw)
+            Shavian
+         </gml:description>
+         <gml:identifier codeSpace="">Shaw</gml:identifier>
+         <gml:name>281</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Sinh">
+         <gml:description>
+            Sinhala
+            singhalais
+            Sinhala
+         </gml:description>
+         <gml:identifier codeSpace="">Sinh</gml:identifier>
+         <gml:name>348</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Sund">
+         <gml:description>
+            Sundanese
+            sundanais
+            Sundanese
+         </gml:description>
+         <gml:identifier codeSpace="">Sund</gml:identifier>
+         <gml:name>362</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Sylo">
+         <gml:description>
+            Syloti Nagri
+            syloti nagri
+            Syloti_Nagri
+         </gml:description>
+         <gml:identifier codeSpace="">Sylo</gml:identifier>
+         <gml:name>316</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Syrc">
+         <gml:description>
+            Syriac
+            syriaque
+            Syriac
+         </gml:description>
+         <gml:identifier codeSpace="">Syrc</gml:identifier>
+         <gml:name>135</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Syre">
+         <gml:description>
+            Syriac (Estrangelo variant)
+            syriaque (variante estranghelo)
+         </gml:description>
+         <gml:identifier codeSpace="">Syre</gml:identifier>
+         <gml:name>138</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Syrj">
+         <gml:description>
+            Syriac (Western variant)
+            syriaque (variante occidentale)
+         </gml:description>
+         <gml:identifier codeSpace="">Syrj</gml:identifier>
+         <gml:name>137</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Syrn">
+         <gml:description>
+            Syriac (Eastern variant)
+            syriaque (variante orientale)
+         </gml:description>
+         <gml:identifier codeSpace="">Syrn</gml:identifier>
+         <gml:name>136</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Tagb">
+         <gml:description>
+            Tagbanwa
+            tagbanoua
+            Tagbanwa
+         </gml:description>
+         <gml:identifier codeSpace="">Tagb</gml:identifier>
+         <gml:name>373</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Tale">
+         <gml:description>
+            Tai Le
+            tai-le
+            Tai_Le
+         </gml:description>
+         <gml:identifier codeSpace="">Tale</gml:identifier>
+         <gml:name>353</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Talu">
+         <gml:description>
+            New Tai Lue
+            nouveau tai-lue
+            New_Tai_Lue
+         </gml:description>
+         <gml:identifier codeSpace="">Talu</gml:identifier>
+         <gml:name>354</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Taml">
+         <gml:description>
+            Tamil
+            tamoul
+            Tamil
+         </gml:description>
+         <gml:identifier codeSpace="">Taml</gml:identifier>
+         <gml:name>346</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Tavt">
+         <gml:description>
+            Tai Viet
+            tai viet
+            Tai_Viet
+         </gml:description>
+         <gml:identifier codeSpace="">Tavt</gml:identifier>
+         <gml:name>359</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Telu">
+         <gml:description>
+            Telugu
+            telougou
+            Telugu
+         </gml:description>
+         <gml:identifier codeSpace="">Telu</gml:identifier>
+         <gml:name>340</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Teng">
+         <gml:description>
+            Tengwar
+            tengwar
+         </gml:description>
+         <gml:identifier codeSpace="">Teng</gml:identifier>
+         <gml:name>290</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Tfng">
+         <gml:description>
+            Tifinagh (Berber)
+            tifinagh (berbere)
+            Tifinagh
+         </gml:description>
+         <gml:identifier codeSpace="">Tfng</gml:identifier>
+         <gml:name>120</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Tglg">
+         <gml:description>
+            Tagalog (Baybayin, Alibata)
+            tagal (baybayin, alibata)
+            Tagalog
+         </gml:description>
+         <gml:identifier codeSpace="">Tglg</gml:identifier>
+         <gml:name>370</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Thaa">
+         <gml:description>
+            Thaana
+            thana
+            Thaana
+         </gml:description>
+         <gml:identifier codeSpace="">Thaa</gml:identifier>
+         <gml:name>170</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Thai">
+         <gml:description>
+            Thai
+            thai
+            Thai
+         </gml:description>
+         <gml:identifier codeSpace="">Thai</gml:identifier>
+         <gml:name>352</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Tibt">
+         <gml:description>
+            Tibetan
+            tibetain
+            Tibetan
+         </gml:description>
+         <gml:identifier codeSpace="">Tibt</gml:identifier>
+         <gml:name>330</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Ugar">
+         <gml:description>
+            Ugaritic
+            ougaritique
+            Ugaritic
+         </gml:description>
+         <gml:identifier codeSpace="">Ugar</gml:identifier>
+         <gml:name>040</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Vaii">
+         <gml:description>
+            Vai
+            vai
+            Vai
+         </gml:description>
+         <gml:identifier codeSpace="">Vaii</gml:identifier>
+         <gml:name>470</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Visp">
+         <gml:description>
+            Visible Speech
+            parole visible
+         </gml:description>
+         <gml:identifier codeSpace="">Visp</gml:identifier>
+         <gml:name>280</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Xpeo">
+         <gml:description>
+            Old Persian
+            cuneiforme persepolitain
+            Old_Persian
+         </gml:description>
+         <gml:identifier codeSpace="">Xpeo</gml:identifier>
+         <gml:name>030</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Xsux">
+         <gml:description>
+            Cuneiform, Sumero-Akkadian
+            cuneiforme sumero-akkadien
+            Cuneiform
+         </gml:description>
+         <gml:identifier codeSpace="">Xsux</gml:identifier>
+         <gml:name>020</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Yiii">
+         <gml:description>
+            Yi
+            yi
+            Yi
+         </gml:description>
+         <gml:identifier codeSpace="">Yiii</gml:identifier>
+         <gml:name>460</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Zinh">
+         <gml:description>
+            Code for inherited script
+            codet pour ecriture heritee
+            Inherited
+         </gml:description>
+         <gml:identifier codeSpace="">Zinh</gml:identifier>
+         <gml:name>994</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Zmth">
+         <gml:description>
+            Mathematical notation
+            notation mathematique
+         </gml:description>
+         <gml:identifier codeSpace="">Zmth</gml:identifier>
+         <gml:name>995</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Zsym">
+         <gml:description>
+            Symbols
+            symboles
+         </gml:description>
+         <gml:identifier codeSpace="">Zsym</gml:identifier>
+         <gml:name>996</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Zxxx">
+         <gml:description>
+            Code for unwritten documents
+            codet pour les documents non ecrites
+         </gml:description>
+         <gml:identifier codeSpace="">Zxxx</gml:identifier>
+         <gml:name>997</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Zyyy">
+         <gml:description>
+            Code for undetermined script
+            codet pour ecriture indeterminee
+            Common
+         </gml:description>
+         <gml:identifier codeSpace="">Zyyy</gml:identifier>
+         <gml:name>998</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="Zzzz">
+         <gml:description>
+            Code for uncoded script
+            codet pour ecriture non codee
+            Unknown
+         </gml:description>
+         <gml:identifier codeSpace="">Zzzz</gml:identifier>
+         <gml:name>999</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+</gml:Dictionary>
