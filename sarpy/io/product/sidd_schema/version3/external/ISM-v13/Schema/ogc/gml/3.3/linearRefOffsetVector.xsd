@@ -1,0 +1,48 @@
+<schema xmlns:gmllr="http://www.opengis.net/gml/3.3/lr" xmlns:gmllro="http://www.opengis.net/gml/3.3/lro" xmlns:gmllrov="http://www.opengis.net/gml/3.3/lrov" xmlns:gml="http://www.opengis.net/gml/3.2" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns="http://www.w3.org/2001/XMLSchema" xmlns:xml="http://www.w3.org/XML/1998/namespace" targetNamespace="http://www.opengis.net/gml/3.3/lrov" elementFormDefault="qualified" version="3.3.0">
+    <annotation>
+        <documentation>linearRefOffsetVector.xsd, part of GML 3.3. Copyright (c) [2011] Open Geospatial Consortium, Inc. To obtain additional rights of use, visit http://www.opengeospatial.org/legal/.</documentation>
+    </annotation>
+    <import namespace="http://www.opengis.net/gml/3.2" schemaLocation="../../../ogc/gml/3.2.1/gml.xsd"/>
+    <import namespace="http://www.opengis.net/gml/3.3/lr" schemaLocation="../../../ogc/gml/3.3/linearRef.xsd"/>
+    <import namespace="http://www.opengis.net/gml/3.3/lro" schemaLocation="../../../ogc/gml/3.3/linearRefOffset.xsd"/>
+    <complexType name="VectorOffsetDistanceExpressionType">
+        <complexContent>
+            <extension base="gmllr:DistanceExpressionType">
+                <sequence>
+                    <element name="vectorOffsetExpression" type="gmllrov:VectorOffsetExpressionType" minOccurs="0"/>
+                </sequence>
+            </extension>
+        </complexContent>
+    </complexType>
+    <element name="VectorOffsetDistanceExpression" type="gmllrov:VectorOffsetDistanceExpressionType" substitutionGroup="gmllr:DistanceExpression"/>
+    <complexType name="VectorOffsetExpressionType">
+        <sequence>
+            <element name="offsetVector" type="gml:VectorType"/>
+        </sequence>
+    </complexType>
+    <complexType name="VectorOffsetLinearSRSType">
+        <complexContent>
+            <extension base="gmllr:LinearSRSType">
+                <sequence>
+                    <element name="linearElement" type="gmllr:LinearElementPropertyType"/>
+                    <element name="lrm" type="gmllro:LRMWithOffsetPropertyType"/>
+                    <element name="offsetVector" type="gmllrov:VectorType" maxOccurs="3"/>
+                </sequence>
+            </extension>
+        </complexContent>
+    </complexType>
+    <element name="VectorOffsetLinearSRS" type="gmllrov:VectorOffsetLinearSRSType" substitutionGroup="gmllr:LinearSRS"/>
+    <complexType name="VectorType">
+        <complexContent>
+            <extension base="gml:VectorType">
+                <attribute name="offsetUom" type="gml:UomIdentifier"/>
+            </extension>
+        </complexContent>
+    </complexType>
+    <complexType name="VectorOffsetLinearSRSPropertyType">
+        <sequence minOccurs="0">
+            <element ref="gmllrov:VectorOffsetLinearSRS"/>
+        </sequence>
+        <attributeGroup ref="gml:AssociationAttributeGroup"/>
+    </complexType>
+</schema>

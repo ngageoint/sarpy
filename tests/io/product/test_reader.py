@@ -8,7 +8,7 @@ import unittest
 from sarpy.io.product.converter import open_product
 from sarpy.io.product.sidd import SIDDReader
 import sarpy.io.product.sidd
-import sarpy.io.product.sidd2_elements.SIDD as sarpy_sidd2
+import sarpy.io.product.sidd3_elements.SIDD as sarpy_sidd3
 
 from tests import parse_file_entry
 
@@ -94,7 +94,7 @@ class TestSIDD(unittest.TestCase):
             generic_reader_test(self, test_file, 'SIDD', SIDDReader)
 
     def test_from_xml(self):
-        sidd_meta = sarpy_sidd2.SIDDType.from_xml_file(pathlib.Path(__file__).parents[2] / 'data/example.sidd.xml')
+        sidd_meta = sarpy_sidd3.SIDDType.from_xml_file(pathlib.Path(__file__).parents[2] / 'data/example.sidd.xml')
         sarpy.io.product.sidd.validate_sidd_for_writing(sidd_meta)
 
     def test_from_xml_no_sfa(self):
@@ -103,5 +103,5 @@ class TestSIDD(unittest.TestCase):
         lxml.etree.cleanup_namespaces(sidd_etree)
         post_nsmap = sidd_etree.getroot().nsmap
         assert 'sfa' in set(pre_nsmap).difference(post_nsmap)
-        sidd_meta = sarpy_sidd2.SIDDType.from_xml_string(lxml.etree.tostring(sidd_etree))
+        sidd_meta = sarpy_sidd3.SIDDType.from_xml_string(lxml.etree.tostring(sidd_etree))
         sarpy.io.product.sidd.validate_sidd_for_writing(sidd_meta)

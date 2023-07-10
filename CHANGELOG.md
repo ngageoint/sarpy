@@ -4,6 +4,32 @@ SarPy follows a continuous release process, so there are fairly frequent release
 Since essentially every (squash merge) commit corresponds to a release, specific 
 release points are not being annotated in GitHub.
 
+## [1.3.51] - 2023-07-10
+### Added
+- Added additional tests for sicd_elements CollectionInfo.py.
+### Fixed
+- Fixed bug in SARPY correctly checking mode types. 
+
+## [1.3.50] - 2023-07-06
+### Added
+- Added additional tests for sicd_elements Antenna.py.
+
+## [1.3.49] - 2023-07-05
+### Fixed
+- Fixed bug in SARPY correctly populating NITF FL field.
+- Fixed bug in SARPY correctly using context manager interface when using SIDD product
+creators to close/flush files.
+
+## [1.3.48] - 2023-07-05
+### Added
+- Added tests for sicd_elements.blocks.
+### Changed
+- Changed some string formatting, and value error text in sicd_elements/blocks.py. 
+
+## [1.3.47] - 2023-06-29
+### Added
+- Added support for SIDD v3.
+
 ## [1.3.46] - 2023-06-15
 ### Added
 - Added consistency checks to the SICD validation_checks.py.

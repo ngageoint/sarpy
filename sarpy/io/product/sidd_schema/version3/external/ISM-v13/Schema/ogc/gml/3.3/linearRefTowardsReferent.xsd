@@ -1,0 +1,23 @@
+<schema xmlns:gmllr="http://www.opengis.net/gml/3.3/lr" xmlns:gmllrtr="http://www.opengis.net/gml/3.3/lrtr" xmlns:gml="http://www.opengis.net/gml/3.2" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns="http://www.w3.org/2001/XMLSchema" xmlns:xml="http://www.w3.org/XML/1998/namespace" targetNamespace="http://www.opengis.net/gml/3.3/lrtr" elementFormDefault="qualified" version="3.3.0">
+    <annotation>
+        <documentation>linearRefTowardsReferent.xsd, part of GML 3.3. Copyright (c) [2011] Open Geospatial Consortium, Inc. To obtain additional rights of use, visit http://www.opengeospatial.org/legal/.</documentation>
+    </annotation>
+    <import namespace="http://www.opengis.net/gml/3.2" schemaLocation="../../../ogc/gml/3.2.1/gml.xsd"/>
+    <import namespace="http://www.opengis.net/gml/3.3/lr" schemaLocation="../../../ogc/gml/3.3/linearRef.xsd"/>
+    <complexType name="DualAlongReferentType">
+        <complexContent>
+            <extension base="gmllr:AlongReferentType">
+                <sequence>
+                    <element name="towardsReferent" type="gmllr:ReferentPropertyType" minOccurs="0"/>
+                </sequence>
+            </extension>
+        </complexContent>
+    </complexType>
+    <element name="DualAlongReferent" type="gmllrtr:DualAlongReferentType" substitutionGroup="gmllr:AlongReferent"/>
+    <complexType name="DualAlongReferentPropertyType">
+        <sequence minOccurs="0">
+            <element ref="gmllrtr:DualAlongReferent"/>
+        </sequence>
+        <attributeGroup ref="gml:AssociationAttributeGroup"/>
+    </complexType>
+</schema>
