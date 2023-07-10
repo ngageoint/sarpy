@@ -4,6 +4,10 @@ SarPy follows a continuous release process, so there are fairly frequent release
 Since essentially every (squash merge) commit corresponds to a release, specific 
 release points are not being annotated in GitHub.
 
+## [1.3.52] - 2023-07-10
+### Added
+- Added additional tests for sicd_elements ImageCreation.py.
+
 ## [1.3.51] - 2023-07-10
 ### Added
 - Added additional tests for sicd_elements CollectionInfo.py.
