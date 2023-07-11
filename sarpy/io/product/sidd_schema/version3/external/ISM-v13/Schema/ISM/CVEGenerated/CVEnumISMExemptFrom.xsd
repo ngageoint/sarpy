@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema xmlns:ismexempt="urn:us:gov:ic:cvenum:ism:exemptfrom"
+            xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+            elementFormDefault="qualified"
+            xml:lang="en"
+            targetNamespace="urn:us:gov:ic:cvenum:ism:exemptfrom">
+   <xsd:annotation>
+      <xsd:documentation>
+                    The W3C XML Schema fragment encoding types for CVEnumISMExemptFrom Version 1 controlled vocabulary enumerations. This file is generated, so edits should be made to the CVEnumISMExemptFrom.xml CVE it is based on, instead of here.
+                </xsd:documentation>
+   </xsd:annotation>
+   <!--*************************************************************-->
+<!--Generated TYPE DEFINITIONS ..................................-->
+<!--*************************************************************-->
+<xsd:simpleType name="CVEnumISMExemptFromValues">
+      <xsd:annotation>
+         <xsd:documentation>(U) Current rule set names that documents may comply
+			with
+                         PERMISSIBLE VALUES
+                         
+                         The permissible values for this simple type are defined in the Controlled Value Enumeration:
+                         
+                         CVEnumISMExemptFrom.xml
+                         
+                     </xsd:documentation>
+      </xsd:annotation>
+      <xsd:restriction base="xsd:token">
+         <xsd:enumeration value="IC_710_MANDATORY_FDR">
+            <xsd:annotation>
+               <xsd:documentation>Document claims exemption from ICD-710 rules mandating the
+				use of Foreign Disclosure and Release markings that have been encoded in ISM.
+				Currently, the requirement for FD&amp;R is only mandatory for Disseminated Analytic
+				Product; however, it is strongly encouraged otherwise.</xsd:documentation>
+            </xsd:annotation>
+         </xsd:enumeration>
+         <xsd:enumeration value="DOD_DISTRO_STATEMENT">
+            <xsd:annotation>
+               <xsd:documentation>Document claims exemption from the rules in DoD5230.24
+				requiring DoD Distribution Statements that have been encoded into
+				ISM.</xsd:documentation>
+            </xsd:annotation>
+         </xsd:enumeration>
+      </xsd:restriction>
+   </xsd:simpleType>
+   <xsd:simpleType name="CVEnumISMExemptFrom">
+      <xsd:restriction>
+         <xsd:simpleType>
+            <xsd:list itemType="ismexempt:CVEnumISMExemptFromValues"/>
+         </xsd:simpleType>
+         <xsd:maxLength value="2"/>
+      </xsd:restriction>
+   </xsd:simpleType>
+</xsd:schema>

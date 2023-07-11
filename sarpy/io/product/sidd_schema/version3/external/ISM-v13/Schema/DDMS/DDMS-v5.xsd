@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+	xmlns="urn:us:mil:ces:metadata:ddms:5" xmlns:ddms="urn:us:mil:ces:metadata:ddms:5"
+	xmlns:gml="http://www.opengis.net/gml/3.2"
+	xmlns:mdr="http://metadata.dod.mil/"
+	targetNamespace="urn:us:mil:ces:metadata:ddms:5" elementFormDefault="qualified" attributeFormDefault="qualified" version="5">
+	<xs:include schemaLocation="DDMS-Globals.xsd"/>
+	<xs:annotation>
+		<xs:documentation>
+This XML Schema is an implementation of the Department of Defense Discovery Metadata Specification (DDMS Spec) version 5.  Unless otherwise stated, all references to the DDMS Spec refer to version 5 of that document.
+  
+Version 1.0 was created by the DDMS Focus Group:
+		Robert Allegar - Booz Allen Hamilton
+		Arsic Antoinette - Mitre Corp.
+		Wil Bailey - DLA
+		Daniel Barclay - FGM, Inc.
+		Brian Brotsos - SAIC
+		Clive Carpi - SAIC
+		Mike Daconta - McDonald Bradley
+		Stan Davis - DISA
+		Michael Fontaine - OSD/NII
+		Glenda Hayes - Mitre Corp.
+		Kirk Maskalenko - FGM, Inc.
+		Mary Ann Melosh - SAIC
+		Eric Peterson - McDonald Bradley
+		Jim Pipher - DISA
+		Joseph J. Pantella, FGM, Inc.
+		Glenn Pruitt - FGM, Inc.
+		Tony Reggio - Pennsylvania State University
+		Kyle Rice - McDonald Bradley
+		Clay Robinson - OSD/NII
+		Rebecca Smith - DIA
+		Brian Sullivan - NGA (NIMA)
+		Eric Yuan - Booz Allen Hamilton		
+JJP
+		</xs:documentation>
+		<xs:documentation>
+		Change Log:
+		
+		07/13/2004 (J. Pantella) -- Added a global classification attribute per CR #1 of July 1, 2004 DDMS modification. 
+		07/13/2004 (J. Pantella) -- Modified title and subtitle elements to use the classification attribute per CR #1 of July 1, 2004 DDMS modification.
+		07/13/2004 (J. Pantella) -- Modified SubjectType category and keywords per CR #2 of July 1, 2004 DDMS modification.  NOTE: At least one of either Keyword or Category must appear, after one instance of either appears, additional categories must appear before additional keywords.
+		07/13/2004 (J. Pantella) -- Modified CompoundSourceIdentifierType to support the schema qualifier and schema HREF attributes on the source element per CR#4 of July 1, 2004 DDMS modification.
+		07/14/2004 (J. Pantella) -- Fixed bug that prevented street address information from being included in the Place and Facility elements.
+ 		07/26/2004 (J. Pantella) -- Modified the qualifier attribute of the CompoundCategoryIdentifierType used in the category element to be of type xs:anyURI.
+		08/04/2004 (J. Pantella) -- Modified Place and Facility to support the state element.
+		08/04/2004 (J. Pantella) -- Removed AddressType because it was not used.
+		08/06/2004 (J. Pantella) -- Required xs:any element to have a minoccurs of 0.
+		08/11/2004 (J. Pantella) -- Modified contributor, producer, creator and pointOfContact to be of respective types.  Eliminated the substitution group solution previously employed.
+		08/16/2004 (J. Pantella) -- Modified CompoundResourceIdentifierType and QualifiedExtentValueType qualifier attributes to be of xs:anyURI per Tiger Team.
+		08/17/2004 (J. Pantella) -- Modified the target namespace to reflect the needs identified in the Registry meetings (G. Hayes in attendance).
+		08/23/2004 (J. Pantella) -- Added comments to annotate changes made by the Tiger Team.
+		11/23/2004 (J. Pantella) -- Modified title, subtitle, description, publisher, contributor, creator and security elements to reuse the ICISM:SecurityAttributesGroup.  
+		11/23/2004 (J. Pantella) -- Removed prior implementation of security and classification attributes.  
+		11/23/2004 (J. Pantella) -- Modified the temporalCoverage sub-elements to provide mechanism to specify Unknown or Not Applicable value defaulting to Unknown persuant to the approval of CR#11.  
+		12/12/2004 (J. Pantella) -- Modified subjectType to eliminate redundancy causing tool issues.
+		12/16/2004 (J. Pantella) -- Commented out all residual elements and types related to the previous, substitution group based, modeling of the creator, publisher, and contributor.
+		1/2/2005 (J. Pantella) -- Modified namespace and comments to remove anticipated name change.
+		1/19/2005 (J. Pantella) -- Modified title and subtitle to support mulitple appearances.
+		6/22/2005 (J.Pantella) -- Modified geospatialCoverage element to support a richer geospatial description compliant with ISO 19115, pursuant to the approval of CR #13, the geospatialCoverage elment within a Resource is not strictly mandatory per the specification.  
+		7/20/2005 (J.Pantella) -- Changed geospatialCoverage/Place to geospatialCoverage/GeospatialExtent per comments from NGA et al. at IC MWG meeting of July 8, 2005.
+		6/05/2007 (J. Pantella) -- Modified the SubjectType to comply with the approved resolution of CR 2006-1.  See also http://metadata.dod.mil/mdr/irs/DDMS/cm/CR/2006/DDMS-CR-2006-1.
+		6/05/2007 (J. Pantella) -- Modified the DDMS XML Schema file structure to reflect the approved changes per CR 2007-1.  See also http://metadata.dod.mil/mdr/irs/DDMS/cm/CR/2007/DDMS-CR-2007-1.
+		1/3/2007 (J. Pantella) -- Modified version attribute to reflect that this is version 1.4.2.
+		1/3/2007 (J. Pantella) -- Corrected spelling error in the top level documentation element of the XML Schema.
+		7/15/2008 (J. Pantella) -- Modified creator, publisher, contributor, and pointOfContact to fall under a mandatory choice.  The desired effect is that one or more creator, publisher, contributor, or pointOfContact elements may appear in a DDMS instance, but there must be at least one.  Change is pursuant to CR 2008-3.  See also http://metadata.dod.mil/mdr/irs/DDMS/cm/CR/2008/DDMS-CR-2008-3.
+		7/15/2008 (J. Pantella) -- Modified ddms:Resource to support a relatedResources element allowing a DDMS instance document to assert relationships between the described resource and other related resources.
+		1/4/2010 (P. Lunceford) -- Created DDMS 3.0.  Implemented CR 2009-08 (make maxOccurs on any to be unbounded), and CR 2009-12 (adding Security markings to the header and requiring a ddmsRecordDate).
+		6/05/2011 (E. Hughes) -- Created DDMS 3.1.  Implemented CR 2011-1 to create DDMS-Includes.xsd wherein all IC-ISM references are consolidated.
+		6/05/2011 (E. Hughes) -- Added approvedOn attribute pursuant to CR 2011-5.
+		8/22/2011 (P. Attas) -- Added implementations of DDMS_CR_2011-4, and 6-15.  The DDMS namespace was changed from a URL to a URN.  In this file this added a mandatory metacardInfo element and an optional resourceManagment element.  Also corrected an error in the resourceType definition that couldhave permitted an instance with no creater, publisher, contributor, or point of contact to validate, when at least one of those elements is required to be present and populated with data.
+		1/11/2013 (E. Carswell) -- Added implementations of DDMS CRs 2012-07, 2012-10, and 2012-11. Added simpleTokenType to enforce content in strings. Replaced DDMS GML Profile with TSPI GML Profile. Using GENC as the standard for country codes. Replaced DDMS Virtual Coverage with VIRT.xsd from the IC. Removed attributes under resource and Metacard Info that belong under a TDO/TDC.  Also removed the extension capability under Resource to comply with the format of TDO/TDC.</xs:documentation>
+		<xs:appinfo>
+			<mdr:definition>DDMS XML Schema file describing the root element for a record compliant with the DDMS Spec of the same version as that specified in the above 'version' attribute on the 'xs:schema' element.</mdr:definition>
+			<mdr:comment>This XML Schema defines only the root Resource element of the DDMS, for the definitions of other global DDMS elements see the DDMS Globals and DDMS geospatialCoverage XML Schemas.</mdr:comment>
+		</xs:appinfo>
+	</xs:annotation>
+	<xs:element name="resource" type="ResourceType">
+		<xs:annotation>
+			<xs:appinfo>
+				<mdr:definition>The Resource element is the root element for a DDMS record.</mdr:definition>
+				<mdr:comment/>
+			</xs:appinfo>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="ResourceType">
+		<xs:annotation>
+			<xs:appinfo>
+				<mdr:definition>The type definition for the ddms:Resource element.</mdr:definition>
+				<mdr:comment>Defines the structure of a DDMS record.</mdr:comment>
+			</xs:appinfo>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element ref="metacardInfo" maxOccurs="1"/>
+			<xs:element ref="identifier" maxOccurs="unbounded"/>
+			<xs:element ref="title" maxOccurs="unbounded"/>
+			<xs:element ref="subtitle" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element ref="description" minOccurs="0"/>
+			<xs:element ref="language" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element ref="dates" minOccurs="0"/>
+			<xs:element ref="rights" minOccurs="0"/>
+			<xs:element ref="source" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element ref="type" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:choice maxOccurs="unbounded">
+				<xs:element ref="creator" maxOccurs="unbounded"/>
+				<xs:element ref="publisher" maxOccurs="unbounded"/>
+				<xs:element ref="contributor" maxOccurs="unbounded"/>
+				<xs:element ref="pointOfContact" maxOccurs="unbounded"/>
+			</xs:choice>
+			<xs:element ref="format" minOccurs="0"/>
+			<xs:element ref="subjectCoverage" maxOccurs="unbounded"/>
+			<xs:element ref="virtualCoverage" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element ref="temporalCoverage" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element ref="geospatialCoverage" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element ref="relatedResource" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element ref="resourceManagement" minOccurs="0" maxOccurs="1"/>
+		</xs:sequence>
+		<xs:attribute name="compliesWith" type="xs:NMTOKENS"/>
+	</xs:complexType>
+</xs:schema>

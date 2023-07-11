@@ -96,7 +96,7 @@ def _validate_remap_function(remap_function):
 
 def create_detected_image_sidd(
         ortho_helper, output_directory, output_file=None, block_size=10, dimension=0,
-        bounds=None, version=2, include_sicd=True, remap_function=None):
+        bounds=None, version=3, include_sicd=True, remap_function=None):
     """
     Create a SIDD version of a basic detected image from a SICD type reader.
 
@@ -117,7 +117,7 @@ def create_detected_image_sidd(
         The sicd pixel bounds of the form `(min row, max row, min col, max col)`.
         This will default to the full image.
     version : int
-        The SIDD version to use, must be one of 1 or 2.
+        The SIDD version to use, must be one of 1, 2, or 3.
     include_sicd : bool
         Include the SICD structure in the SIDD file?
     remap_function : None|MonochromaticRemap
@@ -173,16 +173,15 @@ def create_detected_image_sidd(
 
     # create the sidd writer
     full_filename = _validate_filename(output_directory, output_file, sidd_structure)
-    writer = SIDDWriter(full_filename, sidd_structure, ortho_helper.sicd if include_sicd else None)
-
-    # iterate and write
-    for data, start_indices in ortho_iterator:
-        writer(data, start_indices=start_indices, index=0)
+    with SIDDWriter(full_filename, sidd_structure, ortho_helper.sicd if include_sicd else None) as writer:
+        # iterate and write
+        for data, start_indices in ortho_iterator:
+            writer(data, start_indices=start_indices, index=0)
 
 
 def create_csi_sidd(
         ortho_helper, output_directory, output_file=None, dimension=0,
-        block_size=30, bounds=None, version=2, include_sicd=True, remap_function=None):
+        block_size=30, bounds=None, version=3, include_sicd=True, remap_function=None):
     """
     Create a SIDD version of a Color Sub-Aperture Image from a SICD type reader.
 
@@ -203,7 +202,7 @@ def create_csi_sidd(
         The sicd pixel bounds of the form `(min row, max row, min col, max col)`.
         This will default to the full image.
     version : int
-        The SIDD version to use, must be one of 1 or 2.
+        The SIDD version to use, must be one of 1, 2, or 3.
     include_sicd : bool
         Include the SICD structure in the SIDD file?
     remap_function : None|MonochromaticRemap
@@ -263,16 +262,15 @@ def create_csi_sidd(
 
     # create the sidd writer
     full_filename = _validate_filename(output_directory, output_file, sidd_structure)
-    writer = SIDDWriter(full_filename, sidd_structure, csi_calculator.sicd if include_sicd else None)
-
-    # iterate and write
-    for data, start_indices in ortho_iterator:
-        writer(data, start_indices=start_indices, index=0)
+    with SIDDWriter(full_filename, sidd_structure, csi_calculator.sicd if include_sicd else None) as writer:
+        # iterate and write
+        for data, start_indices in ortho_iterator:
+            writer(data, start_indices=start_indices, index=0)
 
 
 def create_dynamic_image_sidd(
         ortho_helper, output_directory, output_file=None, dimension=0, block_size=10,
-        bounds=None, frame_count=9, aperture_fraction=0.2, method='FULL', version=2,
+        bounds=None, frame_count=9, aperture_fraction=0.2, method='FULL', version=3,
         include_sicd=True, remap_function=None):
     """
     Create a SIDD version of a Dynamic Image (Sub-Aperture Stack) from a SICD type reader.
@@ -301,7 +299,7 @@ def create_dynamic_image_sidd(
         The subaperture processing method, which must be one of
         `('NORMAL', 'FULL', 'MINIMAL')`.
     version : int
-        The SIDD version to use, must be one of 1 or 2.
+        The SIDD version to use, must be one of 1, 2, or 3.
     include_sicd : bool
         Include the SICD structure in the SIDD file?
     remap_function : None|MonochromaticRemap
@@ -371,8 +369,7 @@ def create_dynamic_image_sidd(
         full_filename = os.path.join(output_directory, output_file)
     if os.path.exists(os.path.expanduser(full_filename)):
         raise SarpyIOError('File {} already exists.'.format(full_filename))
-    writer = SIDDWriter(full_filename, the_sidds, subap_calculator.sicd if include_sicd else None)
-
-    # iterate and write
-    for data, start_indices, the_frame in ortho_iterator:
-        writer(data, start_indices=start_indices, index=the_frame)
+    with SIDDWriter(full_filename, the_sidds, subap_calculator.sicd if include_sicd else None) as writer:
+        # iterate and write
+        for data, start_indices, the_frame in ortho_iterator:
+            writer(data, start_indices=start_indices, index=the_frame)
