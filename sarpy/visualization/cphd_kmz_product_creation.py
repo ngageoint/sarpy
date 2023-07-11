@@ -578,26 +578,28 @@ def _antenna_aiming(reader, channel_index, signal_pvp):
         array_gain_poly = patterns[antpat_id].Array.GainPoly
         element_gain_poly = patterns[antpat_id].Element.GainPoly
 
-        approx_gain_coefs = np.zeros((3,3))
+        approx_gain_coefs = np.zeros((3, 3))
         approx_gain_coefs += np.pad(array_gain_poly.Coefs, [(0, 3), (0, 3)])[:3, :3]
         approx_gain_coefs += np.pad(element_gain_poly.Coefs, [(0, 3), (0, 3)])[:3, :3]
 
         Ns = 201
-        db_down = 10 # dB down from peak
-        deltaDC_Xmax = np.abs((-approx_gain_coefs[1,0] +
-                        np.sqrt(approx_gain_coefs[1,0]**2-4*approx_gain_coefs[2,0]*db_down))/(2*approx_gain_coefs[2,0]))
-        deltaDC_Ymax = np.abs((-approx_gain_coefs[0,1] +
-                        np.sqrt(approx_gain_coefs[0,1]**2-4*approx_gain_coefs[0,2]*db_down))/(2*approx_gain_coefs[0,2]))
-        X = np.linspace(-deltaDC_Xmax,deltaDC_Xmax,Ns)
-        Y = np.linspace(-deltaDC_Ymax,deltaDC_Ymax,Ns)
-        XXc, YYc = np.meshgrid(X,Y, indexing='ij')
+        db_down = 10  # dB down from peak
+        deltaDC_Xmax = np.abs((-approx_gain_coefs[1, 0] +
+                               np.sqrt(approx_gain_coefs[1, 0]**2-4*approx_gain_coefs[2, 0]*db_down)) /
+                              (2*approx_gain_coefs[2, 0]))
+        deltaDC_Ymax = np.abs((-approx_gain_coefs[0, 1] +
+                               np.sqrt(approx_gain_coefs[0, 1]**2-4*approx_gain_coefs[0, 2]*db_down)) /
+                              (2*approx_gain_coefs[0, 2]))
+        X = np.linspace(-deltaDC_Xmax, deltaDC_Xmax, Ns)
+        Y = np.linspace(-deltaDC_Ymax, deltaDC_Ymax, Ns)
+        XXc, YYc = np.meshgrid(X, Y, indexing='ij')
 
         array_gain_pattern = array_gain_poly(XXc, YYc)
         element_gain_pattern = element_gain_poly(XXc + eb_dcx, YYc + eb_dcy)
         gain_pattern = array_gain_pattern + element_gain_pattern
 
-        contour_levels = [-3] # dB
-        contour_sets = plt.contour(XXc, YYc, gain_pattern, levels=contour_levels) 
+        contour_levels = [-3]  # dB
+        contour_sets = plt.contour(XXc, YYc, gain_pattern, levels=contour_levels)
         plt.close()  # close the figure created by contour
         contour_vertices = contour_sets.collections[0].get_paths()[0].vertices
         delta_dcx = contour_vertices[:, 0]
