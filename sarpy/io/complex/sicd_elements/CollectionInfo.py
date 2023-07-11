@@ -63,16 +63,12 @@ class RadarModeType(Serializable):
         """
 
         mode = self.ModeType
-        if mode is None:
-            return 'UN'
-        elif mode == 'SPOTLIGHT':
+        if mode == 'SPOTLIGHT':
             return 'SL'
         elif mode == 'STRIPMAP':
             return 'ST'
         elif mode == 'DYNAMIC STRIPMAP':
             return 'DS'
-        else:
-            return 'UN'
 
 
 class CollectionInfoType(Serializable):

@@ -8,6 +8,7 @@ __author__ = "Valkyrie Systems Corporation"
 import logging
 import os
 
+import matplotlib.pyplot as plt
 import numpy as np
 
 from sarpy.io.kml import Document
@@ -107,17 +108,17 @@ def ray_intersect_earth(position, direction):
 
 
 def _create_cphd_styles(kmz_document):
-    def _setpolygon(name, *, bbggrr, low_aa, low_width, high_aa, high_width):
+    def _setpolygon(name, *, bbggrr, low_aa, low_width, high_aa, high_width, outline="1"):
         opaque = "ff"
         kmz_document.add_style(
             name + "_high",
             line_style={"color": opaque + bbggrr, "width": high_width},
-            poly_style={"color": high_aa + bbggrr},
+            poly_style={"color": high_aa + bbggrr, "outline": str(outline)},
         )
         kmz_document.add_style(
             name + "_low",
             line_style={"color": opaque + bbggrr, "width": low_width},
-            poly_style={"color": low_aa + bbggrr},
+            poly_style={"color": low_aa + bbggrr, "outline": str(outline)},
         )
         kmz_document.add_style_map(name, name + "_high", name + "_low")
 
@@ -157,18 +158,20 @@ def _create_cphd_styles(kmz_document):
         "mechanical_boresight",
         bbggrr="a00000",
         low_aa="70",
-        low_width="1.0",
+        low_width="2.0",
         high_aa="a0",
-        high_width="1.5",
+        high_width="3.5",
+        outline="0",
     )
 
     _setpolygon(
         "electrical_boresight",
         bbggrr="a0a050",
         low_aa="70",
-        low_width="1.0",
+        low_width="2.0",
         high_aa="a0",
-        high_width="1.5",
+        high_width="3.5",
+        outline="0",
     )
 
     _setpolygon(
@@ -183,6 +186,24 @@ def _create_cphd_styles(kmz_document):
     _setpolygon(
         "channelimagearea",
         bbggrr="00aa7f",
+        low_aa="70",
+        low_width="1.0",
+        high_aa="a0",
+        high_width="1.5",
+    )
+
+    _setpolygon(
+        "rcv_beam_footprint",
+        bbggrr="ffaa55",
+        low_aa="70",
+        low_width="1.0",
+        high_aa="a0",
+        high_width="1.5",
+    )
+
+    _setpolygon(
+        "tx_beam_footprint",
+        bbggrr="0000ff",
         low_aa="70",
         low_width="1.0",
         high_aa="a0",
@@ -360,14 +381,46 @@ def cphd_create_kmz_view(reader, output_directory, file_stem="view"):
                 altitudeMode="absolute",
             )
 
-        aiming = _antenna_aiming(reader, channel_index)
-        boresight_folder = kmz_doc.add_container(
+        aiming = _antenna_aiming(reader, channel_index, signal)
+        antenna_folder = kmz_doc.add_container(
             the_type="Folder",
             par=folder,
+            name="Antenna",
+            description=f"Antenna Aiming for channel {channel_name}",
+        )
+        boresight_folder = kmz_doc.add_container(
+            the_type="Folder",
+            par=antenna_folder,
             name="Boresights",
             description=f"Boresights for channel {channel_name}",
         )
+        footprint_folder = kmz_doc.add_container(
+            the_type="Folder",
+            par=antenna_folder,
+            name="3dB Footprints",
+            description=f"Beam Footprints for channel {channel_name}",
+        )
         for txrcv in ("Tx", "Rcv"):
+            for when in ('start', 'middle', 'end'):
+                if when not in aiming[txrcv]['beam_footprint']:
+                    continue  # footprint calculation must have failed
+                this_footprint = aiming[txrcv]['beam_footprint'][when]
+
+                name = f'{txrcv} beam footprint @ {when}'
+                timestamp = str(collection_start + (this_footprint['time'] * 1e6).astype("timedelta64[us]")) + 'Z'
+                placemark = kmz_doc.add_container(
+                    par=footprint_folder,
+                    name=name,
+                    description=f"{name} for channel {channel_name}",
+                    styleUrl=f'#{txrcv.lower()}_beam_footprint',
+                    visibility=True,
+                    when=timestamp,
+                )
+                coords = ecef_to_kml_coord(this_footprint['contour'])
+                kmz_doc.add_polygon(
+                    " ".join(coords), par=placemark,
+                )
+
             for boresight_type in ("mechanical", "electrical"):
                 visibility = txrcv == "Rcv"  # only display Rcv by default
                 name = f"{txrcv} {boresight_type} boresight"
@@ -385,15 +438,33 @@ def cphd_create_kmz_view(reader, output_directory, file_stem="view"):
                 placemark = kmz_doc.add_container(
                     par=boresight_folder,
                     name=name,
-                    description=f"{name} for channel {channel_name}",
+                    description=f"{name} for channel {channel_name}<br><br>Highlighted edge indicates start time",
                     styleUrl=f"#{boresight_type}_boresight",
                     visibility=visibility,
                 )
                 boresight_coords = ecef_to_kml_coord(on_earth_ecf)
-                coords = arp_coords + boresight_coords[::-1] + [arp_coords[0]]
-                kmz_doc.add_polygon(
-                    " ".join(coords), par=placemark, altitudeMode="absolute"
-                )
+
+                # complex 3d polygons don't always render nicely.  So, we'll manually triangluate it.
+                mg = kmz_doc.add_multi_geometry(par=placemark)
+                # Highlight the starting point
+                kmz_doc.add_line_string(coords=' '.join([arp_coords[0], boresight_coords[0]]),
+                                        par=mg,
+                                        altitudeMode='absolute',)
+                for idx in range(len(arp_coords)-1):
+                    coords = [
+                        arp_coords[idx],
+                        boresight_coords[idx],
+                        arp_coords[idx+1],
+                        arp_coords[idx],
+                    ]
+                    kmz_doc.add_polygon(' '.join(coords), par=mg, altitudeMode='absolute')
+                    coords = [
+                        boresight_coords[idx],
+                        boresight_coords[idx+1],
+                        arp_coords[idx+1],
+                        boresight_coords[idx],
+                    ]
+                    kmz_doc.add_polygon(' '.join(coords), par=mg, altitudeMode='absolute')
 
     kmz_file = os.path.join(output_directory, f"{file_stem}_cphd.kmz")
     with prepare_kmz_file(kmz_file, name=reader.file_name) as kmz_doc:
@@ -449,7 +520,7 @@ def _xy_to_kml_coord(reader, xy):
     return ecef_to_kml_coord(xy_ecf)
 
 
-def _antenna_aiming(reader, channel_index):
+def _antenna_aiming(reader, channel_index, signal_pvp):
     cphd_meta = reader.cphd_meta
     results = {}
 
@@ -479,6 +550,12 @@ def _antenna_aiming(reader, channel_index):
         uacz = np.cross(uacx, uacy)
 
         pointing = {}
+        pointing['raw'] = {
+            'times': times,
+            'uacx': uacx,
+            'uacy': uacy,
+            'uacz': uacz,
+        }
         pointing["mechanical"] = uacz
 
         ebpvp = reader.read_pvp_variable(f"{txrcv}EB", channel_index)
@@ -489,17 +566,57 @@ def _antenna_aiming(reader, channel_index):
             eb_dcx = patterns[antpat_id].EB.DCXPoly(times)
             eb_dcy = patterns[antpat_id].EB.DCYPoly(times)
 
-        eb_dcz = np.sqrt(1 - eb_dcx**2 - eb_dcy**2)
-        eb = np.stack((eb_dcx, eb_dcy, eb_dcz)).T
+        pointing['raw']['eb_dcx'] = eb_dcx
+        pointing['raw']['eb_dcy'] = eb_dcy
 
-        eb_pointing = np.zeros_like(uacz)
-        eb_pointing += eb[:, 0, np.newaxis] * uacx
-        eb_pointing += eb[:, 1, np.newaxis] * uacy
-        eb_pointing += eb[:, 2, np.newaxis] * uacz
-
-        pointing["electrical"] = eb_pointing
+        pointing["electrical"] = _acf_to_ecef(eb_dcx, eb_dcy, uacx, uacy)
 
         return pointing
+
+    def _beam_footprint(antpat_id, apc_pos, time, uacx, uacy, eb_dcx, eb_dcy):
+        """Compute a beam contour on the earth"""
+        array_gain_poly = patterns[antpat_id].Array.GainPoly
+        element_gain_poly = patterns[antpat_id].Element.GainPoly
+
+        approx_gain_coefs = np.zeros((3, 3))
+        approx_gain_coefs += np.pad(array_gain_poly.Coefs, [(0, 3), (0, 3)])[:3, :3]
+        approx_gain_coefs += np.pad(element_gain_poly.Coefs, [(0, 3), (0, 3)])[:3, :3]
+
+        Ns = 201
+        db_down = 10  # dB down from peak
+        deltaDC_Xmax = np.abs((-approx_gain_coefs[1, 0] +
+                               np.sqrt(approx_gain_coefs[1, 0]**2-4*approx_gain_coefs[2, 0]*db_down)) /
+                              (2*approx_gain_coefs[2, 0]))
+        deltaDC_Ymax = np.abs((-approx_gain_coefs[0, 1] +
+                               np.sqrt(approx_gain_coefs[0, 1]**2-4*approx_gain_coefs[0, 2]*db_down)) /
+                              (2*approx_gain_coefs[0, 2]))
+        X = np.linspace(-deltaDC_Xmax, deltaDC_Xmax, Ns)
+        Y = np.linspace(-deltaDC_Ymax, deltaDC_Ymax, Ns)
+        XXc, YYc = np.meshgrid(X, Y, indexing='ij')
+
+        array_gain_pattern = array_gain_poly(XXc, YYc)
+        element_gain_pattern = element_gain_poly(XXc + eb_dcx, YYc + eb_dcy)
+        gain_pattern = array_gain_pattern + element_gain_pattern
+
+        contour_levels = [-3]  # dB
+        contour_sets = plt.contour(XXc, YYc, gain_pattern, levels=contour_levels)
+        plt.close()  # close the figure created by contour
+        contour_vertices = contour_sets.collections[0].get_paths()[0].vertices
+        delta_dcx = contour_vertices[:, 0]
+        delta_dcy = contour_vertices[:, 1]
+
+        contour_pointing = _acf_to_ecef(delta_dcx + eb_dcx,
+                                        delta_dcy + eb_dcy,
+                                        uacx,
+                                        uacy,)
+
+        contour_earth_ecf = []
+        for along in contour_pointing:
+            contour_earth_ecf.append(ray_intersect_earth(apc_pos, along))
+        return {
+            'time': time,
+            'contour': contour_earth_ecf
+        }
 
     chan_params = cphd_meta.Channel.Parameters[channel_index]
     if not chan_params.Antenna:
@@ -523,4 +640,49 @@ def _antenna_aiming(reader, channel_index):
             channel_index, rcv_apc_id, chan_params.Antenna.RcvAPATId, "Rcv"
         ),
     }
+
+    indices = np.where(signal_pvp == 1)[0]
+    result['Tx']['beam_footprint'] = {}
+    result['Rcv']['beam_footprint'] = {}
+    for name, pvp_index in [('start', indices[0]),
+                            ('middle', indices[len(indices)//2]),
+                            ('end', indices[-1])]:
+        try:
+            result['Tx']['beam_footprint'][name] = _beam_footprint(antpat_id=chan_params.Antenna.TxAPATId,
+                            apc_pos=reader.read_pvp_variable("TxPos", channel_index)[pvp_index],
+                            time=reader.read_pvp_variable("TxTime", channel_index)[pvp_index],
+                            uacx=result['Tx']['pointing']['raw']['uacx'][pvp_index],
+                            uacy=result['Tx']['pointing']['raw']['uacy'][pvp_index],
+                            eb_dcx=result['Tx']['pointing']['raw']['eb_dcx'][pvp_index],
+                            eb_dcy=result['Tx']['pointing']['raw']['eb_dcy'][pvp_index],
+            )
+        except Exception as exc:
+            logger.warning(f"Exception while calculating Tx beam footprint of {chan_params.Antenna.TxAPATId}")
+            logger.warning(exc)
+
+        try:
+            result['Rcv']['beam_footprint'][name] = _beam_footprint(antpat_id=chan_params.Antenna.RcvAPATId,
+                            apc_pos=reader.read_pvp_variable("RcvPos", channel_index)[pvp_index],
+                            time=reader.read_pvp_variable("RcvTime", channel_index)[pvp_index],
+                            uacx=result['Rcv']['pointing']['raw']['uacx'][pvp_index],
+                            uacy=result['Rcv']['pointing']['raw']['uacy'][pvp_index],
+                            eb_dcx=result['Rcv']['pointing']['raw']['eb_dcx'][pvp_index],
+                            eb_dcy=result['Rcv']['pointing']['raw']['eb_dcy'][pvp_index],
+            )
+        except Exception as exc:
+            logger.warning(f"Exception while calculating Rcv beam footprint of {chan_params.Antenna.RcvAPATId}")
+            logger.warning(str(exc))
+
     return result
+
+
+def _acf_to_ecef(eb_dcx, eb_dcy, uacx, uacy):
+    uacz = np.cross(uacx, uacy)
+    eb_dcz = np.sqrt(1 - eb_dcx**2 - eb_dcy**2)
+    eb = np.stack((eb_dcx, eb_dcy, eb_dcz)).T
+
+    eb_pointing = eb[:, 0, np.newaxis] * uacx
+    eb_pointing += eb[:, 1, np.newaxis] * uacy
+    eb_pointing += eb[:, 2, np.newaxis] * uacz
+
+    return eb_pointing
