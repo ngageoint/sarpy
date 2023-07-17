@@ -1656,7 +1656,7 @@ class CPHDWriter1(BaseWriter):
             self._can_write_regular_data[identifier] = True
 
         # write the data
-        self._pvp_memmaps[identifier][:] = data
+        self._pvp_memmaps[identifier][list(data.dtype.names)] = data[list(data.dtype.names)]
         # mark it as written
         details = self.writing_details.pvp_details[int_index]
         if self._in_memory:
