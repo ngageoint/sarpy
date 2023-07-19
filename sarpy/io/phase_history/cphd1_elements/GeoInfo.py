@@ -20,15 +20,15 @@ from .base import DEFAULT_STRICT
 
 
 class LineType(Serializable):
-    _fields = ('EndPoint', 'size')
-    _required = ('EndPoint', 'size')
+    _fields = ('Endpoint', 'size')
+    _required = ('Endpoint', 'size')
 
-    def __init__(self, EndPoint=None, **kwargs):
+    def __init__(self, Endpoint=None, **kwargs):
         """
 
         Parameters
         ----------
-        EndPoint : List[LatLonArrayElementType]|numpy.ndarray|list|tuple
+        Endpoint : List[LatLonArrayElementType]|numpy.ndarray|list|tuple
         kwargs
         """
 
@@ -37,7 +37,7 @@ class LineType(Serializable):
             self._xml_ns = kwargs['_xml_ns']
         if '_xml_ns_key' in kwargs:
             self._xml_ns_key = kwargs['_xml_ns_key']
-        self.EndPoint = EndPoint
+        self.Endpoint = Endpoint
         super(LineType, self).__init__(**kwargs)
 
     @property
@@ -49,15 +49,15 @@ class LineType(Serializable):
         return 0 if self._array is None else self._array.size
 
     @property
-    def EndPoint(self):
+    def Endpoint(self):
         """
         numpy.ndarray: The array of points.
         """
 
         return numpy.array([], dtype='object') if self._array is None else self._array
 
-    @EndPoint.setter
-    def EndPoint(self, value):
+    @Endpoint.setter
+    def Endpoint(self, value):
         if value is None:
             self._array = None
             return
@@ -83,10 +83,10 @@ class LineType(Serializable):
                 elif isinstance(entry, (numpy.ndarray, list, tuple)):
                     use_value.append(LatLonArrayElementType.from_array(entry, index=i+1))
                 else:
-                    raise TypeError('Got unexpected type for element of EndPoint array `{}`'.format(type(entry)))
+                    raise TypeError('Got unexpected type for element of Endpoint array `{}`'.format(type(entry)))
             self._array = numpy.array(use_value, dtype='object')
         else:
-            raise TypeError('Got unexpected type for EndPoint array `{}`'.format(type(value)))
+            raise TypeError('Got unexpected type for Endpoint array `{}`'.format(type(value)))
 
     def __getitem__(self, item):
         return self._array.__getitem__(item)
@@ -109,11 +109,11 @@ class LineType(Serializable):
         LineType
         """
 
-        end_point_key = cls._child_xml_ns_key.get('EndPoint', ns_key)
+        end_point_key = cls._child_xml_ns_key.get('Endpoint', ns_key)
         end_points = []
-        for cnode in find_children(node, 'EndPoint', xml_ns, end_point_key):
+        for cnode in find_children(node, 'Endpoint', xml_ns, end_point_key):
             end_points.append(LatLonArrayElementType.from_node(cnode, xml_ns, ns_key=end_point_key))
-        return cls(EndPoint=end_points)
+        return cls(Endpoint=end_points)
 
     def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
         if parent is None:
@@ -125,16 +125,16 @@ class LineType(Serializable):
             node = create_new_node(doc, '{}:{}'.format(ns_key, tag), parent=parent)
 
         node.attrib['size'] = str(self.size)
-        end_point_key = self._child_xml_ns_key.get('EndPoint', ns_key)
+        end_point_key = self._child_xml_ns_key.get('Endpoint', ns_key)
 
-        for entry in self.EndPoint:
-            entry.to_node(doc, 'EndPoint', ns_key=end_point_key, parent=node,
+        for entry in self.Endpoint:
+            entry.to_node(doc, 'Endpoint', ns_key=end_point_key, parent=node,
                           check_validity=check_validity, strict=strict)
         return node
 
     def to_dict(self, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
         return OrderedDict([
-            ('EndPoint', [entry.to_dict() for entry in self.EndPoint]),
+            ('Endpoint', [entry.to_dict() for entry in self.Endpoint]),
             ('size', self.size)])
 
 

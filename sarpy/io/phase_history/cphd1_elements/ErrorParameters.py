@@ -7,13 +7,13 @@ __author__ = "Thomas McCullough"
 
 from typing import Union, Tuple, Optional
 
-from sarpy.io.xml.base import Serializable, ParametersCollection
-from sarpy.io.xml.descriptors import FloatDescriptor, SerializableDescriptor, \
-    ParametersDescriptor
+from sarpy.io.xml.base import Serializable
+from sarpy.io.xml.descriptors import FloatDescriptor, SerializableDescriptor
 from sarpy.io.complex.sicd_elements.blocks import ErrorDecorrFuncType
 from sarpy.io.complex.sicd_elements.ErrorStatistics import PosVelErrType, TropoErrorType
 
 from .base import DEFAULT_STRICT, FLOAT_FORMAT
+from .blocks import AddedParametersType
 
 
 class RadarSensorType(Serializable):
@@ -71,7 +71,8 @@ class IonoErrorType(Serializable):
 
     _fields = ('IonoRangeVertical', 'IonoRangeRateVertical', 'IonoRgRgRateCC', 'IonoRangeVertDecorr')
     _required = ('IonoRgRgRateCC', )
-    _numeric_format = {'IonoRangeVertical': FLOAT_FORMAT, 'IonoRangeRateVertical': FLOAT_FORMAT, 'IonoRgRgRateCC': FLOAT_FORMAT}
+    _numeric_format = {'IonoRangeVertical': FLOAT_FORMAT, 'IonoRangeRateVertical': FLOAT_FORMAT,
+                       'IonoRgRgRateCC': FLOAT_FORMAT}
     # descriptors
     IonoRangeVertical = FloatDescriptor(
         'IonoRangeVertical', _required, strict=DEFAULT_STRICT, bounds=(0, None),
@@ -169,7 +170,6 @@ class MonostaticType(Serializable):
 
     _fields = ('PosVelErr', 'RadarSensor', 'TropoError', 'IonoError', 'AddedParameters')
     _required = ('PosVelErr', 'RadarSensor')
-    _collections_tags = {'AddedParameters': {'array': False, 'child_tag': 'Parameter'}}
     # descriptors
     PosVelErr = SerializableDescriptor(
         'PosVelErr', PosVelErrType, _required, strict=DEFAULT_STRICT,
@@ -184,9 +184,9 @@ class MonostaticType(Serializable):
     IonoError = SerializableDescriptor(
         'IonoError', IonoErrorType, _required, strict=DEFAULT_STRICT,
         docstring='Ionosphere delay error statistics.')  # type: IonoErrorType
-    AddedParameters = ParametersDescriptor(
-        'AddedParameters', _collections_tags, _required, strict=DEFAULT_STRICT,
-        docstring='Additional error parameters.')  # type: ParametersCollection
+    AddedParameters = SerializableDescriptor(
+        'AddedParameters', AddedParametersType, _required, strict=DEFAULT_STRICT,
+        docstring='Additional error parameters that may be added')  # type: Union[None, AddedParametersType]
 
     def __init__(self, PosVelErr=None, RadarSensor=None, TropoError=None, IonoError=None,
                  AddedParameters=None, **kwargs):
@@ -198,7 +198,7 @@ class MonostaticType(Serializable):
         RadarSensor : RadarSensorType
         TropoError : None|TropoErrorType
         IonoError : None|IonoErrorType
-        AddedParameters : None|ParametersCollection|dict
+        AddedParameters : None|AddedParametersType
         kwargs
         """
 
@@ -261,7 +261,6 @@ class BistaticType(Serializable):
 
     _fields = ('TxPlatform', 'RcvPlatform', 'AddedParameters')
     _required = ('TxPlatform', )
-    _collections_tags = {'AddedParameters': {'array': False, 'child_tag': 'Parameter'}}
     # descriptors
     TxPlatform = SerializableDescriptor(
         'TxPlatform', PlatformType, _required, strict=DEFAULT_STRICT,
@@ -269,9 +268,9 @@ class BistaticType(Serializable):
     RcvPlatform = SerializableDescriptor(
         'RcvPlatform', PlatformType, _required, strict=DEFAULT_STRICT,
         docstring='Error statistics for the receive platform.')  # type: PlatformType
-    AddedParameters = ParametersDescriptor(
-        'AddedParameters', _collections_tags, _required, strict=DEFAULT_STRICT,
-        docstring='Additional error parameters.')  # type: ParametersCollection
+    AddedParameters = SerializableDescriptor(
+        'AddedParameters', AddedParametersType, _required, strict=DEFAULT_STRICT,
+        docstring='Additional error parameters that may be added')  # type: Union[None, AddedParametersType]
 
     def __init__(self, TxPlatform=None, RcvPlatform=None, AddedParameters=None, **kwargs):
         """
@@ -280,7 +279,7 @@ class BistaticType(Serializable):
         ----------
         TxPlatform : PlatformType
         RcvPlatform : PlatformType
-        AddedParameters : None|ParametersCollection|dict
+        AddedParameters : None|AddedParametersType|dict
         kwargs
         """
 

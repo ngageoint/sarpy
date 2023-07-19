@@ -10,11 +10,11 @@ from typing import Union, List, Tuple, Optional
 import numpy
 
 from .base import DEFAULT_STRICT, FLOAT_FORMAT
-from .blocks import POLARIZATION_TYPE, AreaType
-from sarpy.io.xml.base import Serializable, SerializableArray, ParametersCollection, \
+from .blocks import POLARIZATION_TYPE, AreaType, AddedParametersType
+from sarpy.io.xml.base import Serializable, SerializableArray, \
     Arrayable
 from sarpy.io.xml.descriptors import StringDescriptor, StringEnumDescriptor, StringListDescriptor, \
-    IntegerDescriptor, FloatDescriptor, BooleanDescriptor, ParametersDescriptor, \
+    IntegerDescriptor, FloatDescriptor, BooleanDescriptor, \
     SerializableDescriptor, SerializableListDescriptor, SerializableArrayDescriptor
 
 
@@ -71,7 +71,7 @@ class PolarizationRefType(Serializable, Arrayable):
     @classmethod
     def from_array(cls, array: numpy.ndarray):
         """
-        Construct from a iterable.
+        Construct from an iterable.
 
         Parameters
         ----------
@@ -295,7 +295,7 @@ class DwellTimesType(Serializable):
 
 
 class AntennaType(Serializable):
-    """"
+    """
     Antenna Phase Center and Antenna Pattern identifiers for
     the antenna(s) used to collect and form the signal array data.
     """
@@ -656,8 +656,7 @@ class ChannelType(Serializable):
     _required = (
         'RefChId', 'FXFixedCPHD', 'TOAFixedCPHD', 'SRPFixedCPHD', 'Parameters')
     _collections_tags = {
-        'Parameters': {'array': False, 'child_tag': 'Parameters'},
-        'AddedParameters': {'array': False, 'child_tag': 'AddedParameters'}}
+        'Parameters': {'array': False, 'child_tag': 'Parameters'}}
     # descriptors
     RefChId = StringDescriptor(
         'RefChId', _required, strict=DEFAULT_STRICT,
@@ -679,9 +678,10 @@ class ChannelType(Serializable):
         'Parameters', ChannelParametersType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Parameter Set that describes a CPHD data '
                   'channel.')  # type: List[ChannelParametersType]
-    AddedParameters = ParametersDescriptor(
-        'AddedParameters', _collections_tags, _required, strict=DEFAULT_STRICT,
-        docstring='Additional free form parameters.')  # type: Union[None, ParametersCollection]
+    AddedParameters = SerializableDescriptor(
+        'AddedParameters', AddedParametersType, _required, strict=DEFAULT_STRICT,
+        docstring='Block for including additional parameters that describe '
+                  'the channels and/or signal arrays.')  # type: Union[None, AddedParametersType]
 
     def __init__(
             self,
@@ -690,7 +690,7 @@ class ChannelType(Serializable):
             TOAFixedCPHD: bool = None,
             SRPFixedCPHD: bool = None,
             Parameters: List[ChannelParametersType] = None,
-            AddedParameters: Optional[ParametersCollection] = None,
+            AddedParameters: Optional[AddedParametersType] = None,
             **kwargs):
         """
 
@@ -701,7 +701,7 @@ class ChannelType(Serializable):
         TOAFixedCPHD : bool
         SRPFixedCPHD : bool
         Parameters : List[ChannelParametersType]
-        AddedParameters : None|ParametersCollection
+        AddedParameters : None|AddedParametersType
         kwargs
         """
 
