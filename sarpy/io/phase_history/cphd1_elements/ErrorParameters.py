@@ -71,7 +71,8 @@ class IonoErrorType(Serializable):
 
     _fields = ('IonoRangeVertical', 'IonoRangeRateVertical', 'IonoRgRgRateCC', 'IonoRangeVertDecorr')
     _required = ('IonoRgRgRateCC', )
-    _numeric_format = {'IonoRangeVertical': FLOAT_FORMAT, 'IonoRangeRateVertical': FLOAT_FORMAT, 'IonoRgRgRateCC': FLOAT_FORMAT}
+    _numeric_format = {'IonoRangeVertical': FLOAT_FORMAT, 'IonoRangeRateVertical': FLOAT_FORMAT,
+                       'IonoRgRgRateCC': FLOAT_FORMAT}
     # descriptors
     IonoRangeVertical = FloatDescriptor(
         'IonoRangeVertical', _required, strict=DEFAULT_STRICT, bounds=(0, None),
@@ -270,6 +271,7 @@ class BistaticType(Serializable):
     AddedParameters = SerializableDescriptor(
         'AddedParameters', AddedParametersType, _required, strict=DEFAULT_STRICT,
         docstring='Additional error parameters that may be added')  # type: Union[None, AddedParametersType]
+
     def __init__(self, TxPlatform=None, RcvPlatform=None, AddedParameters=None, **kwargs):
         """
 

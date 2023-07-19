@@ -80,7 +80,7 @@ class LSType(Serializable, Arrayable):
     @classmethod
     def from_array(cls, array):
         """
-        Construct from a iterable.
+        Construct from an iterable.
 
         Parameters
         ----------

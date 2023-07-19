@@ -71,7 +71,7 @@ class PolarizationRefType(Serializable, Arrayable):
     @classmethod
     def from_array(cls, array: numpy.ndarray):
         """
-        Construct from a iterable.
+        Construct from an iterable.
 
         Parameters
         ----------
@@ -295,7 +295,7 @@ class DwellTimesType(Serializable):
 
 
 class AntennaType(Serializable):
-    """"
+    """
     Antenna Phase Center and Antenna Pattern identifiers for
     the antenna(s) used to collect and form the signal array data.
     """
