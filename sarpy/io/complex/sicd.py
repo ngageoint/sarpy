@@ -358,8 +358,10 @@ class SICDReader(NITFReader, SICDTypeReader):
         if complex_order is not None and complex_order != 'IQ':
             if complex_order != 'MP' or raw_dtype.name != 'uint8' or band_dimension != 2:
                 raise ValueError('Got unsupported SICD band type definition')
-            if self.sicd_meta.ImageData.PixelType != 'AMP8I_PHS8I' or self.sicd_meta.ImageData.AmpTable is None:
+            if self.sicd_meta.ImageData.PixelType != 'AMP8I_PHS8I':
                 raise ValueError('Expected AMP8I_PHS8I')
+            if self.sicd_meta.ImageData.PixelType == 'AMP8I_PHS8I' and self.sicd_meta.ImageData.AmpTable is None:
+                return AmpLookupFunction(raw_dtype, Amp(row,col))
             return AmpLookupFunction(raw_dtype, self.sicd_meta.ImageData.AmpTable)
         return NITFReader.get_format_function(
             self, raw_dtype, complex_order, lut, band_dimension, image_segment_index, **kwargs)
@@ -917,8 +919,10 @@ class SICDWriter(NITFWriter):
         if complex_order is not None and complex_order != 'IQ':
             if complex_order != 'MP' or raw_dtype.name != 'uint8' or band_dimension != 2:
                 raise ValueError('Got unsupported SICD band type definition')
-            if self.sicd_meta.ImageData.PixelType != 'AMP8I_PHS8I' or self.sicd_meta.ImageData.AmpTable is None:
+            if self.sicd_meta.ImageData.PixelType != 'AMP8I_PHS8I':
                 raise ValueError('Expected AMP8I_PHS8I')
+            if self.sicd_meta.ImageData.PixelType == 'AMP8I_PHS8I' and self.sicd_meta.ImageData.AmpTable is None:
+                return AmpLookupFunction(raw_dtype, AmpTable0-255)
             return AmpLookupFunction(raw_dtype, self.sicd_meta.ImageData.AmpTable)
         return NITFWriter.get_format_function(
             self, raw_dtype, complex_order, lut, band_dimension, image_segment_index, **kwargs)
