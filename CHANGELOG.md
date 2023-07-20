@@ -4,6 +4,21 @@ SarPy follows a continuous release process, so there are fairly frequent release
 Since essentially every (squash merge) commit corresponds to a release, specific 
 release points are not being annotated in GitHub.
 
+## [1.3.55] - 2023-07-19
+### Added
+- Added test for SARPY to/from XML logic.
+### Fixed
+- Fixed AntGPid typo to AntGPId.
+- Fixed SARPY correctly finding TxAntenna/RcvAntenna PVPs using from_file in cphd_consistency.py.
+- Fixed SARPY correctly specifying EBFreqShiftSF in AntPatternType.
+- Fixed SARPY correctly handling AddedParameters as a single element with repeated Parameter children.
+- Fixed EndPoint type to Endpoint.
+- Fixed SARPY correctly including index as a child element instead of an attribute in LSVertexType. 
+
+## [1.3.54] - 2023-07-19
+### Added
+- Added RadarModeType class to SIDD with SCANSAR option.
+
 ## [1.3.53] - 2023-07-11
 ### Added
 - Added 3db contours to transmit and receive beam footprints for CPHD kmzs.

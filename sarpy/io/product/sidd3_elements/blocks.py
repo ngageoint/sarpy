@@ -26,7 +26,10 @@ from sarpy.io.product.sidd2_elements.blocks import (
     PredefinedFilterType,
     PredefinedLookupType,
     Poly2DType,
+    RadarModeType,
+    RangeAzimuthType,
     ReferencePointType,
+    RowColDoubleType,
     XYZPolyType,
     XYZType,
 )
@@ -40,7 +43,10 @@ __REUSED__ = (  # to avoid unused imports
     PredefinedFilterType,
     PredefinedLookupType,
     Poly2DType,
+    RadarModeType,
+    RangeAzimuthType,
     ReferencePointType,
+    RowColDoubleType,
     XYZPolyType,
     XYZType,
 )

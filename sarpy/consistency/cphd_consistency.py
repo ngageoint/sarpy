@@ -279,7 +279,7 @@ class CphdConsistency(con.ConsistencyChecker):
                 pvp_block = infile.read(header['PVP_BLOCK_SIZE'])
 
         cphdroot_no_ns = strip_namespace(etree.fromstring(etree.tostring(cphdroot)))
-        fields = [parse_pvp_elem(field) for field in list(cphdroot_no_ns.find('./PVP'))]
+        fields = [parse_pvp_elem(field) for field in list(cphdroot_no_ns.findall('./PVP//Offset/..'))]
         dtype = np.dtype({'names': [name for name, _ in fields],
                           'formats': [info['dtype'] for _, info in fields],
                           'offsets': [info['offset']*8 for _, info in fields]}).newbyteorder('B')

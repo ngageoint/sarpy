@@ -3,24 +3,22 @@
 #
 # Licensed under MIT License.  See LICENSE.
 #
-import pathlib
-
 import pytest
 
 from sarpy.io.complex.sicd_elements import SICD
 
 
 @pytest.fixture()
-def sicd():
-    xml_file = pathlib.Path(pathlib.Path.cwd(), 'tests/data/example.sicd.xml')
+def sicd(tests_path):
+    xml_file = tests_path / 'data/example.sicd.xml'
     structure = SICD.SICDType().from_xml_file(xml_file)
 
     return structure
 
 
 @pytest.fixture()
-def rma_sicd():
-    xml_file = pathlib.Path(pathlib.Path.cwd(), 'tests/data/example.sicd.rma.xml')
+def rma_sicd(tests_path):
+    xml_file = tests_path / 'data/example.sicd.rma.xml'
     structure = SICD.SICDType().from_xml_file(xml_file)
 
     return structure
