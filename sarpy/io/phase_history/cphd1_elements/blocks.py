@@ -6,13 +6,13 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
-from typing import Union, List
+from typing import Union, List, Dict
 
 import numpy
 
-from sarpy.io.xml.base import Serializable, Arrayable, SerializableArray
+from sarpy.io.xml.base import Serializable, Arrayable, SerializableArray, ParametersCollection
 from sarpy.io.xml.descriptors import SerializableDescriptor, SerializableArrayDescriptor, \
-    IntegerDescriptor, FloatDescriptor
+    IntegerDescriptor, FloatDescriptor, ParametersDescriptor
 
 from .base import DEFAULT_STRICT
 
@@ -80,7 +80,7 @@ class LSType(Serializable, Arrayable):
     @classmethod
     def from_array(cls, array):
         """
-        Construct from a iterable.
+        Construct from an iterable.
 
         Parameters
         ----------
@@ -107,6 +107,7 @@ class LSVertexType(LSType):
 
     _fields = ('Line', 'Sample', 'index')
     _required = _fields
+    _set_as_attribute = ('index', )
     # descriptors
     index = IntegerDescriptor(
         'index', _required, strict=DEFAULT_STRICT, bounds=(1, None),
@@ -327,3 +328,34 @@ class AreaType(Serializable):
         self.X2Y2 = X2Y2
         self.Polygon = Polygon
         super(AreaType, self).__init__(**kwargs)
+
+
+class AddedParametersType(Serializable):
+    _collections_tags = {
+        'Parameters': {'array': False, 'child_tag': 'Parameter'},
+    }
+    _fields = ('Parameters',)
+    _required = _fields
+
+    Parameters = ParametersDescriptor(
+        'Parameters', _collections_tags, _required, strict=DEFAULT_STRICT,
+        docstring='Free form parameters object collection.')  # type: ParametersCollection
+
+    def __init__(
+            self,
+            Parameters: Union[ParametersCollection, Dict] = None,
+            **kwargs):
+        """
+
+        Parameters
+        ----------
+        Parameters : ParametersCollection|dict
+        kwargs
+        """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
+        self.Parameters = Parameters
+        super().__init__(**kwargs)
