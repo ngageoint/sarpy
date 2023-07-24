@@ -100,7 +100,7 @@ class ProjectionHelper(object):
         """
 
         if value is None:
-            if self.sicd.RadarCollection.Area is None:
+            if (self.sicd.RadarCollection.Area is None or self.sicd.RadarCollection.Area.Plane is None):
                 self._row_spacing = self._get_sicd_ground_pixel()
             else:
                 self._row_spacing = self.sicd.RadarCollection.Area.Plane.XDir.LineSpacing
@@ -134,7 +134,7 @@ class ProjectionHelper(object):
         """
 
         if value is None:
-            if self.sicd.RadarCollection.Area is None:
+            if (self.sicd.RadarCollection.Area is None or self.sicd.RadarCollection.Area.Plane is None):
                 self._col_spacing = self._get_sicd_ground_pixel()
             else:
                 self._col_spacing = self.sicd.RadarCollection.Area.Plane.YDir.SampleSpacing
@@ -469,7 +469,7 @@ class PGProjection(ProjectionHelper):
         """
 
         if reference_point is None:
-            if self.sicd.RadarCollection.Area is None:
+            if (self.sicd.RadarCollection.Area is None or self.sicd.RadarCollection.Area.Plane is None):
                 reference_point = self.sicd.GeoData.SCP.ECF.get_array()
             else:
                 reference_point = self.sicd.RadarCollection.Area.Plane.RefPt.ECF.get_array()
@@ -498,13 +498,13 @@ class PGProjection(ProjectionHelper):
         """
 
         if reference_pixels is None:
-            if self.sicd.RadarCollection.Area is not None:
+            if (self.sicd.RadarCollection.Area is None or self.sicd.RadarCollection.Area.Plane is None):
+                reference_pixels = numpy.zeros((2, ), dtype='float64')
+            else:
                 reference_pixels = numpy.array([
                     self.sicd.RadarCollection.Area.Plane.RefPt.Line,
                     self.sicd.RadarCollection.Area.Plane.RefPt.Sample],
                     dtype='float64')
-            else:
-                reference_pixels = numpy.zeros((2, ), dtype='float64')
 
         if not (isinstance(reference_pixels, numpy.ndarray) and reference_pixels.ndim == 1
                 and reference_pixels.size == 2):
@@ -599,7 +599,7 @@ class PGProjection(ProjectionHelper):
             raise ValueError('This requires that reference point is previously set.')
 
         if normal_vector is None and row_vector is None and col_vector is None:
-            if self.sicd.RadarCollection.Area is None:
+            if (self.sicd.RadarCollection.Area is None or self.sicd.RadarCollection.Area.Plane is None):
                 self._normal_vector = wgs_84_norm(self.reference_point)
                 self._row_vector = normalize(
                     self.sicd.Grid.Row.UVectECF.get_array(), 'row', perp=self.normal_vector)

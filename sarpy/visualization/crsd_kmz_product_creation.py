@@ -11,6 +11,7 @@ import os
 import numpy as np
 
 import sarpy.visualization.cphd_kmz_product_creation as cphd_kpc
+from sarpy.visualization import kmz_utils
 
 logger = logging.getLogger(__name__)
 
@@ -152,7 +153,7 @@ def crsd_create_kmz_view(reader, output_directory, file_stem="view"):
                 )
 
             # Add APC
-            apc_coords = cphd_kpc.ecef_to_kml_coord(apc_pos)
+            apc_coords = kmz_utils.ecef_to_kml_coord(apc_pos)
             placemark = kmz_doc.add_container(
                 par=platform_folder,
                 name=f"{channel_name} > {txrcv}",
@@ -212,7 +213,7 @@ def crsd_create_kmz_view(reader, output_directory, file_stem="view"):
 
                 on_earth_ecf = np.asarray(
                     [
-                        cphd_kpc.ray_intersect_earth(apc_pos, along)
+                        kmz_utils.ray_intersect_earth(apc_pos, along)
                         for apc_pos, along in zip(
                             aiming["raw"]["positions"][indices],
                             aiming[boresight_type][indices],
@@ -227,35 +228,8 @@ def crsd_create_kmz_view(reader, output_directory, file_stem="view"):
                     styleUrl=f"#{boresight_type}_boresight",
                     visibility=visibility,
                 )
-                boresight_coords = cphd_kpc.ecef_to_kml_coord(on_earth_ecf)
-
-                # complex 3d polygons don't always render nicely.  So, we'll manually triangluate it.
-                mg = kmz_doc.add_multi_geometry(par=placemark)
-                # Highlight the starting point
-                kmz_doc.add_line_string(
-                    coords=" ".join([apc_coords[0], boresight_coords[0]]),
-                    par=mg,
-                    altitudeMode="absolute",
-                )
-                for idx in range(len(apc_coords) - 1):
-                    coords = [
-                        apc_coords[idx],
-                        boresight_coords[idx],
-                        apc_coords[idx + 1],
-                        apc_coords[idx],
-                    ]
-                    kmz_doc.add_polygon(
-                        " ".join(coords), par=mg, altitudeMode="absolute"
-                    )
-                    coords = [
-                        boresight_coords[idx],
-                        boresight_coords[idx + 1],
-                        apc_coords[idx + 1],
-                        boresight_coords[idx],
-                    ]
-                    kmz_doc.add_polygon(
-                        " ".join(coords), par=mg, altitudeMode="absolute"
-                    )
+                boresight_coords = kmz_utils.ecef_to_kml_coord(on_earth_ecf)
+                kmz_utils.add_los_polygon(kmz_doc, placemark, apc_coords, boresight_coords)
 
     kmz_file = os.path.join(output_directory, f"{file_stem}_crsd.kmz")
     with cphd_kpc.prepare_kmz_file(kmz_file, name=reader.file_name) as kmz_doc:

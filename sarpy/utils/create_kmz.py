@@ -46,6 +46,8 @@ if __name__ == '__main__':
         '-s', '--size', default=3072, type=int,
         help='(complex image only) Maximum # of thumbnail rows/columns, put -1 for full size')
     parser.add_argument(
+        '--include-all', action='store_true', help='Include as much as possible in the KMZ')
+    parser.add_argument(
         '-v', '--verbose', action='store_true', help='Verbose (level="INFO") logging?')
 
     args = parser.parse_args()
@@ -68,7 +70,11 @@ if __name__ == '__main__':
     def _complex_image_kmz():
         reader = open_complex(args.input_file)
         pixel_limit = None if args.size == -1 else args.size
-        create_kmz_view(reader, args.output_directory, pixel_limit=pixel_limit, file_stem=file_stem)
+        create_kmz_view(reader, args.output_directory, pixel_limit=pixel_limit, file_stem=file_stem,
+                        inc_image_corners=args.include_all,
+                        inc_valid_data=args.include_all,
+                        inc_collection_wedge=args.include_all,
+                        inc_antenna=args.include_all)
 
     for func in (_cphd_kmz, _crsd_kmz, _complex_image_kmz):
         try:
