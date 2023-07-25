@@ -361,7 +361,7 @@ class SICDReader(NITFReader, SICDTypeReader):
             if self.sicd_meta.ImageData.PixelType != 'AMP8I_PHS8I':
                 raise ValueError('Expected AMP8I_PHS8I')
             if self.sicd_meta.ImageData.PixelType == 'AMP8I_PHS8I' and self.sicd_meta.ImageData.AmpTable is None:
-                return AmpLookupFunction(raw_dtype, Amp(row,col))
+                return AmpLookupFunction(raw_dtype, numpy.arange(256, dtype=numpy.float32))
             return AmpLookupFunction(raw_dtype, self.sicd_meta.ImageData.AmpTable)
         return NITFReader.get_format_function(
             self, raw_dtype, complex_order, lut, band_dimension, image_segment_index, **kwargs)
@@ -922,7 +922,7 @@ class SICDWriter(NITFWriter):
             if self.sicd_meta.ImageData.PixelType != 'AMP8I_PHS8I':
                 raise ValueError('Expected AMP8I_PHS8I')
             if self.sicd_meta.ImageData.PixelType == 'AMP8I_PHS8I' and self.sicd_meta.ImageData.AmpTable is None:
-                return AmpLookupFunction(raw_dtype, AmpTable0-255)
+                return AmpLookupFunction(raw_dtype, numpy.arange(256, dtype=numpy.float32))
             return AmpLookupFunction(raw_dtype, self.sicd_meta.ImageData.AmpTable)
         return NITFWriter.get_format_function(
             self, raw_dtype, complex_order, lut, band_dimension, image_segment_index, **kwargs)
