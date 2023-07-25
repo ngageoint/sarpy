@@ -6,7 +6,7 @@ release points are not being annotated in GitHub.
 
 ## [1.3.56] - 2023-07-25
 ### Added
-- Added test for SARPY to/from XML logic.
+- Added test for SARPY RMA in sicd_elements module. 
 
 ## [1.3.55] - 2023-07-19
 ### Added
