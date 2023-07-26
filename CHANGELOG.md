@@ -4,6 +4,10 @@ SarPy follows a continuous release process, so there are fairly frequent release
 Since essentially every (squash merge) commit corresponds to a release, specific 
 release points are not being annotated in GitHub.
 
+## [1.3.56] - 2023-07-25
+### Added
+- Added test for SARPY RMA in sicd_elements module. 
+
 ## [1.3.55] - 2023-07-19
 ### Added
 - Added test for SARPY to/from XML logic.
