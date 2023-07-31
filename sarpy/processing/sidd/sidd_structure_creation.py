@@ -264,7 +264,7 @@ def create_sidd_structure_v3(ortho_helper, bounds, product_class, pixel_type):
                             FilterName='Interpolation',
                             FilterBank=FilterBankType3(
                                 Predefined=PredefinedFilterType3(DatabaseName='BILINEAR')),
-                            Operation='CONVOLUTION')),
+                            Operation='CORRELATION')),
                     Orientation=OrientationType3(ShadowDirection='ARBITRARY')),
                 SharpnessEnhancement=SharpnessEnhancementType3(
                     ModularTransferFunctionEnhancement=FilterType3(
@@ -381,7 +381,7 @@ def create_sidd_structure_v2(ortho_helper, bounds, product_class, pixel_type):
                             FilterName='Interpolation',
                             FilterBank=FilterBankType(
                                 Predefined=PredefinedFilterType(DatabaseName='BILINEAR')),
-                            Operation='CONVOLUTION')),
+                            Operation='CORRELATION')),
                     Orientation=OrientationType2(ShadowDirection='ARBITRARY')),
                 SharpnessEnhancement=SharpnessEnhancementType2(
                     ModularTransferFunctionEnhancement=FilterType(

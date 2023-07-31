@@ -28,7 +28,7 @@ def test_sicd_to_sidd_without_taper(sicd_file):
         sidd_dir_path = pathlib.Path(tempdir)
 
         args = [str(sicd_file), str(sidd_dir_path),
-                "--type", "detected", "--method", "nearest", "--version", "3"]
+                "--type", "detected", "--method", "nearest", "--remap", "gdm", "--version", "3"]
 
         sarpy.utils.sicd_to_sidd.main(args)
 
@@ -46,6 +46,28 @@ def test_sicd_to_sidd_with_taper(sicd_file):
                 "--type", "detected", "--method", "nearest", "--version", "3"]
 
         sarpy.utils.sicd_to_sidd.main(args)
+
+        output_sidd_files = list(sidd_dir_path.iterdir())
+        assert len(output_sidd_files) == 1
+
+
+@pytest.mark.parametrize("sicd_file", sicd_files[:1])
+@pytest.mark.parametrize("remap", ['density', 'high_contrast', 'brighter', 'darker',
+                                   'pedf', 'gdm', 'linear', 'log', 'nrl'])
+def test_sicd_to_sidd_remap(sicd_file, remap, caplog):
+    with tempfile.TemporaryDirectory() as tempdir:
+        sidd_dir_path = pathlib.Path(tempdir)
+
+        args = [str(sicd_file), str(sidd_dir_path), '--remap', remap,
+                "--type", "detected", "--method", "nearest", "--version", "3"]
+
+        caplog.clear()
+        sarpy.utils.sicd_to_sidd.main(args)
+
+        if remap == 'nrl':
+            assert caplog.records[0].message == f'Remap function "{remap}" might not be using global statistics.'
+        elif len(caplog.records) >= 1:
+            assert caplog.records[0].message != f'Remap function "{remap}" might not be using global statistics.'
 
         output_sidd_files = list(sidd_dir_path.iterdir())
         assert len(output_sidd_files) == 1

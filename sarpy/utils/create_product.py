@@ -29,8 +29,6 @@ def _parse_method(method):
 
 
 def main(args=None):
-    remap_names = [r[0] for r in remap.get_remap_list()]
-
     parser = argparse.ArgumentParser(
         description="Create derived product is SIDD format from a SICD type file.",
         formatter_class=argparse.RawTextHelpFormatter)
@@ -52,7 +50,7 @@ def main(args=None):
         '-t', '--type', default='detected', choices=['detected', 'csi', 'dynamic'],
         help="The type of derived product.")
     parser.add_argument(
-        '-r', '--remap', default=remap_names[0], choices=remap_names,
+        '-r', '--remap', default=remap.get_remap_names()[0], choices=remap.get_remap_names(),
         help="The pixel value remap function. (default: %(default)s)")
     parser.add_argument(
         '-m', '--method', default='nearest', choices=['nearest', ]+['spline_{}'.format(i) for i in range(1, 6)],
@@ -74,6 +72,7 @@ def main(args=None):
 
     reader = open_complex(args.input_file)
     degree = _parse_method(args.method)
+
     for i, sicd in enumerate(reader.get_sicds_as_tuple()):
         if isinstance(degree, int):
             ortho_helper = BivariateSplineMethod(reader, index=i, row_order=degree, col_order=degree)
