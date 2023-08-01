@@ -8,7 +8,7 @@ __author__ = "Thomas McCullough"
 
 from collections import OrderedDict
 from xml.etree import ElementTree
-from typing import List, Union, Dict, Sequence, Optional
+from typing import List, Union, Dict, Optional
 
 import numpy
 
@@ -74,7 +74,7 @@ class GeoInfoType(Serializable):
         Point : None|LatLonRestrictionType|numpy.ndarray|list|tuple
         Line : None|SerializableArray|List[LatLonArrayElementType]|numpy.ndarray|list|tuple
         Polygon : None|SerializableArray|List[LatLonArrayElementType]|numpy.ndarray|list|tuple
-        GeoInfos : None|Sequence[GeoInfoTpe]
+        GeoInfos : None|Sequence[GeoInfoType]
         kwargs
         """
 
@@ -385,7 +385,7 @@ class GeoDataType(Serializable):
 
         return [entry for entry in self._GeoInfos if entry.name == key]
 
-    def setGeoInfo(self, value: [GeoInfoType, Dict]):
+    def setGeoInfo(self, value: Union[GeoInfoType, Dict]):
         """
         Add the given GeoInfo to the GeoInfos list.
 
