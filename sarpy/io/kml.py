@@ -674,7 +674,7 @@ class Document(object):
         multigeometry_node = self._create_new_node(par, 'MultiGeometry')
         return multigeometry_node
 
-    def add_polygon(self, outer_coords, inner_coords=None, par=None, **params):
+    def add_polygon(self, outer_coords, inner_coords=None, par=None, condition_coords=True, **params):
         """
         Adds a Polygon element - a polygonal outer region, possibly with polygonal holes removed
 
@@ -693,6 +693,9 @@ class Document(object):
             If provided, the coordinates for inner rings.
         par : None|minidom.Element
             The parent node. If not given, then a Placemark is created.
+        condition_coords: bool
+            If True, the coords are conditioned (longitude-unwrapped and closed) before being added to the document.
+            This can help with polygons that span the anti-meridian.
         params
             The parameters dictionary.
 
@@ -701,6 +704,14 @@ class Document(object):
         minidom.Element
         """
 
+        def _condition_coords(coord_str):
+            coords = numpy.array([[float(v) for v in coord.split(',')] for coord in coord_str.split(' ')])
+            if not numpy.array_equal(coords[0], coords[-1]):
+                coords = numpy.concatenate((coords, coords[0, numpy.newaxis]))  # first and last coord must match
+            # KMZ allows longitude values beyond +/-180 for overlays that overlap the meridian
+            coords[:, 0] = numpy.unwrap(coords[:, 0], period=360)
+            return " ".join(",".join(str(x) for x in coord) for coord in coords)
+
         if par is None:
             par = self.add_container(**params)
         polygon_node = self._create_new_node(par, 'Polygon')
@@ -708,10 +719,14 @@ class Document(object):
             self._add_conditional_text_node(polygon_node, opt, params)
 
         outer_ring_node = self._create_new_node(polygon_node, 'outerBoundaryIs')
+        if condition_coords:
+            outer_coords = _condition_coords(outer_coords)
         self.add_linear_ring(outer_coords, outer_ring_node)
         if inner_coords is not None:
             for coords in inner_coords:
                 inner_ring = self._create_new_node(polygon_node, 'innerBoundaryIs')
+                if condition_coords:
+                    coords = _condition_coords(coords)
                 self.add_linear_ring(coords, inner_ring)
 
     def add_linear_ring(self, coords, par=None, **params):

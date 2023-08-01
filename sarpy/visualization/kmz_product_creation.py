@@ -224,7 +224,7 @@ def _get_sicd_time_args(sicd, subdivisions=24):
     return {'beginTime': str(beg_time)+'Z', 'endTime': str(end_time)+'Z'}, time_array
 
 
-def _write_image_corners(kmz_document, sicd, time_args, folder, write_points=True):
+def _write_image_corners(kmz_document, sicd, time_args, folder):
     """
     Write the image corner.
 
@@ -234,8 +234,6 @@ def _write_image_corners(kmz_document, sicd, time_args, folder, write_points=Tru
     sicd : SICDType
     time_args : dict
     folder : minidom.Element
-    write_points : bool
-        Write points, or a polygon?
 
     Returns
     -------
@@ -251,20 +249,14 @@ def _write_image_corners(kmz_document, sicd, time_args, folder, write_points=Tru
     if numpy.any(~numpy.isfinite(corners)):
         logger.error('There are nonsense entries (nan or +/- infinity) in the corner locations array.')
 
-    if write_points:
-        names = ['FRFC', 'FRLC', 'LRLC', 'LRFC']
-        for nam, corner in zip(names, corners):
-            if numpy.any(~numpy.isfinite(corner)):
-                continue
-            coords = frm.format(*corner)
-            placemark = kmz_document.add_container(par=folder, description='{} for {}'.format(nam, _get_sicd_name(sicd)),
-                                                   styleUrl='#bounding')
-            kmz_document.add_point(coords, par=placemark, altitudeMode='clampToGround', **time_args)
-    else:
-        # write the polygon
-        coords = ' '.join(frm.format(*el) for el in corners if not numpy.any(~numpy.isfinite(el)))
-        placemark = kmz_document.add_container(par=folder, description='image corners for {}'.format(_get_sicd_name(sicd)), styleUrl='#bounding')
-        kmz_document.add_polygon(coords, par=placemark, altitudeMode='clampToGround', **time_args)
+    names = ['FRFC', 'FRLC', 'LRLC', 'LRFC']
+    for nam, corner in zip(names, corners):
+        if numpy.any(~numpy.isfinite(corner)):
+            continue
+        coords = frm.format(*corner)
+        placemark = kmz_document.add_container(par=folder, description='{} for {}'.format(nam, _get_sicd_name(sicd)),
+                                                styleUrl='#bounding')
+        kmz_document.add_point(coords, par=placemark, altitudeMode='clampToGround', **time_args)
 
 
 def _write_valid_area(kmz_document, sicd, time_args, folder):
@@ -388,19 +380,14 @@ def _write_collection_wedge(kmz_document, sicd, time_args, arp_llh, time_array, 
         grp = numpy.reshape(sicd.GeoData.SCP.ECF.get_array(), (1, 3))
     else:
         return
-    frm = '{1:0.8f},{0:0.8f},{2:0.2f}'
     grp_llh = ecf_to_geodetic(grp)
 
     if numpy.any(~numpy.isfinite(grp_llh)):
         logger.error('There are nonsense entries (nan or +/- infinity) in the scp/ground range locations.')
 
-    coord_array = [frm.format(*el) for el in arp_llh]
-    if len(grp_llh) > 1:
-        coord_array.extend(frm.format(*el) for el in grp_llh[::-1, :])
-    else:
-        coord_array.append(frm.format(*grp_llh[0, :]))
-    coord_array.append(frm.format(*arp_llh[0, :]))
-    coords = ' '.join(coord_array)
+    coord_array = numpy.concatenate([arp_llh, grp_llh[::-1]], axis=0)
+    coord_array[:, [0, 1]] = coord_array[:, [1, 0]]  # lat,lon -> lon,lat
+    coords = " ".join(",".join(str(x) for x in coord) for coord in coord_array)
     placemark = kmz_document.add_container(par=folder, description='collection wedge for {}'.format(_get_sicd_name(sicd)), styleUrl='#collection', **time_args)
     kmz_document.add_polygon(coords, par=placemark, extrude=False, tesselate=False, altitudeMode='absolute')
 
