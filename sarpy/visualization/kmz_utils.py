@@ -120,11 +120,11 @@ def ray_ellipsoid_intersection(
 
     Parameters
     ----------
-    semiaxis_a, semiaxis_b, semiaxis_b: float
+    semiaxis_a, semiaxis_b, semiaxis_c: float
         Semiaxes of the ellipsoid
-    pos_x, pos_y, pos_y: float
+    pos_x, pos_y, pos_z: float
         Ray origin
-    dir_x, dir_y, dir_y: float
+    dir_x, dir_y, dir_z: float
         Ray direction
 
     Returns

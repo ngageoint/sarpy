@@ -4,6 +4,17 @@ SarPy follows a continuous release process, so there are fairly frequent release
 Since essentially every (squash merge) commit corresponds to a release, specific 
 release points are not being annotated in GitHub.
 
+## [1.3.57] - 2023-08-02
+### Added
+- Added ability to generate KMZ files from CRSD data.
+- Added antenna visualization to complex-image KMZ.
+### Changed
+- Changed polygon conditioning for KMZs created around antimeridian.
+### Fixed
+- SARPY correctly using fieldnames to ensure PVPs are transcribed in proper order in
+sarpy.io.phase_history.cphd's write_pvp_array function.
+- SARPY correctly creating overview for SICDS that have Area but no Area.Plane.
+
 ## [1.3.56] - 2023-07-25
 ### Added
 - Added test for SARPY RMA in sicd_elements module. 
@@ -25,7 +36,7 @@ release points are not being annotated in GitHub.
 
 ## [1.3.53] - 2023-07-11
 ### Added
-- Added 3db contours to transmit and receive beam footprints for CPHD kmzs.
+- Added 3db contours to transmit and receive beam footprints for CPHD KMZs.
 
 ## [1.3.52] - 2023-07-10
 ### Added

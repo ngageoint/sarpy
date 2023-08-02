@@ -519,8 +519,8 @@ class Document(object):
     def add_schema(self, schema_id, field_dict, short_name=None):
         """
         For defining/using the extended data schema capability. **Note that this
-        is specifically part of the google earth extension of kml, and may not be generally
-        supported by anything except google earth.**
+        is specifically part of the Google Earth extension of kml, and may not be generally
+        supported by anything except Google Earth.**
 
         Parameters
         ----------
@@ -567,8 +567,8 @@ class Document(object):
     def _add_extended_data(self, par, **params):
         """
         Adds ExtendedData (schema data) to the parent element. **Note that this
-        is specifically part of the google earth extension of kml, and may not be generally
-        supported by anything except google earth.**
+        is specifically part of the Google Earth extension of kml, and may not be generally
+        supported by anything except Google Earth.**
 
         Parameters
         ----------
@@ -834,8 +834,8 @@ class Document(object):
         """
         Adds a MultiTrack from the gx namespace. This is only a container, much like
         a MultiGeometry object, which requires the addition of gx:Track objects. **Note that this
-        is specifically part of the google earth extension of kml, and may not be generally
-        supported by anything except google earth.**
+        is specifically part of the Google Earth extension of kml, and may not be generally
+        supported by anything except Google Earth.**
 
         Parameters
         ----------
@@ -860,8 +860,8 @@ class Document(object):
     def add_gx_track(self, coords, whens, angles=None, par=None, **params):
         """
         Adds a Track from the gx namespace. **Note that this
-        is specifically part of the google earth extension of kml, and may not be generally
-        supported by anything except google earth.**
+        is specifically part of the Google Earth extension of kml, and may not be generally
+        supported by anything except Google Earth.**
 
         Parameters
         ----------
@@ -1046,7 +1046,7 @@ class Document(object):
             self, image_name, fld, img, image_bounds, bounding_box,
             nominal_image_size, img_format, depth_count=0, **params):
         """
-        Helper function for creating an ground overlay region part.
+        Helper function for creating a ground overlay region part.
 
         Parameters
         ----------
@@ -1206,7 +1206,7 @@ class Document(object):
             self, image_name, fld, img, image_bounds, lat_lon_quad,
             nominal_image_size, img_format, depth_count=0, **params):
         """
-        Helper function for creating an ground overlay region part.
+        Helper function for creating a ground overlay region part.
 
         Parameters
         ----------
@@ -1338,7 +1338,7 @@ class Document(object):
             The overlays will be added below this folder.
         bounding_box : None|numpy.ndarray
             Follows the format for the argument in :func:`add_ground_overlay`.
-        lat_lon_quad : None|nunpy.ndarray
+        lat_lon_quad : None|numpy.ndarray
             Follows the format for the argument in :func:`add_ground_overlay`.
         img_format : str
             string representing a viable Image format. The viable options that will be allowed:

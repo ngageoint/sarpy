@@ -249,7 +249,7 @@ class ProjectionHelper(object):
     def llh_to_ortho(self, llh_coords):
         """
         Gets the `(ortho_row, ortho_column)` coordinates in the ortho-rectified
-        system for the providednphysical coordinates in `(Lat, Lon, HAE)`
+        system for the provided physical coordinates in `(Lat, Lon, HAE)`
         coordinates.
 
         Parameters
@@ -300,7 +300,7 @@ class ProjectionHelper(object):
         Parameters
         ----------
         ortho_coords : numpy.ndarray
-            Point(s) in the ortho-recitified coordinate system, of the form
+            Point(s) in the ortho-rectified coordinate system, of the form
             `(ortho_row, ortho_column)`.
 
         Returns
@@ -317,7 +317,7 @@ class ProjectionHelper(object):
         Parameters
         ----------
         ortho_coords : numpy.ndarray
-            Point(s) in the ortho-recitified coordinate system, of the form
+            Point(s) in the ortho-rectified coordinate system, of the form
             `(ortho_row, ortho_column)`.
 
         Returns
@@ -335,7 +335,7 @@ class ProjectionHelper(object):
         Parameters
         ----------
         ortho_coords : numpy.ndarray
-            Point(s) in the ortho-recitified coordinate system, of the form
+            Point(s) in the ortho-rectified coordinate system, of the form
             `(ortho_row, ortho_column)`.
 
         Returns
@@ -544,7 +544,7 @@ class PGProjection(ProjectionHelper):
         If `normal_vector`, `row_vector`, and `col_vector` are all `None`, then
         the normal to the Earth tangent plane at the reference point is used for
         `normal_vector`. The `row_vector` will be defined as the perpendicular
-        component of `sicd.Grid.Row.UVectECF` to `normal_vector`. The `colummn_vector`
+        component of `sicd.Grid.Row.UVectECF` to `normal_vector`. The `column_vector`
         will be defined as the component of `sicd.Grid.Col.UVectECF` perpendicular
         to both `normal_vector` and `row_vector`.
 
@@ -731,7 +731,8 @@ class PGProjection(ProjectionHelper):
 
     def ortho_to_pixel(self, ortho_coords):
         ortho_coords, o_shape = self._reshape(ortho_coords, 2)
-        pixel, _, _ = self.sicd.project_ground_to_image(self.ortho_to_ecf(ortho_coords), tolerance=1e-3, max_iterations=25)
+        pixel, _, _ = self.sicd.project_ground_to_image(self.ortho_to_ecf(ortho_coords), tolerance=1e-3,
+                                                        max_iterations=25)
         return numpy.reshape(pixel, o_shape)
 
     def pixel_to_ortho(self, pixel_coords):
