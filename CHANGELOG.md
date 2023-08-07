@@ -4,6 +4,12 @@ SarPy follows a continuous release process, so there are fairly frequent release
 Since essentially every (squash merge) commit corresponds to a release, specific 
 release points are not being annotated in GitHub.
 
+## [1.3.58] - 2023-08-07
+### Added
+- Added additional tests to test_sicd_elements_geodata.py
+### Fixed
+- setGeoInfo() definition and typos in GeoData.py.
+
 ## [1.3.57] - 2023-08-02
 ### Added
 - Added ability to generate KMZ files from CRSD data.

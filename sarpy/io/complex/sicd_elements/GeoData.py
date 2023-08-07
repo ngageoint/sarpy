@@ -199,7 +199,7 @@ class GeoInfoType(Serializable):
 
 class SCPType(Serializable):
     """
-    Scene Center Point (SCP) in full (global) image. This should be the the precise location.
+    Scene Center Point (SCP) in full (global) image. This should be the precise location.
     Note that setting one of ECF or LLH will implicitly set the other to it's corresponding matched value.
     """
 
@@ -216,7 +216,7 @@ class SCPType(Serializable):
         """
         To avoid the potential of inconsistent state, ECF and LLH are not simultaneously
         used. If ECF is provided, it is used to populate LLH. Otherwise, if LLH is provided,
-        then it is used the populate ECF.
+        then it is used to populate ECF.
 
         Parameters
         ----------
