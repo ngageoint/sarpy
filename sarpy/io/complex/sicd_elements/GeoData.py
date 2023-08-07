@@ -8,7 +8,7 @@ __author__ = "Thomas McCullough"
 
 from collections import OrderedDict
 from xml.etree import ElementTree
-from typing import List, Union, Dict, Sequence, Optional
+from typing import List, Union, Dict, Optional
 
 import numpy
 
@@ -74,7 +74,7 @@ class GeoInfoType(Serializable):
         Point : None|LatLonRestrictionType|numpy.ndarray|list|tuple
         Line : None|SerializableArray|List[LatLonArrayElementType]|numpy.ndarray|list|tuple
         Polygon : None|SerializableArray|List[LatLonArrayElementType]|numpy.ndarray|list|tuple
-        GeoInfos : None|Sequence[GeoInfoTpe]
+        GeoInfos : None|Sequence[GeoInfoType]
         kwargs
         """
 
@@ -199,7 +199,7 @@ class GeoInfoType(Serializable):
 
 class SCPType(Serializable):
     """
-    Scene Center Point (SCP) in full (global) image. This should be the the precise location.
+    Scene Center Point (SCP) in full (global) image. This should be the precise location.
     Note that setting one of ECF or LLH will implicitly set the other to it's corresponding matched value.
     """
 
@@ -216,7 +216,7 @@ class SCPType(Serializable):
         """
         To avoid the potential of inconsistent state, ECF and LLH are not simultaneously
         used. If ECF is provided, it is used to populate LLH. Otherwise, if LLH is provided,
-        then it is used the populate ECF.
+        then it is used to populate ECF.
 
         Parameters
         ----------
@@ -385,7 +385,7 @@ class GeoDataType(Serializable):
 
         return [entry for entry in self._GeoInfos if entry.name == key]
 
-    def setGeoInfo(self, value: [GeoInfoType, Dict]):
+    def setGeoInfo(self, value: Union[GeoInfoType, Dict]):
         """
         Add the given GeoInfo to the GeoInfos list.
 
