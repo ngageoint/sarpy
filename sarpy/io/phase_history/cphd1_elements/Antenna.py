@@ -372,7 +372,7 @@ class EBType(Serializable):
 class GainPhasePolyType(Serializable):
     """A container for the Gain and Phase Polygon definitions."""
 
-    _fields = ('GainPoly', 'PhasePoly', 'AntGPid')
+    _fields = ('GainPoly', 'PhasePoly', 'AntGPId')
     _required = ('GainPoly', 'PhasePoly')
     # descriptors
     GainPoly = SerializableDescriptor(
@@ -385,17 +385,18 @@ class GainPhasePolyType(Serializable):
         docstring='One-way signal phase (in cycles) as a function of DCX (variable 1) and '
                   'DCY (variable 2). Phase relative to phase at DCX = 0 and DCY = 0, '
                   'so constant coefficient is always 0.0.')  # type: Poly2DType
-    AntGPid = StringDescriptor(
-        'AntGPid', _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: Optional[str]
+    AntGPId = StringDescriptor(
+        'AntGPId', _required, strict=DEFAULT_STRICT,
+        docstring='Identifier of the Antenna Gain/Phase support array that specifies the '
+                  'one-way pattern.')  # type: Optional[str]
 
-    def __init__(self, GainPoly=None, PhasePoly=None, AntGPid=None, **kwargs):
+    def __init__(self, GainPoly=None, PhasePoly=None, AntGPId=None, **kwargs):
         """
         Parameters
         ----------
         GainPoly : Poly2DType|numpy.ndarray|list|tuple
         PhasePoly : Poly2DType|numpy.ndarray|list|tuple
-        AntGPid : None|str
+        AntGPId : None|str
         kwargs
         """
 
@@ -405,7 +406,7 @@ class GainPhasePolyType(Serializable):
             self._xml_ns_key = kwargs['_xml_ns_key']
         self.GainPoly = GainPoly
         self.PhasePoly = PhasePoly
-        self.AntGPid = AntGPid
+        self.AntGPId = AntGPId
         super(GainPhasePolyType, self).__init__(**kwargs)
 
     def __call__(self, x, y):
@@ -444,7 +445,7 @@ class GainPhasePolyType(Serializable):
 
     def version_required(self) -> Tuple[int, int, int]:
         required = (1, 0, 1)
-        if self.AntGPid is not None:
+        if self.AntGPId is not None:
             required = max(required, (1, 1, 0))
         return required
 
@@ -455,7 +456,7 @@ class AntPatternType(Serializable):
     """
 
     _fields = (
-        'Identifier', 'FreqZero', 'GainZero', 'EBFreqShift', 'EBFreqShift',
+        'Identifier', 'FreqZero', 'GainZero', 'EBFreqShift', 'EBFreqShiftSF',
         'MLFreqDilation', 'MLFreqDilationSF', 'GainBSPoly', 'AntPolRef',
         'EB', 'Array', 'Element', 'GainPhaseArray')
     _required = (

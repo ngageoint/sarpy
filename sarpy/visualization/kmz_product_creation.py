@@ -43,10 +43,11 @@ from sarpy.processing.ortho_rectify.projection_helper import PGProjection, PGRat
 from sarpy.io.kml import Document
 from sarpy.io.complex.base import SICDTypeReader
 from sarpy.io.complex.sicd_elements.SICD import SICDType
+from sarpy.io.complex.sicd_elements.blocks import Poly2DType
 from sarpy.io.complex.utils import sicd_reader_iterator
 from sarpy.geometry.geocoords import ecf_to_geodetic
+from sarpy.visualization import kmz_utils
 from sarpy.visualization.remap import RemapFunction, NRL
-
 
 try:
     # noinspection PyPackageRequirements
@@ -70,6 +71,7 @@ def _create_sicd_styles(kmz_document):
     -------
     None
     """
+    kmz_utils.add_antenna_styles(kmz_document)
 
     # bounding box style - maybe polygon, maybe corner points, clamped to ground
     label = {'color': 'ffc0c0c0', 'scale': '1.0'}
@@ -205,19 +207,23 @@ def _get_sicd_time_args(sicd, subdivisions=24):
     if sicd.Timeline is None or sicd.Timeline.CollectStart is None:
         return {}, None
 
-    beg_time = sicd.Timeline.CollectStart.astype('datetime64[us]')
-    if sicd.Timeline.CollectDuration is None:
-        return {'when': str(beg_time)+'Z', }, None
+    col_start = sicd.Timeline.CollectStart.astype('datetime64[us]')
+    if sicd.ImageFormation.TStartProc is None:
+        return {'when': str(col_start) + 'Z', }, None
 
-    end_time = beg_time + int(sicd.Timeline.CollectDuration*1e6)
+    t_start = sicd.ImageFormation.TStartProc
+    t_end = sicd.ImageFormation.TEndProc
     if not isinstance(subdivisions, int) or subdivisions < 2:
         time_array = None
     else:
-        time_array = numpy.linspace(0, sicd.Timeline.CollectDuration, subdivisions)
-    return {'beginTime': str(beg_time)+'Z', 'endTime': str(end_time)+'Z'}, time_array
+        time_array = numpy.linspace(t_start, t_end, subdivisions)
+
+    beg_time = col_start + int(t_start * 1e6)
+    end_time = col_start + int(t_end * 1e6)
+    return {'beginTime': str(beg_time) + 'Z', 'endTime': str(end_time) + 'Z'}, time_array
 
 
-def _write_image_corners(kmz_document, sicd, time_args, folder, write_points=True):
+def _write_image_corners(kmz_document, sicd, time_args, folder):
     """
     Write the image corner.
 
@@ -227,8 +233,6 @@ def _write_image_corners(kmz_document, sicd, time_args, folder, write_points=Tru
     sicd : SICDType
     time_args : dict
     folder : minidom.Element
-    write_points : bool
-        Write points, or a polygon?
 
     Returns
     -------
@@ -244,20 +248,14 @@ def _write_image_corners(kmz_document, sicd, time_args, folder, write_points=Tru
     if numpy.any(~numpy.isfinite(corners)):
         logger.error('There are nonsense entries (nan or +/- infinity) in the corner locations array.')
 
-    if write_points:
-        names = ['FRFC', 'FRLC', 'LRLC', 'LRFC']
-        for nam, corner in zip(names, corners):
-            if numpy.any(~numpy.isfinite(corner)):
-                continue
-            coords = frm.format(*corner)
-            placemark = kmz_document.add_container(par=folder, description='{} for {}'.format(nam, _get_sicd_name(sicd)),
-                                                   styleUrl='#bounding')
-            kmz_document.add_point(coords, par=placemark, altitudeMode='clampToGround', **time_args)
-    else:
-        # write the polygon
-        coords = ' '.join(frm.format(*el) for el in corners if not numpy.any(~numpy.isfinite(el)))
-        placemark = kmz_document.add_container(par=folder, description='image corners for {}'.format(_get_sicd_name(sicd)), styleUrl='#bounding')
-        kmz_document.add_polygon(coords, par=placemark, altitudeMode='clampToGround', **time_args)
+    names = ['FRFC', 'FRLC', 'LRLC', 'LRFC']
+    for nam, corner in zip(names, corners):
+        if numpy.any(~numpy.isfinite(corner)):
+            continue
+        coords = frm.format(*corner)
+        placemark = kmz_document.add_container(par=folder, description='{} for {}'.format(nam, _get_sicd_name(sicd)),
+                                               styleUrl='#bounding')
+        kmz_document.add_point(coords, par=placemark, altitudeMode='clampToGround', **time_args)
 
 
 def _write_valid_area(kmz_document, sicd, time_args, folder):
@@ -286,7 +284,8 @@ def _write_valid_area(kmz_document, sicd, time_args, folder):
 
     coords = ' '.join(frm.format(*el) for el in valid_array)
     coords += ' ' + frm.format(*valid_array[0, :])
-    placemark = kmz_document.add_container(par=folder, description='valid data for {}'.format(_get_sicd_name(sicd)), styleUrl='#valid')
+    placemark = kmz_document.add_container(par=folder, description='valid data for {}'.format(_get_sicd_name(sicd)),
+                                           styleUrl='#valid')
     kmz_document.add_polygon(coords, par=placemark, altitudeMode='clampToGround', **time_args)
 
 
@@ -314,7 +313,8 @@ def _write_scp(kmz_document, sicd, time_args, folder):
 
     frm = '{1:0.8f},{0:0.8f},0'
     coords = frm.format(*scp_llh)
-    placemark = kmz_document.add_container(par=folder, description='SCP for {}'.format(_get_sicd_name(sicd)), styleUrl='#scp')
+    placemark = kmz_document.add_container(par=folder, description='SCP for {}'.format(_get_sicd_name(sicd)),
+                                           styleUrl='#scp')
     kmz_document.add_point(coords, par=placemark, altitudeMode='clampToGround', **time_args)
 
 
@@ -348,8 +348,9 @@ def _write_arp_location(kmz_document, sicd, time_args, time_array, folder):
     if numpy.any(~numpy.isfinite(arp_llh)):
         logger.error('There are nonsense entries (nan or +/- infinity) in the aperture location.')
     coords = ['{1:0.8f},{0:0.8f},{2:0.2f}'.format(*el) for el in arp_llh]
-    whens = [str(sicd.Timeline.CollectStart.astype('datetime64[us]') + int(el*1e6)) + 'Z' for el in time_array]
-    placemark = kmz_document.add_container(par=folder, description='aperture position for {}'.format(_get_sicd_name(sicd)), styleUrl='#arp', **time_args)
+    whens = [str(sicd.Timeline.CollectStart.astype('datetime64[us]') + int(el * 1e6)) + 'Z' for el in time_array]
+    placemark = kmz_document.add_container(par=folder, description='aperture position for {}'.format(_get_sicd_name(
+        sicd)), styleUrl='#arp', **time_args)
     kmz_document.add_gx_track(coords, whens, par=placemark, extrude=True, tesselate=True, altitudeMode='absolute')
     return arp_llh
 
@@ -381,21 +382,124 @@ def _write_collection_wedge(kmz_document, sicd, time_args, arp_llh, time_array, 
         grp = numpy.reshape(sicd.GeoData.SCP.ECF.get_array(), (1, 3))
     else:
         return
-    frm = '{1:0.8f},{0:0.8f},{2:0.2f}'
     grp_llh = ecf_to_geodetic(grp)
 
     if numpy.any(~numpy.isfinite(grp_llh)):
         logger.error('There are nonsense entries (nan or +/- infinity) in the scp/ground range locations.')
 
-    coord_array = [frm.format(*el) for el in arp_llh]
-    if len(grp_llh) > 1:
-        coord_array.extend(frm.format(*el) for el in grp_llh[::-1, :])
-    else:
-        coord_array.append(frm.format(*grp_llh[0, :]))
-    coord_array.append(frm.format(*arp_llh[0, :]))
-    coords = ' '.join(coord_array)
-    placemark = kmz_document.add_container(par=folder, description='collection wedge for {}'.format(_get_sicd_name(sicd)), styleUrl='#collection', **time_args)
+    coord_array = numpy.concatenate([arp_llh, grp_llh[::-1]], axis=0)
+    coord_array[:, [0, 1]] = coord_array[:, [1, 0]]  # lat,lon -> lon,lat
+    coords = " ".join(",".join(str(x) for x in coord) for coord in coord_array)
+    placemark = kmz_document.add_container(par=folder, description='collection wedge for {}'.format(_get_sicd_name(
+        sicd)), styleUrl='#collection', **time_args)
     kmz_document.add_polygon(coords, par=placemark, extrude=False, tesselate=False, altitudeMode='absolute')
+
+
+def _write_antenna(kmz_document, sicd, time_args, time_array, folder):
+    """
+    Write the Antenna information
+
+    Parameters
+    ----------
+    kmz_document : Document
+    sicd : SICDType
+    time_args : dict
+    time_array : None|numpy.ndarray
+    folder : minidom.Element
+
+    Returns
+    -------
+    None
+    """
+    if time_array is None:
+        return
+
+    if sicd.Antenna is None:
+        return
+
+    boresight_folder = kmz_document.add_container(
+        par=folder,
+        the_type="Folder",
+        name="Boresights",
+    )
+
+    footprint_folder = kmz_document.add_container(
+        par=folder,
+        the_type="Folder",
+        name="Beam Footprints",
+    )
+
+    contour_levels = {
+        'Tx': -3,
+        'Rcv': -3,
+        'TwoWay': -6,
+    }
+
+    for which in ("Tx", "Rcv", "TwoWay"):
+        aiming = antenna_aiming(sicd, which, time_array)
+        if not aiming:
+            continue
+
+        for boresight_type in ("mechanical", "electrical"):
+            visibility = which == "Rcv"  # only display Rcv by default
+            name = f"{which} {boresight_type} boresight"
+
+            on_earth_ecf = numpy.asarray(
+                [
+                    kmz_utils.ray_intersect_earth(apc_pos, along)
+                    for apc_pos, along in zip(
+                    aiming["raw"]["positions"],
+                    aiming[boresight_type],
+                )
+                ]
+            )
+
+            placemark = kmz_document.add_container(
+                par=boresight_folder,
+                name=name,
+                description=f"{name} <br><br>Highlighted edge indicates start time",
+                styleUrl=f"#{boresight_type}_boresight",
+                visibility=visibility,
+                **time_args,
+            )
+            boresight_coords = kmz_utils.ecef_to_kml_coord(on_earth_ecf)
+            apc_coords = kmz_utils.ecef_to_kml_coord(aiming["raw"]["positions"])
+
+            kmz_utils.add_los_polygon(kmz_document,
+                                      placemark,
+                                      apc_coords,
+                                      boresight_coords,
+                                      )
+            footprint_labels = {
+                "start": 0,
+                "middle": len(time_array) // 2,
+                "end": len(time_array) - 1,
+            }
+
+        array_gain_poly = aiming["raw"]["pattern"].Array.GainPoly
+        if aiming['raw']['pattern'].Elem is None:
+            elem_gain_poly = Poly2DType(Coefs=[[0]])
+        else:
+            elem_gain_poly = aiming["raw"]["pattern"].Elem.GainPoly
+
+        contour_level = contour_levels[which]
+        for when, this_footprint in kmz_utils.make_beam_footprints(
+                aiming, footprint_labels, array_gain_poly, elem_gain_poly, contour_level=contour_level,
+        ).items():
+            name = f"{which} beam {contour_level}dB footprint @ {when}"
+            placemark = kmz_document.add_container(
+                par=footprint_folder,
+                name=name,
+                description=name,
+                styleUrl=f"#{which.lower()}_beam_footprint",
+                visibility=True,
+                **time_args,
+            )
+            coords = kmz_utils.ecef_to_kml_coord(this_footprint["contour"])
+            kmz_document.add_polygon(
+                " ".join(coords),
+                par=placemark,
+            )
 
 
 def _write_sicd_overlay(ortho_iterator, kmz_document, folder):
@@ -429,8 +533,8 @@ def _write_sicd_overlay(ortho_iterator, kmz_document, folder):
     image_data = numpy.zeros(ortho_iterator.ortho_data_size, dtype=ortho_iterator.remap_function.output_dtype)
     # populate by iterating
     for data, start_indices in ortho_iterator:
-        image_data[start_indices[0]:start_indices[0]+data.shape[0],
-                   start_indices[1]:start_indices[1]+data.shape[1]] = data
+        image_data[start_indices[0]:start_indices[0] + data.shape[0],
+        start_indices[1]:start_indices[1] + data.shape[1]] = data
     # create regionated overlay
     # convert image array to PIL image.
     img = PIL.Image.fromarray(image_data)  # this is to counteract the PIL treatment
@@ -462,8 +566,8 @@ def prepare_kmz_file(file_name, **args):
 
 
 def add_sicd_geometry_elements(sicd, kmz_document, folder,
-        inc_image_corners=True, inc_valid_data=False,
-        inc_scp=False, inc_collection_wedge=True):
+                               inc_image_corners=True, inc_valid_data=False,
+                               inc_scp=False, inc_collection_wedge=True, inc_antenna=True):
     """
     Write the geometry elements of a SICD.
 
@@ -480,6 +584,8 @@ def add_sicd_geometry_elements(sicd, kmz_document, folder,
         Include the scp?
     inc_collection_wedge : bool
         Include the aperture location and collection wedge?
+    inc_antenna: bool
+        Include Antenna footprints and boresights?
 
     Returns
     -------
@@ -503,11 +609,15 @@ def add_sicd_geometry_elements(sicd, kmz_document, folder,
         arp_llh = _write_arp_location(kmz_document, sicd, time_args, time_array, folder)
         _write_collection_wedge(kmz_document, sicd, time_args, arp_llh, time_array, folder)
 
+    if inc_antenna:
+        _write_antenna(kmz_document, sicd, time_args, time_array, folder)
+
 
 def add_sicd_from_ortho_helper(kmz_document, ortho_helper,
-        inc_image_corners=False, inc_valid_data=False,
-        inc_scp=False, inc_collection_wedge=False,
-        block_size=10, remap_function=None):
+                               inc_image_corners=False, inc_valid_data=False,
+                               inc_scp=False, inc_collection_wedge=False,
+                               inc_antenna=True,
+                               block_size=10, remap_function=None):
     """
     Adds for a SICD to the provided open kmz from an ortho-rectification helper.
 
@@ -523,6 +633,8 @@ def add_sicd_from_ortho_helper(kmz_document, ortho_helper,
         Include the scp?
     inc_collection_wedge : bool
         Include the aperture location and collection wedge?
+    inc_antenna: bool
+        Include Antenna footprints and boresights?
     block_size : None|int|float
         The block size for the iterator
     remap_function : None|RemapFunction
@@ -545,8 +657,8 @@ def add_sicd_from_ortho_helper(kmz_document, ortho_helper,
 
     # write the sicd details aside from the overlay
     add_sicd_geometry_elements(sicd, kmz_document, folder,
-        inc_image_corners=inc_image_corners, inc_valid_data=inc_valid_data,
-        inc_scp=inc_scp, inc_collection_wedge=inc_collection_wedge)
+                               inc_image_corners=inc_image_corners, inc_valid_data=inc_valid_data,
+                               inc_scp=inc_scp, inc_collection_wedge=inc_collection_wedge, inc_antenna=inc_antenna)
 
     # create the ortho-rectification iterator
     if remap_function is None:
@@ -562,9 +674,10 @@ def add_sicd_from_ortho_helper(kmz_document, ortho_helper,
 
 
 def add_sicd_to_kmz(kmz_document, reader, index=0, pixel_limit=2048,
-        inc_image_corners=False, inc_valid_data=False,
-        inc_scp=False, inc_collection_wedge=False,
-        block_size=10, remap_function=None):
+                    inc_image_corners=False, inc_valid_data=False,
+                    inc_scp=False, inc_collection_wedge=False,
+                    inc_antenna=True,
+                    block_size=10, remap_function=None):
     """
     Adds elements for this SICD to the provided open kmz.
 
@@ -586,6 +699,8 @@ def add_sicd_to_kmz(kmz_document, reader, index=0, pixel_limit=2048,
         Include the scp?
     inc_collection_wedge : bool
         Include the aperture location and collection wedge?
+    inc_antenna: bool
+        Include Antenna footprints and boresights?
     block_size : None|int|float
         The block size for the iterator
     remap_function : None|RemapFunction
@@ -620,22 +735,24 @@ def add_sicd_to_kmz(kmz_document, reader, index=0, pixel_limit=2048,
         col_count = ortho_size[3] - ortho_size[2]
         # reset the row/column spacing, if necessary
         if row_count > pixel_limit:
-            proj_helper.row_spacing *= row_count/float(pixel_limit)
+            proj_helper.row_spacing *= row_count / float(pixel_limit)
         if col_count > pixel_limit:
-            proj_helper.col_spacing *= col_count/float(pixel_limit)
+            proj_helper.col_spacing *= col_count / float(pixel_limit)
         if isinstance(proj_helper, PGRatPolyProjection):
             proj_helper.perform_rational_poly_fitting()
     # add the sicd details
     add_sicd_from_ortho_helper(
         kmz_document, ortho_helper,
         inc_image_corners=inc_image_corners, inc_valid_data=inc_valid_data, inc_scp=inc_scp,
-        inc_collection_wedge=inc_collection_wedge, block_size=block_size, remap_function=remap_function)
+        inc_collection_wedge=inc_collection_wedge,
+        inc_antenna=inc_antenna,
+        block_size=block_size, remap_function=remap_function)
 
 
 def create_kmz_view(
         reader, output_directory, file_stem='view', pixel_limit=2048,
         inc_image_corners=False, inc_valid_data=False,
-        inc_scp=True, inc_collection_wedge=False, block_size=10, remap_function=None):
+        inc_scp=True, inc_collection_wedge=False, inc_antenna=True, block_size=10, remap_function=None):
     """
     Create a kmz view for the reader contents. **This will create one file per
     band/polarization present in the reader.**
@@ -654,6 +771,8 @@ def create_kmz_view(
         Include the scp?
     inc_collection_wedge : bool
         Include the aperture location and collection wedge?
+    inc_antenna: bool
+        Include Antenna footprints and boresights?
     block_size : None|int|float
         The block size for the iterator
     remap_function : None|RemapFunction
@@ -703,6 +822,7 @@ def create_kmz_view(
                     index=the_index, pixel_limit=pixel_limit,
                     inc_image_corners=inc_image_corners, inc_valid_data=inc_valid_data,
                     inc_scp=inc_scp, inc_collection_wedge=inc_collection_wedge,
+                    inc_antenna=inc_antenna,
                     block_size=block_size, remap_function=remap_function)
 
     bands = set(reader.get_sicd_bands())
@@ -712,3 +832,77 @@ def create_kmz_view(
     for the_band in bands:
         for the_pol in pols:
             do_iteration()
+
+
+def antenna_aiming(sicd, which, time_array):
+    """
+    Compile antenna aiming metadata of a SICD
+
+    Parameters
+    ----------
+    sicd : SICDType
+    which: str
+        Which antenna pattern to use: 'Tx', 'Rcv', or 'TwoWay'
+    time_array : None|numpy.ndarray
+        Points in time to evaluate the antenna related polynomials
+
+    """
+    if time_array is None:
+        return {}
+
+    if sicd.Antenna is None:
+        return {}
+
+    ant_dir_node = getattr(sicd.Antenna, which)
+    if ant_dir_node is None:
+        return {}
+
+    try:
+        if which == 'Tx':
+            ant_dir_node = sicd.Antenna.Tx
+            apc_poly = sicd.Position.TxAPCPoly
+        elif which == 'Rcv':
+            ant_dir_node = sicd.Antenna.Rcv
+            chan_index = sicd.ImageFormation.RcvChanProc.ChanIndices[0]
+            apc_index = sicd.RadarCollection.RcvChannels[chan_index - 1].RcvAPCIndex
+            apc_poly = sicd.Position.RcvAPC[apc_index - 1]
+        elif which == 'TwoWay':
+            ant_dir_node = sicd.Antenna.TwoWay
+            apc_poly = sicd.Position.ARPPoly
+        else:
+            raise ValueError(f"Unknown antenna '{which}'")
+
+        positions = apc_poly(time_array)
+        uacx = ant_dir_node.XAxisPoly(time_array)
+        uacy = ant_dir_node.YAxisPoly(time_array)
+        uacz = numpy.cross(uacx, uacy)
+
+        pointing = {
+            "antpat_id": which,
+            "raw": {
+                "positions": positions,
+                "times": time_array,
+                "uacx": uacx,
+                "uacy": uacy,
+                "uacz": uacz,
+                "pattern": ant_dir_node,
+            },
+            "mechanical": uacz,
+        }
+
+        if ant_dir_node.EB is None:
+            eb_dcx = numpy.zeros(len(time_array))
+            eb_dcy = numpy.zeros(len(time_array))
+        else:
+            eb_dcx = ant_dir_node.EB.DCXPoly(time_array)
+            eb_dcy = ant_dir_node.EB.DCYPoly(time_array)
+
+        pointing["raw"]["eb_dcx"] = eb_dcx
+        pointing["raw"]["eb_dcy"] = eb_dcy
+        pointing["electrical"] = kmz_utils.acf_to_ecef(eb_dcx, eb_dcy, uacx, uacy)
+
+        return pointing
+    except Exception as exc:
+        logger.warning(f"Exception while calculating {which} boresight")
+        logger.warning(exc)
+    return {}

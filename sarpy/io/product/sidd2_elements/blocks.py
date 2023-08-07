@@ -313,7 +313,17 @@ class GeoInfoType(GeoInfoTypeBase):
 
 
 class RadarModeType(RadarModeTypeBase):
+    """
+    Radar mode type container class
+    """
+
     _child_xml_ns_key = {'ModeType': 'sicommon', 'ModeID': 'sicommon'}
+    # other class variable
+    _MODE_TYPE_VALUES = RadarModeTypeBase._MODE_TYPE_VALUES + ('SCANSAR',)
+    # descriptors
+    ModeType = StringEnumDescriptor(
+        'ModeType', _MODE_TYPE_VALUES, RadarModeTypeBase._required, strict=True,
+        docstring="The Radar imaging mode.")  # type: str
 
 
 class ReferencePointType(Serializable):

@@ -519,8 +519,8 @@ class Document(object):
     def add_schema(self, schema_id, field_dict, short_name=None):
         """
         For defining/using the extended data schema capability. **Note that this
-        is specifically part of the google earth extension of kml, and may not be generally
-        supported by anything except google earth.**
+        is specifically part of the Google Earth extension of kml, and may not be generally
+        supported by anything except Google Earth.**
 
         Parameters
         ----------
@@ -567,8 +567,8 @@ class Document(object):
     def _add_extended_data(self, par, **params):
         """
         Adds ExtendedData (schema data) to the parent element. **Note that this
-        is specifically part of the google earth extension of kml, and may not be generally
-        supported by anything except google earth.**
+        is specifically part of the Google Earth extension of kml, and may not be generally
+        supported by anything except Google Earth.**
 
         Parameters
         ----------
@@ -674,7 +674,7 @@ class Document(object):
         multigeometry_node = self._create_new_node(par, 'MultiGeometry')
         return multigeometry_node
 
-    def add_polygon(self, outer_coords, inner_coords=None, par=None, **params):
+    def add_polygon(self, outer_coords, inner_coords=None, par=None, condition_coords=True, **params):
         """
         Adds a Polygon element - a polygonal outer region, possibly with polygonal holes removed
 
@@ -693,6 +693,9 @@ class Document(object):
             If provided, the coordinates for inner rings.
         par : None|minidom.Element
             The parent node. If not given, then a Placemark is created.
+        condition_coords: bool
+            If True, the coords are conditioned (longitude-unwrapped and closed) before being added to the document.
+            This can help with polygons that span the anti-meridian.
         params
             The parameters dictionary.
 
@@ -701,6 +704,14 @@ class Document(object):
         minidom.Element
         """
 
+        def _condition_coords(coord_str):
+            coords = numpy.array([[float(v) for v in coord.split(',')] for coord in coord_str.split(' ')])
+            if not numpy.array_equal(coords[0], coords[-1]):
+                coords = numpy.concatenate((coords, coords[0, numpy.newaxis]))  # first and last coord must match
+            # KMZ allows longitude values beyond +/-180 for overlays that overlap the meridian
+            coords[:, 0] = numpy.unwrap(coords[:, 0], period=360)
+            return " ".join(",".join(str(x) for x in coord) for coord in coords)
+
         if par is None:
             par = self.add_container(**params)
         polygon_node = self._create_new_node(par, 'Polygon')
@@ -708,10 +719,14 @@ class Document(object):
             self._add_conditional_text_node(polygon_node, opt, params)
 
         outer_ring_node = self._create_new_node(polygon_node, 'outerBoundaryIs')
+        if condition_coords:
+            outer_coords = _condition_coords(outer_coords)
         self.add_linear_ring(outer_coords, outer_ring_node)
         if inner_coords is not None:
             for coords in inner_coords:
                 inner_ring = self._create_new_node(polygon_node, 'innerBoundaryIs')
+                if condition_coords:
+                    coords = _condition_coords(coords)
                 self.add_linear_ring(coords, inner_ring)
 
     def add_linear_ring(self, coords, par=None, **params):
@@ -819,8 +834,8 @@ class Document(object):
         """
         Adds a MultiTrack from the gx namespace. This is only a container, much like
         a MultiGeometry object, which requires the addition of gx:Track objects. **Note that this
-        is specifically part of the google earth extension of kml, and may not be generally
-        supported by anything except google earth.**
+        is specifically part of the Google Earth extension of kml, and may not be generally
+        supported by anything except Google Earth.**
 
         Parameters
         ----------
@@ -845,8 +860,8 @@ class Document(object):
     def add_gx_track(self, coords, whens, angles=None, par=None, **params):
         """
         Adds a Track from the gx namespace. **Note that this
-        is specifically part of the google earth extension of kml, and may not be generally
-        supported by anything except google earth.**
+        is specifically part of the Google Earth extension of kml, and may not be generally
+        supported by anything except Google Earth.**
 
         Parameters
         ----------
@@ -1031,7 +1046,7 @@ class Document(object):
             self, image_name, fld, img, image_bounds, bounding_box,
             nominal_image_size, img_format, depth_count=0, **params):
         """
-        Helper function for creating an ground overlay region part.
+        Helper function for creating a ground overlay region part.
 
         Parameters
         ----------
@@ -1191,7 +1206,7 @@ class Document(object):
             self, image_name, fld, img, image_bounds, lat_lon_quad,
             nominal_image_size, img_format, depth_count=0, **params):
         """
-        Helper function for creating an ground overlay region part.
+        Helper function for creating a ground overlay region part.
 
         Parameters
         ----------
@@ -1323,7 +1338,7 @@ class Document(object):
             The overlays will be added below this folder.
         bounding_box : None|numpy.ndarray
             Follows the format for the argument in :func:`add_ground_overlay`.
-        lat_lon_quad : None|nunpy.ndarray
+        lat_lon_quad : None|numpy.ndarray
             Follows the format for the argument in :func:`add_ground_overlay`.
         img_format : str
             string representing a viable Image format. The viable options that will be allowed:
