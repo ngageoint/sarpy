@@ -94,8 +94,8 @@ def main(args=None):
                 graze_deg = reader.sicd_meta.SCPCOA.GrazeAng
                 slope_deg = reader.sicd_meta.SCPCOA.SlopeAng
 
-                # If there is any non-uniform spectral weighting then GDM will choose parameters as if
-                # Taylor weighting was applied, instead of choosing the parameters for Uniform weighting.
+                # If there is non-uniform spectral weighting then GDM will choose parameters as if Taylor
+                # weighting was applied, otherwise it will choose the parameters for Uniform weighting.
                 if args.window is None:
                     row_wgt = [1] if reader.sicd_meta.Grid.Row.WgtFunct is None else reader.sicd_meta.Grid.Row.WgtFunct
                     col_wgt = [1] if reader.sicd_meta.Grid.Col.WgtFunct is None else reader.sicd_meta.Grid.Col.WgtFunct
