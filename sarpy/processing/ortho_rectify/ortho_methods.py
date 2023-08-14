@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 def _linear_fill(pixel_array, fill_interval=1):
     """
-    This is to final in linear features in pixel space at the given interval.
+    This is too final in linear features in pixel space at the given interval.
 
     Parameters
     ----------
@@ -521,7 +521,7 @@ class OrthorectificationHelper(object):
     @staticmethod
     def _get_ortho_mesh(ortho_bounds):
         """
-        Fetch a the grid of rows/columns coordinates for the desired rectangle.
+        Fetch the grid of rows/columns coordinates for the desired rectangle.
 
         Parameters
         ----------
@@ -729,7 +729,7 @@ class OrthorectificationHelper(object):
             The columns of the pixel array. Must be one-dimensional, monotonically
             increasing, and have and have `col_array.size = value_array.shape[1]`.
         value_array : numpy.ndarray
-            The values array, whihc must be two or three dimensional. If this has
+            The values array, which must be two or three-dimensional. If this has
             complex dtype and `complex_valued=False`, then the :func:`numpy.abs`
             will be applied.
         value_is_flat : bool
@@ -812,7 +812,7 @@ class OrthorectificationHelper(object):
                 return self._initialize_workspace(ortho_bounds)
         if value_array.ndim == 2:
             return self._get_orthrectified_from_array_flat(ortho_bounds, row_array, col_array, value_array)
-        else:  # it must be three dimensional, as checked by _validate_row_col_values()
+        else:  # it must be three-dimensional, as checked by _validate_row_col_values()
             ortho_array = self._initialize_workspace(ortho_bounds, final_dimension=value_array.shape[2])
             for i in range(value_array.shape[2]):
                 ortho_array[:, :, i] = self._get_orthrectified_from_array_flat(
@@ -972,7 +972,7 @@ class NearestNeighborMethod(OrthorectificationHelper):
 
     .. warning::
         Modification of the proj_helper parameters when the default full image
-        bounds have been defained (i.e. sicd.RadarCollection.Area is defined) may
+        bounds have been defined (i.e. sicd.RadarCollection.Area is defined) may
         result in unintended results.
     """
 
@@ -1011,7 +1011,7 @@ class NearestNeighborMethod(OrthorectificationHelper):
             subtract_radiometric_noise=subtract_radiometric_noise)
 
     def _get_orthrectified_from_array_flat(self, ortho_bounds, row_array, col_array, value_array):
-        # setup the result workspace
+        # set up the result workspace
         value_array, pixel_rows, pixel_cols, ortho_array = self._setup_flat_workspace(
             ortho_bounds, row_array, col_array, value_array)
         # potentially apply the radiometric parameters to the value array
@@ -1032,7 +1032,7 @@ class BivariateSplineMethod(OrthorectificationHelper):
 
     .. warning::
         Modification of the proj_helper parameters when the default full image
-        bounds have been defained (i.e. sicd.RadarCollection.Area is defined) may
+        bounds have been defined (i.e. sicd.RadarCollection.Area is defined) may
         result in unintended results.
     """
 
@@ -1113,7 +1113,7 @@ class BivariateSplineMethod(OrthorectificationHelper):
         self._col_order = value
 
     def _get_orthrectified_from_array_flat(self, ortho_bounds, row_array, col_array, value_array):
-        # setup the result workspace
+        # set up the result workspace
         value_array, pixel_rows, pixel_cols, ortho_array = self._setup_flat_workspace(
             ortho_bounds, row_array, col_array, value_array)
         value_array = self._apply_radiometric_params(row_array, col_array, value_array)
