@@ -1,6 +1,6 @@
 """
 Unified methods of projection between sicd pixel coordinates,
-some ortho-rectified pixel grid coordinates, and geophysical coordinates
+some orthorectified pixel grid coordinates, and geophysical coordinates
 """
 
 __classification__ = "UNCLASSIFIED"
@@ -24,7 +24,7 @@ _PIXEL_METHODOLOGY = ('MAX', 'MIN', 'MEAN', 'GEOM_MEAN')
 class ProjectionHelper(object):
     """
     Abstract helper class which defines the projection interface for
-    ortho-rectification usage for a sicd type object.
+    orthorectification usage for a sicd type object.
     """
 
     __slots__ = ('_sicd', '_row_spacing', '_col_spacing', '_default_pixel_method')
@@ -62,7 +62,7 @@ class ProjectionHelper(object):
         if not isinstance(sicd, SICDType):
             raise TypeError('sicd must be a SICDType instance. Got type {}'.format(type(sicd)))
         if not sicd.can_project_coordinates():
-            raise ValueError('Ortho-rectification requires the SICD ability to project coordinates.')
+            raise ValueError('Orthorectification requires the SICD ability to project coordinates.')
         sicd.define_coa_projection(override=False)
         self._sicd = sicd
         self.row_spacing = row_spacing
@@ -197,7 +197,7 @@ class ProjectionHelper(object):
 
     def ecf_to_ortho(self, coords):
         """
-        Gets the `(ortho_row, ortho_column)` coordinates in the ortho-rectified
+        Gets the `(ortho_row, ortho_column)` coordinates in the orthorectified
         system for the provided physical coordinates in ECF `(X, Y, Z)` coordinates.
 
         Parameters
@@ -229,7 +229,7 @@ class ProjectionHelper(object):
 
     def ll_to_ortho(self, ll_coords):
         """
-        Gets the `(ortho_row, ortho_column)` coordinates in the ortho-rectified
+        Gets the `(ortho_row, ortho_column)` coordinates in the orthorectified
         system for the provided physical coordinates in `(Lat, Lon)` coordinates.
 
         Note that there is inherent ambiguity when handling the missing elevation,
@@ -248,7 +248,7 @@ class ProjectionHelper(object):
 
     def llh_to_ortho(self, llh_coords):
         """
-        Gets the `(ortho_row, ortho_column)` coordinates in the ortho-rectified
+        Gets the `(ortho_row, ortho_column)` coordinates in the orthorectified
         system for the provided physical coordinates in `(Lat, Lon, HAE)`
         coordinates.
 
@@ -265,7 +265,7 @@ class ProjectionHelper(object):
 
     def pixel_to_ortho(self, pixel_coords):
         """
-        Gets the ortho-rectified indices for the point(s) in pixel coordinates.
+        Gets the orthorectified indices for the point(s) in pixel coordinates.
 
         Parameters
         ----------
@@ -295,12 +295,12 @@ class ProjectionHelper(object):
 
     def ortho_to_ecf(self, ortho_coords):
         """
-        Get the ecf coordinates for the point(s) in ortho-rectified coordinates.
+        Get the ecf coordinates for the point(s) in orthorectified coordinates.
 
         Parameters
         ----------
         ortho_coords : numpy.ndarray
-            Point(s) in the ortho-rectified coordinate system, of the form
+            Point(s) in the orthorectified coordinate system, of the form
             `(ortho_row, ortho_column)`.
 
         Returns
@@ -312,12 +312,12 @@ class ProjectionHelper(object):
 
     def ortho_to_llh(self, ortho_coords):
         """
-        Get the lat/lon/hae coordinates for the point(s) in ortho-rectified coordinates.
+        Get the lat/lon/hae coordinates for the point(s) in orthorectified coordinates.
 
         Parameters
         ----------
         ortho_coords : numpy.ndarray
-            Point(s) in the ortho-rectified coordinate system, of the form
+            Point(s) in the orthorectified coordinate system, of the form
             `(ortho_row, ortho_column)`.
 
         Returns
@@ -330,12 +330,12 @@ class ProjectionHelper(object):
 
     def ortho_to_pixel(self, ortho_coords):
         """
-        Get the pixel indices for the point(s) in ortho-rectified coordinates.
+        Get the pixel indices for the point(s) in orthorectified coordinates.
 
         Parameters
         ----------
         ortho_coords : numpy.ndarray
-            Point(s) in the ortho-rectified coordinate system, of the form
+            Point(s) in the orthorectified coordinate system, of the form
             `(ortho_row, ortho_column)`.
 
         Returns
@@ -372,7 +372,7 @@ class ProjectionHelper(object):
 
 class PGProjection(ProjectionHelper):
     """
-    Class which helps perform the Planar Grid (i.e. Ground Plane) ortho-rectification
+    Class which helps perform the Planar Grid (i.e. Ground Plane) orthorectification
     for a sicd-type object using the SICD projection model directly.
     """
 
@@ -439,7 +439,7 @@ class PGProjection(ProjectionHelper):
     def reference_pixels(self):
         # type: () -> numpy.ndarray
         """
-        numpy.ndarray: The ortho-rectified pixel coordinates of the grid reference point.
+        numpy.ndarray: The orthorectified pixel coordinates of the grid reference point.
         """
 
         return self._reference_pixels
@@ -489,7 +489,7 @@ class PGProjection(ProjectionHelper):
         Parameters
         ----------
         reference_pixels : None|numpy.ndarray
-            The ortho-rectified pixel coordinates for the reference point (origin) of the planar grid.
+            The orthorectified pixel coordinates for the reference point (origin) of the planar grid.
             If None, then the (0, 0) will be used.
 
         Returns
@@ -692,7 +692,7 @@ class PGProjection(ProjectionHelper):
 
     def ll_to_ortho(self, ll_coords):
         """
-        Gets the `(ortho_row, ortho_column)` coordinates in the ortho-rectified
+        Gets the `(ortho_row, ortho_column)` coordinates in the orthorectified
         system for the provided physical coordinates in `(Lat, Lon)` coordinates.
         In this case, the missing altitude will be set to `reference_hae`, which
         is imperfect.

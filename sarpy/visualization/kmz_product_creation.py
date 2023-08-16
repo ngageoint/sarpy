@@ -179,7 +179,7 @@ def _get_orthoiterator_description(ortho_iterator):
     str
     """
 
-    return 'ortho-rectified image for {2:s}<br>' \
+    return 'orthorectified image for {2:s}<br>' \
            'row resolution - {0:0.2f} meters<br>' \
            'column resolution - {1:0.2f} meters<br>' \
            'remap function - {3:s}'.format(
@@ -619,7 +619,7 @@ def add_sicd_from_ortho_helper(kmz_document, ortho_helper,
                                inc_antenna=True,
                                block_size=10, remap_function=None):
     """
-    Adds for a SICD to the provided open kmz from an ortho-rectification helper.
+    Adds for a SICD to the provided open kmz from an orthorectification helper.
 
     Parameters
     ----------
@@ -660,7 +660,7 @@ def add_sicd_from_ortho_helper(kmz_document, ortho_helper,
                                inc_image_corners=inc_image_corners, inc_valid_data=inc_valid_data,
                                inc_scp=inc_scp, inc_collection_wedge=inc_collection_wedge, inc_antenna=inc_antenna)
 
-    # create the ortho-rectification iterator
+    # create the orthorectification iterator
     if remap_function is None:
         remap_function = NRL()
     calculator = FullResolutionFetcher(
@@ -729,7 +729,7 @@ def add_sicd_to_kmz(kmz_document, reader, index=0, pixel_limit=2048,
     # create our orthorectification helper
     ortho_helper = NearestNeighborMethod(reader, index=index, proj_helper=proj_helper)
     if pixel_limit is not None:
-        # let's see what the ortho-rectified size will be
+        # let's see what the orthorectified size will be
         ortho_size = ortho_helper.get_full_ortho_bounds()
         row_count = ortho_size[1] - ortho_size[0]
         col_count = ortho_size[3] - ortho_size[2]
