@@ -155,11 +155,18 @@ end-of-life are unlikely to be considered.
 Information regarding any discovered bugs would be greatly appreciated, so please
 feel free to create a GitHub issue. If more appropriate, contact wade.c.schwartzkopf@nga.mil.
 
+Integration Branches
+--------------------
+Integration branches (branches prefixed with `integration/`) are used to stage content under
+consideration for inclusion in the `master` branch and future SarPy releases.
+These branches can be used to access features and bug fixes that have not been fully released.
+
 Pull Requests
 -------------
 Efforts at direct contribution to the project are certainly welcome, and please
-feel free to make a pull request. Note that any and all contributions to this 
-project will be released under the MIT license.
+feel free to make a pull request. Pull requests should be authored against the `master`
+branch but may be retargeted to a suitable integration branch upon review.
+Note that any and all contributions to this project will be released under the MIT license.
 
 Software source code previously released under an open source license and then 
 modified by NGA staff is considered a "joint work" (see 17 USC 101); it is partially 
