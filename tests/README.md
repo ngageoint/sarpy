@@ -1,5 +1,5 @@
-Relevance of these unit tests to user:
-======================================
+Relevance of these unit tests to users:
+=======================================
 There is no configuration of sarpy beyond establishing a python environment with 
 dependencies `numpy>=1.11`, `scipy` (no specific know version required). If you 
 hope to read formats for Cosmo Skymed, KompSat, ICEYE, or NISAR, then you also 
@@ -46,6 +46,21 @@ Run the Tests:
 Unit tests can be run using the command `python setup.py test` or `pytest`, if 
 using pytest.
 
+Testing across multiple environments
+------------------------------------
+Prerequisites:
+- [conda package manager](https://docs.conda.io/en/latest/)
+- directory containing SarPy test files
+
+Steps:
+```shell
+conda create -n sarpytest python --y
+conda activate sarpytest
+
+pip install nox
+export SARPY_TEST_PATH=/data/sarpy_test  # set to appropriate dir
+nox
+```
 
 File Sources:
 =============
