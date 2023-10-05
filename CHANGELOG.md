@@ -4,6 +4,13 @@ SarPy follows a continuous release process, so there are fairly frequent release
 Since essentially every (squash merge) commit corresponds to a release, specific 
 release points are not being annotated in GitHub.
 
+## [1.3.59-rc]
+### Added
+- Added `noxfile.py`
+### Fixed
+- Fixed `sarpy.io.kml.add_polygon` coordinate conditioning for older numpy versions
+- Replace unsupported `pillow` constant `Image.ANTIALIAS` with `Image.LANCZOS`
+
 ## [1.3.58] - 2023-08-07
 ### Added
 - Added additional tests to test_sicd_elements_geodata.py
