@@ -1,3 +1,4 @@
+from collections import OrderedDict
 import logging
 import pathlib
 import tempfile
@@ -6,10 +7,26 @@ import pytest
 
 from tests import find_test_data_files
 import sarpy.utils.sicd_to_sidd
+import sarpy.visualization.remap as remap
 
 sicd_files = find_test_data_files(pathlib.Path(__file__).parent / 'utils_file_types.json').get('SICD', [])
 
 logging.basicConfig(level=logging.WARNING)
+
+
+def reset_remap_registry():
+    # Set the remap registry to its default state
+    remap._REMAP_DICT = OrderedDict()
+    remap._DEFAULTS_REGISTERED = False
+    remap._register_defaults()
+
+
+def setup():
+    reset_remap_registry()
+
+
+def teardown():
+    reset_remap_registry()
 
 
 def test_sicd_to_sidd_help(capsys):
