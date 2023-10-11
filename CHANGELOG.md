@@ -10,6 +10,7 @@ release points are not being annotated in GitHub.
 ### Fixed
 - Fixed `sarpy.io.kml.add_polygon` coordinate conditioning for older numpy versions
 - Replace unsupported `pillow` constant `Image.ANTIALIAS` with `Image.LANCZOS`
+- Fix `image_header` reference in `other_nitf.py`
 
 ## [1.3.58] - 2023-08-07
 ### Added
