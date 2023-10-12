@@ -7,6 +7,7 @@ release points are not being annotated in GitHub.
 ## [1.3.59-rc]
 ### Added
 - Added `noxfile.py`
+- Added TOA visualization to `sarpy/visualization/cphd_kmz_product_creation.py`
 - Added unit tests for `sicd_elements/base.py`
 ### Fixed
 - Fixed `sarpy.io.kml.add_polygon` coordinate conditioning for older numpy versions
