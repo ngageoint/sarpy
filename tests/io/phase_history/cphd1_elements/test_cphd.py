@@ -12,6 +12,8 @@ import sarpy.io.phase_history.cphd1_elements.CPHD as sarpy_cphd1
 
 @pytest.fixture(
     params=[
+        "data/syntax-only-cphd-1.0.1-monostatic.xml",
+        "data/syntax-only-cphd-1.0.1-bistatic.xml",
         "data/syntax-only-cphd-1.1.0-monostatic.xml",
         "data/syntax-only-cphd-1.1.0-bistatic.xml",
     ]
@@ -31,7 +33,8 @@ def test_cphdtype_to_from_xml(cphd_xml, tmp_path):
     original_read = sarpy_cphd1.CPHDType.from_xml_file(cphd_xml)
 
     out_file = tmp_path / "read_then_write.xml"
-    out_file.write_text(original_read.to_xml_string(check_validity=True))
+    xmlns_urn = lxml.etree.QName(original_tree.getroot()).namespace
+    out_file.write_text(original_read.to_xml_string(urn=xmlns_urn, check_validity=True))
     reread_tree = lxml.etree.parse(str(out_file))
 
     original_nodes = {original_tree.getelementpath(x) for x in original_tree.iter()}
