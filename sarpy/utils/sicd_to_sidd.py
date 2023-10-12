@@ -11,6 +11,8 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Valkyrie Systems Corporation"
 
 import argparse
+import contextlib
+import copy
 import logging
 import pathlib
 import tempfile
@@ -19,8 +21,16 @@ import numpy as np
 
 from sarpy.io.complex.sicd import SICDReader
 from sarpy.utils import sicd_sidelobe_control, create_product
-from sarpy.processing.sicd.spectral_taper import Taper
-import sarpy.visualization.remap as remap
+from sarpy.visualization import remap
+
+
+@contextlib.contextmanager
+def temporary_remap_registry():
+    current_registry = copy.deepcopy(remap._REMAP_DICT)
+    try:
+        yield
+    finally:
+        remap._REMAP_DICT = current_registry
 
 
 def main(args=None):
@@ -56,7 +66,7 @@ def main(args=None):
     logger = logging.getLogger('sarpy')
     logger.setLevel(level)
 
-    with tempfile.TemporaryDirectory() as tempdir:
+    with tempfile.TemporaryDirectory() as tempdir, temporary_remap_registry():
         tempdir_path = pathlib.Path(tempdir)
 
         input_sicd = args.input_file
