@@ -18,7 +18,6 @@ from sarpy.io.complex.sicd_elements.blocks import LatLonRestrictionType, LatLonA
 
 from .base import DEFAULT_STRICT
 
-
 class LineType(Serializable):
     _fields = ('Endpoint', 'size')
     _required = ('Endpoint', 'size')
@@ -61,6 +60,10 @@ class LineType(Serializable):
         if value is None:
             self._array = None
             return
+
+        # LineType must have at least 2 Elements
+        if len(value) < 2:
+            raise ValueError(f'LineType must have at least 2 endpoints, got {len(value)}')
 
         if isinstance(value, numpy.ndarray):
             is_type = True
@@ -187,6 +190,10 @@ class PolygonType(Serializable):
             self._array = None
             return
 
+        # PolygonType must have at least 3 Vertices
+        if len(value) < 3:
+            raise ValueError(f'PolygonType must have at least 3 vertices, got {len(value)}')
+
         if isinstance(value, numpy.ndarray):
             is_type = True
             for entry in value:
@@ -309,7 +316,7 @@ class GeoInfoType(Serializable):
         Point : List[LatLonRestrictionType]
         Line : List[LineType]
         Polygon : List[PolygonType]
-        GeoInfo : Dict[GeoInfoTpe]
+        GeoInfo : Dict[GeoInfoType]
         kwargs
         """
 
