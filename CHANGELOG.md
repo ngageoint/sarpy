@@ -9,6 +9,7 @@ release points are not being annotated in GitHub.
 - Added `noxfile.py`
 - Added TOA visualization to `sarpy/visualization/cphd_kmz_product_creation.py`
 - Added unit tests for `sicd_elements/base.py`
+- Introduce `conftest.py`, add unit tests for `cphd1_elements/GeoInfo.py`, bugfixes
 ### Fixed
 - Fixed `sarpy.io.kml.add_polygon` coordinate conditioning for older numpy versions
 - Replace unsupported `pillow` constant `Image.ANTIALIAS` with `Image.LANCZOS`
