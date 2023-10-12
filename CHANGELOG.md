@@ -4,6 +4,19 @@ SarPy follows a continuous release process, so there are fairly frequent release
 Since essentially every (squash merge) commit corresponds to a release, specific 
 release points are not being annotated in GitHub.
 
+## [1.3.59-rc]
+### Added
+- Added `noxfile.py`
+- Added TOA visualization to `sarpy/visualization/cphd_kmz_product_creation.py`
+- Added unit tests for `sicd_elements/base.py`
+- Introduce `conftest.py`, add unit tests for `cphd1_elements/GeoInfo.py`
+- Added unit test `cphd1_elements/test_cphd_versions.py`
+- Added 1.0.1 CPHD to `test_cphd.py`
+### Fixed
+- Fixed `sarpy.io.kml.add_polygon` coordinate conditioning for older numpy versions
+- Replace unsupported `pillow` constant `Image.ANTIALIAS` with `Image.LANCZOS`
+- Ensure invalid setter inputs for `LineType` and `PolygonType` throw a ValueError in `GeoInfo.py` and typo fix
+
 ## [1.3.58] - 2023-08-07
 ### Added
 - Added additional tests to test_sicd_elements_geodata.py
