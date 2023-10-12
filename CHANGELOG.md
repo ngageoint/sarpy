@@ -9,10 +9,11 @@ release points are not being annotated in GitHub.
 - Added `noxfile.py`
 - Added TOA visualization to `sarpy/visualization/cphd_kmz_product_creation.py`
 - Added unit tests for `sicd_elements/base.py`
-- Introduce `conftest.py`, add unit tests for `cphd1_elements/GeoInfo.py`, bugfixes
+- Introduce `conftest.py`, add unit tests for `cphd1_elements/GeoInfo.py`
 ### Fixed
 - Fixed `sarpy.io.kml.add_polygon` coordinate conditioning for older numpy versions
 - Replace unsupported `pillow` constant `Image.ANTIALIAS` with `Image.LANCZOS`
+- Ensure invalid setter inputs for `LineType` and `PolygonType` throw a ValueError in `GeoInfo.py` and typo fix
 
 ## [1.3.58] - 2023-08-07
 ### Added
