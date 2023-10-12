@@ -30,13 +30,9 @@ def cphd_file():
         return file_path
 
 
-def test_create_kmz(cphd_file, tmp_path):
-    reader = sarpy.io.phase_history.open(cphd_file)
-    file_stem = 'the_file_stem'
-    cphd_kmz.cphd_create_kmz_view(reader, tmp_path, file_stem=file_stem)
-
-    assert len(list(tmp_path.glob('**/*'))) == 1
-    produced_file = next(tmp_path.glob(file_stem + '*.kmz'))
+def _check_kmz(out_path, file_stem):
+    assert len(list(out_path.glob('**/*'))) == 1
+    produced_file = next(out_path.glob(file_stem + '*.kmz'))
 
     with zipfile.ZipFile(produced_file, 'r') as kmz:
         assert set(kmz.namelist()) == {'doc.kml'}
@@ -44,3 +40,17 @@ def test_create_kmz(cphd_file, tmp_path):
             tree = xml.etree.ElementTree.parse(kml_fd)
             assert tree.getroot().tag == '{http://www.opengis.net/kml/2.2}kml'
 
+
+def test_create_kmz(cphd_file, tmp_path):
+    reader = sarpy.io.phase_history.open(cphd_file)
+    file_stem = 'the_file_stem'
+    cphd_kmz.cphd_create_kmz_view(reader, tmp_path, file_stem=file_stem)
+    _check_kmz(tmp_path, file_stem)
+
+
+def test_create_kmz_no_antenna(cphd_file, tmp_path):
+    reader = sarpy.io.phase_history.open(cphd_file)
+    reader.cphd_meta.Antenna = None
+    file_stem = 'the_file_stem'
+    cphd_kmz.cphd_create_kmz_view(reader, tmp_path, file_stem=file_stem)
+    _check_kmz(tmp_path, file_stem)
