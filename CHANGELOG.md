@@ -12,6 +12,7 @@ release points are not being annotated in GitHub.
 - Introduce `conftest.py`, add unit tests for `cphd1_elements/GeoInfo.py`
 - Added unit test `cphd1_elements/test_cphd_versions.py`
 - Added 1.0.1 CPHD to `test_cphd.py`
+- Added unit tests for `cphd1_elements/Dwell.py`, `cphd1_elements/SupportArray.py`, and `cphd1_elements/TxRcv.py`
 ### Fixed
 - Fixed `sarpy.io.kml.add_polygon` coordinate conditioning for older numpy versions
 - Replace unsupported `pillow` constant `Image.ANTIALIAS` with `Image.LANCZOS`
