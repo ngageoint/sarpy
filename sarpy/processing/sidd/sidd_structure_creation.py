@@ -97,12 +97,10 @@ def _fit_timecoa_poly(proj_helper, bounds):
         pixel_grid[:, :, 1], proj_helper.sicd.Grid, proj_helper.sicd.ImageData, 'col')
     # evaluate the sicd timecoapoly
     timecoa_values = proj_helper.sicd.Grid.TimeCOAPoly(pixel_rows_m, pixel_cols_m)
-    # fit this at the ortho_grid coordinates
     sidd_timecoa_coeffs, residuals, rank, sing_values = two_dim_poly_fit(
-        ortho_grid[:, :, 0] - bounds[0],
-        ortho_grid[:, :, 1] - bounds[2], timecoa_values,
+        pixel_rows_m, pixel_cols_m, timecoa_values,
         x_order=use_order, y_order=use_order, x_scale=1e-3, y_scale=1e-3, rcond=1e-40)
-    logger.warning(
+    logger.info(
         'The time_coa_fit details:\n\t'
         'root mean square residuals = {}\n\t'
         'rank = {}\n\t'
@@ -172,10 +170,9 @@ def _fit_timecoa_poly_v3(proj_helper, bounds):
     timecoa_values = proj_helper.sicd.Grid.TimeCOAPoly(pixel_rows_m, pixel_cols_m)
     # fit this at the ortho_grid coordinates
     sidd_timecoa_coeffs, residuals, rank, sing_values = two_dim_poly_fit(
-        ortho_grid[:, :, 0] - bounds[0],
-        ortho_grid[:, :, 1] - bounds[2], timecoa_values,
+        pixel_rows_m, pixel_cols_m, timecoa_values,
         x_order=use_order, y_order=use_order, x_scale=1e-3, y_scale=1e-3, rcond=1e-40)
-    logger.warning(
+    logger.info(
         'The time_coa_fit details:\n\t'
         'root mean square residuals = {}\n\t'
         'rank = {}\n\t'
@@ -264,7 +261,7 @@ def create_sidd_structure_v3(ortho_helper, bounds, product_class, pixel_type):
                             FilterName='Interpolation',
                             FilterBank=FilterBankType3(
                                 Predefined=PredefinedFilterType3(DatabaseName='BILINEAR')),
-                            Operation='CONVOLUTION')),
+                            Operation='CORRELATION')),
                     Orientation=OrientationType3(ShadowDirection='ARBITRARY')),
                 SharpnessEnhancement=SharpnessEnhancementType3(
                     ModularTransferFunctionEnhancement=FilterType3(
@@ -381,7 +378,7 @@ def create_sidd_structure_v2(ortho_helper, bounds, product_class, pixel_type):
                             FilterName='Interpolation',
                             FilterBank=FilterBankType(
                                 Predefined=PredefinedFilterType(DatabaseName='BILINEAR')),
-                            Operation='CONVOLUTION')),
+                            Operation='CORRELATION')),
                     Orientation=OrientationType2(ShadowDirection='ARBITRARY')),
                 SharpnessEnhancement=SharpnessEnhancementType2(
                     ModularTransferFunctionEnhancement=FilterType(
@@ -553,6 +550,6 @@ def create_sidd_structure(ortho_helper, bounds, product_class, pixel_type, versi
     if version == 1:
         return create_sidd_structure_v1(ortho_helper, bounds, product_class, pixel_type)
     elif version == 2:
-        return create_sidd_structure_v2(ortho_helper, bounds, product_class, pixel_type)    
+        return create_sidd_structure_v2(ortho_helper, bounds, product_class, pixel_type)
     else:
         return create_sidd_structure_v3(ortho_helper, bounds, product_class, pixel_type)
