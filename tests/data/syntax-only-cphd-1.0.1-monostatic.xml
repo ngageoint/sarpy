@@ -1,9 +1,9 @@
-<CPHD xmlns="http://api.nsgreg.nga.mil/schema/cphd/1.1.0">
+<CPHD xmlns="http://api.nsgreg.nga.mil/schema/cphd/1.0.1">
   <CollectionID>
-    <CollectorName>SyntheticCollector</CollectorName>
-    <IlluminatorName>SyntheticIlluminator</IlluminatorName>
+    <CollectorName>Synthetic</CollectorName>
+    <IlluminatorName>Synthetic</IlluminatorName>
     <CoreName>SyntheticCore</CoreName>
-    <CollectType>BISTATIC</CollectType>
+    <CollectType>MONOSTATIC</CollectType>
     <RadarMode>
       <ModeType>SPOTLIGHT</ModeType>
       <ModeID>MadeUpId</ModeID>
@@ -55,16 +55,18 @@
       </LLH>
     </IARP>
     <ReferenceSurface>
-      <HAE>
-        <uIAXLL>
-          <Lat>0.123</Lat>
-          <Lon>0.456</Lon>
-        </uIAXLL>
-        <uIAYLL>
-          <Lat>-0.123</Lat>
-          <Lon>-0.456</Lon>
-        </uIAYLL>
-      </HAE>
+      <Planar>
+        <uIAX>
+          <X>0.0</X>
+          <Y>-0.17364817766693033</Y>
+          <Z>-0.9848077530122081</Z>
+        </uIAX>
+        <uIAY>
+          <X>0.0</X>
+          <Y>0.9848077530122081</Y>
+          <Z>-0.17364817766693033</Z>
+        </uIAY>
+      </Planar>
     </ReferenceSurface>
     <ImageArea>
       <X1Y1>
@@ -266,18 +268,8 @@
       <SRPFixed>true</SRPFixed>
       <SignalNormal>false</SignalNormal>
       <Polarization>
-        <TxPol>S</TxPol>
-        <RcvPol>S</RcvPol>
-        <TxPolRef>
-          <AmpH>0.123</AmpH>
-          <AmpV>0.987</AmpV>
-          <PhaseV>0.432</PhaseV>
-        </TxPolRef>
-        <RcvPolRef>
-          <AmpH>0.234</AmpH>
-          <AmpV>0.876</AmpV>
-          <PhaseV>-0.432</PhaseV>
-        </RcvPolRef>
+        <TxPol>V</TxPol>
+        <RcvPol>V</RcvPol>
       </Polarization>
       <FxC>10000000000.0</FxC>
       <FxBW>66703821.90500069</FxBW>
@@ -295,8 +287,6 @@
       <DwellTimes>
         <CODId>1</CODId>
         <DwellId>1</DwellId>
-        <DTAId>dta_id0</DTAId>
-        <UseDTA>false</UseDTA>
       </DwellTimes>
       <ImageArea>
         <X1Y1>
@@ -480,40 +470,6 @@
       <Size>1</Size>
       <Format>I8</Format>
     </SIGNAL>
-    <TxAntenna>
-      <TxACX>
-        <Offset>16</Offset>
-        <Size>3</Size>
-        <Format>X=F8;Y=F8;Z=F8;</Format>
-      </TxACX>
-      <TxACY>
-        <Offset>19</Offset>
-        <Size>3</Size>
-        <Format>X=F8;Y=F8;Z=F8;</Format>
-      </TxACY>
-      <TxEB>
-        <Offset>22</Offset>
-        <Size>2</Size>
-        <Format>DCX=F8;DCY=F8;</Format>
-      </TxEB>
-    </TxAntenna>
-    <RcvAntenna>
-      <RcvACX>
-        <Offset>35</Offset>
-        <Size>3</Size>
-        <Format>X=F8;Y=F8;Z=F8;</Format>
-      </RcvACX>
-      <RcvACY>
-        <Offset>38</Offset>
-        <Size>3</Size>
-        <Format>X=F8;Y=F8;Z=F8;</Format>
-      </RcvACY>
-      <RcvEB>
-        <Offset>41</Offset>
-        <Size>2</Size>
-        <Format>DCX=F8;DCY=F8;</Format>
-      </RcvEB>
-    </RcvAntenna>
     <AddedPVP>
         <Name>added-pvp0</Name>
         <Offset>51</Offset>
@@ -569,15 +525,6 @@
       <XSS>2.0</XSS>
       <YSS>2.0</YSS>
     </AntGainPhase>
-    <DwellTimeArray>
-      <Identifier>dta_id0</Identifier>
-      <ElementFormat>COD=F4;DT=F4;</ElementFormat>
-      <X0>-1.1</X0>
-      <Y0>-1.2</Y0>
-      <XSS>2.3</XSS>
-      <YSS>2.4</YSS>
-      <NODATA>deadbeef12345678</NODATA>
-    </DwellTimeArray>
     <AddedSupportArray>
       <Identifier>added_support_array0</Identifier>
       <ElementFormat>COD=F4;DT=F4;</ElementFormat>
@@ -639,56 +586,28 @@
     <ReferenceTime>0.9425879416269674</ReferenceTime>
     <SRPCODTime>0.8863722900782136</SRPCODTime>
     <SRPDwellTime>1.5727452910305109</SRPDwellTime>
-    <Bistatic>
-      <AzimuthAngle>123.456</AzimuthAngle>
-      <AzimuthAngleRate>0.123</AzimuthAngleRate>
-      <BistaticAngle>54.321</BistaticAngle>
-      <BistaticAngleRate>-0.321</BistaticAngleRate>
-      <GrazeAngle>32.1</GrazeAngle>
-      <TwistAngle>76.54</TwistAngle>
-      <SlopeAngle>54.32</SlopeAngle>
-      <LayoverAngle>234.567</LayoverAngle>
-      <TxPlatform>
-        <Time>0.987</Time>
-        <Pos>
-          <X>7228728.557469463</X>
-          <Y>255412.1358540885</Y>
-          <Z>1450829.6595842484</Z>
-        </Pos>
-        <Vel>
-          <X>340.0816683698231</X>
-          <Y>-7332.833245191265</Y>
-          <Z>-403.589514541315</Z>
-        </Vel>
-        <SideOfTrack>L</SideOfTrack>
-        <SlantRange>1701072.6198223345</SlantRange>
-        <GroundRange>1282240.272109871</GroundRange>
-        <DopplerConeAngle>80.01149733418877</DopplerConeAngle>
-        <GrazeAngle>30.002148755182244</GrazeAngle>
-        <IncidenceAngle>59.99785124481775</IncidenceAngle>
-        <AzimuthAngle>9.984361845235355</AzimuthAngle>
-      </TxPlatform>
-      <RcvPlatform>
-        <Time>0.1987</Time>
-        <Pos>
-          <X>-7228728.557469463</X>
-          <Y>-255412.1358540885</Y>
-          <Z>-1450829.6595842484</Z>
-        </Pos>
-        <Vel>
-          <X>-340.0816683698231</X>
-          <Y>7332.833245191265</Y>
-          <Z>403.589514541315</Z>
-        </Vel>
-        <SideOfTrack>R</SideOfTrack>
-        <SlantRange>701072.6198223345</SlantRange>
-        <GroundRange>282240.272109871</GroundRange>
-        <DopplerConeAngle>0.01149733418877</DopplerConeAngle>
-        <GrazeAngle>0.002148755182244</GrazeAngle>
-        <IncidenceAngle>5.99785124481775</IncidenceAngle>
-        <AzimuthAngle>0.984361845235355</AzimuthAngle>
-      </RcvPlatform>
-    </Bistatic>
+    <Monostatic>
+      <ARPPos>
+        <X>7228728.557469463</X>
+        <Y>255412.1358540885</Y>
+        <Z>1450829.6595842484</Z>
+      </ARPPos>
+      <ARPVel>
+        <X>340.0816683698231</X>
+        <Y>-7332.833245191265</Y>
+        <Z>-403.589514541315</Z>
+      </ARPVel>
+      <SideOfTrack>L</SideOfTrack>
+      <SlantRange>1701072.6198223345</SlantRange>
+      <GroundRange>1282240.272109871</GroundRange>
+      <DopplerConeAngle>80.01149733418877</DopplerConeAngle>
+      <GrazeAngle>30.002148755182244</GrazeAngle>
+      <IncidenceAngle>59.99785124481775</IncidenceAngle>
+      <AzimuthAngle>9.984361845235355</AzimuthAngle>
+      <TwistAngle>8.970708323523684</TwistAngle>
+      <SlopeAngle>31.19451807159041</SlopeAngle>
+      <LayoverAngle>352.4634376297167</LayoverAngle>
+    </Monostatic>
   </ReferenceGeometry>
   <Antenna>
     <NumACFs>2</NumACFs>
@@ -748,7 +667,6 @@
           <Coef exponent1="5">3.304991701509156e-16</Coef>
         </Z>
       </YAxisPoly>
-      <UseACFPVP>true</UseACFPVP>
     </AntCoordFrame>
     <AntCoordFrame>
       <Identifier>receive</Identifier>
@@ -828,23 +746,10 @@
       <FreqZero>10000000000.0</FreqZero>
       <GainZero>12.34</GainZero>
       <EBFreqShift>true</EBFreqShift>
-      <EBFreqShiftSF>
-        <DCXSF>0.123</DCXSF>
-        <DCYSF>0.456</DCYSF>
-      </EBFreqShiftSF>
       <MLFreqDilation>true</MLFreqDilation>
-      <MLFreqDilationSF>
-        <DCXSF>0.123</DCXSF>
-        <DCYSF>0.456</DCYSF>
-      </MLFreqDilationSF>
       <GainBSPoly order1="0">
         <Coef exponent1="0">0.0</Coef>
       </GainBSPoly>
-      <AntPolRef>
-        <AmpX>0.234</AmpX>
-        <AmpY>0.765</AmpY>
-        <PhaseY>-0.234</PhaseY>
-      </AntPolRef>
       <EB>
         <DCXPoly order1="0">
           <Coef exponent1="0">0.0</Coef>
@@ -852,7 +757,6 @@
         <DCYPoly order1="0">
           <Coef exponent1="0">0.0</Coef>
         </DCYPoly>
-        <UseEBPVP>false</UseEBPVP>
       </EB>
       <Array>
         <GainPoly order1="8" order2="8">
@@ -941,7 +845,6 @@
         <PhasePoly order1="0" order2="0">
           <Coef exponent1="0" exponent2="0">0.0</Coef>
         </PhasePoly>
-        <AntGPId>transmit_array</AntGPId>
       </Array>
       <Element>
         <GainPoly order1="0" order2="0">
@@ -950,7 +853,6 @@
         <PhasePoly order1="0" order2="0">
           <Coef exponent1="0" exponent2="0">0.0</Coef>
         </PhasePoly>
-        <AntGPId>transmit_element</AntGPId>
       </Element>
       <GainPhaseArray>
         <Freq>10000000000.0</Freq>
@@ -1060,7 +962,6 @@
         <PhasePoly order1="0" order2="0">
           <Coef exponent1="0" exponent2="0">0.0</Coef>
         </PhasePoly>
-        <AntGPId>receive_array</AntGPId>
       </Array>
       <Element>
         <GainPoly order1="0" order2="0">
@@ -1069,7 +970,6 @@
         <PhasePoly order1="0" order2="0">
           <Coef exponent1="0" exponent2="0">0.0</Coef>
         </PhasePoly>
-        <AntGPId>receive_element</AntGPId>
       </Element>
       <GainPhaseArray>
         <Freq>10000000000.0</Freq>
@@ -1085,8 +985,8 @@
       <PulseLength>2.6681528762000275e-06</PulseLength>
       <RFBandwidth>66703821.90500069</RFBandwidth>
       <FreqCenter>10000000000.0</FreqCenter>
-      <LFMRate>0.0</LFMRate>
-      <Polarization>S</Polarization>
+      <LFMRate>25000000000000.0</LFMRate>
+      <Polarization>V</Polarization>
       <Power>1.23456789</Power>
     </TxWFParameters>
     <NumRcvs>1</NumRcvs>
@@ -1096,92 +996,74 @@
       <SampleRate>88227922.92431946</SampleRate>
       <IFFilterBW>80875596.01395951</IFFilterBW>
       <FreqCenter>10036761634.5518</FreqCenter>
-      <LFMRate>0.0</LFMRate>
-      <Polarization>S</Polarization>
+      <LFMRate>25000000000000.0</LFMRate>
+      <Polarization>V</Polarization>
       <PathGain>5.678</PathGain>
     </RcvParameters>
   </TxRcv>
   <ErrorParameters>
-    <Bistatic>
-      <TxPlatform>
-        <PosVelErr>
-          <Frame>RIC_ECF</Frame>
-          <P1>1.1</P1>
-          <P2>1.2</P2>
-          <P3>1.3</P3>
-          <V1>1.4</V1>
-          <V2>1.5</V2>
-          <V3>1.6</V3>
-          <CorrCoefs>
-            <P1P2>0.01</P1P2>
-            <P1P3>0.02</P1P3>
-            <P1V1>0.03</P1V1>
-            <P1V2>0.04</P1V2>
-            <P1V3>0.05</P1V3>
-            <P2P3>0.06</P2P3>
-            <P2V1>0.07</P2V1>
-            <P2V2>0.08</P2V2>
-            <P2V3>0.09</P2V3>
-            <P3V1>0.10</P3V1>
-            <P3V2>0.11</P3V2>
-            <P3V3>0.12</P3V3>
-            <V1V2>0.13</V1V2>
-            <V1V3>0.14</V1V3>
-            <V2V3>0.15</V2V3>
-          </CorrCoefs>
-          <PositionDecorr>
-            <CorrCoefZero>0.123</CorrCoefZero>
-            <DecorrRate>0.456</DecorrRate>
-          </PositionDecorr>
-        </PosVelErr>
-        <RadarSensor>
-          <DelayBias>1.23456</DelayBias>
-          <ClockFreqSF>2.345</ClockFreqSF>
-          <CollectionStartTime>3.456</CollectionStartTime>
-        </RadarSensor>
-      </TxPlatform>
-      <RcvPlatform>
-        <PosVelErr>
-          <Frame>RIC_ECI</Frame>
-          <P1>1.9</P1>
-          <P2>1.8</P2>
-          <P3>1.7</P3>
-          <V1>1.6</V1>
-          <V2>1.5</V2>
-          <V3>1.4</V3>
-          <CorrCoefs>
-            <P1P2>0.012</P1P2>
-            <P1P3>0.022</P1P3>
-            <P1V1>0.032</P1V1>
-            <P1V2>0.042</P1V2>
-            <P1V3>0.052</P1V3>
-            <P2P3>0.062</P2P3>
-            <P2V1>0.072</P2V1>
-            <P2V2>0.082</P2V2>
-            <P2V3>0.092</P2V3>
-            <P3V1>0.102</P3V1>
-            <P3V2>0.112</P3V2>
-            <P3V3>0.122</P3V3>
-            <V1V2>0.132</V1V2>
-            <V1V3>0.142</V1V3>
-            <V2V3>0.152</V2V3>
-          </CorrCoefs>
-          <PositionDecorr>
-            <CorrCoefZero>0.123</CorrCoefZero>
-            <DecorrRate>0.456</DecorrRate>
-          </PositionDecorr>
-        </PosVelErr>
-        <RadarSensor>
-          <DelayBias>1.23456</DelayBias>
-          <ClockFreqSF>2.345</ClockFreqSF>
-          <CollectionStartTime>3.456</CollectionStartTime>
-        </RadarSensor>
-      </RcvPlatform>
+    <Monostatic>
+      <PosVelErr>
+        <Frame>ECF</Frame>
+        <P1>1.1</P1>
+        <P2>1.2</P2>
+        <P3>1.3</P3>
+        <V1>1.4</V1>
+        <V2>1.5</V2>
+        <V3>1.6</V3>
+        <CorrCoefs>
+          <P1P2>0.01</P1P2>
+          <P1P3>0.02</P1P3>
+          <P1V1>0.03</P1V1>
+          <P1V2>0.04</P1V2>
+          <P1V3>0.05</P1V3>
+          <P2P3>0.06</P2P3>
+          <P2V1>0.07</P2V1>
+          <P2V2>0.08</P2V2>
+          <P2V3>0.09</P2V3>
+          <P3V1>0.10</P3V1>
+          <P3V2>0.11</P3V2>
+          <P3V3>0.12</P3V3>
+          <V1V2>0.13</V1V2>
+          <V1V3>0.14</V1V3>
+          <V2V3>0.15</V2V3>
+        </CorrCoefs>
+        <PositionDecorr>
+          <CorrCoefZero>0.123</CorrCoefZero>
+          <DecorrRate>0.456</DecorrRate>
+        </PositionDecorr>
+      </PosVelErr>
+      <RadarSensor>
+        <RangeBias>1.23456</RangeBias>
+        <ClockFreqSF>2.345</ClockFreqSF>
+        <CollectionStartTime>3.456</CollectionStartTime>
+        <RangeBiasDecorr>
+          <CorrCoefZero>0.123</CorrCoefZero>
+          <DecorrRate>0.456</DecorrRate>
+        </RangeBiasDecorr>
+      </RadarSensor>
+      <TropoError>
+        <TropoRangeVertical>1.111</TropoRangeVertical>
+        <TropoRangeSlant>2.222</TropoRangeSlant>
+        <TropoRangeDecorr>
+          <CorrCoefZero>0.123</CorrCoefZero>
+          <DecorrRate>0.456</DecorrRate>
+        </TropoRangeDecorr>
+      </TropoError>
+      <IonoError>
+        <IonoRangeVertical>1.234</IonoRangeVertical>
+        <IonoRangeRateVertical>2.234</IonoRangeRateVertical>
+        <IonoRgRgRateCC>0.234</IonoRgRgRateCC>
+        <IonoRangeVertDecorr>
+          <CorrCoefZero>0.123</CorrCoefZero>
+          <DecorrRate>0.456</DecorrRate>
+        </IonoRangeVertDecorr>
+      </IonoError>
       <AddedParameters>
         <Parameter name="error-param-added0">addedparam0</Parameter>
         <Parameter name="error-param-added1">addedparam1</Parameter>
       </AddedParameters>
-    </Bistatic>
+    </Monostatic>
   </ErrorParameters>
   <ProductInfo>
     <Profile>profile-identifier</Profile>  

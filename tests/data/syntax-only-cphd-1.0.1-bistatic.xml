@@ -1,4 +1,4 @@
-<CPHD xmlns="http://api.nsgreg.nga.mil/schema/cphd/1.1.0">
+<CPHD xmlns="http://api.nsgreg.nga.mil/schema/cphd/1.0.1">
   <CollectionID>
     <CollectorName>SyntheticCollector</CollectorName>
     <IlluminatorName>SyntheticIlluminator</IlluminatorName>
@@ -266,18 +266,8 @@
       <SRPFixed>true</SRPFixed>
       <SignalNormal>false</SignalNormal>
       <Polarization>
-        <TxPol>S</TxPol>
-        <RcvPol>S</RcvPol>
-        <TxPolRef>
-          <AmpH>0.123</AmpH>
-          <AmpV>0.987</AmpV>
-          <PhaseV>0.432</PhaseV>
-        </TxPolRef>
-        <RcvPolRef>
-          <AmpH>0.234</AmpH>
-          <AmpV>0.876</AmpV>
-          <PhaseV>-0.432</PhaseV>
-        </RcvPolRef>
+        <TxPol>V</TxPol>
+        <RcvPol>V</RcvPol>
       </Polarization>
       <FxC>10000000000.0</FxC>
       <FxBW>66703821.90500069</FxBW>
@@ -295,8 +285,6 @@
       <DwellTimes>
         <CODId>1</CODId>
         <DwellId>1</DwellId>
-        <DTAId>dta_id0</DTAId>
-        <UseDTA>false</UseDTA>
       </DwellTimes>
       <ImageArea>
         <X1Y1>
@@ -480,40 +468,6 @@
       <Size>1</Size>
       <Format>I8</Format>
     </SIGNAL>
-    <TxAntenna>
-      <TxACX>
-        <Offset>16</Offset>
-        <Size>3</Size>
-        <Format>X=F8;Y=F8;Z=F8;</Format>
-      </TxACX>
-      <TxACY>
-        <Offset>19</Offset>
-        <Size>3</Size>
-        <Format>X=F8;Y=F8;Z=F8;</Format>
-      </TxACY>
-      <TxEB>
-        <Offset>22</Offset>
-        <Size>2</Size>
-        <Format>DCX=F8;DCY=F8;</Format>
-      </TxEB>
-    </TxAntenna>
-    <RcvAntenna>
-      <RcvACX>
-        <Offset>35</Offset>
-        <Size>3</Size>
-        <Format>X=F8;Y=F8;Z=F8;</Format>
-      </RcvACX>
-      <RcvACY>
-        <Offset>38</Offset>
-        <Size>3</Size>
-        <Format>X=F8;Y=F8;Z=F8;</Format>
-      </RcvACY>
-      <RcvEB>
-        <Offset>41</Offset>
-        <Size>2</Size>
-        <Format>DCX=F8;DCY=F8;</Format>
-      </RcvEB>
-    </RcvAntenna>
     <AddedPVP>
         <Name>added-pvp0</Name>
         <Offset>51</Offset>
@@ -569,15 +523,6 @@
       <XSS>2.0</XSS>
       <YSS>2.0</YSS>
     </AntGainPhase>
-    <DwellTimeArray>
-      <Identifier>dta_id0</Identifier>
-      <ElementFormat>COD=F4;DT=F4;</ElementFormat>
-      <X0>-1.1</X0>
-      <Y0>-1.2</Y0>
-      <XSS>2.3</XSS>
-      <YSS>2.4</YSS>
-      <NODATA>deadbeef12345678</NODATA>
-    </DwellTimeArray>
     <AddedSupportArray>
       <Identifier>added_support_array0</Identifier>
       <ElementFormat>COD=F4;DT=F4;</ElementFormat>
@@ -748,7 +693,6 @@
           <Coef exponent1="5">3.304991701509156e-16</Coef>
         </Z>
       </YAxisPoly>
-      <UseACFPVP>true</UseACFPVP>
     </AntCoordFrame>
     <AntCoordFrame>
       <Identifier>receive</Identifier>
@@ -828,23 +772,10 @@
       <FreqZero>10000000000.0</FreqZero>
       <GainZero>12.34</GainZero>
       <EBFreqShift>true</EBFreqShift>
-      <EBFreqShiftSF>
-        <DCXSF>0.123</DCXSF>
-        <DCYSF>0.456</DCYSF>
-      </EBFreqShiftSF>
       <MLFreqDilation>true</MLFreqDilation>
-      <MLFreqDilationSF>
-        <DCXSF>0.123</DCXSF>
-        <DCYSF>0.456</DCYSF>
-      </MLFreqDilationSF>
       <GainBSPoly order1="0">
         <Coef exponent1="0">0.0</Coef>
       </GainBSPoly>
-      <AntPolRef>
-        <AmpX>0.234</AmpX>
-        <AmpY>0.765</AmpY>
-        <PhaseY>-0.234</PhaseY>
-      </AntPolRef>
       <EB>
         <DCXPoly order1="0">
           <Coef exponent1="0">0.0</Coef>
@@ -852,7 +783,6 @@
         <DCYPoly order1="0">
           <Coef exponent1="0">0.0</Coef>
         </DCYPoly>
-        <UseEBPVP>false</UseEBPVP>
       </EB>
       <Array>
         <GainPoly order1="8" order2="8">
@@ -941,7 +871,6 @@
         <PhasePoly order1="0" order2="0">
           <Coef exponent1="0" exponent2="0">0.0</Coef>
         </PhasePoly>
-        <AntGPId>transmit_array</AntGPId>
       </Array>
       <Element>
         <GainPoly order1="0" order2="0">
@@ -950,7 +879,6 @@
         <PhasePoly order1="0" order2="0">
           <Coef exponent1="0" exponent2="0">0.0</Coef>
         </PhasePoly>
-        <AntGPId>transmit_element</AntGPId>
       </Element>
       <GainPhaseArray>
         <Freq>10000000000.0</Freq>
@@ -1060,7 +988,6 @@
         <PhasePoly order1="0" order2="0">
           <Coef exponent1="0" exponent2="0">0.0</Coef>
         </PhasePoly>
-        <AntGPId>receive_array</AntGPId>
       </Array>
       <Element>
         <GainPoly order1="0" order2="0">
@@ -1069,7 +996,6 @@
         <PhasePoly order1="0" order2="0">
           <Coef exponent1="0" exponent2="0">0.0</Coef>
         </PhasePoly>
-        <AntGPId>receive_element</AntGPId>
       </Element>
       <GainPhaseArray>
         <Freq>10000000000.0</Freq>
@@ -1085,8 +1011,8 @@
       <PulseLength>2.6681528762000275e-06</PulseLength>
       <RFBandwidth>66703821.90500069</RFBandwidth>
       <FreqCenter>10000000000.0</FreqCenter>
-      <LFMRate>0.0</LFMRate>
-      <Polarization>S</Polarization>
+      <LFMRate>25000000000000.0</LFMRate>
+      <Polarization>V</Polarization>
       <Power>1.23456789</Power>
     </TxWFParameters>
     <NumRcvs>1</NumRcvs>
@@ -1096,8 +1022,8 @@
       <SampleRate>88227922.92431946</SampleRate>
       <IFFilterBW>80875596.01395951</IFFilterBW>
       <FreqCenter>10036761634.5518</FreqCenter>
-      <LFMRate>0.0</LFMRate>
-      <Polarization>S</Polarization>
+      <LFMRate>25000000000000.0</LFMRate>
+      <Polarization>V</Polarization>
       <PathGain>5.678</PathGain>
     </RcvParameters>
   </TxRcv>
@@ -1135,7 +1061,6 @@
           </PositionDecorr>
         </PosVelErr>
         <RadarSensor>
-          <DelayBias>1.23456</DelayBias>
           <ClockFreqSF>2.345</ClockFreqSF>
           <CollectionStartTime>3.456</CollectionStartTime>
         </RadarSensor>
@@ -1172,7 +1097,6 @@
           </PositionDecorr>
         </PosVelErr>
         <RadarSensor>
-          <DelayBias>1.23456</DelayBias>
           <ClockFreqSF>2.345</ClockFreqSF>
           <CollectionStartTime>3.456</CollectionStartTime>
         </RadarSensor>
