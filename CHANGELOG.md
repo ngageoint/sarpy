@@ -12,10 +12,16 @@ release points are not being annotated in GitHub.
 - Introduce `conftest.py`, add unit tests for `cphd1_elements/GeoInfo.py`
 - Added unit test `cphd1_elements/test_cphd_versions.py`
 - Added 1.0.1 CPHD to `test_cphd.py`
+- Added unit test `cphd1_elements/test_cphd_versions.py`
+- Added unit test `cphd1_elements/test_cphd1_elements_antenna.py`
+- Added unit test `cphd1_elements/test_cphd1_elements_data.py`
 ### Fixed
 - Fixed `sarpy.io.kml.add_polygon` coordinate conditioning for older numpy versions
 - Replace unsupported `pillow` constant `Image.ANTIALIAS` with `Image.LANCZOS`
 - Ensure invalid setter inputs for `LineType` and `PolygonType` throw a ValueError in `GeoInfo.py` and typo fix
+- Updated the size calculators of `Data.DataType` to return 0 when channel data or support array data is not populated
+- Add `version_required` logic to `Antenna.AntennaType` to check versions for the `AntennaPatternType` input
+- Fix the return value in `Antenna.AntennaPatternType.version_required()` to return the max instead of a tuple
 
 ## [1.3.58] - 2023-08-07
 ### Added
