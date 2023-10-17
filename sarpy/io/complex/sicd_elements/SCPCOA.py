@@ -120,10 +120,13 @@ class GeometryCalculator(object):
 
     @property
     def SquintAngle(self) -> float:
+        # Note: squint angle is not defined in the SICD DIDD, but it is defined in the SIDD DIDD v2 (7.5.4)
+        #     squint_angle = arccos(-Xs_hat dot Va_hat), where "hat" means unit vector.
+        # In this code, uLOS = -xs_hat, so the minus sign is omitted from the argument of the arccos function.
+        # It is also stated in table 4.2.5 that "Left-look is positive, right-look is negative".
         arp_vel_proj = self._make_unit(self.uARP_vel - self.uARP_vel.dot(self.uARP)*self.uARP)
         los_proj = self._make_unit(self.uLOS - self.uLOS.dot(self.uARP)*self.uARP)
-        return float(numpy.rad2deg(
-            numpy.arctan2(numpy.cross(los_proj, arp_vel_proj).dot(self.uARP), arp_vel_proj.dot(los_proj))))
+        return float(self.look * numpy.rad2deg(numpy.arccos(los_proj.dot(arp_vel_proj))))
 
     @property
     def SlopeAng(self) -> float:
