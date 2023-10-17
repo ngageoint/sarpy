@@ -12,6 +12,7 @@ release points are not being annotated in GitHub.
 - Introduce `conftest.py`, add unit tests for `cphd1_elements/GeoInfo.py`
 - Added unit test `cphd1_elements/test_cphd_versions.py`
 - Added 1.0.1 CPHD to `test_cphd.py`
+- Added unit tests for `cphd1_elements/Dwell.py`, `cphd1_elements/SupportArray.py`, and `cphd1_elements/TxRcv.py`
 - Added `sarpy/processing/sicd/spectral_taper.py` and `sarpy/utils/sicd_sidelobe_control.py`
 - Added `--remap` argument to `sarpy/utils/create_product.py`
 - Added `sarpy/utils/sicd_to_sidd.py`
@@ -20,6 +21,7 @@ release points are not being annotated in GitHub.
 ### Fixed
 - Fixed `sarpy.io.kml.add_polygon` coordinate conditioning for older numpy versions
 - Replace unsupported `pillow` constant `Image.ANTIALIAS` with `Image.LANCZOS`
+- Fix `image_header` reference in `other_nitf.py`
 - Ensure invalid setter inputs for `LineType` and `PolygonType` throw a ValueError in `GeoInfo.py` and typo fix
 - Fixed SquintAngle calculation in `sarpy/io/complex/sicd_elements/SCPCOA.py`
 - Fix incorrectly assigned Graze in SIDD 2.0.0 and SIDD 3.0.0 ExploitationFeatures
