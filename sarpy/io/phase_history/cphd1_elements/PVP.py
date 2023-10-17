@@ -506,7 +506,7 @@ class PVPType(Serializable):
                 out += val.Size*8
         for fld in ['TxAntenna', 'RcvAntenna']:
             val = getattr(self, fld)
-            assert(isinstance(val, TxAntennaType))
+            assert isinstance(val, (TxAntennaType, RcvAntennaType))
             if val is not None:
                 out += (3 + 3 + 2)*8
         if self.AddedPVP is not None:
