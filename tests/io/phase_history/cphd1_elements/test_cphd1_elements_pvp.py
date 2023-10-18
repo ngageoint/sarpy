@@ -52,6 +52,7 @@ def test_pvp_pvptype():
 
     assert pvp_type.get_offset_size_format('RcvEB') == (376, 16, 'd')
     pvp_type.RcvAntenna = None
+    assert pvp_type.get_size() == 336
     assert pvp_type.get_offset_size_format('RcvEB') is None
 
     assert pvp_type.get_offset_size_format('TxACX') == (264, 24, 'd')
