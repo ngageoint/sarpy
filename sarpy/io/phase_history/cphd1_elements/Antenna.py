@@ -581,7 +581,7 @@ class AntPatternType(Serializable):
         if self.EBFreqShiftSF is not None or \
                 self.MLFreqDilationSF is not None or \
                 self.AntPolRef is not None:
-            required = (required, (1, 1, 0))
+            required = max(required, (1, 1, 0))
         return required
 
 
@@ -668,4 +668,8 @@ class AntennaType(Serializable):
         if self.AntCoordFrame is not None:
             for entry in self.AntCoordFrame:
                 required = max(required, entry.version_required())
+        if self.AntPattern is not None:
+            for entry in self.AntPattern:
+                required = max(required, entry.version_required())
+
         return required
