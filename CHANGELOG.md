@@ -6,31 +6,25 @@ release points are not being annotated in GitHub.
 
 ## [1.3.59-rc]
 ### Added
-- Added `noxfile.py`
-- Added TOA visualization to `sarpy/visualization/cphd_kmz_product_creation.py`
-- Added unit tests for `sicd_elements/base.py`
-- Introduce `conftest.py`, add unit tests for `cphd1_elements/GeoInfo.py`
-- Added unit test `cphd1_elements/test_cphd_versions.py`
-- Added 1.0.1 CPHD to `test_cphd.py`
-- Added unit test `cphd1_elements/test_cphd_versions.py`
-- Added unit tests for `cphd1_elements/Dwell.py`, `cphd1_elements/SupportArray.py`, and `cphd1_elements/TxRcv.py`
-- Added `sarpy/processing/sicd/spectral_taper.py` and `sarpy/utils/sicd_sidelobe_control.py`
-- Added `--remap` argument to `sarpy/utils/create_product.py`
-- Added `sarpy/utils/sicd_to_sidd.py`
-- Added `GDM` to `sarpy/visualization/remap.py`
-- Added unit test `cphd1_elements/test_cphd1_elements_antenna.py`
-- Added unit test `cphd1_elements/test_cphd1_elements_data.py`
+- `noxfile.py`
+- TOA visualization to `sarpy/visualization/cphd_kmz_product_creation.py`
+- Unit tests for `sarpy/tests/io/complex/sicd_elements`
+- `sarpy/tests/io/phase_history/cphd1_elements/conftest.py`
+- Unit tests for `sarpy/tests/io/phase_history/cphd1_elements`
+- CPHD 1.0.1 xml examples to `sarpy/tests/data`
+- `sarpy/processing/sicd/spectral_taper.py` and `sarpy/utils/sicd_sidelobe_control.py`
+- `--remap` argument to `sarpy/utils/create_product.py`
+- `sarpy/utils/sicd_to_sidd.py`
+- `GDM` to `sarpy/visualization/remap.py`
 ### Fixed
-- Fixed `sarpy.io.kml.add_polygon` coordinate conditioning for older numpy versions
+- `sarpy.io.kml.add_polygon` coordinate conditioning for older numpy versions
 - Replace unsupported `pillow` constant `Image.ANTIALIAS` with `Image.LANCZOS`
-- Ensure invalid setter inputs for `LineType` and `PolygonType` throw a ValueError in `GeoInfo.py` and typo fix
-- Fixed SquintAngle calculation in `sarpy/io/complex/sicd_elements/SCPCOA.py`
-- Fix incorrectly assigned Graze in SIDD 2.0.0 and SIDD 3.0.0 ExploitationFeatures
-- Fix SIDD `TimeCOAPoly` calculation
-- Set SIDD Display//Interpolation/Operation values to CORRELATION
-- Updated the size calculators of `Data.DataType` to return 0 when channel data or support array data is not populated
-- Add `version_required` logic to `Antenna.AntennaType` to check versions for the `AntennaPatternType` input
-- Fix the return value in `Antenna.AntennaPatternType.version_required()` to return the max instead of a tuple
+- `sarpy/io/phase_history/cphd1_elements/GeoInfo.py` setters
+- SquintAngle calculation in `sarpy/io/complex/sicd_elements/SCPCOA.py`
+- Incorrectly assigned Graze in SIDD 2.0.0 and SIDD 3.0.0 ExploitationFeatures
+- SIDD `TimeCOAPoly` calculation
+- Set SIDD Display/Interpolation/Operation values to CORRELATION
+- `sarpy.io.phase_history.cphd1_elements.PVP.PVPType.get_size()`
 
 ## [1.3.58] - 2023-08-07
 ### Added
