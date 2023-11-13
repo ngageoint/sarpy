@@ -25,6 +25,7 @@ release points are not being annotated in GitHub.
 - SIDD `TimeCOAPoly` calculation
 - Set SIDD Display/Interpolation/Operation values to CORRELATION
 - `sarpy.io.phase_history.cphd1_elements.PVP.PVPType.get_size()`
+- Properly close file objects in NITF and CPHD writers
 
 ## [1.3.58] - 2023-08-07
 ### Added
