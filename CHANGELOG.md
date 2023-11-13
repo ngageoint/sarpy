@@ -29,6 +29,7 @@ release points are not being annotated in GitHub.
 - SICD file reading in `sarpy/consistency/sicd_consistency.py`
 - Protect waveform validation from `waveform.TxFreqStart == None` in `sarpy/io/complex/sicd_elements/RadarCollection.py`
 - Fix `sarpy/io/complex/sicd_elements/Timeline.py` validation code to allow IPP T1End == T2Start
+- Properly close file objects in NITF and CPHD writers
 
 ## [1.3.58] - 2023-08-07
 ### Added
