@@ -1864,4 +1864,4 @@ class CPHDWriter1(BaseWriter):
         except AttributeError:
             pass
         self._writing_details = None
-        self._file_object = None
+        self._file_object.close()
