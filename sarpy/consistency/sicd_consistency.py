@@ -47,7 +47,6 @@ def evaluate_xml_versus_schema(xml_string, urn_string):
     -------
     None|bool
     """
-
     try:
         the_schema = get_schema_path(urn_string)
     except KeyError:
@@ -370,19 +369,20 @@ def check_file(file_name):
         with open(file_name, 'rb') as fi:
             initial_bits = fi.read(30)
             if initial_bits.startswith(b'<?xml') or initial_bits.startswith(b'<SICD'):
+                fi.seek(0)
                 sicd_xml = fi.read()
                 return _evaluate_xml_string_validity(sicd_xml)[0]
 
     return check_sicd_file(file_name)
 
 
-if __name__ == '__main__':
+def main(args=None):
     parser = argparse.ArgumentParser('SICD Consistency')
     parser.add_argument('file_name')
     parser.add_argument(
         '-l', '--level', default='WARNING',
         choices=['INFO', 'WARNING', 'ERROR'], help="Logging level")
-    config = parser.parse_args()
+    config = parser.parse_args(args)
 
     logging.basicConfig(level=config.level)
     logger.setLevel(config.level)
@@ -391,4 +391,8 @@ if __name__ == '__main__':
         logger.info('\nSICD: {} has been validated with no errors'.format(config.file_name))
     else:
         logger.error('\nSICD: {} has apparent errors'.format(config.file_name))
-    sys.exit(int(validity))
+    return int(validity)
+
+
+if __name__ == '__main__':
+    sys.exit(main())    # pragma: no cover
