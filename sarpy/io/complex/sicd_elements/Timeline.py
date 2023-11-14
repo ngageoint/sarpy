@@ -174,7 +174,7 @@ class TimelineType(Serializable):
                     'IPP entry {} IPPEnd ({}) is not consecutive with '
                     'entry {} IPPStart ({})'.format(i, el1.IPPEnd, i+1, el2.IPPStart))
                 cond = False
-            if el1.TEnd >= el2.TStart:
+            if el1.TEnd > el2.TStart:
                 self.log_validity_error(
                     'IPP entry {} TEnd ({}) is greater than entry {} TStart ({})'.format(i, el1.TEnd, i+1, el2.TStart))
         return cond

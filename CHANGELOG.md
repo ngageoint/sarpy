@@ -16,6 +16,7 @@ release points are not being annotated in GitHub.
 - `--remap` argument to `sarpy/utils/create_product.py`
 - `sarpy/utils/sicd_to_sidd.py`
 - `GDM` to `sarpy/visualization/remap.py`
+- Unit tests for `sarpy/consistency/sicd_consistency.py`
 ### Fixed
 - `sarpy.io.kml.add_polygon` coordinate conditioning for older numpy versions
 - Replace unsupported `pillow` constant `Image.ANTIALIAS` with `Image.LANCZOS`
@@ -25,6 +26,9 @@ release points are not being annotated in GitHub.
 - SIDD `TimeCOAPoly` calculation
 - Set SIDD Display/Interpolation/Operation values to CORRELATION
 - `sarpy.io.phase_history.cphd1_elements.PVP.PVPType.get_size()`
+- SICD file reading in `sarpy/consistency/sicd_consistency.py`
+- Protect waveform validation from `waveform.TxFreqStart == None` in `sarpy/io/complex/sicd_elements/RadarCollection.py`
+- Fix `sarpy/io/complex/sicd_elements/Timeline.py` validation code to allow IPP T1End == T2Start
 - Properly close file objects in NITF and CPHD writers
 
 ## [1.3.58] - 2023-08-07
