@@ -17,6 +17,7 @@ release points are not being annotated in GitHub.
 - `sarpy/utils/sicd_to_sidd.py`
 - `GDM` to `sarpy/visualization/remap.py`
 - Unit tests for `sarpy/consistency/sicd_consistency.py`
+- Support reading CPHDs with an AmpSF PVP whose Data/SignalArrayFormat is CF8
 ### Fixed
 - `sarpy.io.kml.add_polygon` coordinate conditioning for older numpy versions
 - Replace unsupported `pillow` constant `Image.ANTIALIAS` with `Image.LANCZOS`
