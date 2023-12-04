@@ -489,13 +489,15 @@ class SIDDWritingDetails(NITFWritingDetails):
     __slots__ = (
         '_sidd_meta', '_sicd_meta', '_security_tags',
         '_sidd_security_tags', '_sicd_security_tags',
-        '_row_limit')
+        '_row_limit', '_row_block_size', '_col_block_size')
 
     def __init__(
             self,
             sidd_meta: Union[SIDDType3, SIDDType2, SIDDType1, Sequence[SIDDType3], Sequence[SIDDType2], Sequence[SIDDType1]],
             sicd_meta: Optional[Union[SICDType, Sequence[SICDType]]],
             row_limit: Optional[int] = None,
+            row_block_size: Optional[int] = None,
+            col_block_size: Optional[int] = None,
             additional_des: Optional[Sequence[DESSubheaderManager]] = None,
             graphics_managers: Optional[Tuple[GraphicsSubheaderManager, ...]] = None,
             text_managers: Optional[Tuple[TextSubheaderManager, ...]] = None,
@@ -528,6 +530,9 @@ class SIDDWritingDetails(NITFWritingDetails):
 
         self._row_limit = None
         self._set_row_limit(row_limit)
+
+        self._row_block_size = row_block_size
+        self._col_block_size = col_block_size
 
         header = self._create_header()
         image_managers, image_segment_collection, image_segment_coordinates = self._create_image_segments()
@@ -773,13 +778,26 @@ class SIDDWritingDetails(NITFWritingDetails):
 
             this_rows = entry[1]-entry[0]
             this_cols = entry[3]-entry[2]
+
+            if self._col_block_size is None:
+                col_block_size = 0 if this_cols > 8192 else this_cols
+            else:
+                col_block_size = self._col_block_size
+
+            if self._row_block_size is None:
+                row_block_size = 0 if this_rows > 8192 else this_rows
+            else:
+                row_block_size = self._row_block_size
+
             subhead = ImageSegmentHeader(
                 IID1='SIDD{0:03d}{1:03d}'.format(sidd_index+1, i+1),
                 NROWS=this_rows,
                 NCOLS=this_cols,
                 IGEOLO=interpolate_corner_points_string(numpy.array(entry, dtype=numpy.int64), rows, cols, icp),
-                NPPBH=0 if this_cols > 8192 else this_cols,
-                NPPBV=0 if this_rows > 8192 else this_rows,
+                NPPBH=col_block_size,
+                NPPBV=row_block_size,
+                NBPR=1 if col_block_size == 0 else int(numpy.ceil(this_cols / col_block_size)),
+                NBPC=1 if row_block_size == 0 else int(numpy.ceil(this_rows / row_block_size)),
                 IDLVL=sidd_index + i + 2,
                 IALVL=sidd_index + i + 1,
                 ILOC=iloc,

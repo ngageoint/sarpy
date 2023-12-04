@@ -568,12 +568,14 @@ class SICDWritingDetails(NITFWritingDetails):
 
     __slots__ = (
         '_sicd_meta', '_security_tags', '_row_limit', '_check_older_version',
-        '_required_version')
+        '_required_version', '_row_block_size', '_col_block_size')
 
     def __init__(
             self,
             sicd_meta: SICDType,
             row_limit: Optional[int] = None,
+            row_block_size: Optional[int] = None,
+            col_block_size: Optional[int] = None,
             additional_des: Optional[Sequence[DESSubheaderManager]] = None,
             text_managers: Optional[Tuple[TextSubheaderManager, ...]] = None,
             res_managers: Optional[Tuple[RESSubheaderManager, ...]] = None,
@@ -601,6 +603,9 @@ class SICDWritingDetails(NITFWritingDetails):
         self._create_security_tags()
         self._row_limit = None
         self._set_row_limit(row_limit)
+
+        self._row_block_size = row_block_size
+        self._col_block_size = col_block_size
 
         header = self._create_header()
         image_managers, image_segment_collections, image_segment_coordinates = self._create_image_segments()
@@ -795,15 +800,26 @@ class SICDWritingDetails(NITFWritingDetails):
 
             this_rows = entry[1]-entry[0]
             this_cols = entry[3]-entry[2]
+
+            if self._col_block_size is None:
+                col_block_size = 0 if this_cols > 8192 else this_cols
+            else:
+                col_block_size = self._col_block_size
+
+            if self._row_block_size is None:
+                row_block_size = 0 if this_rows > 8192 else this_rows
+            else:
+                row_block_size = self._row_block_size
+
             subhead = ImageSegmentHeader(
                 IID1='SICD{0:03d}'.format(0 if len(image_segment_limits) == 1 else i+1),
                 NROWS=this_rows,
                 NCOLS=this_cols,
                 IGEOLO=interpolate_corner_points_string(numpy.array(entry, dtype=numpy.int64), rows, cols, icp),
-                NPPBH=0 if this_cols > 8192 else this_cols,
-                NPPBV=0 if this_rows > 8192 else this_rows,
-                NBPC=1,
-                NBPR=1,
+                NPPBH=col_block_size,
+                NPPBV=row_block_size,
+                NBPC=1 if row_block_size == 0 else int(numpy.ceil(this_rows / row_block_size)),
+                NBPR=1 if col_block_size == 0 else int(numpy.ceil(this_cols / col_block_size)),
                 IDLVL=i+1,
                 IALVL=i,
                 ILOC=iloc,
