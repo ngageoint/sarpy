@@ -73,7 +73,7 @@ urn_mapping = {
         'tuple': (1, 3, 0),
         'version': '1.3.0',
         'release': '1.3.0',
-        'date': '2022-11-30T00:00:00Z',
+        'date': '2021-11-30T00:00:00Z',
         'schema': os.path.join(_the_directory, 'SICD_schema_V1.3.0_2021_11_30.xsd')}
 }
 WRITABLE_VERSIONS = tuple(entry['release'] for key, entry in urn_mapping.items() if entry['tuple'] >= (1, 0, 0))
