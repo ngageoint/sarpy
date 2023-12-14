@@ -93,7 +93,7 @@ def test_sicd_smoke_tests(sicd, rma_sicd, tol):
     details = sicd_copy.get_des_details()
     assert details['DESSHSI'] == 'SICD Volume 1 Design & Implementation Description Document'
     assert details['DESSHSV'] == '1.3.0'
-    assert details['DESSHSD'] == '2022-11-30T00:00:00Z'
+    assert details['DESSHSD'] == '2021-11-30T00:00:00Z'
     assert details['DESSHTN'] == 'urn:SICD:1.3.0'
 
     xml_bytes = sicd.to_xml_bytes()
