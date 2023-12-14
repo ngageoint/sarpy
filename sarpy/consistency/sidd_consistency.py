@@ -133,7 +133,6 @@ def check_sidd_data_extension(nitf_details, des_header, xml_string):
 
     def check_des_header_fields():
         # type: () -> bool
-
         des_id = des_header.DESID.strip() if nitf_details.nitf_version == '02.10' else des_header.DESTAG.strip()
 
         if des_id != 'XML_DATA_CONTENT':
@@ -148,7 +147,7 @@ def check_sidd_data_extension(nitf_details, des_header, xml_string):
             logger.exception('SIDD: The SIDD DES.DESSHTN must be a recognized urn')
             return False
 
-        # make sure that the NITF urn and SICD urn actually agree
+        # make sure that the NITF urn and SIDD urn actually agree
         header_good = True
         if nitf_urn != xml_urn:
             logger.error('SIDD: The SIDD DES.DESSHTN ({}) and urn ({}) must agree'.format(nitf_urn, xml_urn))
@@ -197,18 +196,18 @@ def check_sidd_data_extension(nitf_details, des_header, xml_string):
                     des_header.Security.CLAS.strip(), nitf_details.nitf_header.Security.CLAS.strip()))
         return True
 
-    # check sicd xml structure for validity
-    valid_sicd, xml_urn, the_sidd = _evaluate_xml_string_validity(xml_string)
-    # check that the sicd information and header information appropriately match
+    # check sidd xml structure for validity
+    valid_sidd, xml_urn, the_sidd = _evaluate_xml_string_validity(xml_string)
+    # check that the sidd information and header information appropriately match
     valid_header = check_des_header_fields()
     # check that the classification seems to make sense
     valid_class = compare_sidd_class()
-    return valid_sicd & valid_header & valid_class, the_sidd
+    return valid_sidd & valid_header & valid_class, the_sidd
 
 
 def check_sidd_file(nitf_details):
     """
-    Check the validity of the given NITF file as a SICD file.
+    Check the validity of the given NITF file as a SIDD file.
 
     Parameters
     ----------
@@ -260,6 +259,7 @@ def check_sidd_file(nitf_details):
                 except Exception as e:
                     logger.exception('SIDD: Old-style SICD DES header at index {}, but failed parsing'.format(i))
                     continue
+
 
     def check_image_data():
         valid_images = True
@@ -382,19 +382,20 @@ def check_file(file_name):
         with open(file_name, 'rb') as fi:
             initial_bits = fi.read(30)
             if initial_bits.startswith(b'<?xml') or initial_bits.startswith(b'<SIDD'):
-                sicd_xml = fi.read().decode('utf-8')
-                return _evaluate_xml_string_validity(sicd_xml)[0]
+                fi.seek(0)
+                sidd_xml = fi.read()
+                return _evaluate_xml_string_validity(sidd_xml)[0]
 
     return check_sidd_file(file_name)
 
 
-if __name__ == '__main__':
+def main(args=None):
     parser = argparse.ArgumentParser('SIDD Consistency')
     parser.add_argument('file_name')
     parser.add_argument(
         '-l', '--level', default='WARNING',
         choices=['INFO', 'WARNING', 'ERROR'], help="Logging level")
-    config = parser.parse_args()
+    config = parser.parse_args(args)
 
     logging.basicConfig(level=config.level)
     logger.setLevel(config.level)
@@ -403,4 +404,8 @@ if __name__ == '__main__':
         logger.info('\nSIDD: {} has been validated with no errors'.format(config.file_name))
     else:
         logger.error('\nSIDD: {} has apparent errors'.format(config.file_name))
-    sys.exit(int(validity))
+    return int(validity)
+
+
+if __name__ == '__main__':
+    sys.exit(main())    # pragma: no cover
