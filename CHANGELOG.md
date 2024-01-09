@@ -33,6 +33,7 @@ release points are not being annotated in GitHub.
 - Fix `sarpy/io/complex/sicd_elements/Timeline.py` validation code to allow IPP T1End == T2Start
 - Properly close file objects in NITF and CPHD writers
 - SIDD file reading in `sarpy/consistency/sidd_consistency.py`
+- Application of adjustable parameter offsets in RIC frames during projection
 
 ## [1.3.58] - 2023-08-07
 ### Added
