@@ -151,7 +151,7 @@ def _ric_ecf_mat(
     c /= numpy.linalg.norm(c)  # NB: perpendicular to r
     i = numpy.cross(c, r)
     # this is the cross of two perpendicular normal vectors, so normal
-    return numpy.array([r, i, c], dtype='float64')
+    return numpy.stack([r, i, c], axis=-1).astype('float64')
 
 
 def _get_sicd_type_specific_projection(sicd) -> Callable:
