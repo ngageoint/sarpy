@@ -1090,7 +1090,7 @@ class RadarCollectionType(Serializable):
                     'be the same.'.format(waveform.RcvFMRate, waveform.TxFMRate, index+1))
 
             if self.RefFreqIndex is None:
-                if waveform.TxFreqStart <= 0:
+                if waveform.TxFreqStart is not None and waveform.TxFreqStart <= 0:
                     self.log_validity_error(
                         'TxFreqStart is negative in Waveform entry {}, but RefFreqIndex '
                         'is not populated.'.format(index+1))

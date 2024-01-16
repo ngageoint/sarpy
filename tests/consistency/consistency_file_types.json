@@ -1,0 +1,5 @@
+{
+  "inconsistent_sicd":  [
+    {"path":  "sicd/sicd_example_RMA_RGZERO_RE32F_IM32F_cropped_multiple_image_segments.nitf", "path_type":  "relative"}
+  ]
+}

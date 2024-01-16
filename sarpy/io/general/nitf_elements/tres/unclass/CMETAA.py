@@ -174,7 +174,7 @@ class CMETAAType(TREElement):
             self.add_field('CG_PATCH_LTCORLR', 's', 11, value)
             self.add_field('CG_PATCH_LGCORLR', 's', 12, value)
             self.add_field('CG_PATCH_LTCORLL', 's', 11, value)
-            self.add_field('CG_PATH_LNGCOLL', 's', 12, value)
+            self.add_field('CG_PATCH_LNGCOLL', 's', 12, value)
             self.add_field('CG_PATCH_LAT_CONFIDENCE', 's', 9, value)
             self.add_field('CG_PATCH_LONG_CONFIDENCE', 's', 9, value)
         elif self.CG_MAP_TYPE.strip() == 'MGRS':
