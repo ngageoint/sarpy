@@ -14,8 +14,14 @@ import pathlib
 import warnings
 
 import numpy as np
-from PIL import Image
-from PIL import TiffTags
+try:
+    from PIL import Image
+    from PIL import TiffTags
+    Image.MAX_IMAGE_PIXELS = None  # get rid of decompression bomb checking
+except ImportError:
+    Image = None
+    TiffTags = None
+
 from scipy.interpolate import RegularGridInterpolator
 
 from sarpy.io.DEM.DEM import DEMList
@@ -27,7 +33,6 @@ logger = logging.getLogger(__name__)
 __classification__ = "UNCLASSIFIED"
 __author__ = "Valkyrie Systems Corporation"
 
-Image.MAX_IMAGE_PIXELS = None  # get rid of decompression bomb checking
 
 
 class GeoTIFF1DegReader:
@@ -57,6 +62,9 @@ class GeoTIFF1DegReader:
     def _read(self):
         # Note: the dem_data must have dtype=np.float64 otherwise the interpolator
         # created by RegularGridInterpolator will raise a TypeError exception.
+        if Image is None or TiffTags is None:
+            raise ImportError("Reading GeoTIFF DEM requires the PIL library")
+
         with Image.open(self._filename) as img:
             self._tiff_tags = {TiffTags.TAGS[key]: val for key, val in img.tag.items()}
             self._dem_data = np.asarray(img, dtype=np.float64)
