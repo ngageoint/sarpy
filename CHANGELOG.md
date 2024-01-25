@@ -14,7 +14,6 @@ release points are not being annotated in GitHub.
 - CPHD 1.0.1 xml examples to `sarpy/tests/data`
 - `sarpy/processing/sicd/spectral_taper.py` and `sarpy/utils/sicd_sidelobe_control.py`
 - `--remap` argument to `sarpy/utils/create_product.py`
-- `sarpy/utils/sicd_to_sidd.py`
 - `GDM` to `sarpy/visualization/remap.py`
 - Unit tests for `sarpy/consistency/sicd_consistency.py`
 - Support reading CPHDs with an AmpSF PVP whose Data/SignalArrayFormat is CF8

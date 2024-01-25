@@ -12,7 +12,7 @@ from lxml import etree
 import pytest
 
 import sarpy.consistency.sidd_consistency as sc
-import sarpy.utils.sicd_to_sidd
+import sarpy.utils.create_product
 from tests import find_test_data_files
 
 TEST_FILE_PATHS = {}
@@ -36,10 +36,10 @@ def good_sidd(tmpdir):
     else:
         sidd_dir_path = pathlib.Path(tmpdir)
 
-        args = [str(file_path[0]), str(sidd_dir_path), '--remap', 'gdm',
+        args = [str(file_path[0]), str(sidd_dir_path),
                 "--type", "detected", "--method", "nearest", "--version", "3"]
 
-        sarpy.utils.sicd_to_sidd.main(args)
+        sarpy.utils.create_product.main(args)
 
         sidd_files = [x for x in sidd_dir_path.iterdir()]
         yield str(sidd_files[0])
