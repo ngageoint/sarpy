@@ -777,7 +777,7 @@ class ComplexFormatFunction(FormatFunction):
             subscript: Tuple[slice, ...]) -> None:
         if data.dtype.name in ['uint8', 'uint16', 'uint32']:
             bit_depth = data.dtype.itemsize * 8
-            theta = theta*2*numpy.pi/(1 << bit_depth)
+            theta = theta*2.0*numpy.pi/(1 << bit_depth)
         out.real = magnitude*numpy.cos(theta)
         out.imag = magnitude*numpy.sin(theta)
 
