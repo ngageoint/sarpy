@@ -142,14 +142,16 @@ class TestComplexFunction(unittest.TestCase):
     def test_uint(self):
         for bit_depth in [8, 16]:
             raw_type = 'uint{}'.format(bit_depth)
-            base_data = numpy.reshape(numpy.arange(2, 14, dtype=raw_type), (2, 3, 2))
+            base_data = numpy.arange(2, 14, dtype=raw_type)
+            base_data[-1] = (1 << bit_depth) - 1
+            base_data = numpy.reshape(base_data, (2, 3, 2))
 
             with self.subTest(msg='MP {}'.format(raw_type)):
                 func = ComplexFormatFunction(
                     raw_type, 'MP', raw_shape=(2, 3, 2), formatted_shape=(2, 3), band_dimension=2)
                 out_data = func(base_data, (slice(0, 2, 1), slice(0, 3, 1), slice(0, 2, 1)))
                 magnitude = base_data[:, :, 0]
-                theta = base_data[:, :, 1]*2*numpy.pi/(1 << bit_depth)
+                theta = base_data[:, :, 1]*2.0*numpy.pi/(1 << bit_depth)
                 test_data = numpy.empty((2, 3), dtype='complex64')
                 test_data.real = magnitude * numpy.cos(theta)
                 test_data.imag = magnitude * numpy.sin(theta)

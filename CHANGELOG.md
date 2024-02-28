@@ -33,6 +33,7 @@ release points are not being annotated in GitHub.
 - Properly close file objects in NITF and CPHD writers
 - SIDD file reading in `sarpy/consistency/sidd_consistency.py`
 - Application of adjustable parameter offsets in RIC frames during projection
+- Overflow bug in `ComplexFormatFunction` magnitude/phase -> real/imag
 
 ## [1.3.58] - 2023-08-07
 ### Added
