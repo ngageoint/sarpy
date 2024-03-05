@@ -6,6 +6,7 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 import logging
+import struct
 from collections import OrderedDict
 from typing import Union, List
 
@@ -34,6 +35,14 @@ def _parse_type(typ_string, leng, value, start):
         return byt.decode('utf-8').strip()
     elif typ_string == 'd':
         return int(byt)
+    elif typ_string == 'f':
+        if byt == b'-'*leng:
+            # hyphen-minus filled, no value present
+            return None
+        return float(byt)
+    elif typ_string == 'F754':
+        # IEEE-754 float (32 bits)
+        return struct.unpack('>f', byt)[0]
     elif typ_string == 'b':
         return byt
     else:
@@ -45,6 +54,9 @@ def _create_format(typ_string, leng):
         return '{0:' + '{0:d}'.format(leng) + 's}'
     elif typ_string == 'd':
         return '{0:0' + '{0:d}'.format(leng) + 'd}'
+    elif typ_string == 'f':
+        # TODO: need to test this
+        return '{0:0' + '{0:d}'.format(leng) + 'f}'
     else:
         return ValueError('Unknown typ_string {}'.format(typ_string))
 
@@ -74,7 +86,7 @@ class TREElement(object):
         attribute : str
             The new field/attribute name for out object instance.
         typ_string : str
-            One of 's' (string attribute), 'd' (integer attribute), or 'b' raw/bytes attribute
+            One of 's' (string), 'd' (integer), 'f' (floating point), 'F754' (32 bit float) or 'b' raw/bytes attribute
         leng : int
             The length in bytes of the representation of this attribute
         value : bytes
@@ -152,7 +164,7 @@ class TREElement(object):
             return val.to_bytes()
         elif isinstance(val, bytes):
             return val
-        elif isinstance(val, (int, str)):
+        elif isinstance(val, (int, str, float)):
             return self._field_format[attribute].format(val).encode('utf-8')
         else:
             raise TypeError('Got unhandled type {}'.format(type(val)))
@@ -169,7 +181,7 @@ class TREElement(object):
         out = OrderedDict()
         for fld in self._field_ordering:
             val = getattr(self, fld)
-            if val is None or isinstance(val, (bytes, str, int)):
+            if val is None or isinstance(val, (bytes, str, int, float)):
                 out[fld] = val
             elif isinstance(val, TREElement):
                 out[fld] = val.to_dict()
