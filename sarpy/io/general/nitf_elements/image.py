@@ -166,6 +166,8 @@ class ImageBand(NITFElement):
 class ImageBands(NITFLoop):
     _child_class = ImageBand
     _count_size = 1
+    
+    XBANDS_LEN = 5
 
     @classmethod
     def _parse_count(cls, value, start):
@@ -174,10 +176,16 @@ class ImageBands(NITFLoop):
         loc += cls._count_size
         if count == 0:
             # (only) if there are more than 9, a longer field is used
-            count = int(value[loc:loc + 5])
-            loc += 5
+            count = int(value[loc:loc + ImageBands.XBANDS_LEN])
+            loc += ImageBands.XBANDS_LEN
         return count, loc
 
+    def get_bytes_length(self):
+        if len(self._values) > 9:
+            return self._count_size + ImageBands.XBANDS_LEN + sum(entry.get_bytes_length() for entry in self._values)
+        else:
+            return self._count_size + sum(entry.get_bytes_length() for entry in self._values)
+    
     def _counts_bytes(self):
         siz = len(self.values)
         if siz <= 9:
