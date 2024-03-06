@@ -166,32 +166,29 @@ class ImageBand(NITFElement):
 class ImageBands(NITFLoop):
     _child_class = ImageBand
     _count_size = 1
-    
+    NBANDS_LEN = 1
     XBANDS_LEN = 5
+
+    @NITFLoop.values.setter
+    def values(self, value):
+        NITFLoop.values.fset(self, value)
+        if value and len(value) > 9:
+            self._count_size = self.NBANDS_LEN + self.XBANDS_LEN
+        else:
+            self._count_size = self.NBANDS_LEN
 
     @classmethod
     def _parse_count(cls, value, start):
-        loc = start
-        count = int(value[loc:loc + cls._count_size])
-        loc += cls._count_size
+        count, loc = super()._parse_count(value, start)
         if count == 0:
             # (only) if there are more than 9, a longer field is used
-            count = int(value[loc:loc + ImageBands.XBANDS_LEN])
-            loc += ImageBands.XBANDS_LEN
+            count = int(value[loc:loc + cls.XBANDS_LEN])
+            loc += cls.XBANDS_LEN
         return count, loc
 
-    def get_bytes_length(self):
-        if len(self._values) > 9:
-            return self._count_size + ImageBands.XBANDS_LEN + sum(entry.get_bytes_length() for entry in self._values)
-        else:
-            return self._count_size + sum(entry.get_bytes_length() for entry in self._values)
-    
-    def _counts_bytes(self):
-        siz = len(self.values)
-        if siz <= 9:
-            return '{0:1d}'.format(siz).encode()
-        else:
-            return '0{0:05d}'.format(siz).encode()
+    @classmethod
+    def minimum_length(cls):
+        return cls.NBANDS_LEN + cls._child_class.minimum_length()
 
 
 class ImageComment(NITFElement):
