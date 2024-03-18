@@ -19,46 +19,46 @@ class PARAMETER(TREElement):
         if EXISTENCE_MASK & 0x02000000:
             self.add_field('FOCAL_LEN', 'd', 5, value)
         if EXISTENCE_MASK & 0x01000000:
-            self.add_field('CWAVE', 'd', 7, value)
+            self.add_field('CWAVE', 'f', 7, value)
         if EXISTENCE_MASK & 0x00800000:
-            self.add_field('FWHM', 'd', 7, value)
+            self.add_field('FWHM', 'f', 7, value)
         if EXISTENCE_MASK & 0x00400000:
-            self.add_field('FWHM_UNC', 'd', 7, value)
+            self.add_field('FWHM_UNC', 'f', 7, value)
         if EXISTENCE_MASK & 0x00200000:
-            self.add_field('NOM_WAVE', 'd', 7, value)
+            self.add_field('NOM_WAVE', 'f', 7, value)
         if EXISTENCE_MASK & 0x00100000:
-            self.add_field('NOM_WAVE_UNC', 'd', 7, value)
+            self.add_field('NOM_WAVE_UNC', 'f', 7, value)
         if EXISTENCE_MASK & 0x00080000:
-            self.add_field('LBOUND', 'd', 7, value)
-            self.add_field('UBOUND', 'd', 7, value)
+            self.add_field('LBOUND', 'f', 7, value)
+            self.add_field('UBOUND', 'f', 7, value)
         if EXISTENCE_MASK & 0x00040000:
-            self.add_field('SCALE_FACTOR', 'b', 4, value)
-            self.add_field('ADDITIVE_FACTOR', 'b', 4, value)
+            self.add_field('SCALE_FACTOR', 'b', 4, value) # TODO: should be ieee-754 float
+            self.add_field('ADDITIVE_FACTOR', 'b', 4, value) # TODO: should be ieee-754 float
         if EXISTENCE_MASK & 0x00020000:
             self.add_field('START_TIME', 's', 16, value)
         if EXISTENCE_MASK & 0x00010000:
-            self.add_field('INT_TIME', 'd', 6, value)
+            self.add_field('INT_TIME', 'f', 6, value)
         if EXISTENCE_MASK & 0x00008000:
-            self.add_field('CALDRK', 'd', 6, value)
-            self.add_field('CALIBRATION_SENSITIVITY', 'd', 5, value)
+            self.add_field('CALDRK', 'f', 6, value)
+            self.add_field('CALIBRATION_SENSITIVITY', 'f', 5, value)
         if EXISTENCE_MASK & 0x00004000:
-            self.add_field('ROW_GSD', 'd', 7, value)
+            self.add_field('ROW_GSD', 'f', 7, value)
             if EXISTENCE_MASK & 0x00002000:
-                self.add_field('ROW_GSD_UNC', 'd', 7, value)
+                self.add_field('ROW_GSD_UNC', 'f', 7, value)
             self.add_field('ROW_GSD_UNIT', 's', 1, value)
-            self.add_field('COL_GSD', 'd', 7, value)
+            self.add_field('COL_GSD', 'f', 7, value)
             if EXISTENCE_MASK & 0x00002000:
-                self.add_field('COL_GSD_UNC', 'd', 7, value)
+                self.add_field('COL_GSD_UNC', 'f', 7, value)
             self.add_field('COL_GSD_UNIT', 's', 1, value)
         if EXISTENCE_MASK & 0x00001000:
-            self.add_field('BKNOISE', 'd', 5, value)
-            self.add_field('SCNNOISE', 'd', 5, value)
+            self.add_field('BKNOISE', 'f', 5, value)
+            self.add_field('SCNNOISE', 'f', 5, value)
         if EXISTENCE_MASK & 0x00000800:
-            self.add_field('SPT_RESP_FUNCTION_ROW', 'd', 7, value)
+            self.add_field('SPT_RESP_FUNCTION_ROW', 'f', 7, value)
             if EXISTENCE_MASK & 0x00000400:
-                self.add_field('SPT_RESP_UNC_ROW', 'd', 7, value)
-            self.add_field('SPT_RESP_UNIT_ROW', 's', 1, value)
-            self.add_field('SPT_RESP_FUNCTION_COL', 'd', 7, value)
+                self.add_field('SPT_RESP_UNC_ROW', 'f', 7, value)
+            self.add_field('SPT_RESP_UNIT_ROW', 'f', 1, value)
+            self.add_field('SPT_RESP_FUNCTION_COL', 'f', 7, value)
             if EXISTENCE_MASK & 0x00000400:
                 self.add_field('SPT_RESP_UNC_COL', 'd', 7, value)
             self.add_field('SPT_RESP_UNIT_COL', 's', 1, value)
@@ -110,29 +110,29 @@ class BANDSBType(TREElement):
         self.add_field('COUNT', 'd', 5, value)
         self.add_field('RADIOMETRIC_QUANTITY', 's', 24, value)
         self.add_field('RADIOMETRIC_QUANTITY_UNIT', 's', 1, value)
-        self.add_field('SCALE_FACTOR', 'b', 4, value)
-        self.add_field('ADDITIVE_FACTOR', 'b', 4, value)
-        self.add_field('ROW_GSD', 'd', 7, value)
+        self.add_field('SCALE_FACTOR', 'F754', 4, value)
+        self.add_field('ADDITIVE_FACTOR', 'F754', 4, value)
+        self.add_field('ROW_GSD', 'f', 7, value)
         self.add_field('ROW_GSD_UNIT', 's', 1, value)
-        self.add_field('COL_GSD', 'd', 7, value)
+        self.add_field('COL_GSD', 'f', 7, value)
         self.add_field('COL_GSD_UNIT', 's', 1, value)
-        self.add_field('SPT_RESP_ROW', 'd', 7, value)
+        self.add_field('SPT_RESP_ROW', 'f', 7, value)
         self.add_field('SPT_RESP_UNIT_ROW', 's', 1, value)
-        self.add_field('SPT_RESP_COL', 'd', 7, value)
+        self.add_field('SPT_RESP_COL', 'f', 7, value)
         self.add_field('SPT_RESP_UNIT_COL', 's', 1, value)
         self.add_field('DATA_FLD_1', 'b', 48, value)
         self.add_field('EXISTENCE_MASK', 'b', 4, value)
-        if self.EXISTENCE_MASK & 0x80000000:
+        if int.from_bytes(self.EXISTENCE_MASK) & 0x80000000:
             self.add_field('RADIOMETRIC_ADJUSTMENT_SURFACE', 's', 24, value)
-            self.add_field('ATMOSPHERIC_ADJUSTMENT_ALTITUDE', 'b', 4, value)
-        if self.EXISTENCE_MASK & 0x40000000:
+            self.add_field('ATMOSPHERIC_ADJUSTMENT_ALTITUDE', 'F754', 4, value)
+        if int.from_bytes(self.EXISTENCE_MASK) & 0x40000000:
             self.add_field('DIAMETER', 'd', 7, value)
-        if self.EXISTENCE_MASK & 0x20000000:
+        if int.from_bytes(self.EXISTENCE_MASK) & 0x20000000:
             self.add_field('DATA_FLD_2', 'b', 32, value)
-        if self.EXISTENCE_MASK & 0x01F80000:
+        if int.from_bytes(self.EXISTENCE_MASK) & 0x01F80000:
             self.add_field('WAVE_LENGTH_UNIT', 's', 1, value)
-        self.add_loop('PARAMETERs', self.COUNT, PARAMETER, value, self.EXISTENCE_MASK)
-        if self.EXISTENCE_MASK & 0x00000001:
+        self.add_loop('PARAMETERs', self.COUNT, PARAMETER, value, int.from_bytes(self.EXISTENCE_MASK))
+        if int.from_bytes(self.EXISTENCE_MASK) & 0x00000001:
             self.add_field('NUM_AUX_B', 'd', 2, value)
             self.add_field('NUM_AUX_C', 'd', 2, value)
             self.add_loop('AUX_Bs', self.NUM_AUX_B, AUX_B, value)
