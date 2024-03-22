@@ -272,3 +272,13 @@ def test_image_to_ground_adjustable_offsets(sicd):
                                                        adj_params_frame='ECF')
     assert np.allclose(scp_perturb_ric, scp_perturb_ecf)
     assert not np.allclose(sicd['scp_ecf'], scp_perturb_ecf)
+
+
+def test_image_to_slant_sensitivity(sicd):
+    assert sicd['structure'].Grid.ImagePlane == 'SLANT'
+    m_spxy_il = point_projection.image_to_slant_sensitivity(sicd['structure'],
+                                                            min(1.0, sicd['structure'].Grid.Row.SS),
+                                                            min(1.0, sicd['structure'].Grid.Col.SS))
+    # sensitivity when image plane is already slant should be nearly -identity due to relative orientation of slant and
+    # image plane vectors
+    assert np.allclose(m_spxy_il, -np.eye(2), atol=1e-3)
