@@ -5,6 +5,7 @@ Module contained elements for defining TREs - really intended as read only objec
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
+import functools
 import logging
 import struct
 from collections import OrderedDict
@@ -27,38 +28,34 @@ def _parse_type(typ_string, leng, value, start):
 
     Returns
     -------
-    str|int|bytes
+    str|int|bytes|float
     """
 
     byt = value[start:start + leng]
     if typ_string == 's':
         return byt.decode('utf-8').strip()
-    elif typ_string == 'd':
+    if typ_string == 'd':
         return int(byt)
-    elif typ_string == 'f':
-        if byt == b'-'*leng:
-            # hyphen-minus filled, no value present
-            return None
-        return float(byt)
-    elif typ_string == 'F754':
-        # IEEE-754 float (32 bits)
+    if typ_string == 'ieee754_binary32':
         return struct.unpack('>f', byt)[0]
-    elif typ_string == 'b':
+    if typ_string == 'b':
         return byt
-    else:
-        raise ValueError('Got unrecognized type string {}'.format(typ_string))
+    raise ValueError(f'Got unrecognized type string {typ_string}')
 
 
-def _create_format(typ_string, leng):
+def _str_encoder(val, formatspec):
+    return f'{val:{formatspec}}'.encode('utf-8')
+
+
+def _create_encoder(typ_string, leng):
     if typ_string == 's':
-        return '{0:' + '{0:d}'.format(leng) + 's}'
-    elif typ_string == 'd':
-        return '{0:0' + '{0:d}'.format(leng) + 'd}'
-    elif typ_string == 'f':
-        # TODO: need to test this
-        return '{0:0' + '{0:d}'.format(leng) + 'f}'
-    else:
-        return ValueError('Unknown typ_string {}'.format(typ_string))
+        return functools.partial(_str_encoder, formatspec=f'{leng}s')
+    if typ_string == 'd':
+        return functools.partial(_str_encoder, formatspec=f'0{leng}d')
+    if typ_string == 'b':
+        return lambda x: x
+    if typ_string == 'ieee754_binary32':
+        return functools.partial(struct.pack, '>f')
 
 
 class TREElement(object):
@@ -68,7 +65,7 @@ class TREElement(object):
 
     def __init__(self):
         self._field_ordering = []
-        self._field_format = {}
+        self._field_encoders = {}
         self._bytes_length = 0
 
     def __str__(self):
@@ -86,7 +83,7 @@ class TREElement(object):
         attribute : str
             The new field/attribute name for out object instance.
         typ_string : str
-            One of 's' (string), 'd' (integer), 'f' (floating point), 'F754' (32 bit float) or 'b' raw/bytes attribute
+            One of 's' (string), 'd' (integer), 'b' (raw/bytes), or 'ieee754_binary32'
         leng : int
             The length in bytes of the representation of this attribute
         value : bytes
@@ -111,7 +108,7 @@ class TREElement(object):
                 'Failed creating field {} with exception \n\t{}'.format(attribute, e))
         self._bytes_length += leng
         self._field_ordering.append(attribute)
-        self._field_format[attribute] = _create_format(typ_string, leng)
+        self._field_encoders[attribute] = _create_encoder(typ_string, leng)
 
     def add_loop(self, attribute, length, child_type, value, *args):
         """
@@ -162,12 +159,8 @@ class TREElement(object):
             return b''
         elif isinstance(val, TREElement):
             return val.to_bytes()
-        elif isinstance(val, bytes):
-            return val
-        elif isinstance(val, (int, str, float)):
-            return self._field_format[attribute].format(val).encode('utf-8')
         else:
-            raise TypeError('Got unhandled type {}'.format(type(val)))
+            return self._field_encoders[attribute](val)
 
     def to_dict(self):
         """
@@ -181,7 +174,7 @@ class TREElement(object):
         out = OrderedDict()
         for fld in self._field_ordering:
             val = getattr(self, fld)
-            if val is None or isinstance(val, (bytes, str, int, float)):
+            if val is None or isinstance(val, (bytes, str, int)):
                 out[fld] = val
             elif isinstance(val, TREElement):
                 out[fld] = val.to_dict()
