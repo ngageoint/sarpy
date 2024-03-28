@@ -9,5 +9,6 @@ SICD data processing (sarpy.processing.sicd)
     normalize_sicd
     csi
     fft_base
+    spectral_taper
     subaperture
     windows

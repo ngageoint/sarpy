@@ -25,27 +25,29 @@ class Taper:
     ----
     window: str
         The name of the taper (window) function name.  Acceptable (case insensitive) names are:
-            "uniform": This is a flat spectral taper (i.e., no spectral taper).
-            "hamming": Hamming window taper (0.54 + 0.46 * cos(2*pi*n/M))
-            "hanning" | "hann":  Hann window taper (0.5 + 0.5 * cos(2*pi*n/M))
-            "general_hamming": Raised cosine window (alpha + (1 - alpha) * cos(2*pi*n/M)), default (alpha = 0.5)
-            "kaiser": Kaiser-Bessel window (I0[beta * sqrt(1 - (2*n/M - 1)**2)] / I0[beta]) default (beta = 4)
-            "taylor": Taylor window: Default is a nbar = 4, sll = -30.
+
+        * "uniform": This is a flat spectral taper (i.e., no spectral taper).
+        * "hamming": Hamming window taper (0.54 + 0.46 * cos(2*pi*n/M))
+        * "hanning" | "hann":  Hann window taper (0.5 + 0.5 * cos(2*pi*n/M))
+        * "general_hamming": Raised cosine window (alpha + (1 - alpha) * cos(2*pi*n/M)), default (alpha = 0.5)
+        * "kaiser": Kaiser-Bessel window (I0[beta * sqrt(1 - (2*n/M - 1)**2)] / I0[beta]) default (beta = 4)
+        * "taylor": Taylor window: Default is a nbar = 4, sll = -30.
 
     pars: dict | None
         Optional dictionary of parameter values for those windows that have parameter values.
         If omitted or None, the default parameters are used.
         The parameter values for each window are listed above.
-            "uniform": no parameters
-            "hamming": no parameters
-            "hanning" | "hann": no parameters
-            "general_hamming": parameter "alpha"
+
+        * "uniform": no parameters
+        * "hamming": no parameters
+        * "hanning" | "hann": no parameters
+        * "general_hamming": parameter "alpha"
                  Raised cosine window, w[n] = (alpha + (1 - alpha) * cos(2*pi*n/M)).
                  The default value is alpha = 0.5
-            "kaiser": parameter "beta"
+        * "kaiser": parameter "beta"
                 Kaiser-Bessel window, w[n] = I0[beta * sqrt(1 - (2*n/M - 1)**2)] / I0[beta]
                 The default value is beta = 4.
-            "taylor": parameters "nbar" and "sll"
+        * "taylor": parameters "nbar" and "sll"
                 "nbar" = number of near side lobes and "sll" = side lobe level (dB) of near side lobes.
                 The default values are nbar = 4, sll = -30.
 
@@ -142,7 +144,8 @@ def apply_spectral_taper(sicd_reader, taper):
         A Taper object specifying the spectral domain taper function to be applied.
         Alternative, a string indicating the taper type.  When a string is provided, a Taper
         object will be created with default parameters for the specified taper type.  Use a
-        Taper object if you need to modify the taper parameters.  For example:
+        Taper object if you need to modify the taper parameters.  For example::
+
             apply_spectral_taper(sicd, Taper(window_name, pars=pars_dict))
 
     Returns

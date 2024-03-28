@@ -12,3 +12,4 @@ Command-line Utilities (sarpy.utils)
     nitf_utils
     cphd_utils
     nominal_sicd_noise
+    sicd_sidelobe_control
