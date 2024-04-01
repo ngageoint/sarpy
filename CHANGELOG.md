@@ -37,6 +37,7 @@ release points are not being annotated in GitHub.
 - Overflow bug in `ComplexFormatFunction` magnitude/phase -> real/imag
 - NITF image subheader parsing when there are more than 9 bands
 - Population of SIDD ExploitationFeatures resolution metadata when processed from a SICD
+- Fix BANDSB implementation to parse correctly
 
 ## [1.3.58] - 2023-08-07
 ### Added

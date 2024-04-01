@@ -85,6 +85,7 @@ class GeoTIFF1DegInterpolator(DEMInterpolator):
         Optional filename of a specific Geoid file or a directory containing geoid files to choose from.
         If a directory is specified, then one or more of the following geoid files (in order of preference)
         will be chosen from this directory.
+
             'egm2008-1.pgm', 'egm2008-2_5.pgm', 'egm2008-5.pgm',
             'egm96-5.pgm', 'egm96-15.pgm', 'egm84-15.pgm', 'egm84-30.pgm'
     missing_error: bool (default: False)
@@ -379,10 +380,13 @@ class GeoTIFF1DegInterpolator(DEMInterpolator):
 
         Returns
         -------
-        dict: {"box": lat_lon_box,
-               "min": {"lat": lat_deg, "lon": lon_deg, "height": height},
-               "max": {"lat": lat_deg, "lon": lon_deg, "height": height}
-              }
+        dict
+            A dictionary describing the results of the search::
+
+                {"box": lat_lon_box,
+                 "min": {"lat": lat_deg, "lon": lon_deg, "height": height},
+                 "max": {"lat": lat_deg, "lon": lon_deg, "height": height}}
+
         """
         if np.all(self._bounding_box_cache.get("box", []) == lat_lon_box):
             # If we have already done this calculation then don't do it again.
@@ -480,7 +484,8 @@ class GeoTIFF1DegList(DEMList):
     The DEM files must have the SW corner Lat/Lon encoded in their filenames.
     The dem_filename_pattern argument contains a format string that, when populated,
     will create a glob pattern that will specify the desired DEM file.  The following
-    arguments are provided to the format string.
+    arguments are provided to the format string::
+
         lat = int(numpy.floor(lat))
         lon = int(numpy.floor(lon))
         abslat = int(abs(numpy.floor(lat)))

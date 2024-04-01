@@ -6,7 +6,7 @@ some ortho-rectified pixel grid coordinates, and geophysical coordinates
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
-
+import abc
 import logging
 
 import numpy
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 _PIXEL_METHODOLOGY = ('MAX', 'MIN', 'MEAN', 'GEOM_MEAN')
 
 
-class ProjectionHelper(object):
+class ProjectionHelper(abc.ABC):
     """
     Abstract helper class which defines the projection interface for
     ortho-rectification usage for a sicd type object.
@@ -195,6 +195,7 @@ class ProjectionHelper(object):
             array = numpy.reshape(array, (-1, final_dimension))
         return array, o_shape
 
+    @abc.abstractmethod
     def ecf_to_ortho(self, coords):
         """
         Gets the `(ortho_row, ortho_column)` coordinates in the ortho-rectified
@@ -211,6 +212,7 @@ class ProjectionHelper(object):
 
         raise NotImplementedError
 
+    @abc.abstractmethod
     def ecf_to_pixel(self, coords):
         """
         Gets the `(pixel_row, pixel_column)` coordinates for the provided physical
@@ -227,6 +229,7 @@ class ProjectionHelper(object):
 
         raise NotImplementedError
 
+    @abc.abstractmethod
     def ll_to_ortho(self, ll_coords):
         """
         Gets the `(ortho_row, ortho_column)` coordinates in the ortho-rectified
@@ -246,6 +249,7 @@ class ProjectionHelper(object):
 
         raise NotImplementedError
 
+    @abc.abstractmethod
     def llh_to_ortho(self, llh_coords):
         """
         Gets the `(ortho_row, ortho_column)` coordinates in the ortho-rectified
@@ -263,6 +267,7 @@ class ProjectionHelper(object):
 
         raise NotImplementedError
 
+    @abc.abstractmethod
     def pixel_to_ortho(self, pixel_coords):
         """
         Gets the ortho-rectified indices for the point(s) in pixel coordinates.
@@ -278,6 +283,7 @@ class ProjectionHelper(object):
 
         raise NotImplementedError
 
+    @abc.abstractmethod
     def pixel_to_ecf(self, pixel_coords):
         """
         Gets the ECF coordinates for the point(s) in pixel coordinates.
@@ -293,6 +299,7 @@ class ProjectionHelper(object):
 
         raise NotImplementedError
 
+    @abc.abstractmethod
     def ortho_to_ecf(self, ortho_coords):
         """
         Get the ecf coordinates for the point(s) in ortho-rectified coordinates.
@@ -328,6 +335,7 @@ class ProjectionHelper(object):
         ecf = self.ortho_to_ecf(ortho_coords)
         return ecf_to_geodetic(ecf)
 
+    @abc.abstractmethod
     def ortho_to_pixel(self, ortho_coords):
         """
         Get the pixel indices for the point(s) in ortho-rectified coordinates.
