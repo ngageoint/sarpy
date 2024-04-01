@@ -6,5 +6,6 @@ DEM reading elements (sarpy.io.DEM)
     :caption: Contents:
 
     geoid
+    geotiff1deg
     DEM
     DTED
