@@ -1043,7 +1043,7 @@ class SingleLUTFormatFunction(FormatFunction):
             array = array.take(
                 indices=numpy.arange(self.formatted_shape[-1])[subscript[-1]], axis=-1)
             # ensure shape is as expected - any squeeze handled consistently
-            out_shape = get_subscript_result_size(subscript, self.formatted_shape)
+            _, out_shape = get_subscript_result_size(subscript, self.formatted_shape)
             array = numpy.reshape(array, out_shape)
         if squeeze:
             return numpy.squeeze(array)
