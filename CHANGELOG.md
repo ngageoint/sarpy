@@ -38,6 +38,7 @@ release points are not being annotated in GitHub.
 - NITF image subheader parsing when there are more than 9 bands
 - Population of SIDD ExploitationFeatures resolution metadata when processed from a SICD
 - Fix BANDSB implementation to parse correctly
+- SingleLUTFormatFunction application for LUT with more than one dimension
 
 ## [1.3.58] - 2023-08-07
 ### Added
