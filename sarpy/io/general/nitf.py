@@ -1930,7 +1930,7 @@ class NITFReader(BaseReader):
         # determine output particulars
         if apply_format:
             format_function = self.get_format_function(
-                raw_dtype, complex_order, lut, raw_band_dimension,
+                raw_dtype, complex_order, lut, 2,
                 image_segment_index=image_segment_index)
             use_transpose = self._transpose_axes
             use_reverse = self._reverse_axes
