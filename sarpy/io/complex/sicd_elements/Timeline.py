@@ -92,16 +92,27 @@ class IPPSetType(Serializable):
                 'IPPStart ({}) >= IPPEnd ({})'.format(self.IPPStart, self.IPPEnd))
             condition = False
 
-        exp_ipp_start = self.IPPPoly(self.TStart)
-        exp_ipp_end = self.IPPPoly(self.TEnd)
-        if abs(exp_ipp_start - self.IPPStart) > 1:
+        ipp_start_from_poly = round(self.IPPPoly(self.TStart))
+        if self.IPPStart != ipp_start_from_poly:
             self.log_validity_error(
-                'IPPStart populated as {}, inconsistent with value ({}) '
-                'derived from IPPPoly and TStart'.format(exp_ipp_start, self.IPPStart))
-        if abs(exp_ipp_end - self.IPPEnd) > 1:
+                f'IPPStart ({self.IPPStart}) inconsistent with IPPPoly(TStart) ({ipp_start_from_poly})'
+            )
+            condition = False
+
+        ipp_end_from_poly = round(self.IPPPoly(self.TEnd) - 1)
+        if self.IPPEnd != ipp_end_from_poly:
             self.log_validity_error(
-                'IPPEnd populated as {}, inconsistent with value ({}) '
-                'derived from IPPPoly and TEnd'.format(self.IPPEnd, exp_ipp_end))
+                f'IPPEnd ({self.IPPEnd}) inconsistent with IPPPoly(TEnd) - 1 ({ipp_end_from_poly})'
+            )
+            condition = False
+
+        prf = self.IPPPoly.derivative_eval((self.TStart + self.TEnd)/2)
+        if prf < 0:
+            self.log_validity_error(f'IPPSet has a negative PRF: {prf}')
+            condition = False
+        if prf > 100e3:
+            self.log_validity_warning(f'IPPSet has an unreasonable PRF: {prf}')
+
         return condition
 
 
@@ -166,17 +177,48 @@ class TimelineType(Serializable):
         if self.IPP is None or len(self.IPP) < 2:
             return True
         cond = True
-        for i in range(len(self.IPP)-1):
-            el1 = self.IPP[i]
-            el2 = self.IPP[i+1]
-            if el1.IPPEnd + 1 != el2.IPPStart:
-                self.log_validity_error(
-                    'IPP entry {} IPPEnd ({}) is not consecutive with '
-                    'entry {} IPPStart ({})'.format(i, el1.IPPEnd, i+1, el2.IPPStart))
+
+        sorted_ipps = sorted(self.IPP, key=lambda x: x.index)
+        tstarts = [x.TStart for x in sorted_ipps]
+        tends = [x.TEnd for x in sorted_ipps]
+        ippstarts = [x.IPPStart for x in sorted_ipps]
+        ippends = [x.IPPEnd for x in sorted_ipps]
+        if tstarts != sorted(tstarts):
+            self.log_validity_error(f'The IPPSets are not in start time order. TStart: {tstarts}')
+            cond = False
+
+        if tends != sorted(tends):
+            self.log_validity_error(f'The IPPSets are not in end time order. TEnd: {tends}')
+            cond = False
+
+        actual_indices = [x.index for x in sorted_ipps]
+        if not numpy.array_equal(numpy.arange(1, len(self.IPP)+1), actual_indices):
+            self.log_validity_error(f'IPPSets indices ({actual_indices}) are not 1..size; '
+                                    'unable to perform adjacent IPPSet checks')
+            return False
+
+        tgaps = [ts - te for ts, te in zip(tstarts[1:], tends[:-1])]
+        for ig, g in enumerate(tgaps):
+            if g > 0:
+                self.log_validity_error(f'There is a gap between IPPSet[index={ig+1}] and '
+                                        f'IPPSet[index={ig+2}] of {g} seconds')
                 cond = False
-            if el1.TEnd >= el2.TStart:
-                self.log_validity_error(
-                    'IPP entry {} TEnd ({}) is greater than entry {} TStart ({})'.format(i, el1.TEnd, i+1, el2.TStart))
+            if g < 0:
+                self.log_validity_error(f'There is overlap between IPPSet[index={ig+1}] and '
+                                        f'IPPSet[index={ig+2}] of {-g} seconds')
+                cond = False
+
+        igaps = [i_s - i_e for i_s, i_e in zip(ippstarts[1:], ippends[:-1])]
+        for ig, g in enumerate(igaps):
+            if g > 1:
+                self.log_validity_error(f'There is a gap between IPPSet[index={ig+1}] and '
+                                        f'IPPSet[index={ig+2}] of {g-1} IPPs')
+                cond = False
+            if g < 1:
+                self.log_validity_error(f'There is overlap between IPPSet[index={ig+1}] and '
+                                        f'IPPSet[index={ig+2}] of {1-g} IPPs')
+                cond = False
+
         return cond
 
     def _check_ipp_times(self) -> bool:
@@ -184,21 +226,12 @@ class TimelineType(Serializable):
             return True
 
         cond = True
-        min_time = self.IPP[0].TStart
-        max_time = self.IPP[0].TEnd
-        for i in range(len(self.IPP)):
-            entry = self.IPP[i]
-            if entry.TStart < 0:
-                self.log_validity_error('IPP entry {} has negative TStart ({})'.format(i, entry.TStart))
-                cond = False
-            if entry.TEnd > self.CollectDuration + 1e-2:
-                self.log_validity_error(
-                    'IPP entry {} has TEnd ({}) appreciably larger than '
-                    'CollectDuration ({})'.format(i, entry.TEnd, self.CollectDuration))
-                cond = False
-            min_time = min(min_time, entry.TStart)
-            max_time = max(max_time, entry.TEnd)
-        if abs(max_time - min_time - self.CollectDuration) > 1e-2:
+        min_time = min(x.TStart for x in self.IPP)
+        max_time = max(x.TEnd for x in self.IPP)
+        if min_time < 0:
+            self.log_validity_error(f'Earliest TStart is negative: {min_time}')
+            cond = False
+        if not numpy.isclose(max_time - min_time, self.CollectDuration, atol=1e-2):
             self.log_validity_error(
                 'time range in IPP entries ({}) not in keeping with populated '
                 'CollectDuration ({})'.format(max_time-min_time, self.CollectDuration))

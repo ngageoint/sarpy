@@ -1142,86 +1142,6 @@ def _validate_antenna(the_sicd) -> bool:
     return valid
 
 
-def _validate_ippsets(the_sicd) -> bool:
-    """
-    Validate IPP sets
-
-    Parameters
-    ----------
-    the_sicd : sarpy.io.complex.sicd_elements.SICD.SICDType
-
-    Returns
-    -------
-    bool
-    """
-    if the_sicd.Timeline is None:
-        return True
-    if the_sicd.Timeline.IPP is None:
-        return True
-    ippsets = the_sicd.Timeline.IPP
-    tstarts = [x.TStart for x in ippsets]
-    tends = [x.TEnd for x in ippsets]
-    ippstarts = [x.IPPStart for x in ippsets]
-    ippends = [x.IPPEnd for x in ippsets]
-    ipppolys = [x.IPPPoly for x in ippsets]
-    ippstart_from_poly = [round(x.IPPPoly(x.TStart)) for x in ippsets]
-    ippend_from_poly = [round(x.IPPPoly(x.TEnd) - 1) for x in ippsets]
-
-    valid = True
-    if tstarts != sorted(tstarts):
-        the_sicd.Timeline.log_validity_error(f'The IPPSets are not in start time order. TStart: {tstarts}')
-        valid = False
-    if ippstarts != ippstart_from_poly:
-        the_sicd.Timeline.log_validity_error(f'The IPPSet IPPStart do not match the polynomials. IPPStart: {ippstarts}'
-                                             f'IPPPoly(TStart): {ippstart_from_poly}')
-    if ippends != ippend_from_poly:
-        the_sicd.Timeline.log_validity_error(f'The IPPSet IPPEnd do not match the polynomials. IPPEnd: {ippends} '
-                                             f'IPPPoly(TEnd) - 1: {ippend_from_poly}')
-    if tends != sorted(tends):
-        the_sicd.Timeline.log_validity_error(f'The IPPSets are not in end time order. TEnd: {tends}')
-        valid = False
-    for iset in range(len(ippsets)):
-        if tstarts[iset] > tends[iset]:
-            the_sicd.Timeline.log_validity_error(f'IPPSet[index={iset+1}] ends ({tends[iset]}) '
-                                                 f'before it starts ({tstarts[iset]}) in time')
-            valid = False
-        if ippstarts[iset] > ippends[iset]:
-            the_sicd.Timeline.log_validity_error(f'IPPSet[index={iset+1}] ends ({ippends[iset]}) '
-                                                 f'before it starts ({ippstarts[iset]}) in index')
-            valid = False
-        prf = ipppolys[iset].derivative_eval((tstarts[iset] + tends[iset])/2)
-        if prf < 0:
-            the_sicd.Timeline.log_validity_error(f'IPPSet[index={iset+1}] has a negative PRF: {prf}')
-            valid = False
-        if prf > 100e3:
-            the_sicd.Timeline.log_validity_warning(f'IPPSet[index={iset+1}] has an unreasonable PRF: {prf}')
-            valid = False
-    if len(ippsets) > 1:
-        tgaps = [ts - te for ts, te in zip(tstarts[1:], tends[:-1])]
-        for ig, g in enumerate(tgaps):
-            if g > 0:
-                the_sicd.Timeline.log_validity_error(f'There is a gap between IPPSet[index={ig+1}] and '
-                                                     f'IPPSet[index={ig+2}] of {g} seconds')
-                valid = False
-            if g < 0:
-                the_sicd.Timeline.log_validity_error(f'There is overlap between IPPSet[index={ig+1}] and '
-                                                     f'IPPSet[index={ig+2}] of {-g} seconds')
-                valid = False
-
-        igaps = [i_s - i_e for i_s, i_e in zip(ippstarts[1:], ippends[:-1])]
-        for ig, g in enumerate(igaps):
-            if g > 1:
-                the_sicd.Timeline.log_validity_error(f'There is a gap between IPPSet[index={ig+1}] and '
-                                                     f'IPPSet[index={ig+2}] of {g-1} IPPs')
-                valid = False
-            if g < 1:
-                the_sicd.Timeline.log_validity_error(f'There is overlap between IPPSet[index={ig+1}] and '
-                                                     f'IPPSet[index={ig+2}] of {1-g} IPPs')
-                valid = False
-
-    return valid
-
-
 def _validate_acp(the_sicd) -> bool:
     """
     Validate the RadarCollection/Area/Corner/ACP nodes
@@ -1680,7 +1600,6 @@ def detailed_validation_checks(the_sicd) -> bool:
     out &= _validate_polarization(the_sicd)
     out &= _check_deltak(the_sicd)
     out &= _validate_acp(the_sicd)
-    out &= _validate_ippsets(the_sicd)
     out &= _validate_antenna(the_sicd)
 
     if the_sicd.SCPCOA is not None:

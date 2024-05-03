@@ -27,6 +27,14 @@ class NoOpRemap(remap.RemapFunction):
 
 
 class TestRemap(unittest.TestCase):
+    def setUp(self):
+        remap._DEFAULTS_REGISTERED = False
+        remap._REMAP_DICT.clear()
+
+    def tearDown(self):
+        remap._DEFAULTS_REGISTERED = False
+        remap._REMAP_DICT.clear()
+
     def test_clip_cast(self):
         data = np.asarray([-100000, -128, -10, 0, 10, 127, 100000], dtype=np.float64)
 
@@ -289,8 +297,6 @@ class TestRemap(unittest.TestCase):
         self.assertTrue(np.all(np.abs(result[:, 0] - np.arange(256)) <= 1))
 
     def test_remap_names(self):
-        remap._DEFAULTS_REGISTERED = False
-        remap._REMAP_DICT = collections.OrderedDict()
         default_names = remap.get_remap_names()
         self.assertIn("nrl", default_names)
         self.assertIn("density", default_names)
@@ -319,9 +325,6 @@ class TestRemap(unittest.TestCase):
         self.assertIs(noop_remap, remap.get_registered_remap("noop"))  # didn't overwrite
         remap.register_remap(another_noop_remap, overwrite=True)
         self.assertIs(another_noop_remap, remap.get_registered_remap("noop"))  # did overwrite
-
-        remap._DEFAULTS_REGISTERED = False
-        remap._REMAP_DICT = collections.OrderedDict()
 
     def test_get_registered_remap(self):
         with self.assertRaises(KeyError):

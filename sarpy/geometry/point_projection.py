@@ -151,7 +151,7 @@ def _ric_ecf_mat(
     c /= numpy.linalg.norm(c)  # NB: perpendicular to r
     i = numpy.cross(c, r)
     # this is the cross of two perpendicular normal vectors, so normal
-    return numpy.array([r, i, c], dtype='float64')
+    return numpy.stack([r, i, c], axis=-1).astype('float64')
 
 
 def _get_sicd_type_specific_projection(sicd) -> Callable:
@@ -1954,3 +1954,66 @@ def image_to_ground_dem(
     elif len(orig_shape) > 1:
         coords = numpy.reshape(coords, orig_shape[:-1] + (3,))
     return coords
+
+
+def image_to_slant_sensitivity(sicd_meta, delta_xrow, delta_ycol):
+    """
+    Compute the sensitivity matrix that relates a change in image location to a change in slant plane.
+
+    The implementation is currently limited to sensitivity around the SCP.
+
+    Parameters
+    ----------
+    sicd_meta : sarpy.io.complex.sicd_elements.SICD.SICDType
+        SICD metadata structure.
+    delta_xrow, delta_ycol : array_like
+        Increments in xrow/ycol coordinates respectively for which to compute the increments in the slant plane.
+
+    Returns
+    -------
+    numpy.ndarray
+        2x2 sensitivity matrix
+    """
+    image_coords = numpy.array([
+        [0, 0],
+        [delta_xrow, 0],
+        [0, delta_ycol],
+    ])
+
+    image_indices = (image_coords / numpy.array([sicd_meta.Grid.Row.SS, sicd_meta.Grid.Col.SS])[numpy.newaxis, :]
+                     + sicd_meta.ImageData.SCPPixel.get_array())
+
+    scp_ecef = sicd_meta.GeoData.SCP.ECF.get_array()
+    r, rdot, tcoa, arp, varp = COAProjection.from_sicd(sicd_meta).projection(image_indices)
+
+    vm0 = numpy.linalg.norm(varp[0])
+    u_vm = varp[0] / vm0
+    u_spx = (arp[0] - scp_ecef) / numpy.linalg.norm(arp[0] - scp_ecef)
+    look = {'L': 1, 'R': -1}[sicd_meta.SCPCOA.SideOfTrack]
+    spz = look * (numpy.cross(u_spx, u_vm))
+    u_spz = spz / numpy.linalg.norm(spz)
+    u_spy = numpy.cross(u_spz, u_spx)
+    u_vc = numpy.cross(u_spz, u_vm)
+
+    cos_dca0 = -rdot[0] / vm0
+    sin_dca0 = numpy.sqrt(1 - cos_dca0**2)
+
+    delta_arp = arp[1:] - arp[0]
+    delta_varp = varp[1:] - varp[0]
+    delta_r = r[1:] - r[0]
+    delta_rdot = rdot[1:] - rdot[0]
+
+    delta_arp_components = delta_arp @ numpy.stack((u_spx, u_spy), axis=-1)
+    delta_vm = delta_varp @ u_vm
+    delta_vc = delta_varp @ u_vc
+
+    delta_cos_dca = (-1/vm0) * (delta_rdot + delta_vm * (-rdot[0]/vm0))
+    delta_dca = (-1/sin_dca0) * delta_cos_dca
+
+    delta_vdir = delta_vc / vm0
+    delta_ang = delta_vdir + look * delta_dca
+
+    delta_spx = delta_arp_components[..., 0] - delta_r
+    delta_spy = delta_arp_components[..., 1] - r[0] * delta_ang
+
+    return numpy.stack((delta_spx, delta_spy), axis=0) / [delta_xrow, delta_ycol]

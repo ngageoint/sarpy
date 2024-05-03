@@ -4,6 +4,43 @@ SarPy follows a continuous release process, so there are fairly frequent release
 Since essentially every (squash merge) commit corresponds to a release, specific 
 release points are not being annotated in GitHub.
 
+## [1.3.59-rc]
+### Added
+- `noxfile.py`
+- TOA visualization to `sarpy/visualization/cphd_kmz_product_creation.py`
+- Unit tests for `sarpy/tests/io/complex/sicd_elements`
+- `sarpy/tests/io/phase_history/cphd1_elements/conftest.py`
+- Unit tests for `sarpy/tests/io/phase_history/cphd1_elements`
+- CPHD 1.0.1 xml examples to `sarpy/tests/data`
+- `sarpy/processing/sicd/spectral_taper.py` and `sarpy/utils/sicd_sidelobe_control.py`
+- `--remap` argument to `sarpy/utils/create_product.py`
+- `GDM` to `sarpy/visualization/remap.py`
+- Unit tests for `sarpy/consistency/sicd_consistency.py`
+- Support reading CPHDs with an AmpSF PVP whose Data/SignalArrayFormat is CF8
+- Unit tests for `sarpy/consistency/sidd_consistency.py`
+- Support for MATESA TRE
+### Fixed
+- `sarpy.io.kml.add_polygon` coordinate conditioning for older numpy versions
+- Replace unsupported `pillow` constant `Image.ANTIALIAS` with `Image.LANCZOS`
+- `sarpy/io/phase_history/cphd1_elements/GeoInfo.py` setters
+- SquintAngle calculation in `sarpy/io/complex/sicd_elements/SCPCOA.py`
+- Incorrectly assigned Graze in SIDD 2.0.0 and SIDD 3.0.0 ExploitationFeatures
+- SIDD `TimeCOAPoly` calculation
+- Set SIDD Display/Interpolation/Operation values to CORRELATION
+- `sarpy.io.phase_history.cphd1_elements.PVP.PVPType.get_size()`
+- SICD file reading in `sarpy/consistency/sicd_consistency.py`
+- Protect waveform validation from `waveform.TxFreqStart == None` in `sarpy/io/complex/sicd_elements/RadarCollection.py`
+- Fix `sarpy/io/complex/sicd_elements/Timeline.py` validation code to allow IPP T1End == T2Start
+- Properly close file objects in NITF and CPHD writers
+- SIDD file reading in `sarpy/consistency/sidd_consistency.py`
+- Application of adjustable parameter offsets in RIC frames during projection
+- Overflow bug in `ComplexFormatFunction` magnitude/phase -> real/imag
+- NITF image subheader parsing when there are more than 9 bands
+- Population of SIDD ExploitationFeatures resolution metadata when processed from a SICD
+- Fix BANDSB implementation to parse correctly
+- SingleLUTFormatFunction application for LUT with more than one dimension
+- SIDD NITF IALVL/IDLVL for NITFs consisting of multiple image segments and/or product images
+
 ## [1.3.58] - 2023-08-07
 ### Added
 - Added additional tests to test_sicd_elements_geodata.py

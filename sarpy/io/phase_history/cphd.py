@@ -11,6 +11,7 @@ import logging
 import os
 from typing import Union, List, Tuple, Dict, BinaryIO, Optional, Sequence
 from collections import OrderedDict
+import numbers
 
 import numpy
 
@@ -34,9 +35,6 @@ _unhandled_version_text = 'Got unhandled CPHD version number `{}`'
 _missing_channel_identifier_text = 'Cannot find CPHD channel for identifier `{}`'
 _index_range_text = 'index must be in the range `[0, {})`'
 
-
-#########
-# Helper object for initially parses CPHD elements
 
 class AmpScalingFunction(ComplexFormatFunction):
     __slots__ = (
@@ -66,9 +64,8 @@ class AmpScalingFunction(ComplexFormatFunction):
             Which band is the complex dimension, **after** the transpose operation.
         amplitude_scaling : None|numpy.ndarray
             This is here to support the presence of a scaling in CPHD or CRSD usage.
-            This requires that `raw_dtype` in `[int8, int16]`, `band_dimension`
-            is the final dimension and neither `reverse_axes` nor `transpose_axes`
-            is populated.
+            This requires that `band_dimension` is the final dimension and neither
+            `reverse_axes` nor `transpose_axes` is populated.
         """
 
         ComplexFormatFunction.__init__(
@@ -121,11 +118,6 @@ class AmpScalingFunction(ComplexFormatFunction):
         if array.dtype.name != 'float32':
             array = numpy.cast['float32'](array)
 
-        # NB: more validation as part of validate_shapes
-        if self._raw_dtype.name not in ['int8', 'int16']:
-            raise ValueError(
-                'A scaling multiplier has been supplied,\n\t'
-                'but the raw datatype is not `int8` or `int16`.')
         self._amplitude_scaling = array
         self._validate_amplitude_scaling()
 
@@ -162,7 +154,9 @@ class AmpScalingFunction(ComplexFormatFunction):
         # NB: subscript is in formatted coordinates, but we have verified that
         #   transpose_axes is None and band_dimension is the final dimension
         if self._amplitude_scaling is not None:
-            data = numpy.rint((1./self._amplitude_scaling[subscript[0]])[:, numpy.newaxis] * data)
+            data = (1./self._amplitude_scaling[subscript[0]])[:, numpy.newaxis] * data
+        if issubclass(self._raw_dtype.type, numbers.Integral):
+            data = numpy.rint(data)
 
         return ComplexFormatFunction._reverse_functional_step(self, data, subscript)
 
@@ -1864,4 +1858,4 @@ class CPHDWriter1(BaseWriter):
         except AttributeError:
             pass
         self._writing_details = None
-        self._file_object = None
+        self._file_object.close()
