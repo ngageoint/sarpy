@@ -3889,7 +3889,7 @@ class NITFWriter(BaseWriter):
         # determine output particulars
         if apply_format:
             format_function = self.get_format_function(
-                raw_dtype, complex_order, lut, raw_band_dimension,
+                raw_dtype, complex_order, lut, 2,
                 image_segment_index=image_segment_index)
             use_transpose = None
             use_reverse = None
