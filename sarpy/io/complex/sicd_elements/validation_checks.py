@@ -555,13 +555,13 @@ def _pfa_check_polar_angle_consistency(
     cond = True
     if PFA.Kaz1 is not None and PFA.Kaz2 is not None and PFA.Krg1 is not None:
         polar_angle_bounds = numpy.sort(PFA.PolarAngPoly(numpy.array([ImageFormation.TStartProc, ImageFormation.TEndProc], dtype='float64')))
-        derived_pol_angle_bounds = numpy.arctan(numpy.array([PFA.Kaz1, PFA.Kaz2], dtype='float64')/PFA.Krg1)
-        pol_angle_bounds_diff = numpy.rad2deg(numpy.amax(numpy.abs(polar_angle_bounds - derived_pol_angle_bounds)))
+        p2r_pol_angle_bounds = numpy.arctan(numpy.array([PFA.Kaz1, PFA.Kaz2], dtype='float64')/PFA.Krg1)
+        pol_angle_bounds_diff = numpy.rad2deg(numpy.amax(numpy.abs(polar_angle_bounds - p2r_pol_angle_bounds)))
         if pol_angle_bounds_diff > 0.1:
             PFA.log_validity_warning(
-                'the derived polar angle bounds ({})\n\t'
-                'are not consistent with the provided ImageFormation processing times\n\t'
-                '(expected bounds {}).'.format(polar_angle_bounds, derived_pol_angle_bounds))
+                'the computed polar angle bounds ({}) from PolarAngPoly at [TStartProc, TEndProc]\n\t'
+                'are not consistent with the provided polar to rectangular resampling bounds\n\t'
+                '({}).'.format(polar_angle_bounds, p2r_pol_angle_bounds))
             cond = False
     return cond
 
