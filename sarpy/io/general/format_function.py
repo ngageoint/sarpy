@@ -777,7 +777,7 @@ class ComplexFormatFunction(FormatFunction):
             subscript: Tuple[slice, ...]) -> None:
         if data.dtype.name in ['uint8', 'uint16', 'uint32']:
             bit_depth = data.dtype.itemsize * 8
-            theta = theta*2*numpy.pi/(1 << bit_depth)
+            theta = theta*2.0*numpy.pi/(1 << bit_depth)
         out.real = magnitude*numpy.cos(theta)
         out.imag = magnitude*numpy.sin(theta)
 
@@ -1043,7 +1043,7 @@ class SingleLUTFormatFunction(FormatFunction):
             array = array.take(
                 indices=numpy.arange(self.formatted_shape[-1])[subscript[-1]], axis=-1)
             # ensure shape is as expected - any squeeze handled consistently
-            out_shape = get_subscript_result_size(subscript, self.formatted_shape)
+            _, out_shape = get_subscript_result_size(subscript, self.formatted_shape)
             array = numpy.reshape(array, out_shape)
         if squeeze:
             return numpy.squeeze(array)

@@ -13,7 +13,7 @@ import os
 
 from typing import Union, List, Tuple, BinaryIO, Sequence, Optional
 from tempfile import mkstemp
-from collections import OrderedDict
+from collections import OrderedDict, namedtuple
 import struct
 from io import BytesIO
 
@@ -438,7 +438,7 @@ def _verify_image_segment_compatibility(
 def _correctly_order_image_segment_collection(
             image_headers: Sequence[Union[ImageSegmentHeader, ImageSegmentHeader0]]) -> Tuple[int, ...]:
     """
-    Determines the proper order, based on IALVL, for a collection of entries
+    Determines the proper order, based on IALVL and IDLVL, for a collection of entries
     which will be assembled into a composite image.
 
     Parameters
@@ -455,20 +455,19 @@ def _correctly_order_image_segment_collection(
         If incompatible IALVL values collection
     """
 
-    collection = [(entry.IALVL, orig_index) for orig_index, entry in enumerate(image_headers)]
-    collection = sorted(collection, key=lambda x: x[0])   # (stable) order by IALVL
-
-    if all(entry[0] == 0 for entry in collection):
+    ImLvl = namedtuple('ImLvl', ['index', 'IALVL', 'IDLVL'])
+    im_levels = sorted([ImLvl(index=n, IALVL=hdr.IALVL, IDLVL=hdr.IDLVL) for n, hdr in enumerate(image_headers)],
+                       key=lambda x: x.IDLVL)
+    if all(entry.IALVL == 0 for entry in im_levels):
         # all IALVL is 0, and order doesn't matter
         return tuple(range(len(image_headers)))
-    if all(entry0[0]+1 == entry1[0] for entry0, entry1 in zip(collection[:-1], collection[1:])):
-        # ordered, uninterrupted sequence of IALVL values
-        return tuple(entry[1] for entry in collection)
-
-    raise ValueError(
-        'Collection of (IALVL, image segment index) has\n\t'
-        'neither all IALVL == 0, or an uninterrupted sequence of IALVL values.\n\t'
-        'See {}'.format(collection))
+    if im_levels[0].IALVL == 0  and all(im_levels[n].IALVL == im_levels[n-1].IDLVL for n in range(1, len(im_levels))):
+        # From ISO/IEC Joint BIIF Profile JBP-2024.1 - 4.5.4.2 Attachment Level (ALVL) Interpretation
+        # The image or graphic segment in the MI collection (multi files) with the minimum display level has an
+        # attachment level of zero.
+        # The attachment level of an item is equal to the display level of the item to which it is "attached.""
+        return tuple(x.index for x in im_levels)
+    raise ValueError(f"Unable to interpret image segment attachment/display levels:\n{im_levels}\n per ISO/IEC JBP")
 
 
 def _get_collection_element_coordinate_limits(
@@ -1930,7 +1929,7 @@ class NITFReader(BaseReader):
         # determine output particulars
         if apply_format:
             format_function = self.get_format_function(
-                raw_dtype, complex_order, lut, raw_band_dimension,
+                raw_dtype, complex_order, lut, 2,
                 image_segment_index=image_segment_index)
             use_transpose = self._transpose_axes
             use_reverse = self._reverse_axes
@@ -3890,7 +3889,7 @@ class NITFWriter(BaseWriter):
         # determine output particulars
         if apply_format:
             format_function = self.get_format_function(
-                raw_dtype, complex_order, lut, raw_band_dimension,
+                raw_dtype, complex_order, lut, 2,
                 image_segment_index=image_segment_index)
             use_transpose = None
             use_reverse = None
@@ -4175,4 +4174,4 @@ class NITFWriter(BaseWriter):
 
         self._nitf_writing_details = None
         self._image_segment_data_segments = None
-        self._file_object = None
+        self._file_object.close()

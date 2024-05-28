@@ -462,6 +462,18 @@ class BaseReader(object):
         # may be unreliable
         self.close()
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exception_type, exception_value, traceback):
+        self.close()
+
+        if exception_type is not None:
+            logger.error(
+                'The {} file writer generated an exception during processing'.format(
+                    self.__class__.__name__))
+            # The exception will be reraised.
+            # It's unclear how any exception could really be caught.
 
 class FlatReader(BaseReader):
     """
