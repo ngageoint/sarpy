@@ -24,9 +24,9 @@ from sarpy.io.complex.utils import get_data_mean_magnitude, stats_calculation, \
     get_data_extrema
 
 try:
-    from matplotlib import cm
+    import matplotlib.pyplot as plt
 except ImportError:
-    cm = None
+    plt = None
 
 
 logger = logging.getLogger(__name__)
@@ -1744,11 +1744,11 @@ class LUT8bit(RemapFunction):
             use_alpha: bool) -> None:
         max_out_size = self.mono_remap.max_output_value
         if isinstance(value, str):
-            if cm is None:
+            if plt is None:
                 raise ImportError(
                     'The lookup_table has been specified by providing a matplotlib '
                     'colormap name, but matplotlib can not be imported.')
-            cmap = cm.get_cmap(value, max_out_size+1)
+            cmap = plt.get_cmap(value, max_out_size+1)
             color_array = cmap(numpy.arange(max_out_size+1))
             value = clip_cast(max_out_size*color_array, dtype='uint8')
             if value.shape[1] > 3 and not use_alpha:
@@ -1854,7 +1854,7 @@ def _register_defaults():
     register_remap(Linear(bit_depth=8), overwrite=False)
     register_remap(Logarithmic(bit_depth=8), overwrite=False)
     register_remap(PEDF(bit_depth=8), overwrite=False)
-    if cm is not None:
+    if plt is not None:
         try:
             register_remap(LUT8bit(NRL(bit_depth=8), 'viridis', use_alpha=False), overwrite=False)
         except KeyError:
