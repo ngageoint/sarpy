@@ -1567,7 +1567,7 @@ class CPHDWriter1(BaseWriter):
         self._can_write_regular_data = {}
         signal_data_segments = []
         signal_array_format = self.meta.Data.SignalArrayFormat
-        compressed = self.meta.Data.SignalCompressionID
+        compressed = getattr(self.meta.Data, 'SignalCompressionID', None)
         if compressed is not None:
             signal_dtype = numpy.dtype('B')
         elif signal_array_format == 'CI2':
@@ -1579,7 +1579,7 @@ class CPHDWriter1(BaseWriter):
         else:
             raise ValueError('Got unhandled SignalArrayFormat {}'.format(signal_array_format))
         for i, entry in enumerate(self.meta.Data.Channels):
-            self._can_write_regular_data[entry.Identifier] = no_amp_sf
+            self._can_write_regular_data[entry.Identifier] = no_amp_sf or compressed
             if compressed:
                 raw_shape = (entry.CompressedSignalSize,)
                 formatted_shape = raw_shape
@@ -1590,7 +1590,7 @@ class CPHDWriter1(BaseWriter):
                 formatted_shape = raw_shape[:2]
                 formatted_dtype = 'complex64'
                 format_function = AmpScalingFunction(signal_dtype)
-    
+
             offset = self.writing_details.signal_details[i].item_offset
             if self._in_memory:
                 underlying_array = numpy.full(raw_shape, 0, dtype=signal_dtype)
@@ -1667,7 +1667,7 @@ class CPHDWriter1(BaseWriter):
         if data.shape[0] != entry.NumVectors:
             raise ValueError('Provided data must have size determined by NumVectors')
 
-        if self.meta.PVP.AmpSF is not None:
+        if self.meta.PVP.AmpSF is not None and self.meta.Data.SignalCompressionID is None:
             amp_sf = numpy.copy(data['AmpSF'][:])
             # noinspection PyUnresolvedReferences
             self._signal_data_segments[identifier].format_function.set_amplitude_scaling(amp_sf)

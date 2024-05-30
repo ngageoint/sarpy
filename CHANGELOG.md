@@ -19,6 +19,7 @@ release points are not being annotated in GitHub.
 - Support reading CPHDs with an AmpSF PVP whose Data/SignalArrayFormat is CF8
 - Unit tests for `sarpy/consistency/sidd_consistency.py`
 - Support for MATESA TRE
+- Support reading/writing CPHDs with compressed signal arrays
 ### Fixed
 - `sarpy.io.kml.add_polygon` coordinate conditioning for older numpy versions
 - Replace unsupported `pillow` constant `Image.ANTIALIAS` with `Image.LANCZOS`
