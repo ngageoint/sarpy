@@ -73,11 +73,11 @@ def test_cphd_read_write(cphd_path, tmp_path):
     for support_key in reread_support:
         numpy.testing.assert_array_equal(read_support[support_key], reread_support[support_key])
 
-    assert reread_pvp.keys() == read_pvp.keys(), 'PVP keys are not identical'
+    assert read_pvp.keys() == reread_pvp.keys(), 'PVP keys are not identical'
     for pvp_key in reread_pvp:
         numpy.testing.assert_array_equal(read_pvp[pvp_key], reread_pvp[pvp_key])
 
-    assert read_signal.keys() == read_signal.keys(), 'Signal keys are not identical'
+    assert read_signal.keys() == reread_signal.keys(), 'Signal keys are not identical'
     for signal_key in reread_signal:
         numpy.testing.assert_allclose(read_signal[signal_key], reread_signal[signal_key], rtol=1e-6)
 
@@ -118,12 +118,56 @@ def test_cphd_read_write_cf8_ampsf(tmp_path):
     for support_key in reread_support:
         numpy.testing.assert_array_equal(read_support[support_key], reread_support[support_key])
 
-    assert reread_pvp.keys() == read_pvp.keys(), 'PVP keys are not identical'
+    assert read_pvp.keys() == reread_pvp.keys(), 'PVP keys are not identical'
     for pvp_key in reread_pvp:
         numpy.testing.assert_array_equal(read_pvp[pvp_key], reread_pvp[pvp_key])
 
-    assert read_signal.keys() == read_signal.keys(), 'Signal keys are not identical'
+    assert read_signal.keys() == reread_signal.keys(), 'Signal keys are not identical'
     for signal_key in reread_signal:
         numpy.testing.assert_array_equal(read_signal[signal_key], reread_signal[signal_key])
+
+    assert not sarpy.consistency.cphd_consistency.main([str(written_cphd_name), '--signal-data'])
+
+
+@pytest.mark.parametrize('cphd_path', CPHD_FILE_TYPES.get('CPHD',[]))
+def test_cphd_read_write_compressed(cphd_path, tmp_path):
+    reader = sarpy.io.phase_history.converter.open_phase_history(cphd_path)
+    if isinstance(reader, CPHDReader0_3):
+        pytest.skip(reason='Writing CPHDs earlier than 1.0 is not supported')
+
+    read_support = reader.read_support_block()
+    read_pvp = reader.read_pvp_block()
+    read_signal = reader.read_signal_block()
+
+    # Modify CPHD to use compressed signal blocks
+    write_meta = reader.cphd_meta.copy()
+    write_meta.Data.SignalCompressionID = "FauxCompression"
+    write_signal = {}
+    for entry in write_meta.Data.Channels:
+        write_signal[entry.Identifier] = np.frombuffer(read_signal[entry.Identifier].tobytes(), dtype=np.uint8)
+        entry.CompressedSignalSize = len(write_signal[entry.Identifier])
+
+    written_cphd_name = tmp_path / 'compressed.cphd'
+    with CPHDWriter1(str(written_cphd_name), write_meta, check_existence=False) as writer:
+        writer.write_file(read_pvp, write_signal, read_support)
+
+    # reread the newly written data
+    rereader = CPHDReader(str(written_cphd_name))
+    reread_support = rereader.read_support_block()
+    reread_pvp = rereader.read_pvp_block()
+    reread_signal = rereader.read_signal_block()
+
+    # compare the original data and re-read data
+    assert read_support.keys() == reread_support.keys(), 'Support keys are not identical'
+    for support_key in reread_support:
+        numpy.testing.assert_array_equal(read_support[support_key], reread_support[support_key])
+
+    assert read_pvp.keys() == reread_pvp.keys(), 'PVP keys are not identical'
+    for pvp_key in reread_pvp:
+        numpy.testing.assert_array_equal(read_pvp[pvp_key], reread_pvp[pvp_key])
+
+    assert write_signal.keys() == reread_signal.keys(), 'Signal keys are not identical'
+    for signal_key in reread_signal:
+        numpy.testing.assert_array_equal(write_signal[signal_key], reread_signal[signal_key])
 
     assert not sarpy.consistency.cphd_consistency.main([str(written_cphd_name), '--signal-data'])
