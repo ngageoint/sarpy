@@ -346,5 +346,5 @@ class MeasurementType(Serializable):
 
         for attribute in self._choice[0]['collection']:
             if getattr(self, attribute) is not None:
-                return attribute.ReferencePoint
+                return getattr(self, attribute).ReferencePoint
         return None
