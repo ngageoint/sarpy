@@ -806,16 +806,28 @@ class SentinelDetails(object):
             if valid_count > 1:
                 coords_az = coords_az.reshape((valid_count, -1))
 
-            def create_poly(arr, poly_order=2):
-                rg_poly = polynomial.polyfit(coords_rg.flatten(), arr.flatten(), poly_order)
-                az_poly = polynomial.polyfit(coords_az.flatten(), arr.flatten(), poly_order)
-                return Poly2DType(Coefs=numpy.outer(az_poly/numpy.max(az_poly), rg_poly))
+            def create_poly(arr, poly_order=2, poly_name=''):
+                poly, residuals, rank, sing_values = two_dim_poly_fit(
+                    coords_rg, coords_az, arr,
+                    x_order=poly_order, y_order=poly_order, x_scale=1e-3, y_scale=1e-3, rcond=1e-35)
+                logger.info(
+                    'The {} polynomial fit details:\n\t'
+                    'root mean square residuals = {}\n\t'
+                    'rank = {}\n\t'
+                    'singular values = {}'.format(poly_name, residuals, rank, sing_values))
+                return Poly2DType(Coefs=poly)
 
             if sicd.Radiometric is None:
                 sicd.Radiometric = RadiometricType()
-            sicd.Radiometric.SigmaZeroSFPoly = create_poly(sigma[valid_lines, :], poly_order=2)
-            sicd.Radiometric.BetaZeroSFPoly = create_poly(beta[valid_lines, :], poly_order=2)
-            sicd.Radiometric.GammaZeroSFPoly = create_poly(gamma[valid_lines, :], poly_order=2)
+            sicd.Radiometric.SigmaZeroSFPoly = create_poly(sigma[valid_lines, :],
+                                                           poly_order=2,
+                                                           poly_name='SigmaZeroSFPoly')
+            sicd.Radiometric.BetaZeroSFPoly = create_poly(beta[valid_lines, :],
+                                                          poly_order=2,
+                                                          poly_name='BetaZeroSFPoly')
+            sicd.Radiometric.GammaZeroSFPoly = create_poly(gamma[valid_lines, :],
+                                                           poly_order=2,
+                                                           poly_name='GammaZeroSFPoly')
             return
 
         cal_vector_list = root_node.findall('./calibrationVectorList/calibrationVector')
