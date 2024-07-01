@@ -44,6 +44,7 @@ release points are not being annotated in GitHub.
 - Reading/writing of uncompressed NITF image segments with two complex-component bands interleaved by block/row
 - Replace deprecated `matplotlib.cm.get_cmap` with `matplotlib.pyplot.get_cmap`
 - ReferencePoint attribute in SIDD MeasurementType objects
+- Sentinel clutter radiometric polynomials are no longer transposed
 
 ## [1.3.58] - 2023-08-07
 ### Added
