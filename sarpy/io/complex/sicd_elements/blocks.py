@@ -936,7 +936,7 @@ class Poly1DType(Serializable, Arrayable):
                 'Coefs for class Poly1D must be one-dimensional. Received numpy.ndarray '
                 'of shape {}.'.format(value.shape))
         elif not value.dtype.name == 'float64':
-            value = numpy.cast[numpy.float64](value)
+            value = numpy.asarray(value, dtype=numpy.float64)
         self._coefs = value
 
     def __call__(self, x: Union[float, int, numpy.ndarray]) -> numpy.ndarray:
@@ -1250,7 +1250,7 @@ class Poly2DType(Serializable, Arrayable):
                 'Coefs for class Poly2D must be two-dimensional. Received numpy.ndarray '
                 'of shape {}.'.format(value.shape))
         elif not value.dtype.name == 'float64':
-            value = numpy.cast[numpy.float64](value)
+            value = numpy.asarray(value, dtype=numpy.float64)
         self._coefs = value
 
     def __getitem__(self, item):

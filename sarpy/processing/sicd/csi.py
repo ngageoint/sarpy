@@ -150,7 +150,7 @@ def csi_array(
     # move to phase history domain
     ph_indices = int(numpy.floor(0.5*(array.shape[1] - filter_map.shape[0]))) + \
                  numpy.arange(filter_map.shape[0], dtype=numpy.int32)
-    ph0 = fftshift(ifft(numpy.cast[numpy.complex128](array), axis=1), axes=1)[:, ph_indices]
+    ph0 = fftshift(ifft(numpy.asarray(array, numpy.complex128), axis=1), axes=1)[:, ph_indices]
     # construct the filtered workspace
     # NB: processing is more efficient with color band in the first dimension
     ph0_RGB = numpy.zeros((3, array.shape[0], filter_map.shape[0]), dtype=numpy.complex128)

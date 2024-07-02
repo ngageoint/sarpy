@@ -518,7 +518,7 @@ class BankCustomType(Serializable, Arrayable):
                 'Coefs for class BankCustomType must be two-dimensional. Received numpy.ndarray '
                 'of shape {}.'.format(value.shape))
         elif not value.dtype.name == 'float64':
-            value = numpy.cast[numpy.float64](value)
+            value = numpy.asarray(value, dtype=numpy.float64)
         self._coefs = value
 
     def __getitem__(self, item):
@@ -844,7 +844,7 @@ class LUTInfoType(Serializable, Arrayable):
         for i, lut_node in enumerate(lut_nodes):
             arr[:, i] = [str(el) for el in get_node_value(lut_node)]
         if numpy.max(arr) < 256:
-            arr = numpy.cast[numpy.uint8](arr)
+            arr = numpy.asarray(arr, dtype=numpy.uint8)
         return cls(LUTValues=arr)
 
     def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):

@@ -144,7 +144,7 @@ class ColorDisplayRemapType(Serializable, Arrayable):
                 arr[i, :] = [int(el) for el in entry]
                 i += 1
             if numpy.max(arr) < 256:
-                arr = numpy.cast[numpy.uint8](arr)
+                arr = numpy.asarray(arr, dtype=numpy.uint8)
             return cls(RemapLUT=arr)
         return cls()
 

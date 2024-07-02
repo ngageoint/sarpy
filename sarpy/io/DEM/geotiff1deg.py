@@ -388,7 +388,7 @@ class GeoTIFF1DegInterpolator(DEMInterpolator):
                  "max": {"lat": lat_deg, "lon": lon_deg, "height": height}}
 
         """
-        if np.all(self._bounding_box_cache.get("box", []) == lat_lon_box):
+        if np.array_equal(self._bounding_box_cache.get("box", []), lat_lon_box):
             # If we have already done this calculation then don't do it again.
             return self._bounding_box_cache
 
