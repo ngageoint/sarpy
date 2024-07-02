@@ -116,7 +116,7 @@ class AmpScalingFunction(ComplexFormatFunction):
         if array.dtype.name not in ['float32', 'float64']:
             raise ValueError('requires a numpy.ndarray of float32 or 64 dtype, got {}'.format(array.dtype))
         if array.dtype.name != 'float32':
-            array = numpy.cast['float32'](array)
+            array = numpy.asarray(array, dtype=numpy.float32)
 
         self._amplitude_scaling = array
         self._validate_amplitude_scaling()

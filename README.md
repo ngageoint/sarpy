@@ -88,7 +88,7 @@ MIT license.
 
 Dependencies
 ------------
-The core library functionality depends only on `numpy >= 1.11.0` and `scipy`. 
+The core library functionality depends only on `numpy` and `scipy`. 
 
 Optional Dependencies and Behavior
 ----------------------------------
