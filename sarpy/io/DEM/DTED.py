@@ -423,8 +423,8 @@ class DTEDReader(object):
         fy = (lat - self._origin[1])/self._spacing[1]
 
         # get integer indices via floor
-        ix = numpy.cast[numpy.int32](numpy.floor(fx))
-        iy = numpy.cast[numpy.int32](numpy.floor(fy))
+        ix = numpy.asarray(numpy.floor(fx), dtype=numpy.int32)
+        iy = numpy.asarray(numpy.floor(fy), dtype=numpy.int32)
         return self._linear(ix, fx-ix, iy, fy-iy)
 
     def get_elevation(self, lat, lon, block_size=50000):

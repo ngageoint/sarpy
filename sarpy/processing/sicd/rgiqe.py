@@ -468,7 +468,7 @@ def get_bandwidth_noise_distribution(
 
     best_index = numpy.argmin((desired_information_density - inf_densities)**2)
 
-    indices = numpy.cast['int32'](best_index - alpha*best_index)
+    indices = numpy.asarray(best_index - alpha*best_index, dtype=numpy.int32)
     indices = numpy.clip(indices, 0, best_index)
 
     this_bw_areas = bw_areas[indices]
@@ -719,10 +719,10 @@ def get_bidirectional_bandwidth_multiplier_possibilities(
     aperture_size = numpy.empty((the_size, 2), dtype='int32')
     bandwidth_multiplier = numpy.empty((the_size, 2), dtype='float64')
 
-    row_indexing = numpy.cast['int32'](
-        numpy.ceil(float(row_aperture_size.size - 1)*numpy.arange(the_size)/float(the_size - 1)))
-    col_indexing = numpy.cast['int32'](
-        numpy.ceil(float(col_aperture_size.size - 1)*numpy.arange(the_size)/float(the_size - 1)))
+    row_indexing = numpy.asarray(
+        numpy.ceil(float(row_aperture_size.size - 1)*numpy.arange(the_size)/float(the_size - 1)), dtype=numpy.int32)
+    col_indexing = numpy.asarray(
+        numpy.ceil(float(col_aperture_size.size - 1)*numpy.arange(the_size)/float(the_size - 1)), dtype=numpy.int32)
 
     aperture_size[:, 0] = row_aperture_size[row_indexing]
     aperture_size[:, 1] = col_aperture_size[col_indexing]

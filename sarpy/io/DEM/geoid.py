@@ -288,8 +288,8 @@ class GeoidHeight(object):
         fx[fx < 0] += 360*self._lon_res
         fy = (90 - lat)*self._lat_res
 
-        ix = numpy.cast[numpy.int32](numpy.floor(fx))
-        iy = numpy.cast[numpy.int32](numpy.floor(fy))
+        ix = numpy.asarray(numpy.floor(fx), dtype=numpy.int32)
+        iy = numpy.asarray(numpy.floor(fy), dtype=numpy.int32)
 
         dx = fx - ix
         dy = fy - iy
