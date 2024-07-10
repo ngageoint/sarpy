@@ -4174,4 +4174,3 @@ class NITFWriter(BaseWriter):
 
         self._nitf_writing_details = None
         self._image_segment_data_segments = None
-        self._file_object.close()
