@@ -790,12 +790,22 @@ class DTEDInterpolator(DEMInterpolator):
             return self._get_ref_geoid(lat_lon_box)
 
         obs_maxes = [reader.get_max(lat_lon_box=lat_lon_box) for reader in self._readers]
-        return float(max(value for value in obs_maxes if value is not None))
+        obs_maxes = [value for value in obs_maxes if value is not None]
+
+        if not obs_maxes:
+            return self._get_ref_geoid(lat_lon_box)
+
+        return float(max(obs_maxes))
 
     def get_min_geoid(self, lat_lon_box=None):
         if len(self._readers) < 1:
             return self._get_ref_geoid(lat_lon_box)
 
         obs_mins = [reader.get_min(lat_lon_box=lat_lon_box) for reader in self._readers]
-        return float(min(value for value in obs_mins if value is not None))
+        obs_mins = [value for value in obs_mins if value is not None]
+
+        if not obs_mins:
+            return self._get_ref_geoid(lat_lon_box)
+
+        return float(min(obs_mins))
 
