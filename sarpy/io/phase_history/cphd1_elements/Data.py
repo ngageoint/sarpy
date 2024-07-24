@@ -145,7 +145,7 @@ class DataType(Serializable):
     _fields = (
         'SignalArrayFormat', 'NumBytesPVP', 'NumCPHDChannels',
         'SignalCompressionID', 'Channels', 'NumSupportArrays', 'SupportArrays')
-    _required = ('SignalArrayFormat', 'NumBytesPVP', 'Channels')
+    _required = ('SignalArrayFormat', 'NumBytesPVP', 'NumCPHDChannels', 'Channels', 'NumSupportArrays')
     _collections_tags = {
         'Channels': {'array': False, 'child_tag': 'Channel'},
         'SupportArrays': {'array': False, 'child_tag': 'SupportArray'}}

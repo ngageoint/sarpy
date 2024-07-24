@@ -873,7 +873,7 @@ class Poly1DType(Serializable, Arrayable):
 
     __slots__ = ('_coefs', )
     _fields = ('Coefs', 'order1')
-    _required = ('Coefs', )
+    _required = _fields
     _numeric_format = {'Coefs': FLOAT_FORMAT}
 
     def __init__(
@@ -1162,7 +1162,7 @@ class Poly2DType(Serializable, Arrayable):
 
     __slots__ = ('_coefs', )
     _fields = ('Coefs', 'order1', 'order2')
-    _required = ('Coefs', )
+    _required = _fields
     _numeric_format = {'Coefs': FLOAT_FORMAT}
 
     def __init__(

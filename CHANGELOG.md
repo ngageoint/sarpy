@@ -46,6 +46,7 @@ release points are not being annotated in GitHub.
 - Replace deprecated `matplotlib.cm.get_cmap` with `matplotlib.pyplot.get_cmap`
 - ReferencePoint attribute in SIDD MeasurementType objects
 - Sentinel clutter radiometric polynomials are no longer transposed
+- Various SICD and SIDD elements fixed to better match NGA standard
 
 ## [1.3.58] - 2023-08-07
 ### Added

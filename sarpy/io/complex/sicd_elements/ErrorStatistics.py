@@ -319,43 +319,43 @@ class TropoErrorType(Serializable):
 
 class IonoErrorType(Serializable):
     """Ionosphere delay error statistics."""
-    _fields = ('IonoRangeVertical', 'IonoRangeSlant', 'IonoRgRgRateCC', 'IonoRangeDecorr')
+    _fields = ('IonoRangeVertical', 'IonoRangeRateVertical', 'IonoRgRgRateCC', 'IonoRangeVertDecorr')
     _required = ('IonoRgRgRateCC', )
     _numeric_format = {
-        'IonoRangeVertical': FLOAT_FORMAT, 'IonoRangeSlant': FLOAT_FORMAT, 'IonoRgRgRateCC': FLOAT_FORMAT}
+        'IonoRangeVertical': FLOAT_FORMAT, 'IonoRangeRateVertical': FLOAT_FORMAT, 'IonoRgRgRateCC': FLOAT_FORMAT}
     # descriptors
     IonoRangeVertical = FloatDescriptor(
         'IonoRangeVertical', _required, strict=DEFAULT_STRICT,
         docstring='Ionosphere two-way delay error for normal incidence standard deviation. '
                   r'Expressed as a range error. '
                   r':math:`(\Delta R) = (\Delta T) \cdot (c/2)`.')  # type: Optional[float]
-    IonoRangeSlant = FloatDescriptor(
-        'IonoRangeSlant', _required, strict=DEFAULT_STRICT,
+    IonoRangeRateVertical = FloatDescriptor(
+        'IonoRangeRateVertical', _required, strict=DEFAULT_STRICT,
         docstring='Ionosphere two-way delay rate of change error for normal '
                   'incidence standard deviation. Expressed as a range rate error. '
                   r':math:`(\Delta \dot{R}) = (\Delta \dot{T}) \cdot (c/2)`.')  # type: Optional[float]
     IonoRgRgRateCC = FloatDescriptor(
         'IonoRgRgRateCC', _required, strict=DEFAULT_STRICT,
         docstring='Ionosphere range error and range rate error correlation coefficient.')  # type: float
-    IonoRangeDecorr = SerializableDescriptor(
-        'IonoRangeDecorr', ErrorDecorrFuncType, _required, strict=DEFAULT_STRICT,
+    IonoRangeVertDecorr = SerializableDescriptor(
+        'IonoRangeVertDecorr', ErrorDecorrFuncType, _required, strict=DEFAULT_STRICT,
         docstring='Ionosphere range error decorrelation rate.')  # type: Optional[ErrorDecorrFuncType]
 
     def __init__(
             self,
             IonoRangeVertical: Optional[float] = None,
-            IonoRangeSlant: Optional[float] = None,
+            IonoRangeRateVertical: Optional[float] = None,
             IonoRgRgRateCC: float = None,
-            IonoRangeDecorr: Optional[ErrorDecorrFuncType] = None,
+            IonoRangeVertDecorr: Optional[ErrorDecorrFuncType] = None,
             **kwargs):
         """
 
         Parameters
         ----------
         IonoRangeVertical : float
-        IonoRangeSlant : float
+        IonoRangeRateVertical : float
         IonoRgRgRateCC : float
-        IonoRangeDecorr : ErrorDecorrFuncType
+        IonoRangeVertDecorr : ErrorDecorrFuncType
         kwargs
         """
 
@@ -364,9 +364,9 @@ class IonoErrorType(Serializable):
         if '_xml_ns_key' in kwargs:
             self._xml_ns_key = kwargs['_xml_ns_key']
         self.IonoRangeVertical = IonoRangeVertical
-        self.IonoRangeSlant = IonoRangeSlant
+        self.IonoRangeRateVertical = IonoRangeRateVertical
         self.IonoRgRgRateCC = IonoRgRgRateCC
-        self.IonoRangeDecorr = IonoRangeDecorr
+        self.IonoRangeVertDecorr = IonoRangeVertDecorr
         super(IonoErrorType, self).__init__(**kwargs)
 
 
