@@ -63,7 +63,7 @@ class MatchCollectionType(Serializable):
 class MatchType(Serializable):
     """The is an array element for match information."""
     _fields = ('TypeID', 'CurrentIndex', 'NumMatchCollections', 'MatchCollections')
-    _required = ('TypeID',)
+    _required = ('TypeID', 'NumMatchCollections')
     _collections_tags = {'MatchCollections': {'array': False, 'child_tag': 'MatchCollection'}}
     # descriptors
     TypeID = StringDescriptor(
@@ -118,7 +118,7 @@ class MatchInfoType(Serializable):
     """
 
     _fields = ('NumMatchTypes', 'MatchTypes')
-    _required = ('MatchTypes', )
+    _required = _fields
     _collections_tags = {'MatchTypes': {'array': False, 'child_tag': 'MatchType'}}
     # descriptors
     MatchTypes = SerializableListDescriptor(

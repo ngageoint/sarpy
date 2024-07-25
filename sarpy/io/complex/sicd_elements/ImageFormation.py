@@ -184,7 +184,7 @@ class TxFrequencyProcType(Serializable, Arrayable):
         if array is None:
             return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
-            if len(array) < 2:
+            if len(array) != 2:
                 raise ValueError('Expected array to be of length 2, and received {}'.format(array))
             return cls(MinProc=array[0], MaxProc=array[1])
         raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))

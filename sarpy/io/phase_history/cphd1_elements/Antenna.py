@@ -593,7 +593,7 @@ class AntennaType(Serializable):
 
     _fields = (
         'NumACFs', 'NumAPCs', 'NumAntPats', 'AntCoordFrame', 'AntPhaseCenter', 'AntPattern')
-    _required = ('AntCoordFrame', 'AntPhaseCenter', 'AntPattern')
+    _required = _fields
     _collections_tags = {
         'AntCoordFrame': {'array': False, 'child_tag': 'AntCoordFrame'},
         'AntPhaseCenter': {'array': False, 'child_tag': 'AntPhaseCenter'},

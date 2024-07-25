@@ -17,7 +17,7 @@ class CollectionIDType(CollectionInfoType):
 
     _fields = (
         'CollectorName', 'IlluminatorName', 'CoreName', 'CollectType',
-        'RadarMode', 'Classification', 'ReleaseInfo', 'Parameters', 'CountryCodes')
+        'RadarMode', 'Classification', 'ReleaseInfo', 'CountryCodes', 'Parameters')
     _required = ('CollectorName', 'CoreName', 'CollectType', 'RadarMode', 'Classification', 'ReleaseInfo')
     # descriptors
     ReleaseInfo = StringDescriptor(
