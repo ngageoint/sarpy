@@ -47,6 +47,7 @@ release points are not being annotated in GitHub.
 - ReferencePoint attribute in SIDD MeasurementType objects
 - Sentinel clutter radiometric polynomials are no longer transposed
 - NITFWriter no longer closes passed in file objects
+- Various SICD and SIDD elements fixed to better match NGA standard
 
 ## [1.3.58] - 2023-08-07
 ### Added

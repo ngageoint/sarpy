@@ -94,7 +94,7 @@ class LSType(Serializable, Arrayable):
         if array is None:
             return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
-            if len(array) < 2:
+            if len(array) != 2:
                 raise ValueError(_len2_array_text.format(array))
             return cls(Line=array[0], Sample=array[1])
         raise ValueError(_array_type_text.format(type(array)))
@@ -150,7 +150,7 @@ class LSVertexType(LSType):
         if array is None:
             return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
-            if len(array) < 2:
+            if len(array) != 2:
                 raise ValueError(_len2_array_text.format(array))
             return cls(Line=array[0], Sample=array[1], index=index)
         raise ValueError(_array_type_text.format(type(array)))
@@ -208,7 +208,7 @@ class XYType(Serializable, Arrayable):
         if array is None:
             return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
-            if len(array) < 2:
+            if len(array) != 2:
                 raise ValueError(_len2_array_text.format(array))
             return cls(X=array[0], Y=array[1])
         raise ValueError(_array_type_text.format(type(array)))
@@ -281,7 +281,7 @@ class XYVertexType(XYType):
         if array is None:
             return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
-            if len(array) < 2:
+            if len(array) != 2:
                 raise ValueError(_len2_array_text.format(array))
             return cls(X=array[0], Y=array[1], index=index)
         raise ValueError(_array_type_text.format(type(array)))
@@ -293,7 +293,7 @@ class AreaType(Serializable):
     """
 
     _fields = ('X1Y1', 'X2Y2', 'Polygon')
-    _required = _fields
+    _required = ('X1Y1', 'X2Y2')
     _collections_tags = {'Polygon': {'array': True, 'child_tag': 'Vertex'}}
     # descriptors
     X1Y1 = SerializableDescriptor(

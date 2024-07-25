@@ -91,7 +91,7 @@ class DwellType(Serializable):
     """
 
     _fields = ('NumCODTimes', 'CODTimes', 'NumDwellTimes', 'DwellTimes')
-    _required = ('CODTimes', 'DwellTimes')
+    _required = _fields
     _collections_tags = {
         'CODTimes': {'array': False, 'child_tag': 'CODTime'},
         'DwellTimes': {'array': False, 'child_tag': 'DwellTime'}}
