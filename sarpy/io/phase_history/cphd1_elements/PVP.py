@@ -18,7 +18,7 @@ from .base import DEFAULT_STRICT
 
 class PerVectorParameterI8(Serializable):
     _fields = ('Offset', 'Size', 'Format')
-    _required = ('Offset', )
+    _required = _fields
     # descriptors
     Offset = IntegerDescriptor(
         'Offset', _required, strict=DEFAULT_STRICT, bounds=(0, None),
@@ -59,7 +59,7 @@ class PerVectorParameterI8(Serializable):
 
 class PerVectorParameterF8(Serializable):
     _fields = ('Offset', 'Size', 'Format')
-    _required = ('Offset', )
+    _required = _fields
     # descriptors
     Offset = IntegerDescriptor(
         'Offset', _required, strict=DEFAULT_STRICT, bounds=(0, None),
@@ -100,7 +100,7 @@ class PerVectorParameterF8(Serializable):
 
 class PerVectorParameterXYZ(Serializable):
     _fields = ('Offset', 'Size', 'Format')
-    _required = ('Offset', )
+    _required = _fields
     # descriptors
     Offset = IntegerDescriptor(
         'Offset', _required, strict=DEFAULT_STRICT, bounds=(0, None),
@@ -141,7 +141,7 @@ class PerVectorParameterXYZ(Serializable):
 
 class PerVectorParameterEB(Serializable):
     _fields = ('Offset', 'Size', 'Format')
-    _required = ('Offset', )
+    _required = _fields
     # descriptors
     Offset = IntegerDescriptor(
         'Offset', _required, strict=DEFAULT_STRICT, bounds=(0, None),

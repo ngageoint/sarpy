@@ -38,3 +38,23 @@ def test_iq_band_interleaved_by_block(tests_path, tmp_path):
     ) as writer:
         writer.write(data)
     assert filecmp.cmp(in_nitf, out_nitf, shallow=False)
+
+
+def test_write_filehandle(tests_path, tmp_path):
+    in_nitf = tests_path / "data/iq.nitf"
+    with sarpy.io.general.nitf.NITFReader(str(in_nitf)) as reader:
+        data = reader.read()
+        writer_details = sarpy.io.general.nitf.NITFWritingDetails(
+            reader.nitf_details.nitf_header,
+            (sarpy.io.general.nitf.ImageSubheaderManager(reader.get_image_header(0)),),
+            reader.image_segment_collections,
+        )
+
+    out_nitf = tmp_path / 'output.nitf'
+    with out_nitf.open('wb') as fd:
+        with sarpy.io.general.nitf.NITFWriter(
+            fd, writing_details=writer_details
+        ) as writer:
+            writer.write(data)
+
+        assert not fd.closed

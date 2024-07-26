@@ -70,7 +70,7 @@ class IonoErrorType(Serializable):
     """
 
     _fields = ('IonoRangeVertical', 'IonoRangeRateVertical', 'IonoRgRgRateCC', 'IonoRangeVertDecorr')
-    _required = ('IonoRgRgRateCC', )
+    _required = ('IonoRangeVertical', )
     _numeric_format = {'IonoRangeVertical': FLOAT_FORMAT, 'IonoRangeRateVertical': FLOAT_FORMAT,
                        'IonoRgRgRateCC': FLOAT_FORMAT}
     # descriptors
@@ -260,7 +260,7 @@ class BistaticType(Serializable):
     """
 
     _fields = ('TxPlatform', 'RcvPlatform', 'AddedParameters')
-    _required = ('TxPlatform', )
+    _required = ('TxPlatform', 'RcvPlatform')
     # descriptors
     TxPlatform = SerializableDescriptor(
         'TxPlatform', PlatformType, _required, strict=DEFAULT_STRICT,

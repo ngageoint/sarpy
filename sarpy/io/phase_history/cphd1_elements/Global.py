@@ -164,7 +164,7 @@ class TOASwathType(Serializable, Arrayable):
         if array is None:
             return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
-            if len(array) < 2:
+            if len(array) != 2:
                 raise ValueError('Expected array to be of length 2, and received {}'.format(array))
             return cls(TOAMin=array[0], TOAMax=array[1])
         raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
