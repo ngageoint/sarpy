@@ -3538,7 +3538,7 @@ class NITFWritingDetails(object):
 class NITFWriter(BaseWriter):
     __slots__ = (
         '_file_object', '_file_name', '_in_memory',
-        '_nitf_writing_details', '_image_segment_data_segments')
+        '_nitf_writing_details', '_image_segment_data_segments', '_close_after')
 
     def __init__(
             self,
@@ -3562,12 +3562,14 @@ class NITFWriter(BaseWriter):
 
         self._nitf_writing_details = None
         self._image_segment_data_segments = []  # type: List[DataSegment]
+        self._close_after = False
 
         if isinstance(file_object, str):
             if check_existence and os.path.exists(file_object):
                 raise SarpyIOError(
                     'Given file {} already exists, and a new NITF file cannot be created here.'.format(file_object))
             file_object = open(file_object, 'wb')
+            self._close_after = True
 
         if not is_file_like(file_object):
             raise ValueError('file_object requires a file path or BinaryIO object')
@@ -4174,4 +4176,10 @@ class NITFWriter(BaseWriter):
 
         self._nitf_writing_details = None
         self._image_segment_data_segments = None
-        self._file_object.close()
+        if self._close_after:
+            self._close_after = False
+            # noinspection PyBroadException
+            try:
+                self._file_object.close()
+            except Exception:
+                pass
