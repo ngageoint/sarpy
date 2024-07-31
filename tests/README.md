@@ -77,12 +77,20 @@ Non-SAR data:
 - Geoid data:
     - Overall found here, specifics below - https://geographiclib.sourceforge.io/html/geoid.html
     - Test data - https://sourceforge.net/projects/geographiclib/files/testdata/GeoidHeights.dat.gz
-    - 1 minute data:
-        + https://sourceforge.net/projects/geographiclib/files/geoids-distrib/egm2008-1.tar.bz2
-	    + https://sourceforge.net/projects/geographiclib/files/geoids-distrib/egm2008-1.zip
-    - 5 minute data:
-	    + https://sourceforge.net/projects/geographiclib/files/geoids-distrib/egm2008-5.tar.bz2
-	    + https://sourceforge.net/projects/geographiclib/files/geoids-distrib/egm2008-5.zip
+    - EGM96
+        - 5 minute data:
+            + https://sourceforge.net/projects/geographiclib/files/geoids-distrib/egm96-5.tar.bz2
+            + https://sourceforge.net/projects/geographiclib/files/geoids-distrib/egm96-5.zip
+        - 15 minute data:
+            + https://sourceforge.net/projects/geographiclib/files/geoids-distrib/egm96-15.tar.bz2
+            + https://sourceforge.net/projects/geographiclib/files/geoids-distrib/egm96-15.zip
+    - EGM2008
+        - 1 minute data:
+            + https://sourceforge.net/projects/geographiclib/files/geoids-distrib/egm2008-1.tar.bz2
+            + https://sourceforge.net/projects/geographiclib/files/geoids-distrib/egm2008-1.zip
+        - 5 minute data:
+            + https://sourceforge.net/projects/geographiclib/files/geoids-distrib/egm2008-5.tar.bz2
+            + https://sourceforge.net/projects/geographiclib/files/geoids-distrib/egm2008-5.zip
 
 Publicly available complex valued SAR example data in various formats:
 ----------------------------------------------------------------------

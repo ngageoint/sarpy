@@ -7,6 +7,7 @@ __author__ = "Thomas McCullough"
 
 import logging
 import os
+import pathlib
 import struct
 
 import numpy
@@ -561,7 +562,7 @@ class DTEDInterpolator(DEMInterpolator):
 
         # get the geoid object - we should prefer egm96 .pgm files, since that's the DTED spec
         #   in reality, it makes very little difference, though
-        if isinstance(geoid_file, str):
+        if isinstance(geoid_file, (str, pathlib.Path)):
             if os.path.isdir(geoid_file):
                 geoid_file = GeoidHeight.from_directory(geoid_file, search_files=('egm96-5.pgm', 'egm96-15.pgm'))
             else:
@@ -786,16 +787,20 @@ class DTEDInterpolator(DEMInterpolator):
         return self.get_min_geoid(lat_lon_box=lat_lon_box) + self._get_ref_geoid(lat_lon_box)
 
     def get_max_geoid(self, lat_lon_box=None):
-        if len(self._readers) < 1:
-            return self._get_ref_geoid(lat_lon_box)
-
         obs_maxes = [reader.get_max(lat_lon_box=lat_lon_box) for reader in self._readers]
-        return float(max(value for value in obs_maxes if value is not None))
+        obs_maxes = [value for value in obs_maxes if value is not None]
+
+        if not obs_maxes:
+            return 0  # Assume missing area to be MSL
+
+        return float(max(obs_maxes))
 
     def get_min_geoid(self, lat_lon_box=None):
-        if len(self._readers) < 1:
-            return self._get_ref_geoid(lat_lon_box)
-
         obs_mins = [reader.get_min(lat_lon_box=lat_lon_box) for reader in self._readers]
-        return float(min(value for value in obs_mins if value is not None))
+        obs_mins = [value for value in obs_mins if value is not None]
+
+        if not obs_mins:
+            return 0  # Assume missing area to be MSL
+
+        return float(min(obs_mins))
 
