@@ -50,6 +50,7 @@ release points are not being annotated in GitHub.
 - Various SICD and SIDD elements fixed to better match NGA standard
 - Fixed case where DTEDInterpolator applied geoid offset incorrectly
 - Improved DTEDInterpolator handling of missing DEMs
+- SIDD 3.0.0 point projection
 
 ## [1.3.58] - 2023-08-07
 ### Added
