@@ -380,22 +380,19 @@ def _get_sidd_type_projection(sidd) -> Union[Poly2DType, Callable]:
 
     Parameters
     ----------
-    sidd : sarpy.io.product.sidd1_elements.SIDD.SIDDType1|sarpy.io.product.sidd2_elements.SIDD.SIDDType2
+    sidd : SIDDType
 
     Returns
     -------
     (Poly2DType, callable)
     """
 
-    from sarpy.io.product.sidd2_elements.SIDD import SIDDType as SIDDType2
-    from sarpy.io.product.sidd1_elements.SIDD import SIDDType as SIDDType1
-
     def pgp(the_sidd):
         """
 
         Parameters
         ----------
-        the_sidd : SIDDType2|SIDDType1
+        the_sidd : SIDDType
 
         Returns
         -------
@@ -435,13 +432,9 @@ def _get_sidd_type_projection(sidd) -> Union[Poly2DType, Callable]:
             return r_tgt_coa, r_dot_tgt_coa
         return plane_proj.TimeCOAPoly, method_projection
 
-    if not isinstance(sidd, (SIDDType2, SIDDType1)):
-        raise TypeError(_unhandled_text.format(type(sidd)))
-
     if sidd.Measurement.PlaneProjection is not None:
         return pgp(sidd)
-    else:
-        raise ValueError('Currently the only supported projection is PlaneProjection.')
+    raise ValueError('Currently the only supported projection is PlaneProjection.')
 
 
 def _get_sidd_adjustment_params(
@@ -454,7 +447,7 @@ def _get_sidd_adjustment_params(
 
     Parameters
     ----------
-    sidd : sarpy.io.product.sidd1_elements.SIDD.SIDDType1|sarpy.io.product.sidd2_elements.SIDD.SIDDType2
+    sidd : SIDDType
     delta_arp : None|numpy.ndarray|list|tuple
     delta_varp : None|numpy.ndarray|list|tuple
     adj_params_frame : str
@@ -464,12 +457,6 @@ def _get_sidd_adjustment_params(
     delta_arp: numpy.ndarray
     delta_varp: numpy.ndarray
     """
-
-    from sarpy.io.product.sidd2_elements.SIDD import SIDDType as SIDDType2
-    from sarpy.io.product.sidd1_elements.SIDD import SIDDType as SIDDType1
-
-    if not isinstance(sidd, (SIDDType2, SIDDType1)):
-        raise TypeError('Got sidd of unhandled type {}'.format(type(sidd)))
 
     delta_arp = _validate_adj_param(delta_arp, 'delta_arp')
     delta_varp = _validate_adj_param(delta_varp, 'delta_varp')
@@ -668,7 +655,7 @@ class COAProjection(object):
 
         Parameters
         ----------
-        sidd : sarpy.io.product.sidd1_elements.SIDD.SIDDType1|sarpy.io.product.sidd2_elements.SIDD.SIDDType2
+        sidd : SIDDType
         delta_arp : None|numpy.ndarray|list|tuple
             ARP position adjustable parameter (ECF, m).  Defaults to 0 in each coordinate.
         delta_varp : None|numpy.ndarray|list|tuple
@@ -771,14 +758,13 @@ def _get_coa_projection(
     """
 
     from sarpy.io.complex.sicd_elements.SICD import SICDType
-    from sarpy.io.product.sidd2_elements.SIDD import SIDDType as SIDDType2
-    from sarpy.io.product.sidd1_elements.SIDD import SIDDType as SIDDType1
+    from sarpy.io.product.sidd import SIDD_TYPES
 
     if use_structure_coa and structure.coa_projection is not None:
         return structure.coa_projection
     elif isinstance(structure, SICDType):
         return COAProjection.from_sicd(structure, **coa_args)
-    elif isinstance(structure, (SIDDType2, SIDDType1)):
+    elif isinstance(structure, SIDD_TYPES):
         return COAProjection.from_sidd(structure, **coa_args)
     else:
         raise ValueError(_unhandled_text.format(type(structure)))
@@ -801,18 +787,16 @@ def _get_reference_point(structure) -> numpy.ndarray:
     """
 
     from sarpy.io.complex.sicd_elements.SICD import SICDType
-    from sarpy.io.product.sidd2_elements.SIDD import SIDDType as SIDDType2
-    from sarpy.io.product.sidd1_elements.SIDD import SIDDType as SIDDType1
+    from sarpy.io.product.sidd import SIDD_TYPES
 
     if isinstance(structure, SICDType):
         return structure.GeoData.SCP.ECF.get_array(dtype='float64')
-    elif isinstance(structure, (SIDDType2, SIDDType1)):
+    if isinstance(structure, SIDD_TYPES):
         proj_type = structure.Measurement.ProjectionType
         if proj_type != 'PlaneProjection':
             raise ValueError(_unsupported_text.format(proj_type))
         return structure.Measurement.PlaneProjection.ReferencePoint.ECEF.get_array(dtype='float64')
-    else:
-        raise TypeError(_unhandled_text.format(type(structure)))
+    raise TypeError(_unhandled_text.format(type(structure)))
 
 
 def _get_outward_norm(structure, gref: numpy.ndarray) -> numpy.ndarray:
@@ -830,15 +814,13 @@ def _get_outward_norm(structure, gref: numpy.ndarray) -> numpy.ndarray:
     """
 
     from sarpy.io.complex.sicd_elements.SICD import SICDType
-    from sarpy.io.product.sidd2_elements.SIDD import SIDDType as SIDDType2
-    from sarpy.io.product.sidd1_elements.SIDD import SIDDType as SIDDType1
+    from sarpy.io.product.sidd import SIDD_TYPES
 
     if isinstance(structure, SICDType):
         if structure.ImageFormation.ImageFormAlgo == 'PFA':
             return structure.PFA.FPN.get_array()
-        else:
-            return wgs_84_norm(gref)
-    elif isinstance(structure, (SIDDType2, SIDDType1)):
+        return wgs_84_norm(gref)
+    if isinstance(structure, SIDD_TYPES):
         proj_type = structure.Measurement.ProjectionType
         if proj_type != 'PlaneProjection':
             raise ValueError(_unsupported_text.format(proj_type))
@@ -852,8 +834,7 @@ def _get_outward_norm(structure, gref: numpy.ndarray) -> numpy.ndarray:
         if numpy.dot(uGPN, gref) < 0:
             uGPN *= -1
         return uGPN
-    else:
-        raise TypeError(_unhandled_text.format(type(structure)))
+    raise TypeError(_unhandled_text.format(type(structure)))
 
 
 def _extract_plane_params(structure) -> Tuple[
@@ -878,8 +859,7 @@ def _extract_plane_params(structure) -> Tuple[
     """
 
     from sarpy.io.complex.sicd_elements.SICD import SICDType
-    from sarpy.io.product.sidd2_elements.SIDD import SIDDType as SIDDType2
-    from sarpy.io.product.sidd1_elements.SIDD import SIDDType as SIDDType1
+    from sarpy.io.product.sidd import SIDD_TYPES
 
     if isinstance(structure, SICDType):
         # reference point for the plane
@@ -906,7 +886,7 @@ def _extract_plane_params(structure) -> Tuple[
         uSPN /= numpy.linalg.norm(uSPN)
 
         return ref_point, ref_pixel, row_ss, col_ss, uRow, uCol, uGPN, uSPN
-    elif isinstance(structure, (SIDDType1, SIDDType2)):
+    if isinstance(structure, SIDD_TYPES):
         proj_type = structure.Measurement.ProjectionType
         if proj_type != 'PlaneProjection':
             raise ValueError(_unsupported_text.format(proj_type))
@@ -930,8 +910,7 @@ def _extract_plane_params(structure) -> Tuple[
 
         # slant plane is identical to outward unit norm
         return ref_point, ref_pixel, row_ss, col_ss, uRow, uCol, uGPN, uGPN
-    else:
-        raise TypeError('Got structure unsupported type {}'.format(type(structure)))
+    raise TypeError('Got structure unsupported type {}'.format(type(structure)))
 
 
 #############
@@ -1218,7 +1197,7 @@ def image_to_ground(
     im_points : numpy.ndarray|list|tuple
         (row, column) coordinates of N points in image (or subimage if FirstRow/FirstCol are nonzero).
         Following SICD convention, the upper-left pixel is [0, 0].
-    structure : sarpy.io.complex.sicd_elements.SICD.SICDType|sarpy.io.product.sidd2_elements.SIDD.SIDDType|sarpy.io.product.sidd1_elements.SIDD.SIDDType
+    structure : SICDType|SIDDType
         The SICD or SIDD structure.
     block_size : None|int
         Size of blocks of coordinates to transform at a time. The entire array will be
@@ -1268,7 +1247,7 @@ def image_to_ground_geo(
     im_points : numpy.ndarray|list|tuple
         (row, column) coordinates of N points in image (or subimage if FirstRow/FirstCol are nonzero).
         Following SICD convention, the upper-left pixel is [0, 0].
-    structure : sarpy.io.complex.sicd_elements.SICD.SICDType|sarpy.io.product.sidd2_elements.SIDD.SIDDType|sarpy.io.product.sidd1_elements.SIDD.SIDDType
+    structure : SICDType|SIDDType
         The SICD or SIDD structure.
     ordering : str
         Determines whether return is ordered as `[lat, long, hae]` or `[long, lat, hae]`.
@@ -1392,7 +1371,7 @@ def image_to_ground_plane(
     ----------
     im_points : numpy.ndarray|list|tuple
         the image coordinate array
-    structure : sarpy.io.complex.sicd_elements.SICD.SICDType|sarpy.io.product.sidd2_elements.SIDD.SIDDType|sarpy.io.product.sidd1_elements.SIDD.SIDDType
+    structure : SICDType|SIDDType
         The SICD or SIDD structure.
     block_size : None|int
         Size of blocks of coordinates to transform at a time. The entire array will be
@@ -1580,7 +1559,7 @@ def image_to_ground_hae(
     ----------
     im_points : numpy.ndarray|list|tuple
         the image coordinate array
-    structure : sarpy.io.complex.sicd_elements.SICD.SICDType|sarpy.io.product.sidd2_elements.SIDD.SIDDType|sarpy.io.product.sidd1_elements.SIDD.SIDDType
+    structure : SICDType|SIDDType
         The SICD or SIDD structure.
     block_size : None|int
         Size of blocks of coordinates to transform at a time. The entire array will be
@@ -1822,7 +1801,7 @@ def image_to_ground_dem(
     ----------
     im_points : numpy.ndarray|list|tuple
         the image coordinate array
-    structure : sarpy.io.complex.sicd_elements.SICD.SICDType|sarpy.io.product.sidd2_elements.SIDD.SIDDType|sarpy.io.product.sidd1_elements.SIDD.SIDDType
+    structure : SICDType|SIDDType
         The SICD or SIDD structure.
     block_size : None|int
         Size of blocks of coordinates to transform at a time. The entire array

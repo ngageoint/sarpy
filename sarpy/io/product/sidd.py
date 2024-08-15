@@ -41,6 +41,7 @@ logger = logging.getLogger(__name__)
 ########
 # module variables
 _class_priority = {'U': 0, 'R': 1, 'C': 2, 'S': 3, 'T': 4}
+SIDD_TYPES = (SIDDType1, SIDDType2, SIDDType3)
 
 
 #########
