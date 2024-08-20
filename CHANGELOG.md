@@ -51,6 +51,7 @@ release points are not being annotated in GitHub.
 - Fixed case where DTEDInterpolator applied geoid offset incorrectly
 - Improved DTEDInterpolator handling of missing DEMs
 - SIDD 3.0.0 point projection
+- Restored missing antenna beam footprints in some KMZs
 
 ## [1.3.58] - 2023-08-07
 ### Added
