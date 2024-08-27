@@ -1,26 +1,18 @@
-import time
-import os
 import logging
-import numpy
-import json
+import os
+import pathlib
+import time
 import unittest
 
+import numpy
+
 import sarpy.io.DEM.geoid as geoid
-from tests import parse_file_entry
+import tests
 
 
-test_file = None
-geoid_files = []
-this_loc = os.path.abspath(__file__)
-file_reference = os.path.join(os.path.split(this_loc)[0], 'geoid.json')  # specifies file locations
-if os.path.isfile(file_reference):
-    with open(file_reference, 'r') as fi:
-        the_files = json.load(fi)
-        test_file = parse_file_entry(the_files.get('test_file', None))
-        for entry in the_files.get('geoid_files', []):
-            the_file = parse_file_entry(entry)
-            if the_file is not None:
-                geoid_files.append(the_file)
+test_data = tests.find_test_data_files(pathlib.Path(__file__).parent / "geoid.json")
+test_file = test_data["test_file"][0] if test_data["test_file"] else None
+geoid_files = test_data["geoid_files"]
 
 
 def generic_geoid_test(instance, test_file, geoid_file):
