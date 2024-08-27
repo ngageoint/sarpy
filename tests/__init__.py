@@ -46,7 +46,7 @@ def parse_file_entry(entry, default='absolute'):
 
     Parameters
     ----------
-    entry : NOne|dict
+    entry : None|dict
         dict of the form {'path': <value>', 'path_type': 'relative' or 'absolute'}
     default : str
         The default value for 'path_type', if it is not provided.

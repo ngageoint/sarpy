@@ -297,7 +297,7 @@ class DTEDReader(object):
         # To enable memory map usage, we will spoof it as a raster and adjust column indices
         shp = (int(self._shape[0]), int(self._shape[1]) + 6)
         self._mem_map = numpy.memmap(self._file_name,
-                                     dtype=numpy.dtype('>i2'),
+                                     dtype=numpy.dtype('>u2'),
                                      mode='r',
                                      offset=3428,
                                      shape=shp)
@@ -353,8 +353,7 @@ class DTEDReader(object):
     @staticmethod
     def _repair_values(elevations):
         """
-        This is a helper method for repairing the weird entries in a DTED.
-        The array is modified in place.
+        Convert 2-bytes signed magnitude to twos complement.
 
         Parameters
         ----------
@@ -363,19 +362,18 @@ class DTEDReader(object):
         Returns
         -------
         numpy.ndarray
-        """
 
-        elevations = numpy.copy(elevations)
-        # BASED ON MIL-PRF-89020B SECTION 3.11.1, 3.11.2
-        # There are some byte-swapping details that are poorly explained.
-        # The following steps appear to correct for the "complemented" values.
-        # Find negative voids and repair them
-        neg_voids = (elevations < -15000)
-        elevations[neg_voids] = numpy.abs(elevations[neg_voids]) - 32768
-        # Find positive voids and repair them
-        pos_voids = (elevations > 15000)
-        elevations[pos_voids] = 32768 - elevations[pos_voids]
-        return elevations
+        Notes
+        -----
+        Per MIL-PRF-89020B Section 3.11.1:
+
+            All elevation values are signed magnitude binary integers, right justified,
+            16 bits (2 bytes). The sign bit is in the high order position.
+
+        """
+        out = (elevations & 0x7f_ff).astype(numpy.int16)
+        out *= (-1) ** ((elevations & 0x80_00) != 0)
+        return out
 
     def _linear(self, ix, dx, iy, dy):
         # type: (numpy.ndarray, numpy.ndarray, numpy.ndarray, numpy.ndarray) -> numpy.ndarray
