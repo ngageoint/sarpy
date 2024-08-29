@@ -54,6 +54,7 @@ release points are not being annotated in GitHub.
 - Restored missing antenna beam footprints in some KMZs
 - DTED parsing for tiles with null values
 - Improved mapping of SICD -> SIDD polarizations
+- Incorrect SIDD ISM.compliesWith definition
 
 ## [1.3.58] - 2023-08-07
 ### Added
