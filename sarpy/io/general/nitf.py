@@ -1227,7 +1227,7 @@ class NITFDetails(object):
                 self.parse_res_subheader(i).to_json() for i in range(self.res_subheader_offsets.size)]
         return out
 
-    def __del__(self):
+    def close(self):
         if self._close_after:
             self._close_after = False
             # noinspection PyBroadException
@@ -1235,6 +1235,9 @@ class NITFDetails(object):
                 self._file_object.close()
             except Exception:
                 pass
+
+    def __del__(self):
+        self.close()
 
 
 class NITFReader(BaseReader):
@@ -2445,6 +2448,7 @@ class NITFReader(BaseReader):
         return out
 
     def close(self) -> None:
+        self._nitf_details.close()
         self._image_segment_data_segments = None
         BaseReader.close(self)
 
