@@ -3,6 +3,8 @@
 #
 # Licensed under MIT License.  See LICENSE.
 #
+import numpy as np
+
 from sarpy.io.phase_history.cphd1_elements import PVP
 
 
@@ -59,7 +61,7 @@ def test_pvp_pvptype():
     pvp_type.TxAntenna = None
     assert pvp_type.get_offset_size_format('TxACX') is None
 
-    assert pvp_type.get_offset_size_format('userpvp') == (392, 8, 'l')
+    assert pvp_type.get_offset_size_format('userpvp') == (392, 8, np.dtype('>i8').char)
     assert pvp_type.get_offset_size_format('NOTuserpvp') is None
     pvp_type.AddedPVP = None
     assert pvp_type.get_offset_size_format('userpvp') is None
