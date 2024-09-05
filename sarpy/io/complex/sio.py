@@ -1,5 +1,8 @@
 """
 Functionality for reading SIO data into a SICD model.
+
+The SIO format is believed to be based on a memo from General Dynamics.  Some SIO features may not
+be implemented and compatibility with other SIO software is not guaranteed.
 """
 
 __classification__ = "UNCLASSIFIED"
@@ -7,7 +10,6 @@ __author__ = ("Thomas McCullough", "Wade Schwartzkopf")
 
 
 import os
-import sys
 import struct
 import logging
 import re
@@ -59,10 +61,7 @@ class SIODetails(object):
             raise SarpyIOError('Path {} is not a file'.format(file_name))
 
         with open(file_name, 'rb') as fi:
-            if sys.byteorder == 'little':
-                self._magic_number = struct.unpack('>I', fi.read(4))[0]
-            else:
-                self._magic_number = struct.unpack('<I', fi.read(4))[0]
+            self._magic_number = struct.unpack(">I", fi.read(4))[0]
             endian = self.ENDIAN.get(self._magic_number, None)
             if endian is None:
                 raise SarpyIOError(
@@ -145,6 +144,7 @@ class SIODetails(object):
                     return out, user_dat_len
 
                 num_data_pairs = struct.unpack('{}I'.format(endian), fi.read(4))[0]
+                user_dat_len = 4
 
                 for i in range(num_data_pairs):
                     name_length = struct.unpack('{}I'.format(endian), fi.read(4))[0]
@@ -426,12 +426,12 @@ class SIOWriter(BaseWriter):
             raw_dtype = numpy.dtype('{}f4'.format(endian))
             element_type = 13
             element_size = 8
-            format_function = ComplexFormatFunction(raw_dtype, order='MP', band_dimension=2)
+            format_function = ComplexFormatFunction(raw_dtype, order='IQ', band_dimension=2)
         elif pixel_type == 'RE16I_IM16I':
             raw_dtype = numpy.dtype('{}i2'.format(endian))
             element_type = 12
             element_size = 4
-            format_function = ComplexFormatFunction(raw_dtype, order='MP', band_dimension=2)
+            format_function = ComplexFormatFunction(raw_dtype, order='IQ', band_dimension=2)
         else:
             raw_dtype = numpy.dtype('{}u1'.format(endian))
             element_type = 11
@@ -440,7 +440,7 @@ class SIOWriter(BaseWriter):
 
         # construct the sio header
         header = numpy.array(
-            [magic_number, raw_shape[0], raw_shape[1], element_type, element_size],
+            [raw_shape[0], raw_shape[1], element_type, element_size],
             dtype='>u4')
         # construct the user data - must be {str : str}
         if user_data is None:
@@ -450,7 +450,9 @@ class SIOWriter(BaseWriter):
 
         # write the initial things to the buffer
         self._file_object.seek(0, os.SEEK_SET)
-        self._file_object.write(struct.pack('{}5I'.format(endian), *header))
+        self._file_object.write(struct.pack('>I', magic_number))
+        self._file_object.write(struct.pack('{}4I'.format(endian), *header))
+        self._file_object.write(struct.pack('{}I'.format(endian), len(user_data)))
         # write the user data - name size, name, value size, value
         for name in user_data:
             name_bytes = name.encode('utf-8')
@@ -468,7 +470,7 @@ class SIOWriter(BaseWriter):
             self._data_written = False
         else:
             data_segment = NumpyMemmapSegment(
-                self._file_object, self._data_offset, raw_dtype, raw_shape,
+                self._file_name, self._data_offset, raw_dtype, raw_shape,
                 'complex64', raw_shape[:2], format_function=format_function, mode='w', close_file=False)
             self._data_written = True
         BaseWriter.__init__(self, data_segment)

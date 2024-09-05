@@ -312,7 +312,10 @@ class SICDType(Serializable):
         """
 
         if self.GeoData is None:
-            self.GeoData = GeoDataType(SCP=SCPType(self.RadarCollection.Area.Plane.RefPt.ECF))
+            try:
+                self.GeoData = GeoDataType(SCP=SCPType(self.RadarCollection.Area.Plane.RefPt.ECF))
+            except AttributeError:
+                return
 
         if self.GeoData.ImageCorners is not None and not override:
             return  # nothing to be done
