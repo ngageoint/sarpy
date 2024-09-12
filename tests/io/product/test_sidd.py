@@ -7,10 +7,12 @@ import logging
 import pathlib
 import tempfile
 
+import lxml.etree
 import numpy as np
 import pytest
 
 import sarpy.io.product
+import sarpy.io.product.sidd3_elements.SIDD as sarpy_sidd
 import sarpy.utils.create_product
 from sarpy.consistency import sidd_consistency
 
@@ -91,3 +93,66 @@ def test_product_creation_classification(sidd_nitf, tmp_path, caplog):
         this_sidd_meta.ProductCreation.Classification.compliesWith = value
         tmp_xml.write_text(this_sidd_meta.to_xml_string())
         assert not sidd_consistency.check_file(str(tmp_xml))
+
+
+@pytest.fixture
+def sidd_etree():
+    return lxml.etree.parse(str(pathlib.Path(__file__).parents[2] / 'data/example.sidd.xml'))
+
+
+def _assert_to_from_xml(tmp_path, sidd_etree):
+    """Ensure that XML nodes are preserved when going from XML, through SarPy, then back to XML."""
+    original_tree = sidd_etree
+    original_read = sarpy_sidd.SIDDType.from_xml_string(lxml.etree.tostring(sidd_etree))
+
+    out_file = tmp_path / "read_then_write.xml"
+    out_file.write_text(original_read.to_xml_string(check_validity=True))
+    reread_tree = lxml.etree.parse(str(out_file))
+
+    original_nodes = {original_tree.getelementpath(x) for x in original_tree.iter()}
+    new_nodes = {reread_tree.getelementpath(x) for x in reread_tree.iter()}
+    assert original_nodes == new_nodes
+
+
+def test_example_sidd(tmp_path, sidd_etree):
+    _assert_to_from_xml(tmp_path, sidd_etree)
+
+
+@pytest.mark.parametrize("kernel_or_bank", ("Kernel", "Bank"))
+@pytest.mark.parametrize("filt_type", ("predefined_db", "predefined_filt", "custom"))
+def test_sidd_filtertypes(tmp_path, sidd_etree, kernel_or_bank, filt_type):
+    if filt_type == "predefined_db":
+        filt_details = "<Predefined><DatabaseName>BILINEAR</DatabaseName></Predefined>"
+    if filt_type == "predefined_filt":
+        filt_details = "<Predefined><FilterFamily>0</FilterFamily><FilterMember>1</FilterMember></Predefined>"
+    if filt_type == "custom":
+        var0, var1 = {"Kernel": ("row", "col"), "Bank": ("phasing", "point")}[kernel_or_bank]
+        filt_details = f'''
+        <Custom>
+            <FilterCoefficients num{var0.capitalize()}s="1" num{var1.capitalize()}s="2">
+                <Coef {var0}="0" {var1}="0">0.1</Coef>
+                <Coef {var0}="0" {var1}="1">0.2</Coef>
+            </FilterCoefficients>
+        </Custom>
+        '''
+    aa_node = sidd_etree.find(".//AntiAlias", namespaces=sidd_etree.getroot().nsmap)
+    new_aa = lxml.etree.fromstring(f'''
+        <AntiAlias xmlns="{lxml.etree.QName(aa_node).namespace}">
+            <FilterName>SARPyFilterTypeTest</FilterName>
+            <Filter{kernel_or_bank}>
+                {filt_details}
+            </Filter{kernel_or_bank}>
+            <Operation>CORRELATION</Operation>
+        </AntiAlias>''')
+    aa_node[:] = new_aa[:]
+
+    sidd_xml_str = lxml.etree.tostring(sidd_etree)
+    sidd_consistency.evaluate_xml_versus_schema(sidd_xml_str,
+                                                lxml.etree.QName(sidd_etree.getroot()).namespace)
+    _assert_to_from_xml(tmp_path, sidd_etree)
+
+    if filt_type == "custom":
+        sidd_obj = sarpy_sidd.SIDDType.from_xml_string(lxml.etree.tostring(sidd_etree))
+        aa_obj = sidd_obj.Display.NonInteractiveProcessing[0].RRDS.AntiAlias
+        custom_coefs = getattr(aa_obj, f"Filter{kernel_or_bank}").Custom.get_array()
+        assert np.allclose(custom_coefs, np.array([[0.1, 0.2]]))

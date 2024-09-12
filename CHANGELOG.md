@@ -56,6 +56,7 @@ release points are not being annotated in GitHub.
 - Improved mapping of SICD -> SIDD polarizations
 - Incorrect SIDD ISM.compliesWith definition
 - SIO reading/writing
+- SIDD 2.0+ FilterType handling
 
 ## [1.3.58] - 2023-08-07
 ### Added
