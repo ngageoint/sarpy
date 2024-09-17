@@ -28,7 +28,7 @@ def rgb24i_sidd(sidd_meta):
         writer = SIDDWriter(sidd_file, sidd_meta=sidd_meta)
 
         rows = sidd_meta.Measurement.PixelFootprint.Row
-        cols = sidd_meta.Measurement.PixelFootprint.Row
+        cols = sidd_meta.Measurement.PixelFootprint.Col
         image = numpy.random.uniform(0, 1, size=(rows, cols, 3))
         image *= 255
         image = image.astype(numpy.uint8)
