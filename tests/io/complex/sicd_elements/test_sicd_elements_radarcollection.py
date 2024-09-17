@@ -74,7 +74,7 @@ wf_input = [(1.0, 2.0, None), (1.0, None, 2.0), (None, 1.0, 2.0)]
 
 @pytest.mark.parametrize("tx_pulse_len, tx_rf_bw, tx_fm_rate", wf_input)
 def test_radarcollection_waveformparamtype(tx_pulse_len, tx_rf_bw, tx_fm_rate):
-    wf_params = RadarCollection.WaveformParametersType(RcvDemodType='STRETCH', RcvFMRate=1.0)
+    wf_params = RadarCollection.WaveformParametersType(RcvDemodType='STRETCH', RcvFMRate=1.0, index=0)
     assert wf_params.RcvFMRate == 1.0
     assert wf_params.RcvDemodType == 'STRETCH'
     wf_params.RcvFMRate = None
@@ -83,11 +83,11 @@ def test_radarcollection_waveformparamtype(tx_pulse_len, tx_rf_bw, tx_fm_rate):
     assert wf_params.RcvFMRate == 12.0
     assert wf_params._basic_validity_check()
 
-    wf_params = RadarCollection.WaveformParametersType(RcvDemodType='CHIRP', RcvFMRate=None)
+    wf_params = RadarCollection.WaveformParametersType(RcvDemodType='CHIRP', RcvFMRate=None, index=1)
     assert wf_params.RcvFMRate == 0.0
     assert wf_params.RcvDemodType == 'CHIRP'
 
-    wf_params = RadarCollection.WaveformParametersType(RcvDemodType='cHiRp', RcvFMRate=None)
+    wf_params = RadarCollection.WaveformParametersType(RcvDemodType='cHiRp', RcvFMRate=None, index=2)
     assert wf_params.RcvFMRate is None
 
     tx_freq_start = 3.0

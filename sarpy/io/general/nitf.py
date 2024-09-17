@@ -13,7 +13,7 @@ import os
 
 from typing import Union, List, Tuple, BinaryIO, Sequence, Optional
 from tempfile import mkstemp
-from collections import OrderedDict
+from collections import OrderedDict, namedtuple
 import struct
 from io import BytesIO
 
@@ -438,7 +438,7 @@ def _verify_image_segment_compatibility(
 def _correctly_order_image_segment_collection(
             image_headers: Sequence[Union[ImageSegmentHeader, ImageSegmentHeader0]]) -> Tuple[int, ...]:
     """
-    Determines the proper order, based on IALVL, for a collection of entries
+    Determines the proper order, based on IALVL and IDLVL, for a collection of entries
     which will be assembled into a composite image.
 
     Parameters
@@ -455,20 +455,19 @@ def _correctly_order_image_segment_collection(
         If incompatible IALVL values collection
     """
 
-    collection = [(entry.IALVL, orig_index) for orig_index, entry in enumerate(image_headers)]
-    collection = sorted(collection, key=lambda x: x[0])   # (stable) order by IALVL
-
-    if all(entry[0] == 0 for entry in collection):
+    ImLvl = namedtuple('ImLvl', ['index', 'IALVL', 'IDLVL'])
+    im_levels = sorted([ImLvl(index=n, IALVL=hdr.IALVL, IDLVL=hdr.IDLVL) for n, hdr in enumerate(image_headers)],
+                       key=lambda x: x.IDLVL)
+    if all(entry.IALVL == 0 for entry in im_levels):
         # all IALVL is 0, and order doesn't matter
         return tuple(range(len(image_headers)))
-    if all(entry0[0]+1 == entry1[0] for entry0, entry1 in zip(collection[:-1], collection[1:])):
-        # ordered, uninterrupted sequence of IALVL values
-        return tuple(entry[1] for entry in collection)
-
-    raise ValueError(
-        'Collection of (IALVL, image segment index) has\n\t'
-        'neither all IALVL == 0, or an uninterrupted sequence of IALVL values.\n\t'
-        'See {}'.format(collection))
+    if im_levels[0].IALVL == 0  and all(im_levels[n].IALVL == im_levels[n-1].IDLVL for n in range(1, len(im_levels))):
+        # From ISO/IEC Joint BIIF Profile JBP-2024.1 - 4.5.4.2 Attachment Level (ALVL) Interpretation
+        # The image or graphic segment in the MI collection (multi files) with the minimum display level has an
+        # attachment level of zero.
+        # The attachment level of an item is equal to the display level of the item to which it is "attached.""
+        return tuple(x.index for x in im_levels)
+    raise ValueError(f"Unable to interpret image segment attachment/display levels:\n{im_levels}\n per ISO/IEC JBP")
 
 
 def _get_collection_element_coordinate_limits(
@@ -1228,7 +1227,7 @@ class NITFDetails(object):
                 self.parse_res_subheader(i).to_json() for i in range(self.res_subheader_offsets.size)]
         return out
 
-    def __del__(self):
+    def close(self):
         if self._close_after:
             self._close_after = False
             # noinspection PyBroadException
@@ -1236,6 +1235,9 @@ class NITFDetails(object):
                 self._file_object.close()
             except Exception:
                 pass
+
+    def __del__(self):
+        self.close()
 
 
 class NITFReader(BaseReader):
@@ -1930,7 +1932,7 @@ class NITFReader(BaseReader):
         # determine output particulars
         if apply_format:
             format_function = self.get_format_function(
-                raw_dtype, complex_order, lut, raw_band_dimension,
+                raw_dtype, complex_order, lut, 2,
                 image_segment_index=image_segment_index)
             use_transpose = self._transpose_axes
             use_reverse = self._reverse_axes
@@ -2446,6 +2448,7 @@ class NITFReader(BaseReader):
         return out
 
     def close(self) -> None:
+        self._nitf_details.close()
         self._image_segment_data_segments = None
         BaseReader.close(self)
 
@@ -3539,7 +3542,7 @@ class NITFWritingDetails(object):
 class NITFWriter(BaseWriter):
     __slots__ = (
         '_file_object', '_file_name', '_in_memory',
-        '_nitf_writing_details', '_image_segment_data_segments')
+        '_nitf_writing_details', '_image_segment_data_segments', '_close_after')
 
     def __init__(
             self,
@@ -3563,12 +3566,14 @@ class NITFWriter(BaseWriter):
 
         self._nitf_writing_details = None
         self._image_segment_data_segments = []  # type: List[DataSegment]
+        self._close_after = False
 
         if isinstance(file_object, str):
             if check_existence and os.path.exists(file_object):
                 raise SarpyIOError(
                     'Given file {} already exists, and a new NITF file cannot be created here.'.format(file_object))
             file_object = open(file_object, 'wb')
+            self._close_after = True
 
         if not is_file_like(file_object):
             raise ValueError('file_object requires a file path or BinaryIO object')
@@ -3890,7 +3895,7 @@ class NITFWriter(BaseWriter):
         # determine output particulars
         if apply_format:
             format_function = self.get_format_function(
-                raw_dtype, complex_order, lut, raw_band_dimension,
+                raw_dtype, complex_order, lut, 2,
                 image_segment_index=image_segment_index)
             use_transpose = None
             use_reverse = None
@@ -4175,4 +4180,10 @@ class NITFWriter(BaseWriter):
 
         self._nitf_writing_details = None
         self._image_segment_data_segments = None
-        self._file_object = None
+        if self._close_after:
+            self._close_after = False
+            # noinspection PyBroadException
+            try:
+                self._file_object.close()
+            except Exception:
+                pass

@@ -27,7 +27,7 @@ __all__ = ['__version__',
            '__license__', '__copyright__']
 
 from sarpy.__details__ import __classification__, _post_identifier
-_version_number = '1.3.58'
+_version_number = '1.3.59rc'
 
 __version__ = _version_number + _post_identifier
 

@@ -10,7 +10,8 @@ from typing import Union
 
 import numpy
 
-from sarpy.io.xml.base import Serializable, Arrayable, get_node_value, create_text_node, create_new_node, find_children
+from sarpy.io.xml.base import Serializable, Arrayable, get_node_value, create_text_node, create_new_node, \
+    find_children, find_first_child
 from sarpy.io.xml.descriptors import SerializableDescriptor, IntegerDescriptor, \
     FloatDescriptor, FloatModularDescriptor, StringDescriptor, StringEnumDescriptor
 
@@ -412,50 +413,18 @@ class PredefinedFilterType(Serializable):
         super(PredefinedFilterType, self).__init__(**kwargs)
 
 
-class FilterKernelType(Serializable):
+class _CustomType(Serializable, Arrayable):
     """
-    The filter kernel parameters. Provides the specifics for **either** a predefined or custom
-    filter kernel.
-    """
-
-    _fields = ('Predefined', 'Custom')
-    _required = ()
-    _choice = ({'required': True, 'collection': ('Predefined', 'Custom')}, )
-    # Descriptor
-    Predefined = SerializableDescriptor(
-        'Predefined', PredefinedFilterType, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: PredefinedFilterType
-    Custom = StringEnumDescriptor(
-        'Custom', ('GENERAL', 'FILTER BANK'), _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: str
-
-    def __init__(self, Predefined=None, Custom=None, **kwargs):
-        """
-
-        Parameters
-        ----------
-        Predefined : None|PredefinedFilterType
-        Custom : None|str
-        kwargs
-        """
-
-        if '_xml_ns' in kwargs:
-            self._xml_ns = kwargs['_xml_ns']
-        if '_xml_ns_key' in kwargs:
-            self._xml_ns_key = kwargs['_xml_ns_key']
-        self.Predefined = Predefined
-        self.Custom = Custom
-        super(FilterKernelType, self).__init__(**kwargs)
-
-
-class BankCustomType(Serializable, Arrayable):
-    """
-    A custom filter bank array.
+    A custom filter array.
     """
     __slots__ = ('_coefs', )
-    _fields = ('Coefs', 'numPhasings', 'numPoints')
+    _fields = ('Coefs', )
     _required = ('Coefs', )
     _numeric_format = {'Coefs': FLOAT_FORMAT}
+    _var0 = "x"
+    _nvar0 = "numXs"
+    _var1 = "y"
+    _nvar1 = "numYs"
 
     def __init__(self, Coefs=None, **kwargs):
         """
@@ -465,30 +434,19 @@ class BankCustomType(Serializable, Arrayable):
         Coefs : numpy.ndarray|list|tuple
         kwargs
         """
-
         self._coefs = None
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
         if '_xml_ns_key' in kwargs:
             self._xml_ns_key = kwargs['_xml_ns_key']
         self.Coefs = Coefs
-        super(BankCustomType, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
-    @property
-    def numPhasings(self):
-        """
-        int: The number of phasings [READ ONLY]
-        """
+    def _shape0(self):
+        return self._coefs.shape[0]
 
-        return self._coefs.shape[0] - 1
-
-    @property
-    def numPoints(self):
-        """
-        int: The number of points [READ ONLY]
-        """
-
-        return self._coefs.shape[1] - 1
+    def _shape1(self):
+        return self._coefs.shape[1]
 
     @property
     def Coefs(self):
@@ -505,20 +463,20 @@ class BankCustomType(Serializable, Arrayable):
     @Coefs.setter
     def Coefs(self, value):
         if value is None:
-            raise ValueError('The coefficient array for a BankCustomType instance must be defined.')
+            raise ValueError('The coefficient array must be defined.')
 
         if isinstance(value, (list, tuple)):
             value = numpy.array(value, dtype=numpy.float64)
 
         if not isinstance(value, numpy.ndarray):
             raise ValueError(
-                'Coefs for class BankCustomType must be a list or numpy.ndarray. Received type {}.'.format(type(value)))
+                'Coefs must be a list or numpy.ndarray. Received type {}.'.format(type(value)))
         elif len(value.shape) != 2:
             raise ValueError(
-                'Coefs for class BankCustomType must be two-dimensional. Received numpy.ndarray '
+                'Coefs must be two-dimensional. Received numpy.ndarray '
                 'of shape {}.'.format(value.shape))
         elif not value.dtype.name == 'float64':
-            value = numpy.cast[numpy.float64](value)
+            value = numpy.asarray(value, dtype=numpy.float64)
         self._coefs = value
 
     def __getitem__(self, item):
@@ -528,7 +486,7 @@ class BankCustomType(Serializable, Arrayable):
         self._coefs[item] = value
 
     @classmethod
-    def from_array(cls, array):  # type: (numpy.ndarray) -> BankCustomType
+    def from_array(cls, array):
         if array is None:
             return None
         return cls(Coefs=array)
@@ -552,14 +510,15 @@ class BankCustomType(Serializable, Arrayable):
 
     @classmethod
     def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
-        num_phasings = int(node.attrib['numPhasings'])
-        num_points = int(node.attrib['numPoints'])
-        coefs = numpy.zeros((num_phasings+1, num_points+1), dtype=numpy.float64)
+        filter_coefs_node = find_first_child(node, "FilterCoefficients", xml_ns, ns_key)
+        num_x = int(filter_coefs_node.attrib[cls._nvar0])
+        num_y = int(filter_coefs_node.attrib[cls._nvar1])
+        coefs = numpy.zeros((num_x, num_y), dtype=numpy.float64)
         ckey = cls._child_xml_ns_key.get('Coefs', ns_key)
-        coef_nodes = find_children(node, 'Coef', xml_ns, ckey)
+        coef_nodes = find_children(filter_coefs_node, 'Coef', xml_ns, ckey)
         for cnode in coef_nodes:
-            ind1 = int(cnode.attrib['phasing'])
-            ind2 = int(cnode.attrib['point'])
+            ind1 = int(cnode.attrib[cls._var0])
+            ind2 = int(cnode.attrib[cls._var1])
             val = float(get_node_value(cnode))
             coefs[ind1, ind2] = val
         return cls(Coefs=coefs)
@@ -571,6 +530,8 @@ class BankCustomType(Serializable, Arrayable):
             node = create_new_node(doc, tag, parent=parent)
         else:
             node = create_new_node(doc, '{}:{}'.format(ns_key, tag), parent=parent)
+        fc_tag = "FilterCoefficients" if ns_key is None else f"{ns_key}:FilterCoefficients"
+        filter_coefs_node = create_new_node(doc, fc_tag, parent=node)
 
         if 'Coefs' in self._child_xml_ns_key:
             ctag = '{}:Coef'.format(self._child_xml_ns_key['Coefs'])
@@ -579,21 +540,93 @@ class BankCustomType(Serializable, Arrayable):
         else:
             ctag = 'Coef'
 
-        node.attrib['numPhasings'] = str(self.numPhasings)
-        node.attrib['numPoints'] = str(self.numPoints)
+        filter_coefs_node.attrib[self._nvar0] = str(self._shape0())
+        filter_coefs_node.attrib[self._nvar1] = str(self._shape1())
         fmt_func = self._get_formatter('Coefs')
         for i, val1 in enumerate(self._coefs):
             for j, val in enumerate(val1):
                 # if val != 0.0:  # should we serialize it sparsely?
-                cnode = create_text_node(doc, ctag, fmt_func(val), parent=node)
-                cnode.attrib['phasing'] = str(i)
-                cnode.attrib['point'] = str(j)
+                cnode = create_text_node(doc, ctag, fmt_func(val), parent=filter_coefs_node)
+                cnode.attrib[self._var0] = str(i)
+                cnode.attrib[self._var1] = str(j)
         return node
 
     def to_dict(self,  check_validity=False, strict=DEFAULT_STRICT, exclude=()):
         out = OrderedDict()
         out['Coefs'] = self.Coefs.tolist()
         return out
+
+
+class KernelCustomType(_CustomType):
+    """
+    A custom filter kernel array.
+    """
+    _var0 = "row"
+    _nvar0 = "numRows"
+    _var1 = "col"
+    _nvar1 = "numCols"
+
+    @property
+    def numRows(self):
+        return self._shape0()
+
+    @property
+    def numCols(self):
+        return self._shape1()
+
+
+class FilterKernelType(Serializable):
+    """
+    The filter kernel parameters. Provides the specifics for **either** a predefined or custom
+    filter kernel.
+    """
+
+    _fields = ('Predefined', 'Custom')
+    _required = ()
+    _choice = ({'required': True, 'collection': ('Predefined', 'Custom')}, )
+    # Descriptor
+    Predefined = SerializableDescriptor(
+        'Predefined', PredefinedFilterType, _required, strict=DEFAULT_STRICT,
+        docstring='')  # type: PredefinedFilterType
+    Custom = SerializableDescriptor(
+        'Custom', KernelCustomType, _required, strict=DEFAULT_STRICT,
+        docstring='The custom filter kernel')  # type: KernelCustomType
+
+    def __init__(self, Predefined=None, Custom=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        Predefined : None|PredefinedFilterType
+        Custom : None|KernelCustomType
+        kwargs
+        """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
+        self.Predefined = Predefined
+        self.Custom = Custom
+        super(FilterKernelType, self).__init__(**kwargs)
+
+
+class BankCustomType(_CustomType):
+    """
+    A custom filter bank array.
+    """
+    _var0 = "phasing"
+    _nvar0 = "numPhasings"
+    _var1 = "point"
+    _nvar1 = "numPoints"
+
+    @property
+    def numPhasings(self):
+        return self._shape0()
+
+    @property
+    def numPoints(self):
+        return self._shape1()
 
 
 class FilterBankType(Serializable):
@@ -844,7 +877,7 @@ class LUTInfoType(Serializable, Arrayable):
         for i, lut_node in enumerate(lut_nodes):
             arr[:, i] = [str(el) for el in get_node_value(lut_node)]
         if numpy.max(arr) < 256:
-            arr = numpy.cast[numpy.uint8](arr)
+            arr = numpy.asarray(arr, dtype=numpy.uint8)
         return cls(LUTValues=arr)
 
     def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):

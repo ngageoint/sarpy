@@ -62,10 +62,12 @@ setup(name=parameters['__title__'],
       url=parameters['__url__'],
       author=parameters['__author__'],
       author_email=parameters['__email__'],  # The primary POC
-      install_requires=['numpy>=1.11.0', 'scipy'],
+      install_requires=['numpy>=1.19.0', 'scipy'],
       zip_safe=False,  # Use of __file__ and __path__ in some code makes it unusable from zip
       test_suite="setup.my_test_suite",
-      tests_require=['pillow', 'lxml>=4.1.1', 'matplotlib', 'h5py', 'smart_open[http]', 'pytest>=3.3.2', 'networkx>=2.5', 'shapely>=1.6.4'],
+      extras_require={
+        "all": ['pillow', 'lxml>=4.1.1', 'matplotlib', 'h5py', 'smart_open[http]', 'pytest>=3.3.2', 'networkx>=2.5', 'shapely>=1.6.4'],
+      },
       classifiers=[
           'Development Status :: 4 - Beta',
           'Intended Audience :: Developers',
@@ -75,7 +77,8 @@ setup(name=parameters['__title__'],
           'Programming Language :: Python :: 3.7',
           'Programming Language :: Python :: 3.8',
           'Programming Language :: Python :: 3.9',
-          'Programming Language :: Python :: 3.10'
+          'Programming Language :: Python :: 3.10',
+          'Programming Language :: Python :: 3.11',
       ],
       platforms=['any'],
       license='MIT')

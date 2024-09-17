@@ -85,7 +85,7 @@ class PolarizationRefType(Serializable, Arrayable):
         if array is None:
             return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
-            if len(array) < 3:
+            if len(array) != 3:
                 raise ValueError(
                     'Expected array to be of length 3,\n\t'
                     'and received `{}`'.format(array))

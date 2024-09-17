@@ -172,7 +172,7 @@ class TxRcvType(Serializable):
     """
 
     _fields = ('NumTxWFs', 'TxWFParameters', 'NumRcvs', 'RcvParameters')
-    _required = ('TxWFParameters', 'RcvParameters')
+    _required = _fields
     _collections_tags = {
         'TxWFParameters': {'array': False, 'child_tag': 'TxWFParameters'},
         'RcvParameters': {'array': False, 'child_tag': 'RcvParameters'}}

@@ -197,7 +197,7 @@ class WaveformParametersType(Serializable):
     _fields = (
         'TxPulseLength', 'TxRFBandwidth', 'TxFreqStart', 'TxFMRate', 'RcvDemodType', 'RcvWindowLength',
         'ADCSampleRate', 'RcvIFBandwidth', 'RcvFreqStart', 'RcvFMRate', 'index')
-    _required = ()
+    _required = ('index', )
     _set_as_attribute = ('index', )
     _numeric_format = {
         'TxPulseLength': FLOAT_FORMAT, 'TxRFBandwidth': '0.17E', 'TxFreqStart': '0.17E',
@@ -367,7 +367,7 @@ class TxStepType(Serializable):
         'WFIndex', _required, strict=DEFAULT_STRICT,
         docstring='The waveform number for this step.')  # type: int
     TxPolarization = StringEnumDescriptor(
-        'TxPolarization', POLARIZATION2_VALUES, _required, strict=DEFAULT_STRICT,
+        'TxPolarization', POLARIZATION1_VALUES, _required, strict=DEFAULT_STRICT,
         docstring='Transmit signal polarization for this step.')  # type: str
     index = IntegerDescriptor(
         'index', _required, strict=DEFAULT_STRICT,
@@ -738,9 +738,11 @@ class ReferencePlaneType(Serializable):
         y_shift = self.YDir.UVectECF.get_array() * self.YDir.SampleSpacing
         # order convention
         x_offset = numpy.array(
-            [self.XDir.FirstLine, self.XDir.FirstLine, self.XDir.NumLines, self.XDir.NumLines])
+            [self.XDir.FirstLine, self.XDir.FirstLine,
+             self.XDir.FirstLine + self.XDir.NumLines - 1, self.XDir.FirstLine + self.XDir.NumLines - 1])
         y_offset = numpy.array(
-            [self.YDir.FirstSample, self.YDir.NumSamples, self.YDir.NumSamples, self.YDir.FirstSample])
+            [self.YDir.FirstSample, self.YDir.FirstSample + self.YDir.NumSamples - 1,
+             self.YDir.FirstSample + self.YDir.NumSamples - 1, self.YDir.FirstSample])
         corners = numpy.zeros((4, 3), dtype=numpy.float64)
         for i in range(4):
             corners[i, :] = \
@@ -1090,7 +1092,7 @@ class RadarCollectionType(Serializable):
                     'be the same.'.format(waveform.RcvFMRate, waveform.TxFMRate, index+1))
 
             if self.RefFreqIndex is None:
-                if waveform.TxFreqStart <= 0:
+                if waveform.TxFreqStart is not None and waveform.TxFreqStart <= 0:
                     self.log_validity_error(
                         'TxFreqStart is negative in Waveform entry {}, but RefFreqIndex '
                         'is not populated.'.format(index+1))

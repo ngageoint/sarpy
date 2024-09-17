@@ -105,3 +105,11 @@ class TestSIDD(unittest.TestCase):
         assert 'sfa' in set(pre_nsmap).difference(post_nsmap)
         sidd_meta = sarpy_sidd3.SIDDType.from_xml_string(lxml.etree.tostring(sidd_etree))
         sarpy.io.product.sidd.validate_sidd_for_writing(sidd_meta)
+
+    def test_measurement(self):
+        sidd_etree = lxml.etree.parse(str(pathlib.Path(__file__).parents[2] / 'data/example.sidd.xml'))
+        if sidd_etree.find("./{*}Measurement//{*}ReferencePoint") is None:
+            unittest.skip("SIDD XML does not have a Measurement subelement that contains a ReferencePoint")
+        sidd_meta = sarpy_sidd3.SIDDType.from_xml_string(lxml.etree.tostring(sidd_etree))
+        assert sidd_meta.Measurement.ProjectionType is not None
+        assert sidd_meta.Measurement.ReferencePoint is not None

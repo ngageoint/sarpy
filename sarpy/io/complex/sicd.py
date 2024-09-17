@@ -92,7 +92,7 @@ class AmpLookupFunction(ComplexFormatFunction):
         if lookup_table.dtype.name not in ['float32', 'float64']:
             raise ValueError('requires a numpy.ndarray of float32 or 64 dtype, got {}'.format(lookup_table.dtype))
         if lookup_table.dtype.name != 'float32':
-            lookup_table = numpy.cast['float32'](lookup_table)
+            lookup_table = numpy.asarray(lookup_table, dtype=numpy.float32)
         if lookup_table.shape != (256,):
             raise ValueError('Requires a one-dimensional numpy.ndarray with 256 elements, '
                              'got shape {}'.format(lookup_table.shape))

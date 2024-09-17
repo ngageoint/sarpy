@@ -18,6 +18,7 @@ from sarpy.io.complex.converter import open_complex
 from sarpy.processing.ortho_rectify import BivariateSplineMethod, NearestNeighborMethod
 from sarpy.processing.sidd.sidd_product_creation import create_detected_image_sidd, \
     create_csi_sidd, create_dynamic_image_sidd
+import sarpy.visualization.remap as remap
 
 
 def _parse_method(method):
@@ -27,7 +28,7 @@ def _parse_method(method):
         return 'nearest'
 
 
-if __name__ == '__main__':
+def main(args=None):
     parser = argparse.ArgumentParser(
         description="Create derived product is SIDD format from a SICD type file.",
         formatter_class=argparse.RawTextHelpFormatter)
@@ -49,17 +50,20 @@ if __name__ == '__main__':
         '-t', '--type', default='detected', choices=['detected', 'csi', 'dynamic'],
         help="The type of derived product.")
     parser.add_argument(
+        '-r', '--remap', default=remap.get_remap_names()[0], choices=remap.get_remap_names(),
+        help="The pixel value remap function. (default: %(default)s)")
+    parser.add_argument(
         '-m', '--method', default='nearest', choices=['nearest', ]+['spline_{}'.format(i) for i in range(1, 6)],
         help="The interpolation method.")
     parser.add_argument(
-        '--version', default=2, type=int, choices=[1, 2],
+        '--version', default=2, type=int, choices=[1, 2, 3],
         help="The version of the SIDD standard used.")
     parser.add_argument(
         '-v', '--verbose', action='store_true', help='Verbose (level="INFO") logging?')
     parser.add_argument(
         '-s', '--sicd', action='store_true', help='Include the SICD structure in the SIDD?')
 
-    args = parser.parse_args()
+    args = parser.parse_args(args)
 
     level = 'INFO' if args.verbose else 'WARNING'
     logging.basicConfig(level=level)
@@ -68,16 +72,27 @@ if __name__ == '__main__':
 
     reader = open_complex(args.input_file)
     degree = _parse_method(args.method)
+
     for i, sicd in enumerate(reader.get_sicds_as_tuple()):
         if isinstance(degree, int):
             ortho_helper = BivariateSplineMethod(reader, index=i, row_order=degree, col_order=degree)
         else:
             ortho_helper = NearestNeighborMethod(reader, index=i)
         if args.type == 'detected':
-            create_detected_image_sidd(ortho_helper, args.output_directory, version=args.version, include_sicd=args.sicd)
+            create_detected_image_sidd(ortho_helper, args.output_directory,
+                                       remap_function=remap.get_registered_remap(args.remap),
+                                       version=args.version, include_sicd=args.sicd)
         elif args.type == 'csi':
-            create_csi_sidd(ortho_helper, args.output_directory, version=args.version, include_sicd=args.sicd)
+            create_csi_sidd(ortho_helper, args.output_directory,
+                            remap_function=remap.get_registered_remap(args.remap),
+                            version=args.version, include_sicd=args.sicd)
         elif args.type == 'dynamic':
-            create_dynamic_image_sidd(ortho_helper, args.output_directory, version=args.version, include_sicd=args.sicd)
+            create_dynamic_image_sidd(ortho_helper, args.output_directory,
+                                      remap_function=remap.get_registered_remap(args.remap),
+                                      version=args.version, include_sicd=args.sicd)
         else:
             raise ValueError('Got unhandled type {}'.format(args.type))
+
+
+if __name__ == '__main__':
+    main()

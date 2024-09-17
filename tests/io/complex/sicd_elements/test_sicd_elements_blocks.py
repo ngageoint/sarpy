@@ -445,7 +445,7 @@ def test_blocks_poly1dtype(sicd, poly1d_doc, kwargs):
     assert np.all(poly.Coefs == sicd.Position.ARPPoly.X.Coefs)
 
     # Setter
-    poly.Coefs = np.cast[np.float32](sicd.Position.ARPPoly.Y.Coefs)
+    poly.Coefs = np.asarray(sicd.Position.ARPPoly.Y.Coefs, dtype=np.float32)
     assert poly.Coefs.dtype.name == "float64"
 
     poly.Coefs = sicd.Position.ARPPoly.Y.Coefs
@@ -573,7 +573,7 @@ def test_blocks_poly2dtype(sicd, poly2d_doc, kwargs):
     # Setter
     poly.Coefs = sicd.Radiometric.RCSSFPoly.Coefs.tolist()
 
-    poly.Coefs = np.cast[np.float32](sicd.Radiometric.RCSSFPoly.Coefs)
+    poly.Coefs = np.asarray(sicd.Radiometric.RCSSFPoly.Coefs, np.float32)
     assert poly.Coefs.dtype.name == "float64"
 
     poly.Coefs = sicd.Radiometric.RCSSFPoly.Coefs

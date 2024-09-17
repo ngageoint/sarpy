@@ -24,9 +24,9 @@ from sarpy.io.complex.utils import get_data_mean_magnitude, stats_calculation, \
     get_data_extrema
 
 try:
-    from matplotlib import cm
+    import matplotlib.pyplot as plt
 except ImportError:
-    cm = None
+    plt = None
 
 
 logger = logging.getLogger(__name__)
@@ -716,6 +716,195 @@ class High_Contrast(Density):
             mmult=4,
             eps=eps,
             data_mean=data_mean)
+
+
+class GDM(MonochromaticRemap):
+    """
+    The Density remap using image specific parameters
+    """
+
+    __slots__ = ('_override_name', '_bit_depth', '_dimension', '_weighting', '_graze_rad', '_slope_rad',
+                 '_data_mean', '_data_median')
+    _name = 'gdm'
+
+    def __init__(
+            self,
+            override_name: Optional[str] = None,
+            bit_depth: int = 8,
+            max_output_value: Optional[int] = None,
+            weighting: Optional[str] = 'UNIFORM',
+            graze_deg: Union[None, int, float] = None,
+            slope_deg: Union[None, int, float] = None,
+            data_mean: Union[None, int, float] = None,
+            data_median: Union[None, int, float] = None
+    ):
+        """
+
+        Parameters
+        ----------
+        override_name : None|str
+            Override name for a specific class instance
+        bit_depth : int
+            Number of bits in unsigned integer output (default: 8)
+        max_output_value: int
+            Maximum output value [0, 2**bit_depth]
+        weighting : str
+            The spectral taper weighting ('taylor' | 'uniform') (default: 'uniform')
+        graze_deg: None|float|int
+            Required Graze angle (degrees)
+        slope_deg: None|float|int
+            Required Slope angle (degrees)
+        data_mean : None|float|int
+            The global data mean (for continuity). The appropriate value will be
+            calculated on a per calling array basis if not provided.
+        data_median : None|float|int
+            The global data median (for continuity). The appropriate value will be
+            calculated on a per calling array basis if not provided.
+        """
+
+        MonochromaticRemap.__init__(
+            self, override_name=override_name, bit_depth=bit_depth, max_output_value=max_output_value)
+
+        if graze_deg is None or slope_deg is None:
+            raise ValueError("The Graze and Slope angles are required parameters of GDM remap.")
+
+        self._data_mean = data_mean
+        self._data_median = data_median
+        self._weighting = weighting.lower()
+        self._graze_rad = numpy.radians(graze_deg)
+        self._slope_rad = numpy.radians(slope_deg)
+
+    @property
+    def data_mean(self) -> Optional[float]:
+        """
+        None|float: The data mean for global use.
+        """
+        return self._data_mean
+
+    @data_mean.setter
+    def data_mean(self, value: Optional[float]):
+        if value is None:
+            self._data_mean = None
+            return
+
+        self._data_mean = float(value)
+
+    @property
+    def data_median(self) -> Optional[float]:
+        """
+        None|float: The data median for global use.
+        """
+        return self._data_median
+
+    @data_mean.setter
+    def data_median(self, value: Optional[float]):
+        self._data_median = None if value is None else float(value)
+
+    def _cutoff_values(self, data_mean, data_median):
+        # This is a subset of the GDM remap algorithm defined in the AGI Algorithm Description Document.
+        # Only those parts of the algorithm relevant to existing SarPy capabilities are included here.
+        # If a weighting name other than 'uniform' is specified, 'taylor' parameters will be chosen.
+        c3 = {'taylor': 1.33, 'uniform': 1.23}.get(self._weighting, 1.33)
+        w1 = {'taylor': 0.77, 'uniform': 0.77}.get(self._weighting, 0.77)
+        w2 = -0.0422
+        w5 = -1.95
+        a1 = data_median
+        a2 = numpy.sin(self._graze_rad) / numpy.cos(self._slope_rad)
+        a5 = numpy.log10(data_median / data_mean)
+        cl_init = a1 * w1
+        ch_init = a1 * 10**(c3 + w2*a2 + w5*a5)
+        r_min = 24
+        r_max = 40
+        r = 20*numpy.log10(ch_init / cl_init)
+        if r < r_min:
+            beta = 10**((r - r_min) / 40.0)         # pragma: nocover
+        elif r > r_max:
+            beta = 10**((r - r_max) / 40.0)         # pragma: nocover
+        else:
+            beta = 1.0
+        cl = cl_init * beta
+        ch = ch_init / beta
+
+        return cl, ch
+
+    def raw_call(
+            self,
+            data: numpy.ndarray,
+            data_mean: Optional[float] = None,
+            data_median: Optional[float] = None) -> numpy.ndarray:
+        """
+        This performs the mapping from input data to output floating point
+        version, this is directly used by the :func:`call` method.
+
+        Parameters
+        ----------
+        data : numpy.ndarray
+            The (presumably) complex data to remap.
+        data_mean : None|float
+            The pre-calculated data mean, for consistent global use. The order
+            of preference is the value provided here, the class data_mean property
+            value, then the value calculated from the present sample.
+        data_median : None|float
+            The pre-calculated data median, for consistent global use. The order
+            of preference is the value provided here, the class data_median property
+            value, then the value calculated from the present sample.
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+        amplitude = numpy.abs(data)
+
+        data_mean = float(data_mean) if data_mean is not None else self._data_mean
+        if data_mean is None:
+            # Warning: this is likely to be a local mean value rather than the global mean value.
+            data_mean = numpy.mean(amplitude[numpy.isfinite(amplitude)])
+
+        data_median = float(data_median) if data_median is not None else self._data_median
+        if data_median is None:
+            # Warning: this is likely to be a local median value rather than the global median value.
+            data_median = numpy.median(amplitude[numpy.isfinite(amplitude)])
+
+        c_l, c_h = self._cutoff_values(data_mean, data_median)
+
+        multiplier = float(self.max_output_value)/255.0
+        return multiplier*amplitude_to_density(data, dmin=30, mmult=c_h / c_l, data_mean=c_l / 0.8)
+
+    def call(
+            self,
+            data: numpy.ndarray,
+            data_mean: Optional[float] = None,
+            data_median: Optional[float] = None) -> numpy.ndarray:
+        """
+        This performs the mapping from input data to output discrete version.
+
+        This method is directly called by the :func:`__call__` method, so the
+        class instance (once constructed) is itself callable, as follows:
+
+        >>> remap = GDM(weighting, graze_deg, slope_deg)
+        >>> discrete_data = remap(data, data_mean, data_median)
+
+        Parameters
+        ----------
+        data : numpy.ndarray
+            The (presumably) complex data to remap.
+        data_mean : None|float
+            The pre-calculated data mean, for consistent global use. The order
+            of preference is the value provided here, the class data_mean property
+            value, then the value calculated from the present sample.
+        data_median : None|float
+            The pre-calculated data median, for consistent global use. The order
+            of preference is the value provided here, the class data_median property
+            value, then the value calculated from the present sample.
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
+        return clip_cast(
+            self.raw_call(data, data_mean=data_mean, data_median=data_median),
+            dtype=self.output_dtype, min_value=0, max_value=self.max_output_value)
 
 
 class Linear(MonochromaticRemap):
@@ -1555,11 +1744,11 @@ class LUT8bit(RemapFunction):
             use_alpha: bool) -> None:
         max_out_size = self.mono_remap.max_output_value
         if isinstance(value, str):
-            if cm is None:
+            if plt is None:
                 raise ImportError(
                     'The lookup_table has been specified by providing a matplotlib '
                     'colormap name, but matplotlib can not be imported.')
-            cmap = cm.get_cmap(value, max_out_size+1)
+            cmap = plt.get_cmap(value, max_out_size+1)
             color_array = cmap(numpy.arange(max_out_size+1))
             value = clip_cast(max_out_size*color_array, dtype='uint8')
             if value.shape[1] > 3 and not use_alpha:
@@ -1665,7 +1854,7 @@ def _register_defaults():
     register_remap(Linear(bit_depth=8), overwrite=False)
     register_remap(Logarithmic(bit_depth=8), overwrite=False)
     register_remap(PEDF(bit_depth=8), overwrite=False)
-    if cm is not None:
+    if plt is not None:
         try:
             register_remap(LUT8bit(NRL(bit_depth=8), 'viridis', use_alpha=False), overwrite=False)
         except KeyError:

@@ -11,6 +11,7 @@ import logging
 import os
 from typing import Union, List, Tuple, Dict, BinaryIO, Optional, Sequence
 from collections import OrderedDict
+import numbers
 
 import numpy
 
@@ -34,9 +35,6 @@ _unhandled_version_text = 'Got unhandled CPHD version number `{}`'
 _missing_channel_identifier_text = 'Cannot find CPHD channel for identifier `{}`'
 _index_range_text = 'index must be in the range `[0, {})`'
 
-
-#########
-# Helper object for initially parses CPHD elements
 
 class AmpScalingFunction(ComplexFormatFunction):
     __slots__ = (
@@ -66,9 +64,8 @@ class AmpScalingFunction(ComplexFormatFunction):
             Which band is the complex dimension, **after** the transpose operation.
         amplitude_scaling : None|numpy.ndarray
             This is here to support the presence of a scaling in CPHD or CRSD usage.
-            This requires that `raw_dtype` in `[int8, int16]`, `band_dimension`
-            is the final dimension and neither `reverse_axes` nor `transpose_axes`
-            is populated.
+            This requires that `band_dimension` is the final dimension and neither
+            `reverse_axes` nor `transpose_axes` is populated.
         """
 
         ComplexFormatFunction.__init__(
@@ -119,13 +116,8 @@ class AmpScalingFunction(ComplexFormatFunction):
         if array.dtype.name not in ['float32', 'float64']:
             raise ValueError('requires a numpy.ndarray of float32 or 64 dtype, got {}'.format(array.dtype))
         if array.dtype.name != 'float32':
-            array = numpy.cast['float32'](array)
+            array = numpy.asarray(array, dtype=numpy.float32)
 
-        # NB: more validation as part of validate_shapes
-        if self._raw_dtype.name not in ['int8', 'int16']:
-            raise ValueError(
-                'A scaling multiplier has been supplied,\n\t'
-                'but the raw datatype is not `int8` or `int16`.')
         self._amplitude_scaling = array
         self._validate_amplitude_scaling()
 
@@ -162,7 +154,9 @@ class AmpScalingFunction(ComplexFormatFunction):
         # NB: subscript is in formatted coordinates, but we have verified that
         #   transpose_axes is None and band_dimension is the final dimension
         if self._amplitude_scaling is not None:
-            data = numpy.rint((1./self._amplitude_scaling[subscript[0]])[:, numpy.newaxis] * data)
+            data = (1./self._amplitude_scaling[subscript[0]])[:, numpy.newaxis] * data
+        if issubclass(self._raw_dtype.type, numbers.Integral):
+            data = numpy.rint(data)
 
         return ComplexFormatFunction._reverse_functional_step(self, data, subscript)
 
@@ -549,7 +543,10 @@ class CPHDReader1(CPHDReader):
         data = self.cphd_meta.Data
         sample_type = data.SignalArrayFormat
 
-        if sample_type == "CF8":
+        compressed = data.SignalCompressionID
+        if compressed is not None:
+            raw_dtype = numpy.dtype('B')
+        elif sample_type == "CF8":
             raw_dtype = numpy.dtype('>f4')
         elif sample_type == "CI4":
             raw_dtype = numpy.dtype('>i2')
@@ -561,13 +558,22 @@ class CPHDReader1(CPHDReader):
         block_offset = self.cphd_header.SIGNAL_BLOCK_BYTE_OFFSET
         for entry in data.Channels:
             amp_sf = self.read_pvp_variable('AmpSF', entry.Identifier)
-            format_function = AmpScalingFunction(raw_dtype, amplitude_scaling=amp_sf)
-            raw_shape = (entry.NumVectors, entry.NumSamples, 2)
+            if compressed:
+                raw_shape = (entry.CompressedSignalSize,)
+                formatted_shape = raw_shape
+                formatted_dtype = 'byte'
+                format_function = None
+            else:
+                raw_shape = (entry.NumVectors, entry.NumSamples, 2)
+                formatted_shape = raw_shape[:2]
+                formatted_dtype = 'complex64'
+                format_function = AmpScalingFunction(raw_dtype, amplitude_scaling=amp_sf)
+
             data_offset = entry.SignalArrayByteOffset
             data_segments.append(
                 NumpyMemmapSegment(
                     self.cphd_details.file_object, block_offset+data_offset,
-                    raw_dtype, raw_shape, formatted_dtype='complex64', formatted_shape=raw_shape[:2],
+                    raw_dtype, raw_shape, formatted_dtype=formatted_dtype, formatted_shape = formatted_shape,
                     format_function=format_function, close_file=False))
         return data_segments
 
@@ -1561,7 +1567,10 @@ class CPHDWriter1(BaseWriter):
         self._can_write_regular_data = {}
         signal_data_segments = []
         signal_array_format = self.meta.Data.SignalArrayFormat
-        if signal_array_format == 'CI2':
+        compressed = getattr(self.meta.Data, 'SignalCompressionID', None)
+        if compressed is not None:
+            signal_dtype = numpy.dtype('B')
+        elif signal_array_format == 'CI2':
             signal_dtype = numpy.dtype('>i1')
         elif signal_array_format == 'CI4':
             signal_dtype = numpy.dtype('>i2')
@@ -1570,19 +1579,28 @@ class CPHDWriter1(BaseWriter):
         else:
             raise ValueError('Got unhandled SignalArrayFormat {}'.format(signal_array_format))
         for i, entry in enumerate(self.meta.Data.Channels):
-            self._can_write_regular_data[entry.Identifier] = no_amp_sf
-            raw_shape = (entry.NumVectors, entry.NumSamples, 2)
-            format_function = AmpScalingFunction(signal_dtype)
+            self._can_write_regular_data[entry.Identifier] = no_amp_sf or compressed
+            if compressed:
+                raw_shape = (entry.CompressedSignalSize,)
+                formatted_shape = raw_shape
+                formatted_dtype = 'byte'
+                format_function = None
+            else:
+                raw_shape = (entry.NumVectors, entry.NumSamples, 2)
+                formatted_shape = raw_shape[:2]
+                formatted_dtype = 'complex64'
+                format_function = AmpScalingFunction(signal_dtype)
+
             offset = self.writing_details.signal_details[i].item_offset
             if self._in_memory:
                 underlying_array = numpy.full(raw_shape, 0, dtype=signal_dtype)
                 data_segment = NumpyArraySegment(
-                    underlying_array, 'complex64', formatted_shape=raw_shape[:2],
+                    underlying_array, formatted_dtype, formatted_shape=formatted_shape,
                     format_function=format_function, mode='w')
             else:
                 data_segment = NumpyMemmapSegment(
                     self._file_object.name, offset, signal_dtype, raw_shape,
-                    formatted_dtype='complex64', formatted_shape=raw_shape[:2],
+                    formatted_dtype=formatted_dtype, formatted_shape=formatted_shape,
                     format_function=format_function, mode='w', close_file=False)
             signal_data_segments.append(data_segment)
 
@@ -1649,7 +1667,7 @@ class CPHDWriter1(BaseWriter):
         if data.shape[0] != entry.NumVectors:
             raise ValueError('Provided data must have size determined by NumVectors')
 
-        if self.meta.PVP.AmpSF is not None:
+        if self.meta.PVP.AmpSF is not None and self.meta.Data.SignalCompressionID is None:
             amp_sf = numpy.copy(data['AmpSF'][:])
             # noinspection PyUnresolvedReferences
             self._signal_data_segments[identifier].format_function.set_amplitude_scaling(amp_sf)
@@ -1864,4 +1882,4 @@ class CPHDWriter1(BaseWriter):
         except AttributeError:
             pass
         self._writing_details = None
-        self._file_object = None
+        self._file_object.close()

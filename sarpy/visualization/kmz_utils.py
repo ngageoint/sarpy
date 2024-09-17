@@ -297,15 +297,22 @@ def make_beam_footprints(
             # outside, resulting in multiple contours
 
             # Only keep contours that form a closed shape
-            paths = [
-                path
-                for path in contour_sets.collections[0].get_paths()
-                if matplotlib.path.Path.CLOSEPOLY in path.codes
+            try:
+                paths = contour_sets.get_paths()
+            except AttributeError:
+                # matplotlib deprecated collections attribute in 3.8
+                paths = contour_sets.collections[0].get_paths()
+
+            polygons = [
+                polygon
+                for path in paths
+                for polygon in path.to_polygons(closed_only=False)
+                if np.array_equal(polygon[0], polygon[-1])  # only consider closed polygons
             ]
             # Keep contour closest to center
             contour_vertices = min(
-                paths, key=lambda path: np.linalg.norm(np.mean(path.vertices, axis=0))
-            ).vertices
+                polygons, key=lambda vertices: np.linalg.norm(np.mean(vertices, axis=0))
+            )
 
             delta_dcx = contour_vertices[:, 0]
             delta_dcy = contour_vertices[:, 1]
@@ -325,6 +332,6 @@ def make_beam_footprints(
             logger.warning(
                 f"Exception while calculating {name} beam footprint of {aiming_metadata['antpat_id']}"
             )
-            logger.warning(exc)
+            logger.warning(exc, exc_info=True)
 
     return result
