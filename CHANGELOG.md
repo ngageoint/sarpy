@@ -58,6 +58,7 @@ release points are not being annotated in GitHub.
 - SIO reading/writing
 - SIDD 2.0+ FilterType handling
 - Erroneous SIDD consistency error re: NITF NBPP when PixelType=RGB24I
+- Properly recompute SCPCOA metadata when updating SCP using a DEM in `sarpy.io.complex.converter.conversion_utility`
 
 ## [1.3.58] - 2023-08-07
 ### Added
