@@ -1,6 +1,4 @@
 #
-# Copyright 2023 Valkyrie Systems Corporation
-#
 # Licensed under MIT License.  See LICENSE.
 #
 import os
@@ -9,10 +7,14 @@ import shutil
 import tempfile
 
 from lxml import etree
+import numpy
 import pytest
 
 import sarpy.consistency.sidd_consistency as sc
+from sarpy.io.product.sidd import SIDDWriter
+import sarpy.io.product.sidd2_elements.SIDD as sarpy_sidd2
 import sarpy.utils.create_product
+
 from tests import find_test_data_files
 
 TEST_FILE_PATHS = {}
@@ -96,3 +98,22 @@ def test_invalid_xml_pixeltype(good_sidd_xml_str, tmpdir):
         fid.write(bad_xml_str)
 
     assert not sc.main([bad_xml_file_path])
+
+
+@pytest.fixture
+def rgb24i_sidd(good_sidd_xml_path):
+    sidd_meta = sarpy_sidd2.SIDDType.from_xml_file(good_sidd_xml_path)
+    sidd_meta.Display.PixelType = "RGB24I"
+    sidd_meta.Display.NumBands = 3
+
+    with tempfile.NamedTemporaryFile(delete=True) as sidd_file:
+        with SIDDWriter(sidd_file, sidd_meta=sidd_meta) as writer:
+            rows = sidd_meta.Measurement.PixelFootprint.Row
+            cols = sidd_meta.Measurement.PixelFootprint.Col
+            image = numpy.random.default_rng().integers(1<<8, size=(rows, cols, 3), dtype=numpy.uint8)
+            writer(image, start_indices=(0, 0))
+        yield sidd_file.name
+
+
+def test_rgb24I_sidd(rgb24i_sidd):
+    assert sc.check_file(rgb24i_sidd)

@@ -57,6 +57,7 @@ release points are not being annotated in GitHub.
 - Incorrect SIDD ISM.compliesWith definition
 - SIO reading/writing
 - SIDD 2.0+ FilterType handling
+- Erroneous SIDD consistency error re: NITF NBPP when PixelType=RGB24I
 
 ## [1.3.58] - 2023-08-07
 ### Added

@@ -347,7 +347,8 @@ def check_sidd_file(nitf_details):
         elif the_sidd.Display.PixelType == 'MONO16I':
             sidd_nitf_details.append({'nbpp': 16, 'pvtype': 'INT', 'pixel_type': the_sidd.Display.PixelType})
         elif the_sidd.Display.PixelType == 'RGB24I':
-            sidd_nitf_details.append({'nbpp': 24, 'pvtype': 'INT', 'pixel_type': the_sidd.Display.PixelType})
+            # RGB24I is 3 channels of 8 bpp, see: https://github.com/ngageoint/sarpy/issues/544
+            sidd_nitf_details.append({'nbpp': 8, 'pvtype': 'INT', 'pixel_type': the_sidd.Display.PixelType})
         else:
             raise ValueError('Got unhandled pixel type {}'.format(the_sidd.Display.PixelType))
 
