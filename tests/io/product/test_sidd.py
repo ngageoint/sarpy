@@ -103,15 +103,24 @@ def sidd_etree():
 def _assert_to_from_xml(tmp_path, sidd_etree):
     """Ensure that XML nodes are preserved when going from XML, through SarPy, then back to XML."""
     original_tree = sidd_etree
-    original_read = sarpy_sidd.SIDDType.from_xml_string(lxml.etree.tostring(sidd_etree))
+    original_xml_str = lxml.etree.tostring(sidd_etree)
+    original_read = sarpy_sidd.SIDDType.from_xml_string(original_xml_str)
+    assert sidd_consistency.evaluate_xml_versus_schema(original_xml_str,
+                                                       lxml.etree.QName(original_tree.getroot()).namespace)
 
+    new_xml_str = original_read.to_xml_string(check_validity=True)
     out_file = tmp_path / "read_then_write.xml"
-    out_file.write_text(original_read.to_xml_string(check_validity=True))
+    out_file.write_text(new_xml_str)
     reread_tree = lxml.etree.parse(str(out_file))
+    assert sidd_consistency.evaluate_xml_versus_schema(new_xml_str,
+                                                       lxml.etree.QName(reread_tree.getroot()).namespace)
 
     original_nodes = {original_tree.getelementpath(x) for x in original_tree.iter()}
     new_nodes = {reread_tree.getelementpath(x) for x in reread_tree.iter()}
-    assert original_nodes == new_nodes
+    orig_only = original_nodes - new_nodes
+    new_only = new_nodes - original_nodes
+    assert not orig_only
+    assert not new_only
 
 
 def test_example_sidd(tmp_path, sidd_etree):

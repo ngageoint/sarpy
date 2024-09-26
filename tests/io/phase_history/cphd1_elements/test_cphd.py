@@ -49,7 +49,10 @@ def test_cphdtype_to_from_xml(cphd_xml, tmp_path):
 
     original_nodes = {original_tree.getelementpath(x) for x in original_tree.iter()}
     new_nodes = {reread_tree.getelementpath(x) for x in reread_tree.iter()}
-    assert original_nodes == new_nodes
+    orig_only = original_nodes - new_nodes
+    new_only = new_nodes - original_nodes
+    assert not orig_only
+    assert not new_only
 
 
 @pytest.mark.parametrize(

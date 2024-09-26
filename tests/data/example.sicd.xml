@@ -347,6 +347,54 @@
             <GeoInfo name="target8">
                 <Desc name="ecef">[6378137.0, 405.5797876726389, -579.2279653395692]</Desc>
             </GeoInfo>
+            <GeoInfo name="root">
+                <Desc name="rootdesc">a description</Desc>
+                <Desc name="rootdesc2">another description</Desc>
+                <GeoInfo name="nested_point">
+                    <Desc name="nested_pointdesc">this is a point</Desc>
+                    <Point>
+                        <Lat>0.0041255109857561032</Lat>
+                        <Lon>-0.0038406233754897695</Lon>
+                    </Point>
+                    <GeoInfo name="nested_nested_point">
+                        <Desc name="nested_nested_pointdesc">this is a point in a point</Desc>
+                        <Point>
+                            <Lat>0.0041255109857561032</Lat>
+                            <Lon>-0.0038406233754897695</Lon>
+                        </Point>
+                    </GeoInfo>
+                </GeoInfo>
+                <GeoInfo name="nested_line">
+                    <Desc name="nested_linedesc">this is a line</Desc>
+                    <Line size="2">
+                        <Endpoint index="1">
+                            <Lat>0.0030092586536039634</Lat>
+                            <Lon>-0.0040353037978433726</Lon>
+                        </Endpoint>
+                        <Endpoint index="2">
+                            <Lat>0.0041255109857561032</Lat>
+                            <Lon>-0.0038406233754897695</Lon>
+                        </Endpoint>
+                    </Line>
+                </GeoInfo>
+                <GeoInfo name="nested_poly">
+                    <Desc name="nested_polydesc">this is a polygon</Desc>
+                    <Polygon size="3">
+                        <Vertex index="1">
+                            <Lat>0.0019022331049687996</Lat>
+                            <Lon>-0.0042291176215286976</Lon>
+                        </Vertex>
+                        <Vertex index="2">
+                            <Lat>0.0030092586536039634</Lat>
+                            <Lon>-0.0040353037978433726</Lon>
+                        </Vertex>
+                        <Vertex index="3">
+                            <Lat>0.0041255109857561032</Lat>
+                            <Lon>-0.0038406233754897695</Lon>
+                        </Vertex>
+                    </Polygon>
+                </GeoInfo>
+            </GeoInfo>
         </GeoInfo>
     </GeoData>
     <Grid>

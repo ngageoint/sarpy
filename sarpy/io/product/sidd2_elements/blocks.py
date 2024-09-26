@@ -309,7 +309,7 @@ class MatchInfoType(MatchInfoTypeBase):
 
 class GeoInfoType(GeoInfoTypeBase):
     _child_xml_ns_key = {
-        'Descriptions': 'sicommon', 'Point': 'sicommon', 'Line': 'sicommon',
+        'name': None, 'Descriptions': 'sicommon', 'Point': 'sicommon', 'Line': 'sicommon',
         'Polygon': 'sicommon'}
 
 
