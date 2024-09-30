@@ -237,6 +237,7 @@ class LatLonArrayElementType(LatLonType):
     _fields = ('Lat', 'Lon', 'index')
     _required = _fields
     _set_as_attribute = ('index', )
+    _child_xml_ns_key = {'index': None}
     index = IntegerDescriptor(
         'index', _required, strict=False, docstring="The array index")  # type: int
 

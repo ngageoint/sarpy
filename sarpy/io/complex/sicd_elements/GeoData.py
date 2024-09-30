@@ -151,9 +151,9 @@ class GeoInfoType(Serializable):
 
         if isinstance(value, ElementTree.Element):
             gi_key = self._child_xml_ns_key.get('GeoInfos', self._xml_ns_key)
-            value = GeoInfoType.from_node(value, self._xml_ns, ns_key=gi_key)
+            value = self.from_node(value, self._xml_ns, ns_key=gi_key)
         elif isinstance(value, dict):
-            value = GeoInfoType.from_dict(value)
+            value = self.from_dict(value)
 
         if isinstance(value, GeoInfoType):
             self._GeoInfos.append(value)
