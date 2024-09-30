@@ -504,11 +504,12 @@ class GeoTIFF1DegList(DEMList):
 
     """
 
-    __slots__ = ('_dem_filename_pattern', '_missing_error')
+    __slots__ = ('_dem_filename_pattern', '_missing_error', '_pattern_to_filename')
 
     def __init__(self, dem_filename_pattern, missing_error=False):
         self._dem_filename_pattern = str(dem_filename_pattern)
         self._missing_error = bool(missing_error)
+        self._pattern_to_filename = {}
 
     @staticmethod
     def filename_from_lat_lon(lat, lon, pattern):
@@ -571,21 +572,24 @@ class GeoTIFF1DegList(DEMList):
         for sw_lat in sw_lats:
             for sw_lon in sw_lons:
                 glob_pattern = self.filename_from_lat_lon(int(sw_lat), int(sw_lon), self._dem_filename_pattern)
-
-                for filename in glob.glob(glob_pattern):
-                    if pathlib.Path(filename).is_file():
-                        # The glob should not return more than one filename,
-                        # but if it does then keep only the first.
-                        filenames.append(filename)
-                        break
-                else:
-                    msg = f'Missing expected DEM file for tile with lower left lat/lon corner ({sw_lat}, {sw_lon})'
-                    if self._missing_error:
-                        raise ValueError(msg)
+                if glob_pattern not in self._pattern_to_filename:
+                    for filename in glob.glob(glob_pattern):
+                        if pathlib.Path(filename).is_file():
+                            # The glob should not return more than one filename,
+                            # but if it does then keep only the first.
+                            self._pattern_to_filename[glob_pattern] = filename
+                            break
                     else:
-                        logger.warning(
-                            msg + '\n\tThis should result in the assumption that the altitude in\n\t'
-                                  'that section is zero relative to the reference surface.')
+                        self._pattern_to_filename[glob_pattern] = None
+                        msg = f'Missing expected DEM file for tile with lower left lat/lon corner ({sw_lat}, {sw_lon})'
+                        if self._missing_error:
+                            raise ValueError(msg)
+                        else:
+                            logger.warning(
+                                msg + '\n\tThis should result in the assumption that the altitude in\n\t'
+                                    'that section is zero relative to the reference surface.')
+                if self._pattern_to_filename[glob_pattern] is not None:
+                    filenames.append(self._pattern_to_filename[glob_pattern])
 
         return filenames
 
