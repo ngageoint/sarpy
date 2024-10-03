@@ -4,7 +4,7 @@ SarPy follows a continuous release process, so there are fairly frequent release
 Since essentially every (squash merge) commit corresponds to a release, specific 
 release points are not being annotated in GitHub.
 
-## [1.3.59-rc]
+## [1.3.59] - 2024-10-03
 ### Added
 - `noxfile.py`
 - TOA visualization to `sarpy/visualization/cphd_kmz_product_creation.py`

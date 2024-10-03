@@ -106,13 +106,14 @@ def rgb24i_sidd(good_sidd_xml_path):
     sidd_meta.Display.PixelType = "RGB24I"
     sidd_meta.Display.NumBands = 3
 
-    with tempfile.NamedTemporaryFile(delete=True) as sidd_file:
-        with SIDDWriter(sidd_file, sidd_meta=sidd_meta) as writer:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        sidd_file = pathlib.Path(tmpdir) / "tmp.sidd"
+        with SIDDWriter(str(sidd_file), sidd_meta=sidd_meta) as writer:
             rows = sidd_meta.Measurement.PixelFootprint.Row
             cols = sidd_meta.Measurement.PixelFootprint.Col
             image = numpy.random.default_rng().integers(1<<8, size=(rows, cols, 3), dtype=numpy.uint8)
             writer(image, start_indices=(0, 0))
-        yield sidd_file.name
+        yield str(sidd_file)
 
 
 def test_rgb24I_sidd(rgb24i_sidd):
