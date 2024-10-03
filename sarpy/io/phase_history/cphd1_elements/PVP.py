@@ -18,7 +18,7 @@ from .base import DEFAULT_STRICT
 
 class PerVectorParameterI8(Serializable):
     _fields = ('Offset', 'Size', 'Format')
-    _required = ('Offset', )
+    _required = _fields
     # descriptors
     Offset = IntegerDescriptor(
         'Offset', _required, strict=DEFAULT_STRICT, bounds=(0, None),
@@ -59,7 +59,7 @@ class PerVectorParameterI8(Serializable):
 
 class PerVectorParameterF8(Serializable):
     _fields = ('Offset', 'Size', 'Format')
-    _required = ('Offset', )
+    _required = _fields
     # descriptors
     Offset = IntegerDescriptor(
         'Offset', _required, strict=DEFAULT_STRICT, bounds=(0, None),
@@ -100,7 +100,7 @@ class PerVectorParameterF8(Serializable):
 
 class PerVectorParameterXYZ(Serializable):
     _fields = ('Offset', 'Size', 'Format')
-    _required = ('Offset', )
+    _required = _fields
     # descriptors
     Offset = IntegerDescriptor(
         'Offset', _required, strict=DEFAULT_STRICT, bounds=(0, None),
@@ -141,7 +141,7 @@ class PerVectorParameterXYZ(Serializable):
 
 class PerVectorParameterEB(Serializable):
     _fields = ('Offset', 'Size', 'Format')
-    _required = ('Offset', )
+    _required = _fields
     # descriptors
     Offset = IntegerDescriptor(
         'Offset', _required, strict=DEFAULT_STRICT, bounds=(0, None),
@@ -506,8 +506,8 @@ class PVPType(Serializable):
                 out += val.Size*8
         for fld in ['TxAntenna', 'RcvAntenna']:
             val = getattr(self, fld)
-            assert(isinstance(val, TxAntennaType))
             if val is not None:
+                assert isinstance(val, (TxAntennaType, RcvAntennaType))
                 out += (3 + 3 + 2)*8
         if self.AddedPVP is not None:
             for entry in self.AddedPVP:

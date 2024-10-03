@@ -344,7 +344,6 @@ class MeasurementType(Serializable):
         None|ReferencePointType: *READ ONLY* Gets the reference point.
         """
 
-        for attribute in self._choice[0]['collection']:
-            if getattr(self, attribute) is not None:
-                return attribute.ReferencePoint
+        if self.ProjectionType:
+            return getattr(self, self.ProjectionType).ReferencePoint
         return None

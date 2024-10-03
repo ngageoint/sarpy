@@ -14,8 +14,14 @@ import pathlib
 import warnings
 
 import numpy as np
-from PIL import Image
-from PIL import TiffTags
+try:
+    from PIL import Image
+    from PIL import TiffTags
+    Image.MAX_IMAGE_PIXELS = None  # get rid of decompression bomb checking
+except ImportError:
+    Image = None
+    TiffTags = None
+
 from scipy.interpolate import RegularGridInterpolator
 
 from sarpy.io.DEM.DEM import DEMList
@@ -27,7 +33,6 @@ logger = logging.getLogger(__name__)
 __classification__ = "UNCLASSIFIED"
 __author__ = "Valkyrie Systems Corporation"
 
-Image.MAX_IMAGE_PIXELS = None  # get rid of decompression bomb checking
 
 
 class GeoTIFF1DegReader:
@@ -57,6 +62,9 @@ class GeoTIFF1DegReader:
     def _read(self):
         # Note: the dem_data must have dtype=np.float64 otherwise the interpolator
         # created by RegularGridInterpolator will raise a TypeError exception.
+        if Image is None or TiffTags is None:
+            raise ImportError("Reading GeoTIFF DEM requires the PIL library")
+
         with Image.open(self._filename) as img:
             self._tiff_tags = {TiffTags.TAGS[key]: val for key, val in img.tag.items()}
             self._dem_data = np.asarray(img, dtype=np.float64)
@@ -77,6 +85,7 @@ class GeoTIFF1DegInterpolator(DEMInterpolator):
         Optional filename of a specific Geoid file or a directory containing geoid files to choose from.
         If a directory is specified, then one or more of the following geoid files (in order of preference)
         will be chosen from this directory.
+
             'egm2008-1.pgm', 'egm2008-2_5.pgm', 'egm2008-5.pgm',
             'egm96-5.pgm', 'egm96-15.pgm', 'egm84-15.pgm', 'egm84-30.pgm'
     missing_error: bool (default: False)
@@ -371,12 +380,15 @@ class GeoTIFF1DegInterpolator(DEMInterpolator):
 
         Returns
         -------
-        dict: {"box": lat_lon_box,
-               "min": {"lat": lat_deg, "lon": lon_deg, "height": height},
-               "max": {"lat": lat_deg, "lon": lon_deg, "height": height}
-              }
+        dict
+            A dictionary describing the results of the search::
+
+                {"box": lat_lon_box,
+                 "min": {"lat": lat_deg, "lon": lon_deg, "height": height},
+                 "max": {"lat": lat_deg, "lon": lon_deg, "height": height}}
+
         """
-        if np.all(self._bounding_box_cache.get("box", []) == lat_lon_box):
+        if np.array_equal(self._bounding_box_cache.get("box", []), lat_lon_box):
             # If we have already done this calculation then don't do it again.
             return self._bounding_box_cache
 
@@ -472,7 +484,8 @@ class GeoTIFF1DegList(DEMList):
     The DEM files must have the SW corner Lat/Lon encoded in their filenames.
     The dem_filename_pattern argument contains a format string that, when populated,
     will create a glob pattern that will specify the desired DEM file.  The following
-    arguments are provided to the format string.
+    arguments are provided to the format string::
+
         lat = int(numpy.floor(lat))
         lon = int(numpy.floor(lon))
         abslat = int(abs(numpy.floor(lat)))
@@ -491,11 +504,12 @@ class GeoTIFF1DegList(DEMList):
 
     """
 
-    __slots__ = ('_dem_filename_pattern', '_missing_error')
+    __slots__ = ('_dem_filename_pattern', '_missing_error', '_pattern_to_filename')
 
     def __init__(self, dem_filename_pattern, missing_error=False):
         self._dem_filename_pattern = str(dem_filename_pattern)
         self._missing_error = bool(missing_error)
+        self._pattern_to_filename = {}
 
     @staticmethod
     def filename_from_lat_lon(lat, lon, pattern):
@@ -558,21 +572,24 @@ class GeoTIFF1DegList(DEMList):
         for sw_lat in sw_lats:
             for sw_lon in sw_lons:
                 glob_pattern = self.filename_from_lat_lon(int(sw_lat), int(sw_lon), self._dem_filename_pattern)
-
-                for filename in glob.glob(glob_pattern):
-                    if pathlib.Path(filename).is_file():
-                        # The glob should not return more than one filename,
-                        # but if it does then keep only the first.
-                        filenames.append(filename)
-                        break
-                else:
-                    msg = f'Missing expected DEM file for tile with lower left lat/lon corner ({sw_lat}, {sw_lon})'
-                    if self._missing_error:
-                        raise ValueError(msg)
+                if glob_pattern not in self._pattern_to_filename:
+                    for filename in glob.glob(glob_pattern):
+                        if pathlib.Path(filename).is_file():
+                            # The glob should not return more than one filename,
+                            # but if it does then keep only the first.
+                            self._pattern_to_filename[glob_pattern] = filename
+                            break
                     else:
-                        logger.warning(
-                            msg + '\n\tThis should result in the assumption that the altitude in\n\t'
-                                  'that section is zero relative to the reference surface.')
+                        self._pattern_to_filename[glob_pattern] = None
+                        msg = f'Missing expected DEM file for tile with lower left lat/lon corner ({sw_lat}, {sw_lon})'
+                        if self._missing_error:
+                            raise ValueError(msg)
+                        else:
+                            logger.warning(
+                                msg + '\n\tThis should result in the assumption that the altitude in\n\t'
+                                    'that section is zero relative to the reference surface.')
+                if self._pattern_to_filename[glob_pattern] is not None:
+                    filenames.append(self._pattern_to_filename[glob_pattern])
 
         return filenames
 

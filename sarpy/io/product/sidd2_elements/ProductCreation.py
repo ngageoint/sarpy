@@ -133,10 +133,9 @@ class ProductClassificationType(Serializable):
     createDate = StringDescriptor(
         'createDate', _required, strict=DEFAULT_STRICT,
         docstring='This should be a date of format :code:`YYYY-MM-DD`, but this is not checked.')  # type: str
-    compliesWith = StringEnumDescriptor(
-        'compliesWith', ('USGov', 'USIC', 'USDOD', 'OtherAuthority'), _required,
-        strict=DEFAULT_STRICT, default_value='USGov',
-        docstring='The ISM rule sets with which the document may complies.')  # type: Union[None, str]
+    compliesWith = StringDescriptor(
+        'compliesWith', _required, strict=DEFAULT_STRICT, default_value="USGov",
+        docstring='The ISM.XML rule sets a document complies with.')  # type: Union[None, str]
     ISMCATCESVersion = StringDescriptor(
         'ISMCATCESVersion', _required, strict=DEFAULT_STRICT, default_value='201903',
         docstring='')  # type: Union[None, str]

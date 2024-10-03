@@ -266,8 +266,8 @@
       <SRPFixed>true</SRPFixed>
       <SignalNormal>false</SignalNormal>
       <Polarization>
-        <TxPol>V</TxPol>
-        <RcvPol>V</RcvPol>
+        <TxPol>S</TxPol>
+        <RcvPol>S</RcvPol>
         <TxPolRef>
           <AmpH>0.123</AmpH>
           <AmpV>0.987</AmpV>
@@ -1085,8 +1085,8 @@
       <PulseLength>2.6681528762000275e-06</PulseLength>
       <RFBandwidth>66703821.90500069</RFBandwidth>
       <FreqCenter>10000000000.0</FreqCenter>
-      <LFMRate>25000000000000.0</LFMRate>
-      <Polarization>V</Polarization>
+      <LFMRate>0.0</LFMRate>
+      <Polarization>S</Polarization>
       <Power>1.23456789</Power>
     </TxWFParameters>
     <NumRcvs>1</NumRcvs>
@@ -1096,8 +1096,8 @@
       <SampleRate>88227922.92431946</SampleRate>
       <IFFilterBW>80875596.01395951</IFFilterBW>
       <FreqCenter>10036761634.5518</FreqCenter>
-      <LFMRate>25000000000000.0</LFMRate>
-      <Polarization>V</Polarization>
+      <LFMRate>0.0</LFMRate>
+      <Polarization>S</Polarization>
       <PathGain>5.678</PathGain>
     </RcvParameters>
   </TxRcv>
@@ -1245,7 +1245,7 @@
     <MatchType index="1">
       <TypeID>COHERENT</TypeID>
       <CurrentIndex>24</CurrentIndex>
-      <NumMatchCollections>2</NumMatchCollections>
+      <NumMatchCollections>3</NumMatchCollections>
       <MatchCollection index="1">
         <CoreName>MC0</CoreName>
         <MatchIndex>1</MatchIndex>

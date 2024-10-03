@@ -212,12 +212,12 @@ class PFAType(Serializable):
         # establish image plane coordinate system
         ip_x = image_plane_coa - SCP
         ip_x /= numpy.linalg.norm(ip_x)
-        ip_y = numpy.cross(ip_x, ipn)
+        ip_y = numpy.cross(ipn, ip_x)
 
         # compute polar angle of sensor position in image plane
         ip_range = image_plane_positions - SCP
         ip_range /= numpy.linalg.norm(ip_range, axis=1)[:, numpy.newaxis]
-        k_a = -numpy.arctan2(ip_range.dot(ip_y), ip_range.dot(ip_x))
+        k_a = numpy.arctan2(ip_range.dot(ip_y), ip_range.dot(ip_x))
 
         # compute the spatial frequency scale factor
         range_vectors = positions - SCP

@@ -1184,6 +1184,7 @@ class CphdConsistency(con.ConsistencyChecker):
 
         with self.precondition():
             assert self.header is not None
+            assert self.xml.find('./Data/SignalCompressionID') is None
             format_string = self.xml.findtext('./Data/SignalArrayFormat')
             signal_dtype = cphd1_utils.binary_format_string_to_dtype(format_string)
 

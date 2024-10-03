@@ -1,7 +1,6 @@
-
+import json
 import os
 import logging
-
 
 parent_path = os.environ.get('SARPY_TEST_PATH', None)
 if parent_path == 'NONE':
@@ -13,13 +12,41 @@ if parent_path is not None and not os.path.isdir(parent_path):
     raise IOError('SARPY_TEST_PATH is given as {}, but is not a directory'.format(parent_path))
 
 
+def find_test_data_files(test_json_file):
+    """
+    Find the test data files listed in the specified test JSON file.
+
+    Parameters
+    ----------
+    test_json_file : str | pathlib.Path
+        The full path specification to a JSON file that specifies unit test data files.
+
+    Returns
+    -------
+    dict:
+        A dictionary of files specified in the JSON file, if they exist in
+        the path specified by the environmental variable SARPY_TEST_PATH.
+    """
+    test_data_files = {}
+    with open(test_json_file, 'r') as fi:
+        the_files = json.load(fi)
+        for the_type in the_files:
+            valid_entries = []
+            for entry in the_files[the_type]:
+                the_file = parse_file_entry(entry)
+                if the_file is not None:
+                    valid_entries.append(the_file)
+            test_data_files[the_type] = valid_entries
+    return test_data_files
+
+
 def parse_file_entry(entry, default='absolute'):
     """
     Evaluate input as a path for file used in a unit test.
 
     Parameters
     ----------
-    entry : NOne|dict
+    entry : None|dict
         dict of the form {'path': <value>', 'path_type': 'relative' or 'absolute'}
     default : str
         The default value for 'path_type', if it is not provided.

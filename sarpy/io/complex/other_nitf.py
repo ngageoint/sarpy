@@ -806,8 +806,8 @@ def _extract_transform_data(
         raise ValueError('Got unhandled PVTYPE {}'.format(pv_type))
 
     # noinspection PyUnresolvedReferences
-    tre = None if img_header.ExtendedHeader.data is None else \
-        img_header.ExtendedHeader.data['CMETAA']  # type: Optional[CMETAA]
+    tre = None if image_header.ExtendedHeader.data is None else \
+        image_header.ExtendedHeader.data['CMETAA']  # type: Optional[CMETAA]
 
     if tre is None:
         return ComplexFormatFunction(raw_dtype, complex_order, band_dimension=band_dimension)

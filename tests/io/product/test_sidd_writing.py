@@ -1,17 +1,20 @@
+import collections
 import os
-import json
+import pathlib
 import tempfile
 import shutil
 import unittest
 
+import numpy as np
+
 from sarpy.io.complex.sicd import SICDReader
 from sarpy.io.product.sidd import SIDDReader
 from sarpy.io.product.sidd_schema import get_schema_path
+import sarpy.io.product.sidd
 from sarpy.processing.sidd.sidd_product_creation import create_detected_image_sidd, create_dynamic_image_sidd, create_csi_sidd
 from sarpy.processing.ortho_rectify import NearestNeighborMethod
-import sarpy.geometry.geometry_elements as ge
 
-from tests import parse_file_entry
+import tests
 
 try:
     from lxml import etree
@@ -19,20 +22,7 @@ except ImportError:
     etree = None
 
 
-product_file_types = {}
-this_loc = os.path.abspath(__file__)
-file_reference = os.path.join(os.path.split(this_loc)[0], 'product_file_types.json')  # specifies file locations
-if os.path.isfile(file_reference):
-    with open(file_reference, 'r') as fi:
-        the_files = json.load(fi)
-        for the_type in the_files:
-            valid_entries = []
-            for entry in the_files[the_type]:
-                the_file = parse_file_entry(entry)
-                if the_file is not None:
-                    valid_entries.append(the_file)
-            product_file_types[the_type] = valid_entries
-
+product_file_types = tests.find_test_data_files(pathlib.Path(__file__).parent / 'product_file_types.json')
 sicd_files = product_file_types.get('SICD', [])
 
 
@@ -122,6 +112,46 @@ class TestSIDDWriting(unittest.TestCase):
 
             # clean up the temporary directory
             shutil.rmtree(temp_directory)
+
+    def test_nitf_multi_image_multi_segment(self):
+        """From Figure 2.5-6 SIDD 1.0 Multiple Input Image - Multiple Product Images Requiring Segmentation"""
+        sidd_xml = pathlib.Path(__file__).parents[2]/ 'data/example.sidd.xml'
+        sidd_meta = sarpy.io.product.sidd.SIDDType2.from_xml_file(sidd_xml)
+        assert sidd_meta.Display.PixelType == 'MONO8I'
+
+        # Tweak SIDD size to force three image segments
+        li_max = 9_999_999_998
+        iloc_max = 99_999
+        num_cols = li_max // (2 * iloc_max)  # set num_cols so that row limit is iloc_max
+        last_rows = 24
+        num_rows = iloc_max * 2 + last_rows
+        sidd_meta.Measurement.PixelFootprint.Row = num_rows
+        sidd_meta.Measurement.PixelFootprint.Col = num_cols
+        sidd_writing_details = sarpy.io.product.sidd.SIDDWritingDetails([sidd_meta, sidd_meta], None)
+
+        # SIDD segmentation algorithm (2.4.2.1 in 1.0/2.0/3.0) would lead to overlaps of the last partial
+        # image segment due to ILOC. This implements a scheme similar to SICD wherein "RRRRR" of ILOC matches
+        # the NROWs in the previous segment.
+        ImHdr = collections.namedtuple('ImHdr', ['IID1', 'IDLVL', 'IALVL', 'ILOC', 'NROWS', 'NCOLS'])
+        expected_imhdrs = [
+            ImHdr(IID1='SIDD001001', IDLVL=1, IALVL=0, ILOC='0'*10, NROWS=iloc_max, NCOLS=num_cols),
+            ImHdr(IID1='SIDD001002', IDLVL=2, IALVL=1, ILOC=f'{iloc_max:05d}{0:05d}', NROWS=iloc_max, NCOLS=num_cols),
+            ImHdr(IID1='SIDD001003', IDLVL=3, IALVL=2, ILOC=f'{iloc_max:05d}{0:05d}', NROWS=last_rows, NCOLS=num_cols),
+            ImHdr(IID1='SIDD002001', IDLVL=4, IALVL=0, ILOC='0'*10, NROWS=iloc_max, NCOLS=num_cols),
+            ImHdr(IID1='SIDD002002', IDLVL=5, IALVL=4, ILOC=f'{iloc_max:05d}{0:05d}', NROWS=iloc_max, NCOLS=num_cols),
+            ImHdr(IID1='SIDD002003', IDLVL=6, IALVL=5, ILOC=f'{iloc_max:05d}{0:05d}', NROWS=last_rows, NCOLS=num_cols),
+        ]
+
+        actual_imhdrs = [
+            ImHdr(IID1=im.subheader.IID1,
+                  IDLVL=im.subheader.IDLVL,
+                  IALVL=im.subheader.IALVL,
+                  ILOC=im.subheader.ILOC,
+                  NROWS=im.subheader.NROWS,
+                  NCOLS=im.subheader.NCOLS)
+            for im in sidd_writing_details.image_managers
+        ]
+        assert expected_imhdrs == actual_imhdrs
 
 
 class TestSIDDOptionalFields(unittest.TestCase):

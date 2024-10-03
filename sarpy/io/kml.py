@@ -709,7 +709,7 @@ class Document(object):
             if not numpy.array_equal(coords[0], coords[-1]):
                 coords = numpy.concatenate((coords, coords[0, numpy.newaxis]))  # first and last coord must match
             # KMZ allows longitude values beyond +/-180 for overlays that overlap the meridian
-            coords[:, 0] = numpy.unwrap(coords[:, 0], period=360)
+            coords[:, 0] = numpy.degrees(numpy.unwrap(numpy.radians(coords[:, 0])))
             return " ".join(",".join(str(x) for x in coord) for coord in coords)
 
         if par is None:
@@ -1090,7 +1090,7 @@ class Document(object):
         archive_name = 'images/{}.{}'.format(image_name, img_format)
         # resample our image
         pil_box = tuple(int(el) for el in image_bounds)
-        this_img = img.crop(pil_box).resize((sample_cols, sample_rows), PIL.Image.ANTIALIAS)
+        this_img = img.crop(pil_box).resize((sample_cols, sample_rows), PIL.Image.LANCZOS)
         self.write_image_to_archive(archive_name, this_img, img_format=img_format)
         # create the ground overlay parameters
         pars = {'name': image_name}
@@ -1258,7 +1258,7 @@ class Document(object):
         archive_name = 'images/{}.{}'.format(image_name, img_format)
         pil_box = tuple(int(el) for el in image_bounds)
         # resample our image
-        this_img = img.crop(pil_box).resize((sample_cols, sample_rows), PIL.Image.ANTIALIAS)
+        this_img = img.crop(pil_box).resize((sample_cols, sample_rows), PIL.Image.LANCZOS)
         self.write_image_to_archive(archive_name, this_img, img_format=img_format)
         # create the ground overlay parameters
         pars = {'name': image_name}

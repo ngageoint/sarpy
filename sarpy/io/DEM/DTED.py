@@ -7,6 +7,7 @@ __author__ = "Thomas McCullough"
 
 import logging
 import os
+import pathlib
 import struct
 
 import numpy
@@ -296,7 +297,7 @@ class DTEDReader(object):
         # To enable memory map usage, we will spoof it as a raster and adjust column indices
         shp = (int(self._shape[0]), int(self._shape[1]) + 6)
         self._mem_map = numpy.memmap(self._file_name,
-                                     dtype=numpy.dtype('>i2'),
+                                     dtype=numpy.dtype('>u2'),
                                      mode='r',
                                      offset=3428,
                                      shape=shp)
@@ -352,8 +353,7 @@ class DTEDReader(object):
     @staticmethod
     def _repair_values(elevations):
         """
-        This is a helper method for repairing the weird entries in a DTED.
-        The array is modified in place.
+        Convert 2-bytes signed magnitude to twos complement.
 
         Parameters
         ----------
@@ -362,19 +362,18 @@ class DTEDReader(object):
         Returns
         -------
         numpy.ndarray
-        """
 
-        elevations = numpy.copy(elevations)
-        # BASED ON MIL-PRF-89020B SECTION 3.11.1, 3.11.2
-        # There are some byte-swapping details that are poorly explained.
-        # The following steps appear to correct for the "complemented" values.
-        # Find negative voids and repair them
-        neg_voids = (elevations < -15000)
-        elevations[neg_voids] = numpy.abs(elevations[neg_voids]) - 32768
-        # Find positive voids and repair them
-        pos_voids = (elevations > 15000)
-        elevations[pos_voids] = 32768 - elevations[pos_voids]
-        return elevations
+        Notes
+        -----
+        Per MIL-PRF-89020B Section 3.11.1:
+
+            All elevation values are signed magnitude binary integers, right justified,
+            16 bits (2 bytes). The sign bit is in the high order position.
+
+        """
+        out = (elevations & 0x7f_ff).astype(numpy.int16)
+        out *= (-1) ** ((elevations & 0x80_00) != 0)
+        return out
 
     def _linear(self, ix, dx, iy, dy):
         # type: (numpy.ndarray, numpy.ndarray, numpy.ndarray, numpy.ndarray) -> numpy.ndarray
@@ -423,8 +422,8 @@ class DTEDReader(object):
         fy = (lat - self._origin[1])/self._spacing[1]
 
         # get integer indices via floor
-        ix = numpy.cast[numpy.int32](numpy.floor(fx))
-        iy = numpy.cast[numpy.int32](numpy.floor(fy))
+        ix = numpy.asarray(numpy.floor(fx), dtype=numpy.int32)
+        iy = numpy.asarray(numpy.floor(fy), dtype=numpy.int32)
         return self._linear(ix, fx-ix, iy, fy-iy)
 
     def get_elevation(self, lat, lon, block_size=50000):
@@ -561,7 +560,7 @@ class DTEDInterpolator(DEMInterpolator):
 
         # get the geoid object - we should prefer egm96 .pgm files, since that's the DTED spec
         #   in reality, it makes very little difference, though
-        if isinstance(geoid_file, str):
+        if isinstance(geoid_file, (str, pathlib.Path)):
             if os.path.isdir(geoid_file):
                 geoid_file = GeoidHeight.from_directory(geoid_file, search_files=('egm96-5.pgm', 'egm96-15.pgm'))
             else:
@@ -786,16 +785,20 @@ class DTEDInterpolator(DEMInterpolator):
         return self.get_min_geoid(lat_lon_box=lat_lon_box) + self._get_ref_geoid(lat_lon_box)
 
     def get_max_geoid(self, lat_lon_box=None):
-        if len(self._readers) < 1:
-            return self._get_ref_geoid(lat_lon_box)
-
         obs_maxes = [reader.get_max(lat_lon_box=lat_lon_box) for reader in self._readers]
-        return float(max(value for value in obs_maxes if value is not None))
+        obs_maxes = [value for value in obs_maxes if value is not None]
+
+        if not obs_maxes:
+            return 0  # Assume missing area to be MSL
+
+        return float(max(obs_maxes))
 
     def get_min_geoid(self, lat_lon_box=None):
-        if len(self._readers) < 1:
-            return self._get_ref_geoid(lat_lon_box)
-
         obs_mins = [reader.get_min(lat_lon_box=lat_lon_box) for reader in self._readers]
-        return float(min(value for value in obs_mins if value is not None))
+        obs_mins = [value for value in obs_mins if value is not None]
+
+        if not obs_mins:
+            return 0  # Assume missing area to be MSL
+
+        return float(min(obs_mins))
 
