@@ -527,4 +527,27 @@
             <North>-170</North>
         </Product>
     </ExploitationFeatures>
+    <ProductProcessing>
+        <ProcessingModule>
+            <ModuleName name="name_only">only!</ModuleName>
+        </ProcessingModule>
+        <ProcessingModule>
+            <ModuleName name="n1">1</ModuleName>
+            <ModuleParameter name="p1">v1.1</ModuleParameter>
+            <ModuleParameter name="p2">v1.2</ModuleParameter>
+        </ProcessingModule>
+        <ProcessingModule>
+            <ModuleName name="n2">2</ModuleName>
+            <ProcessingModule>
+                <ModuleName name="n2.1">2.1</ModuleName>
+                <ModuleParameter name="p2.1">v2.1.1</ModuleParameter>
+                <ModuleParameter name="p2.2">v2.1.2</ModuleParameter>
+            </ProcessingModule>
+            <ProcessingModule>
+                <ModuleName name="n2.2">2.2</ModuleName>
+                <ModuleParameter name="p1">v2.2.1</ModuleParameter>
+                <ModuleParameter name="p2">v2.2.2</ModuleParameter>
+            </ProcessingModule>
+        </ProcessingModule>
+    </ProductProcessing>
 </SIDD>
