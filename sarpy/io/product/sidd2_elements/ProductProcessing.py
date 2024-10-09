@@ -129,7 +129,7 @@ class ProcessingModuleType(Serializable):
         return super(ProcessingModuleType, cls).from_node(node, xml_ns, ns_key=ns_key, kwargs=kwargs)
 
     def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
-        exclude = exclude + ('ModuleName', 'name', 'ProcessingModules')
+        exclude = exclude + ('ModuleName', 'name', 'ProcessingModules', 'ModuleParameters')
         node = super(ProcessingModuleType, self).to_node(
             doc, tag, ns_key=ns_key, parent=parent, check_validity=check_validity, strict=strict, exclude=exclude)
         # add the ModuleName and name children
@@ -139,6 +139,9 @@ class ProcessingModuleType(Serializable):
             mn_node = create_text_node(doc, mn_tag, self.ModuleName, parent=node)
             if self.name is not None:
                 mn_node.attrib['name'] = self.name
+        # add ModuleParameters
+        if self.ModuleParameters:
+            self.ModuleParameters.to_node(doc, ns_key=ns_key, parent=node, strict=strict)
         # add the ProcessingModule children
         pm_key = self._child_xml_ns_key.get('ProcessingModules', ns_key)
         for entry in self._ProcessingModules:
@@ -147,7 +150,6 @@ class ProcessingModuleType(Serializable):
 
     def to_dict(self, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
         out = super(ProcessingModuleType, self).to_dict(check_validity=check_validity, strict=strict, exclude=exclude)
-        # slap on the GeoInfo children
         if len(self.ProcessingModules) > 0:
             out['ProcessingModules'] = [
                 entry.to_dict(check_validity=check_validity, strict=strict) for entry in self._ProcessingModules]

@@ -7,6 +7,7 @@ release points are not being annotated in GitHub.
 ## [1.3.60]
 ### Fixed
 - Account for timezones in generated datetimes
+- SIDD ProductProcessing handling
 
 ## [1.3.59] - 2024-10-03
 ### Added

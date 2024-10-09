@@ -6,6 +6,7 @@
 import logging
 import pathlib
 import tempfile
+import uuid
 
 import lxml.etree
 import numpy as np
@@ -165,3 +166,40 @@ def test_sidd_filtertypes(tmp_path, sidd_etree, kernel_or_bank, filt_type):
         aa_obj = sidd_obj.Display.NonInteractiveProcessing[0].RRDS.AntiAlias
         custom_coefs = getattr(aa_obj, f"Filter{kernel_or_bank}").Custom.get_array()
         assert np.allclose(custom_coefs, np.array([[0.1, 0.2]]))
+
+
+def test_product_processing(tmp_path, sidd_etree):
+    sidd_meta = sarpy_sidd.SIDDType.from_xml_string(lxml.etree.tostring(sidd_etree))
+
+    pm_name_only = {
+        "ModuleName": "name_only",
+        "name": str(uuid.uuid4()),
+    }
+
+    pm_with_params = {
+        "ModuleName": "with_params",
+        "name": str(uuid.uuid4()),
+        "ModuleParameters": {
+            "P1": "V1",
+            "P2": "V2",
+    }}
+
+    pm_with_pms = {
+        "ModuleName": "with_nested_modules",
+        "name": str(uuid.uuid4()),
+        "ProcessingModules": [
+            pm_with_params.copy(),
+            pm_name_only.copy(),
+        ]
+    }
+
+    for pm in (pm_name_only, pm_with_params, pm_with_pms):
+        assert not sidd_meta.ProductProcessing.getProcessingModule(pm["name"])
+        n = len(sidd_meta.ProductProcessing.ProcessingModules)
+        sidd_meta.ProductProcessing.addProcessingModule(pm)
+        assert len(sidd_meta.ProductProcessing.ProcessingModules) == n + 1
+        read_pms = sidd_meta.ProductProcessing.getProcessingModule(pm["name"])
+        assert len(read_pms) == 1
+        assert read_pms[0].to_dict() == pm
+
+    _assert_to_from_xml(tmp_path, lxml.etree.fromstring(sidd_meta.to_xml_string(check_validity=True)).getroottree())
