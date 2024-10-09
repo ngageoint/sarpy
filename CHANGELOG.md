@@ -6,6 +6,7 @@ release points are not being annotated in GitHub.
 
 ## [1.3.60]
 ### Fixed
+- Typo in SIDD 2.0+ DigitalElevationData/Geoposition/CoordinateSystemType enum (GGS -> GCS)
 - Account for timezones in generated datetimes
 - SIDD ProductProcessing handling
 
