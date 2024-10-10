@@ -70,7 +70,7 @@ class GeopositioningType(Serializable):
         'VerticalDatum', 'SoundingDatum', 'FalseOrigin')
     # Descriptor
     CoordinateSystemType = StringEnumDescriptor(
-        'CoordinateSystemType', ('GGS', 'UTM'), _required, strict=DEFAULT_STRICT,
+        'CoordinateSystemType', ('GCS', 'UTM'), _required, strict=DEFAULT_STRICT,
         docstring='')  # type: str
     GeodeticDatum = StringEnumDescriptor(
         'GeodeticDatum', ('World Geodetic System 1984', ), _required, strict=DEFAULT_STRICT,
@@ -93,7 +93,7 @@ class GeopositioningType(Serializable):
         docstring='Z values false origin.')  # type: int
     UTMGridZoneNumber = IntegerDescriptor(
         'UTMGridZoneNumber', _required, strict=DEFAULT_STRICT,
-        docstring='Gride zone number, required for UTM, not include for GCS. '
+        docstring='Grid zone number, required for UTM, not include for GCS. '
                   '**Values -** `+001` to `+060` (northern hemisphere) and `-001` to `-060` '
                   '(southern hemisphere)')  # type: int
 
