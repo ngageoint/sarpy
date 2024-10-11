@@ -58,6 +58,7 @@ variety of commercial or other sources including
 - ICEYE
 - NISAR
 - PALSAR2
+- PALSAR1 (Native Doppler)
 - RadarSat-2
 - Radar Constellation Mission (RCM)
 - Sentinel-1
