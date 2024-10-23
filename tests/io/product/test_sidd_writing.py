@@ -5,9 +5,8 @@ import tempfile
 import shutil
 import unittest
 
-import numpy as np
-
 from sarpy.io.complex.sicd import SICDReader
+from sarpy.io.general.nitf import NITFWritingDetails, NITFWriter, ImageSubheaderManager, ImageSegmentHeader
 from sarpy.io.product.sidd import SIDDReader
 from sarpy.io.product.sidd_schema import get_schema_path
 import sarpy.io.product.sidd
@@ -115,7 +114,7 @@ class TestSIDDWriting(unittest.TestCase):
 
     def test_nitf_multi_image_multi_segment(self):
         """From Figure 2.5-6 SIDD 1.0 Multiple Input Image - Multiple Product Images Requiring Segmentation"""
-        sidd_xml = pathlib.Path(__file__).parents[2]/ 'data/example.sidd.xml'
+        sidd_xml = pathlib.Path(__file__).parents[2] / 'data/example.sidd.xml'
         sidd_meta = sarpy.io.product.sidd.SIDDType2.from_xml_file(sidd_xml)
         assert sidd_meta.Display.PixelType == 'MONO8I'
 
@@ -153,6 +152,35 @@ class TestSIDDWriting(unittest.TestCase):
         ]
         assert expected_imhdrs == actual_imhdrs
 
+    def test_nitf_with_legend(self):
+        """Ensure SARPy can be used to write out a SIDD with a legend"""
+        sidd_xml = pathlib.Path(__file__).parents[2] / 'data/example.sidd.xml'
+        sidd_meta = sarpy.io.product.sidd.SIDDType2.from_xml_file(sidd_xml)
+        sidd_writing_details = sarpy.io.product.sidd.SIDDWritingDetails([sidd_meta], None)
+        assert len(sidd_writing_details.image_managers) == 1
+
+        legseg = ImageSubheaderManager(
+            ImageSegmentHeader.from_bytes(sidd_writing_details.image_managers[0].subheader.to_bytes(), 0)
+        )
+        # Modify fields per SIDD 2.0/3.0 Table 2-7
+        legseg.subheader.ICAT = "LEG"
+        legseg.subheader.IID1 = f"{legseg.subheader.IID1[:-3]}{int(legseg.subheader.IID1[-3:])+1:03}"
+        legseg.subheader.IDLVL += 1
+        legseg.subheader.IALVL = sidd_writing_details.image_managers[0].subheader.IDLVL
+
+        siddnitf_with_leg = NITFWritingDetails(
+            header=sidd_writing_details.header,
+            image_managers=sidd_writing_details.image_managers + (legseg,),
+            image_segment_collections=tuple((x,) for x in range(2)),
+            des_managers=sidd_writing_details.des_managers,
+        )
+        with tempfile.TemporaryDirectory() as tmp_path:
+            tmp_path = pathlib.Path(tmp_path)
+            siddfile = tmp_path / "out.nitf"
+            with open(siddfile, "w+b") as f:
+                with NITFWriter(f, siddnitf_with_leg):
+                    pass
+                assert sarpy.io.product.sidd.is_a(str(siddfile))
 
 class TestSIDDOptionalFields(unittest.TestCase):
     def setUp(self):
