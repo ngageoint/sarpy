@@ -6,10 +6,11 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 import os
-from typing import Callable
+from typing import BinaryIO, Callable, Union
 
 from sarpy.io.general.base import SarpyIOError, check_for_openers
 from sarpy.io.phase_history.base import CPHDTypeReader
+from sarpy.io.general.utils import is_file_like
 
 
 ###########
@@ -53,13 +54,13 @@ def parse_openers() -> None:
     check_for_openers('sarpy.io.phase_history', register_opener)
 
 
-def open_phase_history(file_name: str) -> CPHDTypeReader:
+def open_phase_history(filename_or_obj:Union[str, BinaryIO]) -> CPHDTypeReader:
     """
     Given a file, try to find and return the appropriate reader object.
 
     Parameters
     ----------
-    file_name : str
+    file_name : str|BinaryIO
 
     Returns
     -------
@@ -70,13 +71,13 @@ def open_phase_history(file_name: str) -> CPHDTypeReader:
     SarpyIOError
     """
 
-    if not os.path.exists(file_name):
-        raise SarpyIOError('File {} does not exist.'.format(file_name))
+    if (not is_file_like(filename_or_obj)) and (not os.path.exists(filename_or_obj)):
+        raise SarpyIOError('File {} does not exist.'.format(filename_or_obj))
     # parse openers, if not already done
     parse_openers()
     # see if we can find a reader though trial and error
     for opener in _openers:
-        reader = opener(file_name)
+        reader = opener(filename_or_obj)
         if reader is not None:
             return reader
 
