@@ -174,7 +174,7 @@ class TREElement(object):
         out = OrderedDict()
         for fld in self._field_ordering:
             val = getattr(self, fld)
-            if val is None or isinstance(val, (bytes, str, int)):
+            if val is None or isinstance(val, (bytes, str, int, float)):
                 out[fld] = val
             elif isinstance(val, TREElement):
                 out[fld] = val.to_dict()
