@@ -1,3 +1,4 @@
+import contextlib
 import copy
 import pathlib
 
@@ -21,12 +22,20 @@ else:
     CI2_CPHD = None
 
 
+# contextlib.nullcontext not available in python 3.6
+@contextlib.contextmanager
+def nullcontext(enter_result=None):
+    yield enter_result
+
+
+@pytest.mark.parametrize("cm", (nullcontext, lambda x: open(x, "rb")))
 @pytest.mark.parametrize('cphd_path', CPHD_FILE_TYPES.get('CPHD',[]))
-def test_cphd_read(cphd_path):
-    reader = sarpy.io.phase_history.converter.open_phase_history(cphd_path)
-    assert isinstance(reader, CPHDReader)
-    assert reader.reader_type == 'CPHD'
-    _assert_read_sizes(reader)
+def test_cphd_read(cphd_path, cm):
+    with cm(cphd_path) as arg:
+        reader = sarpy.io.phase_history.converter.open_phase_history(arg)
+        assert isinstance(reader, CPHDReader)
+        assert reader.reader_type == 'CPHD'
+        _assert_read_sizes(reader)
 
 
 def _assert_read_sizes(reader):

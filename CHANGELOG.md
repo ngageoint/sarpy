@@ -5,6 +5,8 @@ Since essentially every (squash merge) commit corresponds to a release, specific
 release points are not being annotated in GitHub.
 
 ## [1.3.60]
+### Added
+- Support for file objects in `sarpy.io.phase_history.converter.open_phase_history`
 ### Fixed
 - Typo in SIDD 2.0+ DigitalElevationData/Geoposition/CoordinateSystemType enum (GGS -> GCS)
 - Account for timezones in generated datetimes
