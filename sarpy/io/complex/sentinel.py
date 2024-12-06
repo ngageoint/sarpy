@@ -979,15 +979,18 @@ class SentinelDetails(object):
         if root_node.find('./noiseVectorList') is not None:
             # probably prior to March 2018
             range_line, range_pixel, range_noise = extract_vector('noise')
-            azimuth_line, azimuth_pixel, azimuth_noise = None, None, None
         else:
             # noiseRange and noiseAzimuth fields began in March 2018
             range_line, range_pixel, range_noise = extract_vector('noiseRange')
-            azimuth_line, azimuth_pixel, azimuth_noise = extract_vector('noiseAzimuth')
-            azimuth_line = numpy.concatenate(azimuth_line, axis=0)
-
         # NB: range_line is actually a list of 1 element arrays - probably should have been parsed better
         range_line = numpy.concatenate(range_line, axis=0)
+
+        if root_node.find('./noiseAzimuthVectorList/noiseAzimuthVector') is not None:
+            azimuth_line, azimuth_pixel, azimuth_noise = extract_vector('noiseAzimuth')
+            azimuth_line = numpy.concatenate(azimuth_line, axis=0)
+        else:
+            azimuth_line, azimuth_pixel, azimuth_noise = None, None, None
+
         for ind, sic in enumerate(sicds):
             populate_noise(sic, ind)
 
