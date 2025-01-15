@@ -79,7 +79,7 @@ def load_addin():
     except ImportError:
         pass
 
-    eps = importlib.metadata.entry_points(group='sarpy.io.complex.radarsat')
+    eps = importlib.metadata.entry_points().get('sarpy.io.complex.radarsat', [])
     if not eps:
         return None
     if len(eps) > 1:

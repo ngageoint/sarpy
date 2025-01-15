@@ -60,7 +60,7 @@ def parse_name_functions():
         if hasattr(sub_module, 'get_commercial_id'):
             register_name_function(sub_module.get_commercial_id)
 
-    for entry in importlib.metadata.entry_points(group='sarpy.io.complex.naming.get_commercial_id'):
+    for entry in importlib.metadata.entry_points().get('sarpy.io.complex.naming.get_commercial_id', []):
         register_name_function(entry.load())
 
 

@@ -58,10 +58,10 @@ def check_for_openers(start_package: str, register_method: Callable) -> None:
         if hasattr(sub_module, 'is_a'):
             register_method(sub_module.is_a)
 
-    for entry in importlib.metadata.entry_points(group=start_package):
+    for entry in importlib.metadata.entry_points().get(start_package, []):
         sub_module = entry.load()
         if hasattr(sub_module, 'is_a'):
-            logger.info(f"Extending {start_package} with {entry.module}")
+            logger.info(f"Extending {start_package} with {sub_module.__name__}")
             register_method(sub_module.is_a)
 
 

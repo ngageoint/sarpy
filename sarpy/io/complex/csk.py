@@ -66,7 +66,7 @@ def load_addin():
     except ImportError:
         pass
 
-    eps = importlib.metadata.entry_points(group='sarpy.io.complex.csk')
+    eps = importlib.metadata.entry_points().get('sarpy.io.complex.csk', [])
     if not eps:
         return None
     if len(eps) > 1:

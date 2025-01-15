@@ -11,9 +11,9 @@ def load_plugin(monkeypatch):
     with monkeypatch.context() as mp:
         mock_dir = pathlib.Path(__file__).parents[2] / 'mock_site-packages'
         mp.syspath_prepend(mock_dir)
-        assert importlib.metadata.entry_points(group='sarpy.io.complex')
+        assert importlib.metadata.entry_points().get('sarpy.io.complex', [])
         yield
-    assert not importlib.metadata.entry_points(group='sarpy.io.complex')
+    assert not importlib.metadata.entry_points().get('sarpy.io.complex', [])
 
 @pytest.mark.parametrize(['sarpy_module', 'plugin_module'],
                          [('sarpy.io.complex', 'mock_plugin.mock_opener_complex'),
