@@ -12,6 +12,7 @@ import os
 import logging
 from typing import Union, List, Tuple, Sequence, Optional, Callable
 from importlib import import_module
+import importlib.metadata
 import pkgutil
 
 import numpy
@@ -55,6 +56,12 @@ def check_for_openers(start_package: str, register_method: Callable) -> None:
             continue
         sub_module = import_module(module_name)
         if hasattr(sub_module, 'is_a'):
+            register_method(sub_module.is_a)
+
+    for entry in importlib.metadata.entry_points(group=start_package):
+        sub_module = entry.load()
+        if hasattr(sub_module, 'is_a'):
+            logger.info(f"Extending {start_package} with {entry.module}")
             register_method(sub_module.is_a)
 
 

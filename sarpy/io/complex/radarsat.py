@@ -6,6 +6,7 @@ __classification__ = "UNCLASSIFIED"
 __author__ = ("Thomas McCullough", "Khanh Ho", "Wade Schwartzkopf", "Nathan Bombaci")
 
 
+import importlib.metadata
 import logging
 import re
 import os
@@ -68,6 +69,22 @@ def _format_class_str(class_str: str) -> str:
         return 'UNCLASSIFIED'
     else:
         return class_str
+
+
+def load_addin():
+    """Check for a Radarsat addin module"""
+    try:
+        from sarpy.io.complex import radarsat_addin
+        return radarsat_addin
+    except ImportError:
+        pass
+
+    eps = importlib.metadata.entry_points(group='sarpy.io.complex.radarsat')
+    if not eps:
+        return None
+    if len(eps) > 1:
+        raise RuntimeError("More than one Radarsat addin found")
+    return list(eps)[0].load()
 
 
 def _validate_segment_and_sicd(
@@ -535,10 +552,7 @@ class RadarSatDetails(object):
         collection_info : CollectionInfoType
         """
 
-        try:
-            import sarpy.io.complex.radarsat_addin as radarsat_addin
-        except ImportError:
-            radarsat_addin = None
+        radarsat_addin = load_addin()
 
         collector_name = self.satellite
         start_time_dt = start_time.astype(datetime)
