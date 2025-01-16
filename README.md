@@ -148,7 +148,7 @@ package update mechanism, while `python setup.py install` **does not**.
 Issues and Bugs
 ---------------
 Support for Python 2 has been dropped. The core sarpy functionality has been 
-tested for Python 3.8, 3.9, 3.10 and 3.11. 
+tested for Python 3.8, 3.9, 3.10 and 3.11.
 
 Changes to sarpy for the sole purpose of supporting a Python version beyond 
 end-of-life are unlikely to be considered.
