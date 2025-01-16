@@ -13,7 +13,8 @@
     {"path":  "RS2/RS2_C0RS2_OK117768_PK1033407_DK972895_FQ20_20200227_101203_HH_VV_HV_VH_SLC", "path_type":  "relative"},
     {"path":  "RS2/RS2_C0RS2_OK117671_PK1032788_DK972278_SLA17_20200204_144812_HH_SLC", "path_type":  "relative"}],
   "Sentinel-1": [
-    {"path":  "sentinel/S1A_IW_SLC__1SDH_20200201T141253_20200201T141321_031060_03917E_BAA7.SAFE", "path_type":  "relative"}],
+    {"path":  "sentinel/S1A_IW_SLC__1SDH_20200201T141253_20200201T141321_031060_03917E_BAA7.SAFE", "path_type":  "relative"},
+    {"path":  "sentinel/S1B_S3_SLC__1SSV_20210607T070345_20210607T070410_027247_03412B_569D.SAFE", "path_type":  "relative"}],
   "TerraSAR-X": [
     {"path":  "TSX/SO_000009564_0001_1/TSX1_SAR__SSC______HS_S_SRA_20090212T204239_20090212T204240", "path_type":  "relative"},
     {"path":  "TSX/SO_000049726_0013_1/TSX-1.SAR.L1B/TSX1_SAR__SSC______HS_S_SRA_20111128T023746_20111128T023747", "path_type":  "relative"}],

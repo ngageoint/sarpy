@@ -15,6 +15,7 @@ release points are not being annotated in GitHub.
 - Enable TREElement.to_dict() to handle floating-point values
 - Consider implicit edges in certain `sarpy/processing/ortho_rectify` bounds calculations
 - Restored missing antenna beam footprints in some KMZs
+- Handle reading Sentinel-1 SLC files without noiseAzimuthVectors
 
 ## [1.3.59] - 2024-10-03
 ### Added
