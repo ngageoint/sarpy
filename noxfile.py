@@ -8,7 +8,7 @@ import os
 
 import nox
 
-_PYTHON_VERSIONS = ['3.8', '3.11']
+_PYTHON_VERSIONS = ['3.8', '3.12']
 _LOCATIONS = ["tests"]
 
 

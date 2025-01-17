@@ -5,7 +5,6 @@ Functionality for reading Cosmo Skymed data into a SICD model.
 __classification__ = "UNCLASSIFIED"
 __author__ = ("Thomas McCullough", "Jarred Barber", "Wade Schwartzkopf")
 
-import importlib.metadata
 import logging
 from collections import OrderedDict
 import os
@@ -17,6 +16,7 @@ import numpy
 from numpy.polynomial import polynomial
 from scipy.constants import speed_of_light
 
+import sarpy._extensions
 from sarpy.compliance import bytes_to_string
 from sarpy.io.complex.base import SICDTypeReader
 from sarpy.io.complex.sicd_elements.blocks import Poly1DType, Poly2DType, RowColType
@@ -66,7 +66,7 @@ def load_addin():
     except ImportError:
         pass
 
-    eps = importlib.metadata.entry_points().get('sarpy.io.complex.csk', [])
+    eps = sarpy._extensions.entry_points(group='sarpy.io.complex.csk')
     if not eps:
         return None
     if len(eps) > 1:

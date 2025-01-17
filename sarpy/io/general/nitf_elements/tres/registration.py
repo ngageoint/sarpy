@@ -9,9 +9,9 @@ __author__ = "Thomas Mccullough"
 import logging
 import pkgutil
 from importlib import import_module
-import importlib.metadata
 import inspect
 
+import sarpy._extensions
 from sarpy.compliance import bytes_to_string
 
 logger = logging.getLogger(__name__)
@@ -135,7 +135,7 @@ def parse_package(packages=None):
 def load_plugin_tres():
     """Load TREs provided by plug-ins"""
     logger.info('Loading plug-in TREs')
-    for entry in importlib.metadata.entry_points().get('sarpy.io.general.nitf_elements.tre_extension', []):
+    for entry in sarpy._extensions.entry_points(group='sarpy.io.general.nitf_elements.tre_extension'):
         tre_class = entry.load()
         logger.info("Loading TRE: {entry.name} from {entry.module}")
         register_tre(tre_class, tre_id=entry.name, replace=False)

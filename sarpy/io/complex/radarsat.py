@@ -6,7 +6,6 @@ __classification__ = "UNCLASSIFIED"
 __author__ = ("Thomas McCullough", "Khanh Ho", "Wade Schwartzkopf", "Nathan Bombaci")
 
 
-import importlib.metadata
 import logging
 import re
 import os
@@ -21,6 +20,7 @@ from scipy.constants import speed_of_light
 
 from sarpy.geometry.geocoords import geodetic_to_ecf
 
+import sarpy._extensions
 from sarpy.io.complex.base import SICDTypeReader
 from sarpy.io.complex.other_nitf import ComplexNITFReader
 from sarpy.io.complex.sicd_elements.blocks import Poly1DType, Poly2DType
@@ -79,7 +79,7 @@ def load_addin():
     except ImportError:
         pass
 
-    eps = importlib.metadata.entry_points().get('sarpy.io.complex.radarsat', [])
+    eps = sarpy._extensions.entry_points(group='sarpy.io.complex.radarsat')
     if not eps:
         return None
     if len(eps) > 1:
