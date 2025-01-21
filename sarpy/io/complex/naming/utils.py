@@ -10,6 +10,9 @@ import pkgutil
 from importlib import import_module
 from datetime import datetime
 
+import sarpy._extensions
+
+
 logger = logging.getLogger(__name__)
 
 ###########
@@ -57,6 +60,9 @@ def parse_name_functions():
         sub_module = import_module(module_name)
         if hasattr(sub_module, 'get_commercial_id'):
             register_name_function(sub_module.get_commercial_id)
+
+    for entry in sarpy._extensions.entry_points(group='sarpy.io.complex.naming.get_commercial_id'):
+        register_name_function(entry.load())
 
 
 def get_sicd_name(the_sicd, product_number=1):

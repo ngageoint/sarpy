@@ -16,6 +16,8 @@ release points are not being annotated in GitHub.
 - Consider implicit edges in certain `sarpy/processing/ortho_rectify` bounds calculations
 - Restored missing antenna beam footprints in some KMZs
 - Handle reading Sentinel-1 SLC files without noiseAzimuthVectors
+### Removed
+- Dropped support for Python 3.6 and 3.7
 
 ## [1.3.59] - 2024-10-03
 ### Added
