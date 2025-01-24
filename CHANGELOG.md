@@ -4,6 +4,21 @@ SarPy follows a continuous release process, so there are fairly frequent release
 Since essentially every (squash merge) commit corresponds to a release, specific 
 release points are not being annotated in GitHub.
 
+## [1.3.60] - 2025-01-24
+### Added
+- Support for file objects in `sarpy.io.phase_history.converter.open_phase_history`
+### Fixed
+- Typo in SIDD 2.0+ DigitalElevationData/Geoposition/CoordinateSystemType enum (GGS -> GCS)
+- Account for timezones in generated datetimes
+- SIDD ProductProcessing handling
+- NITF attachment level interpretation
+- Enable TREElement.to_dict() to handle floating-point values
+- Consider implicit edges in certain `sarpy/processing/ortho_rectify` bounds calculations
+- Restored missing antenna beam footprints in some KMZs
+- Handle reading Sentinel-1 SLC files without noiseAzimuthVectors
+### Removed
+- Dropped support for Python 3.6 and 3.7
+
 ## [1.3.59] - 2024-10-03
 ### Added
 - `noxfile.py`

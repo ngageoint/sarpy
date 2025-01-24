@@ -16,6 +16,7 @@ import numpy
 from numpy.polynomial import polynomial
 from scipy.constants import speed_of_light
 
+import sarpy._extensions
 from sarpy.compliance import bytes_to_string
 from sarpy.io.complex.base import SICDTypeReader
 from sarpy.io.complex.sicd_elements.blocks import Poly1DType, Poly2DType, RowColType
@@ -40,11 +41,6 @@ from sarpy.io.general.format_function import ComplexFormatFunction
 from sarpy.io.general.utils import get_seconds, parse_timestring, is_file_like, is_hdf5, h5py
 from sarpy.io.complex.utils import fit_time_coa_polynomial, fit_position_xvalidation
 
-try:
-    from sarpy.io.complex import csk_addin
-except ImportError:
-    csk_addin = None
-
 logger = logging.getLogger(__name__)
 
 _unhandled_id_text = 'Unhandled mission id `{}`'
@@ -60,6 +56,22 @@ def _extract_attrs(h5_element, out=None):
         val = h5_element.attrs[the_key]
         out[the_key] = bytes_to_string(val) if isinstance(val, bytes) else val
     return out
+
+
+def load_addin():
+    """Check for a CSK addin module"""
+    try:
+        from sarpy.io.complex import csk_addin
+        return csk_addin
+    except ImportError:
+        pass
+
+    eps = sarpy._extensions.entry_points(group='sarpy.io.complex.csk')
+    if not eps:
+        return None
+    if len(eps) > 1:
+        raise RuntimeError("More than one CSK addin found")
+    return list(eps)[0].load()
 
 
 ###########
@@ -562,6 +574,7 @@ class CSKDetails(object):
             sicd.Grid.TimeCOAPoly = fit_time_coa_polynomial(
                 sicd.RMA.INCA, sicd.ImageData, sicd.Grid, dop_rate_poly_rg_shifted, poly_order=2)
 
+            csk_addin = load_addin()
             if csk_addin is not None:
                 csk_addin.check_sicd(sicd, self.mission_id, h5_dict)
 

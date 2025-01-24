@@ -435,41 +435,6 @@ def _verify_image_segment_compatibility(
     return True
 
 
-def _correctly_order_image_segment_collection(
-            image_headers: Sequence[Union[ImageSegmentHeader, ImageSegmentHeader0]]) -> Tuple[int, ...]:
-    """
-    Determines the proper order, based on IALVL and IDLVL, for a collection of entries
-    which will be assembled into a composite image.
-
-    Parameters
-    ----------
-    image_headers : Sequence[ImageSegmentHeader]
-
-    Returns
-    -------
-    Tuple[int, ...]
-
-    Raises
-    ------
-    ValueError
-        If incompatible IALVL values collection
-    """
-
-    ImLvl = namedtuple('ImLvl', ['index', 'IALVL', 'IDLVL'])
-    im_levels = sorted([ImLvl(index=n, IALVL=hdr.IALVL, IDLVL=hdr.IDLVL) for n, hdr in enumerate(image_headers)],
-                       key=lambda x: x.IDLVL)
-    if all(entry.IALVL == 0 for entry in im_levels):
-        # all IALVL is 0, and order doesn't matter
-        return tuple(range(len(image_headers)))
-    if im_levels[0].IALVL == 0  and all(im_levels[n].IALVL == im_levels[n-1].IDLVL for n in range(1, len(im_levels))):
-        # From ISO/IEC Joint BIIF Profile JBP-2024.1 - 4.5.4.2 Attachment Level (ALVL) Interpretation
-        # The image or graphic segment in the MI collection (multi files) with the minimum display level has an
-        # attachment level of zero.
-        # The attachment level of an item is equal to the display level of the item to which it is "attached.""
-        return tuple(x.index for x in im_levels)
-    raise ValueError(f"Unable to interpret image segment attachment/display levels:\n{im_levels}\n per ISO/IEC JBP")
-
-
 def _get_collection_element_coordinate_limits(
         image_headers: Sequence[Union[ImageSegmentHeader, ImageSegmentHeader0]],
         return_clevel: bool = False) -> Union[numpy.ndarray, Tuple[numpy.ndarray, int]]:
@@ -494,23 +459,26 @@ def _get_collection_element_coordinate_limits(
         The CLEVEL for this common coordinate system, only returned if
         `return_clevel=True`
     """
+    unique_idlvls = set(im.IDLVL for im in image_headers)
+    image_headers = sorted(image_headers, key=lambda x: x.IDLVL)
+    if len(unique_idlvls) != len(image_headers):
+        raise ValueError(
+            'Headers violate: "Every image and graphic component in a JBP file will have a unique display level"'
+        )
+    if not all((im.IALVL in unique_idlvls) and (im.IALVL < im.IDLVL) for im in image_headers[1:]):
+        raise ValueError(
+            'Headers violate: "The attachment level of an item is equal to the display level of the item to which '
+            'it is “attached.” Items can only be attached to existing items at a lower display level."'
+        )
+    # IDLVL -> [Row, Col]
+    loc = {image_headers[0].IALVL: numpy.zeros(2)}
 
-    the_indices = _correctly_order_image_segment_collection(image_headers)
-
-    block_definition = numpy.empty((len(the_indices), 4), dtype='int64')
-    for i, image_ind in enumerate(the_indices):
-        img_header = image_headers[image_ind]
-        rows = img_header.NROWS
-        cols = img_header.NCOLS
-        iloc = img_header.ILOC
-        if img_header.IALVL == 0 or i == 0:
-            previous_indices = numpy.zeros((4, ), dtype='int64')
-        else:
-            previous_indices = block_definition[i-1, :]
-        rel_row_start, rel_col_start = int(iloc[:5]), int(iloc[5:])
-        abs_row_start = rel_row_start + previous_indices[0]
-        abs_col_start = rel_col_start + previous_indices[2]
-        block_definition[i, :] = (abs_row_start, abs_row_start + rows, abs_col_start, abs_col_start + cols)
+    block_definition = numpy.empty((len(image_headers), 4), dtype='int64')
+    for i, im in enumerate(image_headers):
+        iloc_offset = numpy.array([int(im.ILOC[:5]), int(im.ILOC[5:])])
+        loc[im.IDLVL] = loc[im.IALVL] + iloc_offset
+        block_definition[i, :] = (loc[im.IDLVL][0], loc[im.IDLVL][0] + im.NROWS,
+                                  loc[im.IDLVL][1], loc[im.IDLVL][1] + im.NCOLS)
 
     # now, re-normalize the coordinate system to be sensible
     min_row = numpy.min(block_definition[:, 0])

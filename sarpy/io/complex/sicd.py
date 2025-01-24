@@ -8,7 +8,7 @@ __author__ = "Thomas McCullough"
 
 import re
 import logging
-from datetime import datetime
+import datetime
 from typing import BinaryIO, Union, Optional, Dict, Tuple, Sequence
 
 import numpy
@@ -475,15 +475,17 @@ def validate_sicd_for_writing(sicd_meta: SICDType) -> SICDType:
     sicd_meta = sicd_meta.copy()
 
     profile = '{} {}'.format(__title__, __version__)
+    # use naive datetime because numpy warns about parsing timezone aware
+    now = numpy.datetime64(datetime.datetime.now(tz=datetime.timezone.utc).replace(tzinfo=None))
     if sicd_meta.ImageCreation is None:
         sicd_meta.ImageCreation = ImageCreationType(
             Application=profile,
-            DateTime=numpy.datetime64(datetime.now()),
+            DateTime=now,
             Profile=profile)
     else:
         sicd_meta.ImageCreation.Profile = profile
         if sicd_meta.ImageCreation.DateTime is None:
-            sicd_meta.ImageCreation.DateTime = numpy.datetime64(datetime.now())
+            sicd_meta.ImageCreation.DateTime = now
     return sicd_meta
 
 
