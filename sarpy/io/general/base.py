@@ -16,6 +16,7 @@ import pkgutil
 
 import numpy
 
+import sarpy._extensions
 from sarpy.compliance import SarpyError
 from sarpy.io.general.format_function import FormatFunction
 from sarpy.io.general.data_segment import DataSegment, extract_string_from_subscript, \
@@ -55,6 +56,12 @@ def check_for_openers(start_package: str, register_method: Callable) -> None:
             continue
         sub_module = import_module(module_name)
         if hasattr(sub_module, 'is_a'):
+            register_method(sub_module.is_a)
+
+    for entry in sarpy._extensions.entry_points(group=start_package):
+        sub_module = entry.load()
+        if hasattr(sub_module, 'is_a'):
+            logger.info(f"Extending {start_package} with {sub_module.__name__}")
             register_method(sub_module.is_a)
 
 

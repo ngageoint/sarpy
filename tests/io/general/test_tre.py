@@ -1,6 +1,10 @@
 import math
+import pathlib
 import unittest
 
+import pytest
+
+import sarpy.io.general.nitf_elements.tres.registration
 from sarpy.io.general.nitf_elements.tres.registration import find_tre
 from sarpy.io.general.nitf_elements.tres.unclass.ACFTA import ACFTA
 
@@ -55,3 +59,20 @@ def test_bandsb(tests_path):
     assert band171.BAD_BAND == 0
     assert float(band171.CWAVE) == 2.57708
     assert float(band171.FWHM) == 0.01041
+
+
+@pytest.fixture
+def load_plugin(monkeypatch):
+    with monkeypatch.context() as mp:
+        mock_dir = pathlib.Path(__file__).parents[2] / 'mock_site-packages'
+        mp.syspath_prepend(mock_dir)
+        sarpy.io.general.nitf_elements.tres.registration._parsed_package = False
+        sarpy.io.general.nitf_elements.tres.registration._TRE_Registry = {}
+        yield
+    sarpy.io.general.nitf_elements.tres.registration._parsed_package = False
+    sarpy.io.general.nitf_elements.tres.registration._TRE_Registry = {}
+    assert find_tre('SPLUGA') is None
+
+
+def test_plugin_tres(load_plugin):
+    assert find_tre('SPLUGA') is not None
