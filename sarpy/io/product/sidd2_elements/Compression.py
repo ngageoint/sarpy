@@ -60,7 +60,6 @@ class J2KSubtype(Serializable):
         super(J2KSubtype, self).__init__(**kwargs)
 
     def setLayerInfoType(self,obj):
-        #print(type(obj))
         ET = xml.etree.ElementTree
         if isinstance( obj, ET.Element):
             numLayers = int(obj.attrib['numLayers'])
@@ -71,8 +70,6 @@ class J2KSubtype(Serializable):
             for i in range(numLayers):
                 bitrates[i] = float(obj[i][0].text)
             self.LayerInfo = bitrates
-        
-
 
 class J2KType(Serializable):
     """
