@@ -865,7 +865,8 @@ class SICDWriter(NITFWriter):
             sicd_meta: Optional[SICDType] = None,
             sicd_writing_details: Optional[SICDWritingDetails] = None,
             check_older_version: bool = False,
-            check_existence: bool = True):
+            check_existence: bool = True,
+            in_memory: bool = None):
         """
 
         Parameters
@@ -878,6 +879,8 @@ class SICDWriter(NITFWriter):
             NGA applications like SOCET or RemoteView
         check_existence : bool
             Should we check if the given file already exists?
+        in_memory : bool
+            If True force in-memory writing, if False force file writing.
         """
 
         if sicd_meta is None and sicd_writing_details is None:
@@ -885,7 +888,7 @@ class SICDWriter(NITFWriter):
         if sicd_writing_details is None:
             sicd_writing_details = SICDWritingDetails(sicd_meta, check_older_version=check_older_version)
         NITFWriter.__init__(
-            self, file_object, sicd_writing_details, check_existence=check_existence)
+            self, file_object, sicd_writing_details, check_existence=check_existence, in_memory=in_memory)
 
     @property
     def nitf_writing_details(self) -> SICDWritingDetails:
