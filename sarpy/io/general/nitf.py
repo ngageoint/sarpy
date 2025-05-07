@@ -3552,14 +3552,16 @@ class NITFWriter(BaseWriter):
             raise ValueError('file_object requires a file path or BinaryIO object')
 
         self._file_object = file_object
-        if in_memory is not None:
-            self._in_memory = in_memory
-        elif is_real_file(file_object):
+
+        if is_real_file(file_object):
             self._file_name = file_object.name
-            self._in_memory = True
+            self._in_memory = False
         else:
             self._file_name = None
             self._in_memory = True
+
+        if in_memory is not None:
+            self._in_memory = in_memory
 
         self.nitf_writing_details = writing_details
 

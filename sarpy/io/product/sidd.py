@@ -894,7 +894,7 @@ class SIDDWriter(NITFWriter):
             sicd_meta: Optional[Union[SICDType, Sequence[SICDType]]] = None,
             sidd_writing_details: Optional[SIDDWritingDetails] = None,
             check_existence: bool = True,
-            in_memory: bool = False):
+            in_memory: bool = None):
         """
 
         Parameters
