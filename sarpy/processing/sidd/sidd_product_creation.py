@@ -103,7 +103,7 @@ def create_detected_image_sidd(
     Parameters
     ----------
     ortho_helper : OrthorectificationHelper
-        The ortho-rectification helper object.
+        The orthorectification helper object.
     output_directory : str
         The output directory for the given file.
     output_file : None|str
@@ -156,7 +156,7 @@ def create_detected_image_sidd(
         remap_function = DEFAULT_IMG_REMAP(override_name='IMG_DEFAULT')
     _validate_remap_function(remap_function)
 
-    # construct the ortho-rectification iterator - for a basic data fetcher
+    # construct the orthorectification iterator - for a basic data fetcher
     calculator = FullResolutionFetcher(
         ortho_helper.reader, dimension=dimension, index=ortho_helper.index, block_size=block_size)
     ortho_iterator = OrthorectificationIterator(
@@ -188,7 +188,7 @@ def create_csi_sidd(
     Parameters
     ----------
     ortho_helper : OrthorectificationHelper
-        The ortho-rectification helper object.
+        The orthorectification helper object.
     output_directory : str
         The output directory for the given file.
     output_file : None|str
@@ -247,7 +247,7 @@ def create_csi_sidd(
     if remap_function.bit_depth != 8:
         raise ValueError('The CSI SIDD specifically requires an 8-bit remap function.')
 
-    # construct the ortho-rectification iterator
+    # construct the orthorectification iterator
     ortho_iterator = OrthorectificationIterator(
         ortho_helper, calculator=csi_calculator, bounds=bounds,
         remap_function=remap_function, recalc_remap_globals=False)
@@ -278,7 +278,7 @@ def create_dynamic_image_sidd(
     Parameters
     ----------
     ortho_helper : OrthorectificationHelper
-        The ortho-rectification helper object.
+        The orthorectification helper object.
     output_directory : str
         The output directory for the given file.
     output_file : None|str
@@ -343,7 +343,7 @@ def create_dynamic_image_sidd(
         remap_function = DEFAULT_DI_REMAP(override_name='DI_DEFAULT')
     _validate_remap_function(remap_function)
 
-    # construct the ortho-rectification iterator
+    # construct the orthorectification iterator
     ortho_iterator = SubapertureOrthoIterator(
         ortho_helper, calculator=subap_calculator, bounds=bounds,
         remap_function=remap_function, recalc_remap_globals=False, depth_first=True)
