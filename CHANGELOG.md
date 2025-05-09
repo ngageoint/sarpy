@@ -903,7 +903,7 @@ Fix for the range doppler rate polynomial definition for Cosmo SkyMed
 - Introduces helper method for converting image coordinates to coordinates for
 polynomial evaluation
 - Fixed sign convention in SICD related Fourier helper methods
-- Fixed state issues with ortho-rectification model populated from
+- Fixed state issues with orthorectification model populated from
 sicd.RadarCollection.Area
 
 ## [1.1.65] - 2021-04-08
@@ -1107,7 +1107,7 @@ Making SICD normalization methods more robust
 
 ## [1.0.45] - 2020-08-07
 - Introduced ICEYE reading capability
-- Handling some edge cases for ortho-rectification issues
+- Handling some edge cases for orthorectification issues
 
 ## [1.0.43] - 2020-08-06
 Fixed bug in SICD.RadarCollection.Area and SICD.MatchInfo parsing
@@ -1118,11 +1118,11 @@ Fixed bug in SICD.RadarCollection.Area and SICD.MatchInfo parsing
 
 ## [1.0.40] - 2020-07-29
 - Adjust ImageBeamComp for derived formats
-- Account for non-convexity of projection for ortho-rectification
+- Account for non-convexity of projection for orthorectification
 
 ## [1.0.38] - 2020-07-28
 - Clarified some projection parameters and documentation
-- Optimized some ortho-rectification parameters
+- Optimized some orthorectification parameters
 
 ## [1.0.36] - 2020-07-27
 Refactored CSI and subaperture processing and introduced practical SIDD creation
@@ -1150,7 +1150,7 @@ Provide aggregate complex type reader, and sicd partitioning methods
 - Reorganization of sarpy.io structure into proper categories
 
 ## [1.0.27] - 2020-07-02
-- General purpose ortho-rectification capabilities introduced.
+- General purpose orthorectification capabilities introduced.
 - 2020-06-Introduce file_name property for reader objects
 
 ## [1.0.25] - 2020-06-30

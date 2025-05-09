@@ -44,7 +44,7 @@ def clip_cast(
         min_value: Union[None, int, float] = None,
         max_value: Union[None, int, float] = None) -> numpy.ndarray:
     """
-    Cast by clipping values outside of valid range, rather than truncating.
+    Cast by clipping values outside the valid range, rather than truncating.
 
     Parameters
     ----------
@@ -81,7 +81,7 @@ def amplitude_to_density(
     data : numpy.ndarray
         The (presumably complex) data to remap
     dmin : float|int
-        A dynamic range parameter. Lower this widens the range, will raising it
+        A dynamic range parameter. Lower this widens the range, will raise it
         narrows the range. This was historically fixed at 30.
     mmult : float|int
         A contrast parameter. Low values will result is higher contrast and quicker
@@ -262,7 +262,7 @@ class RemapFunction(object):
     def dimension(self) -> int:
         """
         int: The (read-only) size of the (additional) output final dimension.
-        The value 0 is monochromatic, where the retuned output will have identical
+        The value 0 is monochromatic, where the returned output will have identical
         shape as input. Any other value should have additional final dimension of this size.
         """
 
@@ -466,7 +466,7 @@ class MonochromaticRemap(RemapFunction):
 
 
 ############
-# basic monchromatic collection
+# basic monochromatic collection
 
 class Density(MonochromaticRemap):
     """
@@ -500,7 +500,7 @@ class Density(MonochromaticRemap):
             The maximum output value. If provided, this must be in the interval
             :math:`[0, 2^{bit\_depth}]`
         dmin : float|int
-            A dynamic range parameter. Lower this widens the range, will raising it
+            A dynamic range parameter. Lower this widens the range, will raise it
             narrows the range. This was historically fixed at 30.
         mmult : float|int
             A contrast parameter. Low values will result is higher contrast and quicker
@@ -1345,7 +1345,7 @@ class PEDF(MonochromaticRemap):
             Override name for a specific class instance
         bit_depth : int
         dmin : float|int
-            A dynamic range parameter. Lower this widens the range, will raising it
+            A dynamic range parameter. Lower this widens the range, will raise it
             narrows the range. This was historically fixed at 30.
         mmult : float|int
             A contrast parameter. Low values will result is higher contrast and quicker

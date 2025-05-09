@@ -31,7 +31,7 @@ For a basic help, check
 Derived Product Creation from SICD
 ----------------------------------
 
-There are basic ortho-rectification utilities in sarpy, and these are used in a
+There are basic orthorectification utilities in sarpy, and these are used in a
 collection of methods to create data products derived from a SICD type file
 following the SIDD standard.
 

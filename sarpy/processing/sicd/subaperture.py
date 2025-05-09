@@ -493,7 +493,7 @@ class SubapertureCalculator(FFTCalculator):
 
 class SubapertureOrthoIterator(OrthorectificationIterator):
     """
-    An iterator class for the ortho-rectified subaperture processing.
+    An iterator class for the orthorectified subaperture processing.
 
     Iterating depth first requires the least fetching from the reader once for
     all frames. Otherwise, iterating requires redundantly fetching data once
@@ -633,7 +633,7 @@ class SubapertureOrthoIterator(OrthorectificationIterator):
 
     def __next__(self) -> Tuple[numpy.ndarray, Tuple[int, int], int]:
         """
-        Get the next iteration of ortho-rectified data.
+        Get the next iteration of orthorectified data.
 
         Returns
         -------
@@ -654,7 +654,7 @@ class SubapertureOrthoIterator(OrthorectificationIterator):
 
     def next(self) -> Tuple[numpy.ndarray, Tuple[int, int], int]:
         """
-        Get the next iteration of ortho-rectified data.
+        Get the next iteration of orthorectified data.
 
         Returns
         -------

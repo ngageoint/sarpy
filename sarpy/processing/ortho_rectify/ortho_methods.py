@@ -1,5 +1,5 @@
 """
-Methods for ortho-rectification
+Methods for orthorectification
 """
 
 __classification__ = "UNCLASSIFIED"
@@ -77,7 +77,7 @@ def _linear_fill(pixel_array, fill_interval=1):
 
 class OrthorectificationHelper(object):
     """
-    Abstract helper class which defines ortho-rectification process for a sicd-type
+    Abstract helper class which defines orthorectification process for a sicd-type
     reader object.
     """
 
@@ -287,7 +287,7 @@ class OrthorectificationHelper(object):
 
     def _is_radiometric_valid(self):
         """
-        Checks whether the apply radiometric settings are valid.
+        Checks whether the applied radiometric settings are valid.
 
         Returns
         -------
@@ -371,7 +371,7 @@ class OrthorectificationHelper(object):
 
     def get_full_ortho_bounds(self):
         """
-        Gets the bounds for the ortho-rectified coordinates for the full sicd image.
+        Gets the bounds for the orthorectified coordinates for the full sicd image.
 
         Returns
         -------
@@ -389,7 +389,7 @@ class OrthorectificationHelper(object):
 
     def get_valid_ortho_bounds(self):
         """
-        Gets the bounds for the ortho-rectified coordinates for the valid portion
+        Gets the bounds for the orthorectified coordinates for the valid portion
         of the sicd image. This is the outer bounds of the valid portion, so may contain
         some portion which is not itself valid.
 
@@ -414,7 +414,7 @@ class OrthorectificationHelper(object):
 
     def get_orthorectification_bounds_from_pixel_object(self, coordinates):
         """
-        Determine the ortho-rectified (coordinate-system aligned) rectangular bounding
+        Determine the orthorectified (coordinate-system aligned) rectangular bounding
         region which contains the provided coordinates in pixel space.
 
         Parameters
@@ -445,7 +445,7 @@ class OrthorectificationHelper(object):
 
     def get_orthorectification_bounds_from_latlon_object(self, coordinates):
         """
-        Determine the ortho-rectified (coordinate-system aligned) rectangular bounding
+        Determine the orthorectified (coordinate-system aligned) rectangular bounding
         region which contains the provided coordinates in lat/lon space.
 
         Parameters
@@ -528,7 +528,7 @@ class OrthorectificationHelper(object):
     @staticmethod
     def _get_ortho_mesh(ortho_bounds):
         """
-        Fetch a the grid of rows/columns coordinates for the desired rectangle.
+        Fetch the grid of rows/columns coordinates for the desired rectangle.
 
         Parameters
         ----------
@@ -736,7 +736,7 @@ class OrthorectificationHelper(object):
             The columns of the pixel array. Must be one-dimensional, monotonically
             increasing, and have and have `col_array.size = value_array.shape[1]`.
         value_array : numpy.ndarray
-            The values array, whihc must be two or three dimensional. If this has
+            The values array, which must be two or three-dimensional. If this has
             complex dtype and `complex_valued=False`, then the :func:`numpy.abs`
             will be applied.
         value_is_flat : bool
@@ -818,18 +818,18 @@ class OrthorectificationHelper(object):
             else:
                 return self._initialize_workspace(ortho_bounds)
         if value_array.ndim == 2:
-            return self._get_orthrectified_from_array_flat(ortho_bounds, row_array, col_array, value_array)
-        else:  # it must be three dimensional, as checked by _validate_row_col_values()
+            return self._get_orthorectified_from_array_flat(ortho_bounds, row_array, col_array, value_array)
+        else:  # it must be three-dimensional, as checked by _validate_row_col_values()
             ortho_array = self._initialize_workspace(ortho_bounds, final_dimension=value_array.shape[2])
             for i in range(value_array.shape[2]):
-                ortho_array[:, :, i] = self._get_orthrectified_from_array_flat(
+                ortho_array[:, :, i] = self._get_orthorectified_from_array_flat(
                     ortho_bounds, row_array, col_array, value_array[:, :, i])
             return ortho_array
 
     def get_orthorectified_for_ortho_bounds(self, bounds):
         """
         Determine the array corresponding to the array of bounds given in
-        ortho-rectified pixel coordinates.
+        orthorectified pixel coordinates.
 
         Parameters
         ----------
@@ -873,7 +873,7 @@ class OrthorectificationHelper(object):
 
     def get_orthorectified_for_pixel_object(self, coordinates):
         """
-        Determine the ortho-rectified rectangular array values, which will bound
+        Determine the orthorectified rectangular array values, which will bound
         the given object - with coordinates expressed in pixel space.
 
         Parameters
@@ -891,7 +891,7 @@ class OrthorectificationHelper(object):
 
     def get_orthorectified_for_latlon_object(self, ll_coordinates):
         """
-        Determine the ortho-rectified rectangular array values, which will bound
+        Determine the orthorectified rectangular array values, which will bound
         the given object - with coordinates expressed in lat/lon space.
 
         Parameters
@@ -944,9 +944,9 @@ class OrthorectificationHelper(object):
         pixel_cols = pixel_mesh[:, :, 1]
         return value_array, pixel_rows, pixel_cols, ortho_array
 
-    def _get_orthrectified_from_array_flat(self, ortho_bounds, row_array, col_array, value_array):
+    def _get_orthorectified_from_array_flat(self, ortho_bounds, row_array, col_array, value_array):
         """
-        Construct the orthorecitified array covering the orthorectified region given by
+        Construct the orthorectified array covering the orthorectified region given by
         `ortho_bounds` based on the `values_array`, which spans the pixel region defined by
         `row_array` and `col_array`.
 
@@ -975,11 +975,11 @@ class OrthorectificationHelper(object):
 
 class NearestNeighborMethod(OrthorectificationHelper):
     """
-    Nearest neighbor ortho-rectification method.
+    Nearest neighbor orthorectification method.
 
     .. warning::
         Modification of the proj_helper parameters when the default full image
-        bounds have been defained (i.e. sicd.RadarCollection.Area is defined) may
+        bounds have been defined (i.e. sicd.RadarCollection.Area is defined) may
         result in unintended results.
     """
 
@@ -1017,8 +1017,8 @@ class NearestNeighborMethod(OrthorectificationHelper):
             pad_value=pad_value, apply_radiometric=apply_radiometric,
             subtract_radiometric_noise=subtract_radiometric_noise)
 
-    def _get_orthrectified_from_array_flat(self, ortho_bounds, row_array, col_array, value_array):
-        # setup the result workspace
+    def _get_orthorectified_from_array_flat(self, ortho_bounds, row_array, col_array, value_array):
+        # set up the result workspace
         value_array, pixel_rows, pixel_cols, ortho_array = self._setup_flat_workspace(
             ortho_bounds, row_array, col_array, value_array)
         # potentially apply the radiometric parameters to the value array
@@ -1035,11 +1035,11 @@ class NearestNeighborMethod(OrthorectificationHelper):
 
 class BivariateSplineMethod(OrthorectificationHelper):
     """
-    Bivariate spline interpolation ortho-rectification method.
+    Bivariate spline interpolation orthorectification method.
 
     .. warning::
         Modification of the proj_helper parameters when the default full image
-        bounds have been defained (i.e. sicd.RadarCollection.Area is defined) may
+        bounds have been defined (i.e. sicd.RadarCollection.Area is defined) may
         result in unintended results.
     """
 
@@ -1119,8 +1119,8 @@ class BivariateSplineMethod(OrthorectificationHelper):
             raise ValueError('col_order must take value between 1 and 5.')
         self._col_order = value
 
-    def _get_orthrectified_from_array_flat(self, ortho_bounds, row_array, col_array, value_array):
-        # setup the result workspace
+    def _get_orthorectified_from_array_flat(self, ortho_bounds, row_array, col_array, value_array):
+        # set up the result workspace
         value_array, pixel_rows, pixel_cols, ortho_array = self._setup_flat_workspace(
             ortho_bounds, row_array, col_array, value_array)
         value_array = self._apply_radiometric_params(row_array, col_array, value_array)

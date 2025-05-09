@@ -1,5 +1,5 @@
 """
-Common ortho-rectification elements
+Common orthorectification elements
 """
 
 __classification__ = "UNCLASSIFIED"
@@ -360,7 +360,7 @@ class OrthorectificationIterator(object):
         Parameters
         ----------
         ortho_helper : OrthorectificationHelper
-            The ortho-rectification helper.
+            The orthorectification helper.
         calculator : None|FullResolutionFetcher
             The FullResolutionFetcher instance. If not provided, then this will
             default to a base FullResolutionFetcher instance - which is only
@@ -432,7 +432,7 @@ class OrthorectificationIterator(object):
     @property
     def ortho_helper(self) -> OrthorectificationHelper:
         """
-        OrthorectificationHelper: The ortho-rectification helper.
+        OrthorectificationHelper: The orthorectification helper.
         """
 
         return self._ortho_helper
@@ -473,7 +473,7 @@ class OrthorectificationIterator(object):
     @property
     def ortho_data_size(self) -> Tuple[int, int]:
         """
-        Tuple[int, int] : The size of the overall ortho-rectified output.
+        Tuple[int, int] : The size of the overall orthorectified output.
         """
 
         return (
@@ -490,7 +490,7 @@ class OrthorectificationIterator(object):
 
     def get_ecf_image_corners(self) -> Optional[numpy.ndarray]:
         """
-        The corner points of the overall ortho-rectified output in ECF
+        The corner points of the overall orthorectified output in ECF
         coordinates. The ordering of these points follows the SICD convention.
 
         Returns
@@ -505,7 +505,7 @@ class OrthorectificationIterator(object):
 
     def get_llh_image_corners(self) -> Optional[numpy.ndarray]:
         """
-        The corner points of the overall ortho-rectified output in Lat/Lon/HAE
+        The corner points of the overall orthorectified output in Lat/Lon/HAE
         coordinates. The ordering of these points follows the SICD convention.
 
         Returns
@@ -551,7 +551,7 @@ class OrthorectificationIterator(object):
             pixel_bounds: Union[Tuple[int, int, int, int], numpy.ndarray],
             this_data: numpy.ndarray) -> Tuple[numpy.ndarray, numpy.ndarray]:
         """
-        Get helper data for ortho-rectification.
+        Get helper data for orthorectification.
 
         Parameters
         ----------
@@ -667,7 +667,7 @@ class OrthorectificationIterator(object):
         this_ortho_bounds, this_pixel_bounds = self._get_state_parameters()
         # accommodate for real pixel limits
         this_pixel_bounds = self._ortho_helper.get_real_pixel_bounds(this_pixel_bounds)
-        # extract the csi data and ortho-rectify
+        # extract the csi data and orthorectify
         logger.info(
             'Fetching orthorectified coordinate block ({}:{}, {}:{}) of ({}, {})'.format(
                 this_ortho_bounds[0] - self.ortho_bounds[0], this_ortho_bounds[1] - self.ortho_bounds[0],
@@ -683,7 +683,7 @@ class OrthorectificationIterator(object):
 
     def next(self) -> Tuple[numpy.ndarray, Tuple[int, int]]:
         """
-        Get the next iteration of ortho-rectified data.
+        Get the next iteration of orthorectified data.
 
         Returns
         -------
