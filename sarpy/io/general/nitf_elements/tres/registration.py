@@ -11,6 +11,7 @@ import pkgutil
 from importlib import import_module
 import inspect
 
+import sarpy._extensions
 from sarpy.compliance import bytes_to_string
 
 logger = logging.getLogger(__name__)
@@ -81,6 +82,7 @@ def find_tre(tre_id):
 
     if not _parsed_package:
         parse_package()
+        load_plugin_tres()
 
     if isinstance(tre_id, bytes):
         tre_id = bytes_to_string(tre_id)
@@ -126,5 +128,16 @@ def parse_package(packages=None):
             _, module_name, is_pkg = details
             sub_module = import_module(module_name)
             evaluate(sub_module)
+
+    logger.info('We now have {} registered TREs'.format(len(_TRE_Registry)))
+
+
+def load_plugin_tres():
+    """Load TREs provided by plug-ins"""
+    logger.info('Loading plug-in TREs')
+    for entry in sarpy._extensions.entry_points(group='sarpy.io.general.nitf_elements.tre_extension'):
+        tre_class = entry.load()
+        logger.info("Loading TRE: {entry.name} from {entry.module}")
+        register_tre(tre_class, tre_id=entry.name, replace=False)
 
     logger.info('We now have {} registered TREs'.format(len(_TRE_Registry)))

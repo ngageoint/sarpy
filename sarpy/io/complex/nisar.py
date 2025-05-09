@@ -284,7 +284,7 @@ class NISARDetails(object):
             row = DirParamType(
                 Sgn=-1,
                 DeltaKCOAPoly=[[0, ], ],
-                WgtFunct=numpy.cast[numpy.float64](row_wgt),
+                WgtFunct=numpy.asarray(row_wgt, dtype=numpy.float64),
                 WgtType=WgtTypeType(WindowName=win_name))
 
             col_wgt = gp['azimuthChirpWeighting'][:]
@@ -292,7 +292,7 @@ class NISARDetails(object):
             col = DirParamType(
                 Sgn=-1,
                 KCtr=0,
-                WgtFunct=numpy.cast[numpy.float64](col_wgt),
+                WgtFunct=numpy.asarray(col_wgt, dtype=numpy.float64),
                 WgtType=WgtTypeType(WindowName=win_name))
 
             return GridType(ImagePlane='SLANT', Type='RGZERO', Row=row, Col=col)

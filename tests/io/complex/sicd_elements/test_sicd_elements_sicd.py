@@ -6,10 +6,12 @@
 import copy
 import re
 
+import lxml.etree
 import numpy as np
 import pytest
 
-from sarpy.io.complex.sicd_elements import RgAzComp
+from sarpy.consistency import sicd_consistency
+from sarpy.io.complex.sicd_elements import RgAzComp, SICD
 
 
 def test_sicd_smoke_tests(sicd, rma_sicd, tol):
@@ -93,7 +95,7 @@ def test_sicd_smoke_tests(sicd, rma_sicd, tol):
     details = sicd_copy.get_des_details()
     assert details['DESSHSI'] == 'SICD Volume 1 Design & Implementation Description Document'
     assert details['DESSHSV'] == '1.3.0'
-    assert details['DESSHSD'] == '2022-11-30T00:00:00Z'
+    assert details['DESSHSD'] == '2021-11-30T00:00:00Z'
     assert details['DESSHTN'] == 'urn:SICD:1.3.0'
 
     xml_bytes = sicd.to_xml_bytes()
@@ -348,3 +350,26 @@ def test_can_project_coordinates_rma(rma_sicd, caplog):
     bad_rma_sicd.RMA.INCA = None
     bad_rma_sicd.can_project_coordinates()
     assert 'but the RMA.INCA parameter is not populated' in caplog.text
+
+
+def test_to_from_xml(tests_path, tmp_path):
+    """Ensure that XML nodes are preserved when going from XML, through SarPy, then back to XML."""
+    sicd_xml = tests_path / 'data/example.sicd.xml'
+    original_tree = lxml.etree.parse(str(sicd_xml))
+    original_read = SICD.SICDType.from_xml_file(sicd_xml)
+    assert sicd_consistency.evaluate_xml_versus_schema(sicd_xml.read_text(),
+                                                       lxml.etree.QName(original_tree.getroot()).namespace)
+
+    out_file = tmp_path / "read_then_write.xml"
+    xmlns_urn = lxml.etree.QName(original_tree.getroot()).namespace
+    out_file.write_text(original_read.to_xml_string(urn=xmlns_urn, check_validity=True))
+    reread_tree = lxml.etree.parse(str(out_file))
+    assert sicd_consistency.evaluate_xml_versus_schema(out_file.read_text(),
+                                                       lxml.etree.QName(reread_tree.getroot()).namespace)
+
+    original_nodes = {original_tree.getelementpath(x) for x in original_tree.iter()}
+    new_nodes = {reread_tree.getelementpath(x) for x in reread_tree.iter()}
+    orig_only = original_nodes - new_nodes
+    new_only = new_nodes - original_nodes
+    assert not orig_only
+    assert not new_only

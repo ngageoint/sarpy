@@ -31,6 +31,7 @@ class GeoDataType(Serializable):
         'ValidData': {'array': True, 'child_tag': 'Vertex'},
         'ImageCorners': {'array': True, 'child_tag': 'ICP'}}
     _numeric_format = {'ImageCorners': FLOAT_FORMAT, 'ValidData': FLOAT_FORMAT}
+    _child_xml_ns_key = {'GeoInfos': 'sicommon'}
     # other class variables
     _EARTH_MODEL_VALUES = ('WGS_84', )
     # descriptors
@@ -120,7 +121,6 @@ class GeoDataType(Serializable):
         -------
         None
         """
-
         if isinstance(value, ElementTree.Element):
             gi_key = self._child_xml_ns_key.get('GeoInfos', self._xml_ns_key)
             value = GeoInfoType.from_node(value, self._xml_ns, ns_key=gi_key)
@@ -144,8 +144,9 @@ class GeoDataType(Serializable):
         node = super(GeoDataType, self).to_node(
             doc, tag, ns_key=ns_key, parent=parent, check_validity=check_validity, strict=strict, exclude=exclude)
         # slap on the GeoInfo children
+        gkey = self._child_xml_ns_key.get('GeoInfos', ns_key)
         for entry in self._GeoInfos:
-            entry.to_node(doc, 'GeoInfo', ns_key=ns_key, parent=node, strict=strict)
+            entry.to_node(doc, 'GeoInfo', ns_key=gkey, parent=node, strict=strict)
         return node
 
     def to_dict(self, check_validity=False, strict=DEFAULT_STRICT, exclude=()):

@@ -252,3 +252,33 @@ def test_validate_adjustment_param_error(sicd):
     coords = np.array(coords)
     with pytest.raises(ValueError, match=r"position must have shape \(3, \). Got \(4, 1\)"):
         point_projection._validate_adj_param(coords, 'position')
+
+
+def test_image_to_ground_adjustable_offsets(sicd):
+    # RIC_ECF and ECF frames give consistent results
+    delta_arp_radial = 1000
+    scp_perturb_ric = point_projection.image_to_ground(sicd['scp_pixel'], sicd['structure'],
+                                                       projection_type='PLANE',
+                                                       delta_arp=[delta_arp_radial, 0, 0],
+                                                       delta_varp=[0, 0, 0],
+                                                       adj_params_frame='RIC_ECF')
+
+    arppos = sicd['structure'].SCPCOA.ARPPos.get_array()
+    delta_arp_ecf = delta_arp_radial * (arppos / np.linalg.norm(arppos))
+    scp_perturb_ecf = point_projection.image_to_ground(sicd['scp_pixel'], sicd['structure'],
+                                                       projection_type='PLANE',
+                                                       delta_arp=delta_arp_ecf,
+                                                       delta_varp=[0, 0, 0],
+                                                       adj_params_frame='ECF')
+    assert np.allclose(scp_perturb_ric, scp_perturb_ecf)
+    assert not np.allclose(sicd['scp_ecf'], scp_perturb_ecf)
+
+
+def test_image_to_slant_sensitivity(sicd):
+    assert sicd['structure'].Grid.ImagePlane == 'SLANT'
+    m_spxy_il = point_projection.image_to_slant_sensitivity(sicd['structure'],
+                                                            min(1.0, sicd['structure'].Grid.Row.SS),
+                                                            min(1.0, sicd['structure'].Grid.Col.SS))
+    # sensitivity when image plane is already slant should be nearly -identity due to relative orientation of slant and
+    # image plane vectors
+    assert np.allclose(m_spxy_il, -np.eye(2), atol=1e-3)

@@ -5,9 +5,9 @@ The ProductCreationType definition.
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
+import datetime
 import logging
 from typing import Union
-from datetime import datetime
 
 import numpy
 
@@ -133,10 +133,9 @@ class ProductClassificationType(Serializable):
     createDate = StringDescriptor(
         'createDate', _required, strict=DEFAULT_STRICT,
         docstring='This should be a date of format :code:`YYYY-MM-DD`, but this is not checked.')  # type: str
-    compliesWith = StringEnumDescriptor(
-        'compliesWith', ('USGov', 'USIC', 'USDOD', 'OtherAuthority'), _required,
-        strict=DEFAULT_STRICT, default_value='USGov',
-        docstring='The ISM rule sets with which the document may complies.')  # type: Union[None, str]
+    compliesWith = StringDescriptor(
+        'compliesWith', _required, strict=DEFAULT_STRICT, default_value="USGov",
+        docstring='The ISM.XML rule sets a document complies with.')  # type: Union[None, str]
     ISMCATCESVersion = StringDescriptor(
         'ISMCATCESVersion', _required, strict=DEFAULT_STRICT, default_value='201903',
         docstring='')  # type: Union[None, str]
@@ -297,7 +296,7 @@ class ProductClassificationType(Serializable):
         clas = extract_classification_from_sicd(sicd)
 
         if create_date is None:
-            create_date = datetime.now().strftime('%Y-%m-%d')
+            create_date = datetime.datetime.now(tz=datetime.timezone.utc).date().isoformat()
 
         return cls(classification=clas, createDate=create_date)
 
@@ -384,9 +383,11 @@ class ProductCreationType(Serializable):
 
         from sarpy.__about__ import __title__, __version__
 
+        # use naive datetime because numpy warns about parsing timezone aware
+        now = numpy.datetime64(datetime.datetime.now(tz=datetime.timezone.utc).replace(tzinfo=None))
         proc_info = ProcessorInformationType(
             Application='{} {}'.format(__title__, __version__),
-            ProcessingDateTime=numpy.datetime64(datetime.now()),
+            ProcessingDateTime=now,
             Site='Unknown')
         classification = ProductClassificationType.from_sicd(sicd)
         return cls(ProcessorInformation=proc_info,

@@ -26,7 +26,8 @@ logger = logging.getLogger(__name__)
 
 def _linear_fill(pixel_array, fill_interval=1):
     """
-    This is too final in linear features in pixel space at the given interval.
+    This is to fill in linear features in pixel space at the given interval.
+    When the first and last vertices are not identical, an implicit edge connecting them is also filled.
 
     Parameters
     ----------
@@ -68,6 +69,9 @@ def _linear_fill(pixel_array, fill_interval=1):
         start_segment = pixel_array[i, :]
         end_segment = pixel_array[i+1, :]
         segments.append(make_segment(start_segment, end_segment))
+    if not numpy.array_equal(pixel_array[0], pixel_array[-1]):
+        # include line connecting  first and last points if they are not the same
+        segments.append(make_segment(pixel_array[0], pixel_array[-1]))
     return numpy.vstack(segments)
 
 
@@ -417,6 +421,7 @@ class OrthorectificationHelper(object):
         ----------
         coordinates : GeometryObject|numpy.ndarray|list|tuple
             The coordinate system of the input will be assumed to be pixel space.
+            When the first and last vertices are not identical, an implicit edge connecting them is assumed.
 
         Returns
         -------
@@ -425,13 +430,15 @@ class OrthorectificationHelper(object):
         """
 
         if isinstance(coordinates, GeometryObject):
-            pixel_bounds = coordinates.get_bbox()
-            siz = int(len(pixel_bounds)/2)
+            # pixel_bounds.shape is (min/max, coordinate-dimensionality)
+            pixel_bounds = numpy.array(coordinates.get_bbox()).reshape((2, -1))
+            # assume first two coordinate dims are row/col and ignore the rest
+            (minrow, mincol), (maxrow, maxcol) = pixel_bounds[:, :2]
             coordinates = numpy.array(
-                [[pixel_bounds[0], pixel_bounds[1]],
-                 [pixel_bounds[siz], pixel_bounds[1]],
-                 [pixel_bounds[siz], pixel_bounds[siz]],
-                 [pixel_bounds[0], pixel_bounds[siz]]], dtype=numpy.float64)
+                [[minrow, mincol],
+                 [maxrow, mincol],
+                 [maxrow, maxcol],
+                 [minrow, maxcol]], dtype=numpy.float64)
         filled_coordinates = _linear_fill(coordinates, fill_interval=1)
         ortho = self.proj_helper.pixel_to_ortho(filled_coordinates)
         return self.proj_helper.get_pixel_array_bounds(ortho)

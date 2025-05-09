@@ -1,8 +1,15 @@
 {
-  "test_file": {"path":  "dem/geoid/GeoidHeights.dat", "path_type":  "relative"},
+  "test_file": [
+    {"path":  "dem/geoid/GeoidHeights.dat", "path_type":  "relative"}
+  ],
   "geoid_files": [
+    {"path":  "dem/geoid/egm96-15.pgm", "path_type":  "relative"},
+    {"path":  "dem/geoid/egm96-5.pgm", "path_type":  "relative"},
     {"path":  "dem/geoid/egm2008-5.pgm", "path_type":  "relative"},
     {"path":  "dem/geoid/egm2008-2_5.pgm", "path_type":  "relative"},
     {"path":  "dem/geoid/egm2008-1.pgm", "path_type":  "relative"}
+  ],
+  "dted_with_null": [
+    {"path":  "dem/dted/s04_w061_3arc_v1.dt1", "path_type":  "relative"}
   ]
 }

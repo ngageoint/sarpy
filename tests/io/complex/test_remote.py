@@ -5,7 +5,7 @@ from sarpy.io.complex.sicd import SICDReader
 
 try:
     import smart_open
-except ImportError:
+except (ImportError, SyntaxError):
     smart_open = None
 
 file_object = None

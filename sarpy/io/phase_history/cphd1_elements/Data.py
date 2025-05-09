@@ -145,7 +145,7 @@ class DataType(Serializable):
     _fields = (
         'SignalArrayFormat', 'NumBytesPVP', 'NumCPHDChannels',
         'SignalCompressionID', 'Channels', 'NumSupportArrays', 'SupportArrays')
-    _required = ('SignalArrayFormat', 'NumBytesPVP', 'Channels')
+    _required = ('SignalArrayFormat', 'NumBytesPVP', 'NumCPHDChannels', 'Channels', 'NumSupportArrays')
     _collections_tags = {
         'Channels': {'array': False, 'child_tag': 'Channel'},
         'SupportArrays': {'array': False, 'child_tag': 'SupportArray'}}
@@ -228,18 +228,27 @@ class DataType(Serializable):
         """
         Calculates the size of the support block in bytes as described by the SupportArray fields.
         """
-        return sum([s.calculate_size() for s in self.SupportArrays])
+        if self.SupportArrays is None:
+            return 0
+        else:
+            return sum([s.calculate_size() for s in self.SupportArrays])
 
     def calculate_pvp_block_size(self):
         """
         Calculates the size of the PVP block in bytes as described by the Data fields.
         """
-        return self.NumBytesPVP * sum([c.NumVectors for c in self.Channels])
+        if self.Channels is None:
+            return 0
+        else:
+            return self.NumBytesPVP * sum([c.NumVectors for c in self.Channels])
 
     def calculate_signal_block_size(self):
         """
         Calculates the size of the signal block in bytes as described by the Data fields.
         """
+        if self.Channels is None:
+            return 0
+
         if self.SignalCompressionID is not None:
             return sum([c.CompressedSignalSize for c in self.Channels])
         else:

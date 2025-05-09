@@ -1,51 +1,64 @@
-Relevance of these unit tests to user:
-======================================
-There is no configuration of sarpy beyond establishing a python environment with 
-dependencies `numpy>=1.11`, `scipy` (no specific know version required). If you 
-hope to read formats for Cosmo Skymed, KompSat, ICEYE, or NISAR, then you also 
-need package `h5py`. 
+Relevance of these unit tests to users:
+=======================================
+There is no configuration of sarpy beyond establishing a python environment with
+appropriate dependencies.
 
-**This suite of unit tests are really only relevant to developers adding or modifying 
+**This suite of unit tests are really only relevant to developers adding or modifying
 core capabilities of sarpy.** Users can otherwise safely ignore these tests.
 
 
 Unit Test Approach and Configuration:
 =====================================
-The traditional unit test approach aims for small capability checks which are ideally 
-self-contained tests with no dependencies on anything external to the test itself. 
-If a test does have any dependencies, it is ideal that any dependency is distributed 
+The traditional unit test approach aims for small capability checks which are ideally
+self-contained tests with no dependencies on anything external to the test itself.
+If a test does have any dependencies, it is ideal that any dependency is distributed
 with the test itself (i.e. in the same git repository).
 
-The most important sarpy capabilities are centered around reading complex imagery 
-in a wide variety of different formats. Any tests for the most important capabilities 
-of sarpy inherently depend on files and packages in a variety of formats. For a variety 
-of reasons, this means that effective tests depend on files much too large to be 
-feasible distributed with git, and some files cannot be freely distributed. 
+The most important sarpy capabilities are centered around reading complex imagery
+in a wide variety of different formats. Any tests for the most important capabilities
+of sarpy inherently depend on files and packages in a variety of formats. For a variety
+of reasons, this means that effective tests depend on files much too large to be
+feasible distributed with git, and some files cannot be freely distributed.
 
-A comprehensive suite of test files will be available to developers with an 
-appropriate relationship with NGA. Many developers may only be interested in 
-testing reading capability for a single format, and could easily identify their 
+A comprehensive suite of test files will be available to developers with an
+appropriate relationship with NGA. Many developers may only be interested in
+testing reading capability for a single format, and could easily identify their
 own collection of test files.
 
 File Identification:
 --------------------
-Files used for individual tests will be identified is a json structure referenced 
-in a given unit test. Tests referencing paths that don't exist will not be performed, 
-so you only need to assemble or reference files that you care to test. 
+Files used for individual tests will be identified is a json structure referenced
+in a given unit test. Tests referencing paths that don't exist will not be performed,
+so you only need to assemble or reference files that you care to test.
 
 There are two cases for paths provided for these tests:
-1. The path is identified as absolute (the default). User path lengthening will be 
-   performed, so the path `'~/'` will evaluate to your home directory. 
-2. The path is identified as relative, all such paths will be assumed relative to 
-   the same parent, and environment variable `SARPY_TEST_PATH` must be defined as 
-   this **absolute** parent path. If this environment variable is not set, then an 
+1. The path is identified as absolute (the default). User path lengthening will be
+   performed, so the path `'~/'` will evaluate to your home directory.
+2. The path is identified as relative, all such paths will be assumed relative to
+   the same parent, and environment variable `SARPY_TEST_PATH` must be defined as
+   this **absolute** parent path. If this environment variable is not set, then an
    error will result.
 
 Run the Tests:
 --------------
-Unit tests can be run using the command `python setup.py test` or `pytest`, if 
+Unit tests can be run using the command `python setup.py test` or `pytest`, if
 using pytest.
 
+Testing across multiple environments
+------------------------------------
+Prerequisites:
+- [conda package manager](https://docs.conda.io/en/latest/)
+- directory containing SarPy test files
+
+Steps:
+```shell
+conda create -n sarpytest python --y
+conda activate sarpytest
+
+pip install nox
+export SARPY_TEST_PATH=/data/sarpy_test  # set to appropriate dir
+nox
+```
 
 File Sources:
 =============
@@ -62,12 +75,23 @@ Non-SAR data:
 - Geoid data:
     - Overall found here, specifics below - https://geographiclib.sourceforge.io/html/geoid.html
     - Test data - https://sourceforge.net/projects/geographiclib/files/testdata/GeoidHeights.dat.gz
-    - 1 minute data:
-        + https://sourceforge.net/projects/geographiclib/files/geoids-distrib/egm2008-1.tar.bz2
-	    + https://sourceforge.net/projects/geographiclib/files/geoids-distrib/egm2008-1.zip
-    - 5 minute data:
-	    + https://sourceforge.net/projects/geographiclib/files/geoids-distrib/egm2008-5.tar.bz2
-	    + https://sourceforge.net/projects/geographiclib/files/geoids-distrib/egm2008-5.zip
+    - EGM96
+        - 5 minute data:
+            + https://sourceforge.net/projects/geographiclib/files/geoids-distrib/egm96-5.tar.bz2
+            + https://sourceforge.net/projects/geographiclib/files/geoids-distrib/egm96-5.zip
+        - 15 minute data:
+            + https://sourceforge.net/projects/geographiclib/files/geoids-distrib/egm96-15.tar.bz2
+            + https://sourceforge.net/projects/geographiclib/files/geoids-distrib/egm96-15.zip
+    - EGM2008
+        - 1 minute data:
+            + https://sourceforge.net/projects/geographiclib/files/geoids-distrib/egm2008-1.tar.bz2
+            + https://sourceforge.net/projects/geographiclib/files/geoids-distrib/egm2008-1.zip
+        - 5 minute data:
+            + https://sourceforge.net/projects/geographiclib/files/geoids-distrib/egm2008-5.tar.bz2
+            + https://sourceforge.net/projects/geographiclib/files/geoids-distrib/egm2008-5.zip
+
+- DTED:
+    - Shuttle Radar Topography Mission (SRTM) data from https://earthexplorer.usgs.gov
 
 Publicly available complex valued SAR example data in various formats:
 ----------------------------------------------------------------------
@@ -98,10 +122,10 @@ Publicly available complex valued SAR example data in various formats:
     + Only the SLC (single-look complex) product is presently relevant to sarpy.
 - NISAR
     + https://uavsar.jpl.nasa.gov/cgi-bin/product.pl?jobName=sabine_01200_17088_017_170901_L090_CX_05#data
-    + Simulated NISAR product. 
+    + Simulated NISAR product.
 - CPHD
     + https://rdr.ucl.ac.uk/articles/dataset/T-72_SAR_data_dome_Remote_Sensing_0_25_no_PSF_/20681836
-    + Simulated CPHD files. 
+    + Simulated CPHD files.
 
 Not publicly available complex SAR data:
 ----------------------------------------

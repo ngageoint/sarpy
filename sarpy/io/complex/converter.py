@@ -422,6 +422,9 @@ def conversion_utility(
                 sicd.GeoData.ImageCorners[i].Lat = llh_points[index][0]          # FRFC is index 1, FRLC is index 2,
                 sicd.GeoData.ImageCorners[i].Lon = llh_points[index][1]          # LRFC is index 3, LRLC is index 4
 
+            # Recompute SCPCOA using the updated SCP
+            sicd.SCPCOA.rederive(sicd.Grid, sicd.Position, sicd.GeoData)
+
     # check that frames is valid
     if frames is None:
         frames = tuple(range(len(sicds)))

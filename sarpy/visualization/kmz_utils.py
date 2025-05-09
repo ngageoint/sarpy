@@ -7,9 +7,9 @@ __author__ = "Valkyrie Systems Corporation"
 
 import logging
 
-import matplotlib.path
 import matplotlib.pyplot as plt
 import numpy as np
+import shapely.geometry as shg
 
 from sarpy.geometry.geocoords import ecf_to_geodetic
 
@@ -248,34 +248,37 @@ def make_beam_footprints(
 ):
     """Attempt to make beam footprints for the labelled slowtimes"""
 
-    approx_gain_coefs = np.zeros((3, 3))
-    approx_gain_coefs += np.pad(array_gain_poly.Coefs, [(0, 3), (0, 3)])[:3, :3]
-    approx_gain_coefs += np.pad(element_gain_poly.Coefs, [(0, 3), (0, 3)])[:3, :3]
+    def _find_central_contour(max_dc, eb_dcx, eb_dcy):
+        Ns = 201
+        dcs = np.linspace(-max_dc, max_dc, Ns)
+        dcx, dcy = np.meshgrid(dcs, dcs, indexing="ij")
+        gain_pattern = array_gain_poly(dcx, dcy) + element_gain_poly(dcx + eb_dcx, dcy + eb_dcy)
+        contour_sets = plt.contour(dcx, dcy, gain_pattern, levels=[contour_level])
+        plt.close()  # close the figure created by contour
 
-    Ns = 201
-    db_down = 10  # dB down from peak
-    deltaDC_Xmax = np.abs(
-        (
-            -approx_gain_coefs[1, 0]
-            + np.sqrt(
-                approx_gain_coefs[1, 0] ** 2 - 4 * approx_gain_coefs[2, 0] * db_down
+        # We don't know the validity range of the gain polynomials and may have gone
+        # outside, resulting in multiple contours
+
+        # Only keep contours that form a closed shape
+        try:
+            paths = contour_sets.get_paths()
+        except AttributeError:
+            # matplotlib deprecated collections attribute in 3.8
+            paths = contour_sets.collections[0].get_paths()
+
+        polygons = [
+            polygon
+            for path in paths
+            for polygon in path.to_polygons(closed_only=False)
+            if np.array_equal(polygon[0], polygon[-1]) and len(polygon) > 1  # only consider closed polygons
+        ]
+        if polygons:
+            # Keep contour closest to center
+            return min(
+                polygons, key=lambda vertices: np.linalg.norm(np.mean(vertices, axis=0))
             )
-        )
-        / (2 * approx_gain_coefs[2, 0])
-    )
-    deltaDC_Ymax = np.abs(
-        (
-            -approx_gain_coefs[0, 1]
-            + np.sqrt(
-                approx_gain_coefs[0, 1] ** 2 - 4 * approx_gain_coefs[0, 2] * db_down
-            )
-        )
-        / (2 * approx_gain_coefs[0, 2])
-    )
-    X = np.linspace(-deltaDC_Xmax, deltaDC_Xmax, Ns)
-    Y = np.linspace(-deltaDC_Ymax, deltaDC_Ymax, Ns)
-    XXc, YYc = np.meshgrid(X, Y, indexing="ij")
-    array_gain_pattern = array_gain_poly(XXc, YYc)
+        return None
+
 
     result = {}
     for name, pvp_index in labelled_indices.items():
@@ -287,28 +290,25 @@ def make_beam_footprints(
             time = aiming_metadata["raw"]["times"][pvp_index]
             apc_pos = aiming_metadata["raw"]["positions"][pvp_index]
 
-            element_gain_pattern = element_gain_poly(XXc + eb_dcx, YYc + eb_dcy)
-            gain_pattern = array_gain_pattern + element_gain_pattern
+            contour = _find_central_contour(1, eb_dcx, eb_dcy)
+            for n in range(10):
+                next_contour = _find_central_contour(8**(-n-1), eb_dcx, eb_dcy)
+                if next_contour is None and contour is not None:
+                    break
+                if contour is not None and next_contour is not None:
+                    cpoly = shg.Polygon(contour)
+                    ncpoly = shg.Polygon(next_contour)
+                    if np.isclose(cpoly.intersection(ncpoly).area, ncpoly.area, atol=0, rtol=0.05):
+                        # close enough
+                        contour = next_contour
+                        break
+                contour = next_contour
 
-            contour_sets = plt.contour(XXc, YYc, gain_pattern, levels=[contour_level])
-            plt.close()  # close the figure created by contour
+            if contour is None:
+                raise ValueError("unable to find contour")
 
-            # We don't know the validity range of the gain polynomials and may have gone
-            # outside, resulting in multiple contours
-
-            # Only keep contours that form a closed shape
-            paths = [
-                path
-                for path in contour_sets.collections[0].get_paths()
-                if matplotlib.path.Path.CLOSEPOLY in path.codes
-            ]
-            # Keep contour closest to center
-            contour_vertices = min(
-                paths, key=lambda path: np.linalg.norm(np.mean(path.vertices, axis=0))
-            ).vertices
-
-            delta_dcx = contour_vertices[:, 0]
-            delta_dcy = contour_vertices[:, 1]
+            delta_dcx = contour[:, 0]
+            delta_dcy = contour[:, 1]
 
             contour_pointing = acf_to_ecef(
                 delta_dcx + eb_dcx,
@@ -325,6 +325,6 @@ def make_beam_footprints(
             logger.warning(
                 f"Exception while calculating {name} beam footprint of {aiming_metadata['antpat_id']}"
             )
-            logger.warning(exc)
+            logger.warning(exc, exc_info=True)
 
     return result
