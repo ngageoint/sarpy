@@ -60,7 +60,7 @@ def test_write_filehandle(tests_path, tmp_path):
         assert not fd.closed
     assert filecmp.cmp(in_nitf, out_nitf, shallow=False)
 
-def test_write_filehandle(tests_path, tmp_path):
+def test_in_memory_write(tests_path, tmp_path):
     in_nitf_mem = tests_path / "data/iq.nitf"
     with sarpy.io.general.nitf.NITFReader(str(in_nitf_mem)) as reader_mem:
         data_mem = reader_mem.read()
