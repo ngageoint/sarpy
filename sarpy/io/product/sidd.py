@@ -893,7 +893,8 @@ class SIDDWriter(NITFWriter):
                                 Sequence[SIDDType2], Sequence[SIDDType1]]] = None,
             sicd_meta: Optional[Union[SICDType, Sequence[SICDType]]] = None,
             sidd_writing_details: Optional[SIDDWritingDetails] = None,
-            check_existence: bool = True):
+            check_existence: bool = True,
+            in_memory: bool = None):
         """
 
         Parameters
@@ -904,6 +905,8 @@ class SIDDWriter(NITFWriter):
         sidd_writing_details : None|SIDDWritingDetails
         check_existence : bool
             Should we check if the given file already exists?
+        in_memory : bool
+            If True force in-memory writing, if False force file writing.
         """
 
         if sidd_meta is None and sidd_writing_details is None:
@@ -911,7 +914,7 @@ class SIDDWriter(NITFWriter):
         if sidd_writing_details is None:
             sidd_writing_details = SIDDWritingDetails(sidd_meta, sicd_meta=sicd_meta)
         NITFWriter.__init__(
-            self, file_object, sidd_writing_details, check_existence=check_existence)
+            self, file_object, sidd_writing_details, check_existence=check_existence, in_memory=in_memory)
 
     @property
     def nitf_writing_details(self) -> SIDDWritingDetails:
