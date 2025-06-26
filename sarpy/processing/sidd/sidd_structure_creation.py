@@ -209,7 +209,7 @@ def _create_plane_projection_v3(proj_helper, bounds):
 #########################
 # Version 3 element creation
 
-def create_sidd_structure_v3(ortho_helper, bounds, product_class, pixel_type):
+def create_sidd_structure_v3(ortho_helper, bounds, product_class, pixel_type, remap_function=None ):
     """
     Create a SIDD version 3.0 structure based on the orthorectification helper
     and pixel bounds.
@@ -244,9 +244,9 @@ def create_sidd_structure_v3(ortho_helper, bounds, product_class, pixel_type):
             NonInteractiveProcessing=[NonInteractiveProcessingType3(
                 ProductGenerationOptions=ProductGenerationOptionsType3(
                     DataRemapping=NewLookupTableType3(
-                        LUTName='DENSITY',
+                        LUTName=remap_function.name.upper(),
                         Predefined=PredefinedLookupType3(
-                            DatabaseName='DENSITY'))),
+                            DatabaseName=remap_function.name.upper()))),
                 RRDS=RRDSType3(DownsamplingMethod='DECIMATE'),
                 band=i+1) for i in range(bands)],
             InteractiveProcessing=[InteractiveProcessingType3(
@@ -326,7 +326,7 @@ def create_sidd_structure_v3(ortho_helper, bounds, product_class, pixel_type):
 #########################
 # Version 2 element creation
 
-def create_sidd_structure_v2(ortho_helper, bounds, product_class, pixel_type):
+def create_sidd_structure_v2(ortho_helper, bounds, product_class, pixel_type, remap_function=None ):
     """
     Create a SIDD version 2.0 structure based on the orthorectification helper
     and pixel bounds.
@@ -361,9 +361,9 @@ def create_sidd_structure_v2(ortho_helper, bounds, product_class, pixel_type):
             NonInteractiveProcessing=[NonInteractiveProcessingType2(
                 ProductGenerationOptions=ProductGenerationOptionsType2(
                     DataRemapping=NewLookupTableType(
-                        LUTName='DENSITY',
+                        LUTName=remap_function.name.upper(),
                         Predefined=PredefinedLookupType(
-                            DatabaseName='DENSITY'))),
+                            DatabaseName=remap_function.name.upper()))),
                 RRDS=RRDSType2(DownsamplingMethod='DECIMATE'),
                 band=i+1) for i in range(bands)],
             InteractiveProcessing=[InteractiveProcessingType2(
@@ -521,7 +521,7 @@ def create_sidd_structure_v1(ortho_helper, bounds, product_class, pixel_type):
 ##########################
 # Switchable version SIDD structure
 
-def create_sidd_structure(ortho_helper, bounds, product_class, pixel_type, version=3):
+def create_sidd_structure(ortho_helper, bounds, product_class, pixel_type,  remap_function=None, version=3):
     """
     Create a SIDD structure, with version specified, based on the orthorectification
     helper and pixel bounds.
@@ -550,6 +550,6 @@ def create_sidd_structure(ortho_helper, bounds, product_class, pixel_type, versi
     if version == 1:
         return create_sidd_structure_v1(ortho_helper, bounds, product_class, pixel_type)
     elif version == 2:
-        return create_sidd_structure_v2(ortho_helper, bounds, product_class, pixel_type)
+        return create_sidd_structure_v2(ortho_helper, bounds, product_class, pixel_type, remap_function=remap_function )
     else:
-        return create_sidd_structure_v3(ortho_helper, bounds, product_class, pixel_type)
+        return create_sidd_structure_v3(ortho_helper, bounds, product_class, pixel_type, remap_function=remap_function )
