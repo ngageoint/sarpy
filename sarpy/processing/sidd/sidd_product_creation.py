@@ -43,7 +43,7 @@ from sarpy.visualization.remap import MonochromaticRemap, NRL
 
 DEFAULT_IMG_REMAP = NRL
 DEFAULT_CSI_REMAP = NRL
-DEFAULT_DI_REMAP = NRL
+DEFAULT_DI_REMAP  = NRL
 
 _output_text = 'output_directory `{}`\n\t' \
                'does not exist or is not a directory'
@@ -167,7 +167,7 @@ def create_detected_image_sidd(
     ortho_bounds = ortho_iterator.ortho_bounds
     sidd_structure = create_sidd_structure(
         ortho_helper, ortho_bounds,
-        product_class='Detected Image', pixel_type='MONO{}I'.format(remap_function.bit_depth), version=version)
+        product_class='Detected Image', pixel_type='MONO{}I'.format(remap_function.bit_depth), remap_function=remap_function, version=version) 
     # set suggested name
     sidd_structure.NITF['SUGGESTED_NAME'] = ortho_helper.sicd.get_suggested_name(ortho_helper.index)+'_IMG'
 
