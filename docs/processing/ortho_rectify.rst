@@ -1,4 +1,4 @@
-Orthorectification methodology (sarpy.processing.ortho_rectify)
+Ortho-rectification methodology (sarpy.processing.ortho_rectify)
 ================================================================
 
 .. automodule:: sarpy.processing.ortho_rectify.base
