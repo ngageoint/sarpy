@@ -266,17 +266,62 @@ def test_sicd_meta(tmp_path):
         sicd_writer.sicd_meta.Grid.Col.UVectECF.Z
     assert sicd_meta.Grid.Row.SS == \
         sicd_writer.sicd_meta.Grid.Row.SS
-    assert sicd_meta.Grid.Row.UVectECF.X == \
-        sicd_writer.sicd_meta.Grid.Row.UVectECF.X
-    assert sicd_meta.Grid.Row.UVectECF.Y == \
-        sicd_writer.sicd_meta.Grid.Row.UVectECF.Y
-    assert sicd_meta.Grid.Row.UVectECF.Z == \
-        sicd_writer.sicd_meta.Grid.Row.UVectECF.Z
-    # assert sicd_meta.Grid == \
-    #     sicd_writer.sicd_meta.Grid
+    assert pytest.approx(sicd_meta.Grid.Row.UVectECF.X) == \
+        pytest.approx(sicd_writer.sicd_meta.Grid.Row.UVectECF.X)
+    assert pytest.approx(sicd_meta.Grid.Row.UVectECF.Y) == \
+        pytest.approx(sicd_writer.sicd_meta.Grid.Row.UVectECF.Y)
+    assert pytest.approx(sicd_meta.Grid.Row.UVectECF.Z) == \
+        pytest.approx(sicd_writer.sicd_meta.Grid.Row.UVectECF.Z)
+    assert sicd_meta.Grid.TimeCOAPoly.Coefs == \
+        sicd_writer.sicd_meta.Grid.TimeCOAPoly.Coefs
+    assert sicd_meta.Grid.TimeCOAPoly.order1 == \
+        sicd_writer.sicd_meta.Grid.TimeCOAPoly.order1
+    assert sicd_meta.Grid.TimeCOAPoly.order2 == \
+        sicd_writer.sicd_meta.Grid.TimeCOAPoly.order2
+    assert sicd_meta.Grid.Type == \
+        sicd_writer.sicd_meta.Grid.Type
+    assert sicd_meta.Grid.ImagePlane == \
+        sicd_writer.sicd_meta.Grid.ImagePlane
+    assert sicd_meta.Timeline.IPP == \
+        sicd_writer.sicd_meta.Timeline.IPP
+    assert sicd_meta.Timeline.CollectStart == \
+        sicd_writer.sicd_meta.Timeline.CollectStart
+    assert sicd_meta.Timeline.CollectDuration == \
+        sicd_writer.sicd_meta.Timeline.CollectDuration
+    assert pytest.approx(sicd_meta.Position.ARPPoly.X) == \
+        pytest.approx(sicd_writer.sicd_meta.Position.ARPPoly.X)
+    assert pytest.approx(sicd_meta.Position.ARPPoly.Y) == \
+        pytest.approx(sicd_writer.sicd_meta.Position.ARPPoly.Y)
+    assert pytest.approx(sicd_meta.Position.ARPPoly.Z) == \
+        pytest.approx(sicd_writer.sicd_meta.Position.ARPPoly.Z)
+    assert pytest.approx(sicd_meta.Position.GRPPoly.X) == \
+        pytest.approx(sicd_writer.sicd_meta.Position.GRPPoly.X)
+    assert pytest.approx(sicd_meta.Position.GRPPoly.Y) == \
+        pytest.approx(sicd_writer.sicd_meta.Position.GRPPoly.Y)
+    assert pytest.approx(sicd_meta.Position.GRPPoly.Z) == \
+        pytest.approx(sicd_writer.sicd_meta.Position.GRPPoly.Z)
+    ## TxAPCPoly is empty in test data.
+    # TODO: Make a __eq__ operator that handles NoneType 
+    # assert pytest.approx(sicd_meta.Position.TxAPCPoly.X) == \
+    #     pytest.approx(sicd_writer.sicd_meta.Position.TxAPCPoly.X)
+    # assert pytest.approx(sicd_meta.Position.TxAPCPoly.Y) == \
+    #     pytest.approx(sicd_writer.sicd_meta.Position.TxAPCPoly.Y)
+    # assert pytest.approx(sicd_meta.Position.TxAPCPoly.Z) == \
+    #     pytest.approx(sicd_writer.sicd_meta.Position.TxAPCPoly.Z)
+    ## TxAPCPoly is empty in test data.
+    # TODO: Make a __eq__ operator that handles NoneType 
+    # assert pytest.approx(sicd_meta.Position.RcvAPC.X) == \
+    #     pytest.approx(sicd_writer.sicd_meta.Position.RcvAPC.X)
+    # assert pytest.approx(sicd_meta.Position.RcvAPC.Y) == \
+    #     pytest.approx(sicd_writer.sicd_meta.Position.RcvAPC.Y)
+    # assert pytest.approx(sicd_meta.Position.RcvAPC.Z) == \
+    #     pytest.approx(sicd_writer.sicd_meta.Position.RcvAPC.Z)
+    assert numpy.allclose(sicd_meta.RadarCollection.TxFrequency.get_array(), \
+        sicd_writer.sicd_meta.RadarCollection.TxFrequency.get_array())
+    assert sicd_meta.RadarCollection.RefFreqIndex == \
+        sicd_writer.sicd_meta.RadarCollection.RefFreqIndex
     
-    #  'Grid', 'Timeline', 'Position',
-    #     'RadarCollection', 'ImageFormation', 'SCPCOA', 'Radiometric', 'Antenna', 'ErrorStatistics',
+    #     'ImageFormation', 'SCPCOA', 'Radiometric', 'Antenna', 'ErrorStatistics',
     #     'MatchInfo', 'RgAzComp', 'PFA', 'RMA'
 
 class TestSICDWriting(unittest.TestCase):
@@ -294,6 +339,7 @@ class TestSICDWriting(unittest.TestCase):
             if etree is not None:
                 sicd = reader.get_sicds_as_tuple()[0]
                 xml_doc = etree.fromstring(sicd.to_xml_bytes())
+                print(xml_doc)
                 xml_schema = etree.XMLSchema(file=the_schema)
                 with self.subTest(msg='validate xml produced from sicd structure'):
                     self.assertTrue(xml_schema.validate(xml_doc),
