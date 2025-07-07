@@ -1953,15 +1953,7 @@ def get_registered_remap(
 
     if not _DEFAULTS_REGISTERED:
         _register_defaults()
-        
-    if remap_name in newRegMap:
-        # Try new regerst map return  class/Constructor
-        myFunc   = newRegMap[ remap_name ]
-        newRemap = myFunc( remap_name, bit_depth)
-        return newRemap
 
-    if remap_name in _REMAP_DICT:
-        return _REMAP_DICT[remap_name]
     if int( bit_depth ) == 16: # joz
         rm_name = remap_name + '_' + str( bit_depth ) # joz
     else:
