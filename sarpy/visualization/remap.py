@@ -33,7 +33,6 @@ logger = logging.getLogger(__name__)
 
 _DEFAULTS_REGISTERED = False
 _REMAP_DICT = OrderedDict()  # type: Dict[str, RemapFunction]
-newRegMap   = OrderedDict() 
 
 ###########
 # helper functions
