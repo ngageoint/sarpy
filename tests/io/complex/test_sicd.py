@@ -50,7 +50,7 @@ def test_sicd_writer_init_failure_file_only(tmp_path):
         sicd_writer = SICDWriter(output_file) 
 
 @unittest.skipIf(len(sicd_files) == 0, 'No sicd files found')
-def test_sicd_writer_init_sicd_meta_only(tmp_path):
+def test_sicd_writer_init_failure_sicd_meta_only(tmp_path):
     input_file = sicd_files[0]
     reader = open_complex(input_file)
     sicd_meta = reader.sicd_meta
@@ -59,7 +59,7 @@ def test_sicd_writer_init_sicd_meta_only(tmp_path):
         sicd_writer = SICDWriter(sicd_meta=sicd_meta)
 
 @unittest.skipIf(len(sicd_files) == 0, 'No sicd files found')
-def test_sicd_writer_init_sicd_writing_details_only(tmp_path):
+def test_sicd_writer_init_failure_sicd_writing_details_only(tmp_path):
     input_file = sicd_files[0]
     reader = open_complex(input_file)
     sicd_meta = reader.sicd_meta
@@ -87,7 +87,7 @@ def test_sicd_writer_init_sicd_writing_details(tmp_path):
     sicd_writer = SICDWriter(output_file, sicd_writing_details=sicd_writing_details)
 
 @unittest.skipIf(len(sicd_files) == 0, 'No sicd files found')
-def test_sicd_writer_init_sicd_meta_invalid_output(tmp_path):
+def test_sicd_writer_init_failure_sicd_meta_invalid_output(tmp_path):
     input_file = sicd_files[0]
     reader = open_complex(input_file)
     sicd_meta = reader.sicd_meta
@@ -97,7 +97,7 @@ def test_sicd_writer_init_sicd_meta_invalid_output(tmp_path):
         sicd_writer = SICDWriter(output_file, sicd_meta=sicd_meta)
 
 @unittest.skipIf(len(sicd_files) == 0, 'No sicd files found')
-def test_sicd_writer_init_sicd_writing_details_invalid_output(tmp_path):
+def test_sicd_writer_init_failure_sicd_writing_details_invalid_output(tmp_path):
     input_file = sicd_files[0]
     reader = open_complex(input_file)
     sicd_meta = reader.sicd_meta
@@ -108,7 +108,7 @@ def test_sicd_writer_init_sicd_writing_details_invalid_output(tmp_path):
         sicd_writer = SICDWriter(output_file, sicd_writing_details=sicd_writing_details)
 
 @unittest.skipIf(len(sicd_files) == 0, 'No sicd files found')
-def test_sicd_writer_init_bad_sicd_meta(tmp_path):
+def test_sicd_writer_init_failure_bad_sicd_meta(tmp_path):
     input_file = sicd_files[0]
     reader = open_complex(input_file)
     sicd_meta = reader.sicd_meta
@@ -120,7 +120,7 @@ def test_sicd_writer_init_bad_sicd_meta(tmp_path):
         sicd_writer = SICDWriter(output_file, sicd_meta=sicd_meta_bad_type)
 
 @unittest.skipIf(len(sicd_files) == 0, 'No sicd files found')
-def test_sicd_writer_init_bad_sicd_writing_details(tmp_path):
+def test_sicd_writer_init_failure_bad_sicd_writing_details(tmp_path):
     input_file = sicd_files[0]
     reader = open_complex(input_file)
     sicd_meta = reader.sicd_meta
@@ -143,7 +143,7 @@ def test_nitf_writing_details(tmp_path):
     assert sicd_writer.nitf_writing_details == sicd_writing_details
 
 @unittest.skipIf(len(sicd_files) == 0, 'No sicd files found')
-def test_nitf_writing_details_setter(tmp_path):
+def test_nitf_writing_details_setter_failure(tmp_path):
     input_file = sicd_files[0]
     reader = open_complex(input_file)
     sicd_meta = reader.sicd_meta
@@ -166,7 +166,7 @@ def test_get_format_function(tmp_path):
 
 
 @unittest.skipIf(len(sicd_files) == 0, 'No sicd files found')
-def test_get_format_function_bad_band_type(tmp_path):
+def test_get_format_function_failure_bad_band_type(tmp_path):
     input_file = sicd_files[0]
     reader = open_complex(input_file)
     sicd_meta = reader.sicd_meta
