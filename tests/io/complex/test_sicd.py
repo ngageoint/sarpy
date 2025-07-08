@@ -320,9 +320,62 @@ def test_sicd_meta(tmp_path):
         sicd_writer.sicd_meta.RadarCollection.TxFrequency.get_array())
     assert sicd_meta.RadarCollection.RefFreqIndex == \
         sicd_writer.sicd_meta.RadarCollection.RefFreqIndex
+    # TODO: Make this comparison work.
+    # assert numpy.allclose(sicd_meta.RadarCollection.Waveform.get_array(),  \
+    #     sicd_writer.sicd_meta.RadarCollection.Waveform.get_array())
+    assert sicd_meta.RadarCollection.TxPolarization == \
+        sicd_writer.sicd_meta.RadarCollection.TxPolarization
     
-    #     'ImageFormation', 'SCPCOA', 'Radiometric', 'Antenna', 'ErrorStatistics',
-    #     'MatchInfo', 'RgAzComp', 'PFA', 'RMA'
+    # TODO: Make tests for ImageFormation. This type requires an in depth 
+    # comparison
+    # assert sicd_meta.ImageFormation.TxPolarization == \
+    #     sicd_writer.sicd_meta.ImageFormation.TxPolarization
+    
+    assert pytest.approx(sicd_meta.SCPCOA.SCPTime) == \
+        pytest.approx(sicd_writer.sicd_meta.SCPCOA.SCPTime)
+    assert pytest.approx(sicd_meta.SCPCOA.ARPPos.X) == \
+        pytest.approx(sicd_writer.sicd_meta.SCPCOA.ARPPos.X)
+    assert pytest.approx(sicd_meta.SCPCOA.ARPPos.Y) == \
+        pytest.approx(sicd_writer.sicd_meta.SCPCOA.ARPPos.Y)
+    assert pytest.approx(sicd_meta.SCPCOA.ARPPos.Z) == \
+        pytest.approx(sicd_writer.sicd_meta.SCPCOA.ARPPos.Z)
+    assert pytest.approx(sicd_meta.SCPCOA.ARPVel.X) == \
+        pytest.approx(sicd_writer.sicd_meta.SCPCOA.ARPVel.X)
+    assert pytest.approx(sicd_meta.SCPCOA.ARPVel.Y) == \
+        pytest.approx(sicd_writer.sicd_meta.SCPCOA.ARPVel.Y)
+    assert pytest.approx(sicd_meta.SCPCOA.ARPVel.Z) == \
+        pytest.approx(sicd_writer.sicd_meta.SCPCOA.ARPVel.Z)
+    assert pytest.approx(sicd_meta.SCPCOA.ARPAcc.X) == \
+        pytest.approx(sicd_writer.sicd_meta.SCPCOA.ARPAcc.X)
+    assert pytest.approx(sicd_meta.SCPCOA.ARPAcc.Y) == \
+        pytest.approx(sicd_writer.sicd_meta.SCPCOA.ARPAcc.Y)
+    assert pytest.approx(sicd_meta.SCPCOA.ARPAcc.Z) == \
+        pytest.approx(sicd_writer.sicd_meta.SCPCOA.ARPAcc.Z)
+    assert sicd_meta.SCPCOA.SideOfTrack == \
+        sicd_writer.sicd_meta.SCPCOA.SideOfTrack
+    assert pytest.approx(sicd_meta.SCPCOA.SlantRange) == \
+        pytest.approx(sicd_writer.sicd_meta.SCPCOA.SlantRange)
+    assert pytest.approx(sicd_meta.SCPCOA.GroundRange) == \
+        pytest.approx(sicd_writer.sicd_meta.SCPCOA.GroundRange)
+    assert pytest.approx(sicd_meta.SCPCOA.DopplerConeAng) == \
+        pytest.approx(sicd_writer.sicd_meta.SCPCOA.DopplerConeAng)
+    assert pytest.approx(sicd_meta.SCPCOA.GrazeAng) == \
+        pytest.approx(sicd_writer.sicd_meta.SCPCOA.GrazeAng)
+    assert pytest.approx(sicd_meta.SCPCOA.IncidenceAng) == \
+        pytest.approx(sicd_writer.sicd_meta.SCPCOA.IncidenceAng)
+    assert pytest.approx(sicd_meta.SCPCOA.TwistAng) == \
+        pytest.approx(sicd_writer.sicd_meta.SCPCOA.TwistAng)
+    assert pytest.approx(sicd_meta.SCPCOA.SlopeAng) == \
+        pytest.approx(sicd_writer.sicd_meta.SCPCOA.SlopeAng)
+    assert pytest.approx(sicd_meta.SCPCOA.AzimAng) == \
+        pytest.approx(sicd_writer.sicd_meta.SCPCOA.AzimAng)
+    assert pytest.approx(sicd_meta.SCPCOA.LayoverAng) == \
+        pytest.approx(sicd_writer.sicd_meta.SCPCOA.LayoverAng)
+    
+    # The following sicd_meta features are optional, so skip them in the test for
+    #   now.
+    #   'Radiometric', 'Antenna', 'ErrorStatistics', 'MatchInfo', 'RgAzComp', 
+    #   'PFA', 'RMA'
 
 class TestSICDWriting(unittest.TestCase):
 
