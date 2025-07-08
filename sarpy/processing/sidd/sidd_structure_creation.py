@@ -521,7 +521,7 @@ def create_sidd_structure_v1(ortho_helper, bounds, product_class, pixel_type):
 ##########################
 # Switchable version SIDD structure
 
-def create_sidd_structure(ortho_helper, bounds, product_class, pixel_type,  remap_function=None, version=3):
+def create_sidd_structure(ortho_helper, bounds, product_class, pixel_type, version=3, remap_function=None):
     """
     Create a SIDD structure, with version specified, based on the orthorectification
     helper and pixel bounds.
