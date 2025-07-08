@@ -1832,8 +1832,8 @@ def register_remap(
         raise TypeError('remap_function must be an instance of RemapFunction.')
 
     remap_name = remap_function.name
-    if remap_function.bit_depth == 16: # joz
-        rm_name = remap_name + '_' + str( remap_function.bit_depth ) # joz
+    if remap_function.bit_depth == 16:
+        rm_name = remap_name + '_' + str( remap_function.bit_depth )
     else:
         rm_name = remap_name 
     remap_name = rm_name
@@ -1853,7 +1853,7 @@ def _register_defaults():
     if _DEFAULTS_REGISTERED:
         return
         
-    # register class as opposed to instance of class that it was
+    # register instance of class 
     register_remap(NRL(             bit_depth=8), overwrite=False)
     register_remap(Density(         bit_depth=8), overwrite=False)
     register_remap(High_Contrast(   bit_depth=8), overwrite=False)
@@ -1929,10 +1929,10 @@ def get_remap_list() -> List[Tuple[str, RemapFunction]]:
 
 def get_registered_remap(
         remap_name: str,
-        bit_depth=8,
-        default: Optional[RemapFunction] = None) -> RemapFunction:
+        default: Optional[RemapFunction] = None,
+        bit_depth=8)             -> RemapFunction:
     """
-    Gets a remap Class/constructor/init from it's registered name.
+    Gets a remap instance via its registered name.
     # add 16 bit ability by newRegMap is dict of class/constructors
 
 
@@ -1953,8 +1953,8 @@ def get_registered_remap(
     if not _DEFAULTS_REGISTERED:
         _register_defaults()
 
-    if int( bit_depth ) == 16: # joz
-        rm_name = remap_name + '_' + str( bit_depth ) # joz
+    if int( bit_depth ) == 16:
+        rm_name = remap_name + '_' + str( bit_depth )
     else:
         rm_name = remap_name 
         
