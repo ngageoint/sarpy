@@ -1831,14 +1831,13 @@ def register_remap(
     if not isinstance(remap_function, RemapFunction):
         raise TypeError('remap_function must be an instance of RemapFunction.')
 
-    remap_name = remap_function.name
+    
     if remap_function.bit_depth == 16:
-        rm_name = remap_name + '_' + str( remap_function.bit_depth )
+        remap_name = remap_function.name + '_' + str( remap_function.bit_depth )
     else:
-        rm_name = remap_name 
-    remap_name = rm_name
-            
+        remap_name = remap_function.name 
 
+            
     if remap_name not in _REMAP_DICT:
         _REMAP_DICT[remap_name] = remap_function
     elif overwrite:
