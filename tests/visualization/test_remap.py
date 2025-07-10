@@ -329,7 +329,7 @@ class TestRemap(unittest.TestCase):
     def test_get_registered_remap(self):
         with self.assertRaises(KeyError):
             remap.get_registered_remap("__fake__")
-        self.assertEqual(remap.get_registered_remap("__fake__",  8, "default"), "default")
+        self.assertEqual(remap.get_registered_remap("__fake__", "default", 8 ), "default")
 
     def test_get_remap_list(self):
         remap_list = remap.get_remap_list()
