@@ -331,6 +331,29 @@ class TestRemap(unittest.TestCase):
             remap.get_registered_remap("__fake__")
         self.assertEqual(remap.get_registered_remap("__fake__", "default", 8 ), "default")
 
+    def test_get_registered_remap_required_param_only(self):
+        self.assertEqual(remap.get_registered_remap("linear" ).name, "linear")
+     
+    def test_get_registered_remap_required_param_default(self):
+        self.assertEqual(remap.get_registered_remap("linear", "default" ).name, "linear")
+ 
+    def test_get_registered_remap_required_param_default_bit_depth(self):
+        self.assertEqual(remap.get_registered_remap("linear" ).name, "linear")
+        self.assertEqual(remap.get_registered_remap("linear" ).bit_depth, 8)
+
+
+    def test_get_registered_remap_bitdepth_param(self):
+        self.assertEqual(remap.get_registered_remap("linear", bit_depth= 16 ).name, "linear")
+        self.assertEqual(remap.get_registered_remap("linear", bit_depth= 16 ).bit_depth, 16)
+ 
+    def test_get_registered_remap_falure_bitdepth_param(self):
+        with self.assertRaises(KeyError):
+            remap.get_registered_remap("linear", bit_depth= 32 )
+
+    def test_get_registered_remap_falure_not_registered(self):
+        with self.assertRaises(KeyError):
+            remap.get_registered_remap("steve" )
+    
     def test_get_remap_list(self):
         remap_list = remap.get_remap_list()
         self.assertSetEqual(set(item[0] for item in remap_list), set(remap.get_remap_names()))
