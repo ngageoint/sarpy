@@ -1952,6 +1952,9 @@ def get_registered_remap(
     if not _DEFAULTS_REGISTERED:
         _register_defaults()
 
+    if int( bit_depth ) not in [ 8, 16 ]:
+        raise KeyError('Unregistered remap name `{}` with bit_depth `{}`'.format( remap_name, bit_depth ))
+        
     if int( bit_depth ) == 16:
         rm_name = remap_name + '_' + str( bit_depth )
     else:
