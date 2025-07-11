@@ -1090,6 +1090,12 @@ class Poly1DType(Serializable, Arrayable):
         """
 
         return numpy.array(self._coefs, dtype=dtype)
+    
+    def __eq__(self, other):
+        if not isinstance(other, Poly1DType):
+            return TypeError('Provided object is not an Poly1DType.')
+        return numpy.array_equal(self.Coefs, other.Coefs) and self.order1 == other.order1
+
 
     @classmethod
     def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
