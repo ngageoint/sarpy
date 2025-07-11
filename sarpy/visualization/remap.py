@@ -33,7 +33,6 @@ logger = logging.getLogger(__name__)
 
 _DEFAULTS_REGISTERED = False
 _REMAP_DICT = OrderedDict()  # type: Dict[str, RemapFunction]
-newRegMap   = OrderedDict() 
 
 ###########
 # helper functions
@@ -1828,12 +1827,17 @@ def register_remap(
     """
 
     if isinstance(remap_function, type) and issubclass(remap_function, RemapFunction):
-        remap_function = remap_function()
+        remap_function = remap_function( bit_depth=bit_depth)
     if not isinstance(remap_function, RemapFunction):
         raise TypeError('remap_function must be an instance of RemapFunction.')
 
-    remap_name = remap_function.name
+    
+    if remap_function.bit_depth == 16:
+        remap_name = remap_function.name + '_' + str( remap_function.bit_depth )
+    else:
+        remap_name = remap_function.name 
 
+            
     if remap_name not in _REMAP_DICT:
         _REMAP_DICT[remap_name] = remap_function
     elif overwrite:
@@ -1848,15 +1852,25 @@ def _register_defaults():
     if _DEFAULTS_REGISTERED:
         return
         
-    # register class as opposed to instance of class that it was
-    register_remap(NRL,             overwrite=False )
-    register_remap(Linear,          overwrite=False )
-    register_remap(Density,         overwrite=False )
-    register_remap(High_Contrast,   overwrite=False )
-    register_remap(Brighter,        overwrite=False )
-    register_remap(Darker,          overwrite=False )
-    register_remap(Logarithmic,     overwrite=False )
-    register_remap(PEDF,            overwrite=False )
+    # register instance of class 
+    register_remap(NRL(             bit_depth=8), overwrite=False)
+    register_remap(Density(         bit_depth=8), overwrite=False)
+    register_remap(High_Contrast(   bit_depth=8), overwrite=False)
+    register_remap(Brighter(        bit_depth=8), overwrite=False)
+    register_remap(Darker(          bit_depth=8), overwrite=False)
+    register_remap(Linear(          bit_depth=8), overwrite=False)
+    register_remap(Logarithmic(     bit_depth=8), overwrite=False)
+    register_remap(PEDF(            bit_depth=8), overwrite=False)
+
+    register_remap(NRL(             bit_depth=16), overwrite=False)
+    register_remap(Density(         bit_depth=16), overwrite=False)
+    register_remap(High_Contrast(   bit_depth=16), overwrite=False)
+    register_remap(Brighter(        bit_depth=16), overwrite=False)
+    register_remap(Darker(          bit_depth=16), overwrite=False)
+    register_remap(Linear(          bit_depth=16), overwrite=False)
+    register_remap(Logarithmic(     bit_depth=16), overwrite=False)
+    register_remap(PEDF(            bit_depth=16), overwrite=False)
+
 
     if plt is not None:
         try:
@@ -1875,32 +1889,6 @@ def _register_defaults():
             register_remap(LUT8bit(NRL(bit_depth=8), 'bone', use_alpha=False), overwrite=False)
         except KeyError:
             pass
-    # joz
-    newRegMap[ 'nrl'           ] = NRL
-    newRegMap[ 'linear'        ] = Linear
-    newRegMap[ 'density'       ] = Density
-    newRegMap[ 'high_contrast' ] = High_Contrast
-    newRegMap[ 'brighter'      ] = Brighter
-    newRegMap[ 'darker'        ] = Darker
-    newRegMap[ 'log'           ] = Logarithmic
-    newRegMap[ 'pedf'          ] = PEDF
-    if plt is not None:
-        try:
-            newRegMap[ 'viridis' ] = LUT8bit(NRL(bit_depth=8), 'viridis', use_alpha=False)
-        except KeyError:
-            pass
-        try:
-            newRegMap[ 'magma' ]   = LUT8bit(NRL(bit_depth=8), 'magma', use_alpha=False)
-        except KeyError:
-            pass
-        try:
-            newRegMap[ 'rainbow' ] = LUT8bit(NRL(bit_depth=8), 'rainbow', use_alpha=False)
-        except KeyError:
-            pass
-        try:
-            newRegMap[ 'bone' ]    = LUT8bit(NRL(bit_depth=8), 'bone', use_alpha=False)
-        except KeyError:
-            pass
 
     _DEFAULTS_REGISTERED = True
 
@@ -1916,7 +1904,7 @@ def get_remap_names() -> List[str]:
 
     if not _DEFAULTS_REGISTERED:
         _register_defaults()
-    return list(newRegMap.keys())
+    return list( _REMAP_DICT.keys())
 
 
 def get_remap_list() -> List[Tuple[str, RemapFunction]]:
@@ -1940,10 +1928,10 @@ def get_remap_list() -> List[Tuple[str, RemapFunction]]:
 
 def get_registered_remap(
         remap_name: str,
-        bit_depth=8,
-        default: Optional[RemapFunction] = None) -> RemapFunction:
+        default: Optional[RemapFunction] = None,
+        bit_depth=8)             -> RemapFunction:
     """
-    Gets a remap Class/constructor/init from it's registered name.
+    Gets a remap instance via its registered name.
     # add 16 bit ability by newRegMap is dict of class/constructors
 
 
@@ -1963,15 +1951,18 @@ def get_registered_remap(
 
     if not _DEFAULTS_REGISTERED:
         _register_defaults()
-        
-    if remap_name in newRegMap:
-        # Try new regerst map return  class/Constructor
-        myFunc   = newRegMap[ remap_name ]
-        newRemap = myFunc( remap_name, bit_depth)
-        return newRemap
 
-    if remap_name in _REMAP_DICT:
-        return _REMAP_DICT[remap_name]
+    if int( bit_depth ) not in [ 8, 16 ]:
+        raise KeyError('Unregistered remap name `{}` with bit_depth `{}`'.format( remap_name, bit_depth ))
+        
+    if int( bit_depth ) == 16:
+        rm_name = remap_name + '_' + str( bit_depth )
+    else:
+        rm_name = remap_name 
+        
+    if rm_name in _REMAP_DICT:
+        return _REMAP_DICT[ rm_name ]
+        
     if default is not None:
         return default
     raise KeyError('Unregistered remap name `{}`'.format(remap_name))

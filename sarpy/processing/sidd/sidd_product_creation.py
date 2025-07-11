@@ -167,7 +167,7 @@ def create_detected_image_sidd(
     ortho_bounds = ortho_iterator.ortho_bounds
     sidd_structure = create_sidd_structure(
         ortho_helper, ortho_bounds,
-        product_class='Detected Image', pixel_type='MONO{}I'.format(remap_function.bit_depth), remap_function=remap_function, version=version) 
+        product_class='Detected Image', pixel_type='MONO{}I'.format(remap_function.bit_depth), version=version, remap_function=remap_function) 
     # set suggested name
     sidd_structure.NITF['SUGGESTED_NAME'] = ortho_helper.sicd.get_suggested_name(ortho_helper.index)+'_IMG'
 
@@ -256,7 +256,7 @@ def create_csi_sidd(
     ortho_bounds = ortho_iterator.ortho_bounds
     sidd_structure = create_sidd_structure(
         ortho_helper, ortho_bounds,
-        product_class='Color Subaperture Image', pixel_type='RGB24I', version=version)
+        product_class='Color Subaperture Image', pixel_type='RGB24I', version=version, remap_function=remap_function)
     # set suggested name
     sidd_structure.NITF['SUGGESTED_NAME'] = csi_calculator.sicd.get_suggested_name(csi_calculator.index)+'_CSI'
 
@@ -352,7 +352,7 @@ def create_dynamic_image_sidd(
     ortho_bounds = ortho_iterator.ortho_bounds
     sidd_structure = create_sidd_structure(
         ortho_helper, ortho_bounds,
-        product_class='Dynamic Image', pixel_type='MONO{}I'.format(remap_function.bit_depth), version=version)
+        product_class='Dynamic Image', pixel_type='MONO{}I'.format(remap_function.bit_depth), version=version, remap_function=remap_function)
     # set suggested name
     sidd_structure.NITF['SUGGESTED_NAME'] = subap_calculator.sicd.get_suggested_name(subap_calculator.index)+'__DI'
     the_sidds = []
