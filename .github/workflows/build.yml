@@ -107,7 +107,7 @@ jobs:
     - name: Download all the dists
       uses: actions/download-artifact@v4
       with:
-        name: python-package-distributions
+        name: ${{ needs.build.outputs.version }}
         path: dist
     - name: Publish distribution to Test-PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
