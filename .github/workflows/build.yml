@@ -94,3 +94,23 @@ jobs:
         prerelease: false
         target_commitish: ${{github.ref}}
         files: dist/*
+
+  publish-to-test-pypi:
+    name: Publish to Test-PyPI
+    needs: release
+    runs-on: ubuntu-latest
+    environment:
+      name: development
+    permissions:
+      id-token: write
+    steps:
+    - name: Download all the dists
+      uses: actions/download-artifact@v4
+      with:
+        name: python-package-distributions
+        path: dist
+    - name: Publish distribution to Test-PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        name: python-package-distributions
+        repository-url: https://test.pypi.org/legacy/
