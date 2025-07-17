@@ -97,7 +97,7 @@ jobs:
 
   publish-to-test-pypi:
     name: Publish to Test-PyPI
-    needs: build
+    needs: release
     runs-on: ubuntu-latest
     environment:
       name: development
