@@ -1,10 +1,6 @@
 name: Build packages
 
-on: 
-    push:
-      branches:
-        - master
-        - 'integration/**'
+on: workflow_dispatch
 
 jobs:
   build:
