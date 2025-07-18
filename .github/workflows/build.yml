@@ -1,6 +1,6 @@
 name: Build packages
 
-on: 
+on:  
     push:
       branches:
         - master
@@ -39,7 +39,8 @@ jobs:
       if: contains(github.ref, 'refs/heads/integration/')
       run: |
         echo ${{ steps.extract_version.outputs.raw_version }}
-        rc_version=${{ steps.extract_version.outputs.raw_version }}rc0
+        rc_version=${{ steps.extract_version.outputs.raw_version }}rc1
+        sed -i -e "s/__version__ = \"${{ steps.extract_version.outputs.raw_version }}/__version__ = \"$rc_version/g" sarpy/__about__.py
         echo "version=$rc_version"  >> $GITHUB_OUTPUT
       id: extract_release_candidate_version
     - name: Install pypa/build
@@ -94,3 +95,24 @@ jobs:
         prerelease: false
         target_commitish: ${{github.ref}}
         files: dist/*
+
+  publish-to-pypi:
+    name: Publish to PyPI
+    needs: release
+    runs-on: ubuntu-latest
+    environment:
+      name: development
+    permissions:
+      id-token: write
+    steps:
+    - name: Download all the dists
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ needs.build.outputs.version }}
+        path: dist
+        merge-multiple: true
+    - run: ls -R dist
+    - name: Publish distribution to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        repository-url: https://pypi.org/legacy/
