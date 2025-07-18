@@ -109,6 +109,7 @@ jobs:
       with:
         name: ${{ needs.build.outputs.version }}
         path: dist
+        merge-multiple: true
     - run: ls -R dist
     - name: Publish distribution to Test-PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
