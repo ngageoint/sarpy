@@ -39,7 +39,7 @@ jobs:
       if: contains(github.ref, 'refs/heads/integration/')
       run: |
         echo ${{ steps.extract_version.outputs.raw_version }}
-        rc_version=${{ steps.extract_version.outputs.raw_version }}rc0
+        rc_version=${{ steps.extract_version.outputs.raw_version }}rc1
         sed -i -e "s/__version__ = \"${{ steps.extract_version.outputs.raw_version }}/__version__ = \"$rc_version/g" sarpy/__about__.py
         echo "version=$rc_version"  >> $GITHUB_OUTPUT
       id: extract_release_candidate_version
@@ -116,4 +116,3 @@ jobs:
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         repository-url: https://test.pypi.org/legacy/
-        path: dist/${{ needs.build.outputs.version }}
