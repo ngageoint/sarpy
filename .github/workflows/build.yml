@@ -81,7 +81,7 @@ jobs:
     - name: Download all the dists
       uses: actions/download-artifact@v4
       with:
-        name: ${{ steps.extract_version.outputs.raw_version }}
+        name: ${{ needs.build.outputs.version }}
         path: dist
     - name: Create a release
       id: create_release
@@ -107,9 +107,11 @@ jobs:
     - name: Download all the dists
       uses: actions/download-artifact@v4
       with:
-        name: ${{ steps.extract_version.outputs.raw_version }}
+        name: ${{ needs.build.outputs.version }}
         path: dist
+    - run: ls -R dist
     - name: Publish distribution to Test-PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         repository-url: https://test.pypi.org/legacy/
+        files: dist/*
