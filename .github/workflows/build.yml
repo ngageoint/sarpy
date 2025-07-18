@@ -40,6 +40,7 @@ jobs:
       run: |
         echo ${{ steps.extract_version.outputs.raw_version }}
         rc_version=${{ steps.extract_version.outputs.raw_version }}rc0
+        sed -i -e "s/__version__ = \"${{ steps.extract_version.outputs.raw_version }}/__version__ = \"$rc_version/g" sarpy/__about__.py
         echo "version=$rc_version"  >> $GITHUB_OUTPUT
       id: extract_release_candidate_version
     - name: Install pypa/build
