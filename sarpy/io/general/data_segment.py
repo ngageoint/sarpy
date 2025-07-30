@@ -2053,7 +2053,7 @@ class NumpyArraySegment(DataSegment):
             logger.error(
                 'There has been a call to `get_raw_bytes` from {},\n\t'
                 'but all pixels are not fully written'.format(self.__class__))
-        return self.underlying_array.tobytes()
+        return self.underlying_array.view('B').reshape(-1)
 
     def flush(self) -> None:
         self._validate_closed()

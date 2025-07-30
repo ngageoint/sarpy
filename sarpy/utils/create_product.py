@@ -56,6 +56,9 @@ def main(args=None):
         '-m', '--method', default='nearest', choices=['nearest', ]+['spline_{}'.format(i) for i in range(1, 6)],
         help="The interpolation method.")
     parser.add_argument(
+        '-b', '--bit_depth', default='8', choices=['8', '16' ],
+        help="SIDD product pixel bit depth.")
+    parser.add_argument(
         '--version', default=2, type=int, choices=[1, 2, 3],
         help="The version of the SIDD standard used.")
     parser.add_argument(
@@ -80,7 +83,7 @@ def main(args=None):
             ortho_helper = NearestNeighborMethod(reader, index=i)
         if args.type == 'detected':
             create_detected_image_sidd(ortho_helper, args.output_directory,
-                                       remap_function=remap.get_registered_remap(args.remap),
+                                       remap_function=remap.get_registered_remap(args.remap, bit_depth=args.bit_depth ),
                                        version=args.version, include_sicd=args.sicd)
         elif args.type == 'csi':
             create_csi_sidd(ortho_helper, args.output_directory,

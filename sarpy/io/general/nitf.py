@@ -2535,6 +2535,8 @@ def _flatten_bytes(value: Union[bytes, Sequence]) -> bytes:
         return value
     elif isinstance(value, Sequence):
         return b''.join(_flatten_bytes(entry) for entry in value)
+    elif isinstance(value, numpy.ndarray) and value.dtype == numpy.uint8:
+        return value.reshape(-1)
     else:
         raise TypeError('input must be a bytes object, or a sequence with bytes objects as leaves')
 
@@ -3516,7 +3518,8 @@ class NITFWriter(BaseWriter):
             self,
             file_object: Union[str, BinaryIO],
             writing_details: NITFWritingDetails,
-            check_existence: bool = True):
+            check_existence: bool = True,
+            in_memory: bool = None):
         """
 
         Parameters
@@ -3525,6 +3528,8 @@ class NITFWriter(BaseWriter):
         writing_details : NITFWritingDetails
         check_existence : bool
             Should we check if the given file already exists?
+        in_memory : bool
+            If True force in-memory writing, if False force file writing.
 
         Raises
         ------
@@ -3547,12 +3552,16 @@ class NITFWriter(BaseWriter):
             raise ValueError('file_object requires a file path or BinaryIO object')
 
         self._file_object = file_object
+
         if is_real_file(file_object):
             self._file_name = file_object.name
             self._in_memory = False
         else:
             self._file_name = None
             self._in_memory = True
+
+        if in_memory is not None:
+            self._in_memory = in_memory
 
         self.nitf_writing_details = writing_details
 

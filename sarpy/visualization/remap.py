@@ -1827,12 +1827,17 @@ def register_remap(
     """
 
     if isinstance(remap_function, type) and issubclass(remap_function, RemapFunction):
-        remap_function = remap_function()
+        remap_function = remap_function( bit_depth=bit_depth)
     if not isinstance(remap_function, RemapFunction):
         raise TypeError('remap_function must be an instance of RemapFunction.')
 
-    remap_name = remap_function.name
+    
+    if remap_function.bit_depth == 16:
+        remap_name = remap_function.name + '_' + str( remap_function.bit_depth )
+    else:
+        remap_name = remap_function.name 
 
+            
     if remap_name not in _REMAP_DICT:
         _REMAP_DICT[remap_name] = remap_function
     elif overwrite:
@@ -1846,14 +1851,27 @@ def _register_defaults():
     global _DEFAULTS_REGISTERED
     if _DEFAULTS_REGISTERED:
         return
-    register_remap(NRL(bit_depth=8), overwrite=False)
-    register_remap(Density(bit_depth=8), overwrite=False)
-    register_remap(High_Contrast(bit_depth=8), overwrite=False)
-    register_remap(Brighter(bit_depth=8), overwrite=False)
-    register_remap(Darker(bit_depth=8), overwrite=False)
-    register_remap(Linear(bit_depth=8), overwrite=False)
-    register_remap(Logarithmic(bit_depth=8), overwrite=False)
-    register_remap(PEDF(bit_depth=8), overwrite=False)
+        
+    # register instance of class 
+    register_remap(NRL(             bit_depth=8), overwrite=False)
+    register_remap(Density(         bit_depth=8), overwrite=False)
+    register_remap(High_Contrast(   bit_depth=8), overwrite=False)
+    register_remap(Brighter(        bit_depth=8), overwrite=False)
+    register_remap(Darker(          bit_depth=8), overwrite=False)
+    register_remap(Linear(          bit_depth=8), overwrite=False)
+    register_remap(Logarithmic(     bit_depth=8), overwrite=False)
+    register_remap(PEDF(            bit_depth=8), overwrite=False)
+
+    register_remap(NRL(             bit_depth=16), overwrite=False)
+    register_remap(Density(         bit_depth=16), overwrite=False)
+    register_remap(High_Contrast(   bit_depth=16), overwrite=False)
+    register_remap(Brighter(        bit_depth=16), overwrite=False)
+    register_remap(Darker(          bit_depth=16), overwrite=False)
+    register_remap(Linear(          bit_depth=16), overwrite=False)
+    register_remap(Logarithmic(     bit_depth=16), overwrite=False)
+    register_remap(PEDF(            bit_depth=16), overwrite=False)
+
+
     if plt is not None:
         try:
             register_remap(LUT8bit(NRL(bit_depth=8), 'viridis', use_alpha=False), overwrite=False)
@@ -1886,7 +1904,7 @@ def get_remap_names() -> List[str]:
 
     if not _DEFAULTS_REGISTERED:
         _register_defaults()
-    return list(_REMAP_DICT.keys())
+    return list( _REMAP_DICT.keys())
 
 
 def get_remap_list() -> List[Tuple[str, RemapFunction]]:
@@ -1910,9 +1928,12 @@ def get_remap_list() -> List[Tuple[str, RemapFunction]]:
 
 def get_registered_remap(
         remap_name: str,
-        default: Optional[RemapFunction] = None) -> RemapFunction:
+        default: Optional[RemapFunction] = None,
+        bit_depth=8)             -> RemapFunction:
     """
-    Gets a remap function from it's registered name.
+    Gets a remap instance via its registered name.
+    # add 16 bit ability by newRegMap is dict of class/constructors
+
 
     Parameters
     ----------
@@ -1921,7 +1942,7 @@ def get_registered_remap(
 
     Returns
     -------
-    RemapFunction
+    RemapFunction Class
 
     Raises
     ------
@@ -1931,8 +1952,17 @@ def get_registered_remap(
     if not _DEFAULTS_REGISTERED:
         _register_defaults()
 
-    if remap_name in _REMAP_DICT:
-        return _REMAP_DICT[remap_name]
+    if int( bit_depth ) not in [ 8, 16 ]:
+        raise KeyError('Unregistered remap name `{}` with bit_depth `{}`'.format( remap_name, bit_depth ))
+        
+    if int( bit_depth ) == 16:
+        rm_name = remap_name + '_' + str( bit_depth )
+    else:
+        rm_name = remap_name 
+        
+    if rm_name in _REMAP_DICT:
+        return _REMAP_DICT[ rm_name ]
+        
     if default is not None:
         return default
     raise KeyError('Unregistered remap name `{}`'.format(remap_name))
