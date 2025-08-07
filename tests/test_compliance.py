@@ -22,7 +22,7 @@ def test_SarpyError() :
 class Test_bytes_to_string(TestCase):
     def setUp(self):
         self.text_string = "Hello, world!"
-        self.byte_data = self.text_string.encode('utf-8')
+        self.byte_data   = self.text_string.encode('utf-8')
 
     def testStringInputSuccess(self):
         self.assertEqual(self.text_string, bytes_to_string(self.text_string))

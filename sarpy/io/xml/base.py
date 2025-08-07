@@ -5,17 +5,16 @@ This module contains the base objects for use in base xml/serializable functiona
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
-import logging
-from xml.etree import ElementTree
-import json
-from datetime import date, datetime
-from collections import OrderedDict
 import copy
-import re
-from io import StringIO
-from typing import Dict, Optional
-
+import json
+import logging
 import numpy
+import re
+from collections import OrderedDict
+from datetime    import date, datetime
+from io          import StringIO
+from typing      import Dict, Optional
+from xml.etree   import ElementTree
 
 from sarpy.compliance import bytes_to_string
 
@@ -37,7 +36,8 @@ DEFAULT_STRICT = False
 
 def get_node_value(nod: ElementTree.Element) -> Optional[str]:
     """
-    XML parsing helper for extracting text value from an ElementTree Element. No error checking performed.
+    XML parsing helper for extracting text value from an ElementTree Element. 
+    No error checking performed.
 
     Parameters
     ----------
