@@ -123,10 +123,10 @@ def create_text_node(
 
 
 def find_first_child(
-        node: ElementTree.Element,
-        tag: str,
-        xml_ns: Optional[Dict[str, str]],
-        ns_key: Optional[str]) -> ElementTree.Element:
+        node  : ElementTree.Element,
+        tag   : str,
+        xml_ns: Optional[Dict[str, str]] = None,
+        ns_key: Optional[str]            = None) -> ElementTree.Element:
     """
     Finds the first child node
 
@@ -134,8 +134,8 @@ def find_first_child(
     ----------
     node : ElementTree.Element
     tag : str
-    xml_ns : None|dict
-    ns_key : None|str
+    xml_ns : None|dict XML namespace of the node in question
+    ns_key : None|str  Namespace key to use to preface the tag
 
     Returns
     -------

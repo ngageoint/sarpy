@@ -60,3 +60,7 @@ class Test_base_functions(unittest.TestCase):
         for child in self.root[2]:
             print(child.tag, child.attrib)
         assert(self.root[2][5].text == "Pacific")
+
+    def test_find_first_child_no_optional_params_success(self):
+        found_node = base.find_first_child(self.root, "country")
+        assert(found_node.attrib == self.root[0].attrib)
