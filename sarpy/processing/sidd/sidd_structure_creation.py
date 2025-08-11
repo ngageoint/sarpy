@@ -211,7 +211,8 @@ def _create_plane_projection_v3(proj_helper, bounds):
 #########################
 # Version 3 element creation
 
-def create_sidd_structure_v3(ortho_helper, bounds, product_class, pixel_type, remap_function=None ):
+def create_sidd_structure_v3(ortho_helper, bounds, product_class, pixel_type, 
+                             remap_function=remap.get_registered_remap('density') ):
     """
     Create a SIDD version 3.0 structure based on the orthorectification helper
     and pixel bounds.
@@ -308,6 +309,8 @@ def create_sidd_structure_v3(ortho_helper, bounds, product_class, pixel_type, re
     prod_create = ProductCreationType3.from_sicd(ortho_helper.proj_helper.sicd, product_class)
     prod_create.Classification.ISMCATCESVersion = '201903'
     prod_create.Classification.compliesWith = 'USGov'
+    if remap_function == None:
+        remap_function=remap.get_registered_remap('density')
 
     # Display requires more product specifics
     display = _create_display_v3()
@@ -328,7 +331,8 @@ def create_sidd_structure_v3(ortho_helper, bounds, product_class, pixel_type, re
 #########################
 # Version 2 element creation
 
-def create_sidd_structure_v2(ortho_helper, bounds, product_class, pixel_type, remap_function=None ):
+def create_sidd_structure_v2(ortho_helper, bounds, product_class, pixel_type, 
+                             remap_function=remap.get_registered_remap('density') ):
     """
     Create a SIDD version 2.0 structure based on the orthorectification helper
     and pixel bounds.
@@ -425,6 +429,8 @@ def create_sidd_structure_v2(ortho_helper, bounds, product_class, pixel_type, re
     prod_create = ProductCreationType2.from_sicd(ortho_helper.proj_helper.sicd, product_class)
     prod_create.Classification.ISMCATCESVersion = '201903'
     prod_create.Classification.compliesWith = 'USGov'
+    if remap_function == None:
+        remap_function=remap.get_registered_remap('density')
 
     # Display requires more product specifics
     display = _create_display_v2()
