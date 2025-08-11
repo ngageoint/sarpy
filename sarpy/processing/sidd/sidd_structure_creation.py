@@ -54,6 +54,8 @@ from sarpy.io.product.sidd1_elements.GeographicAndTarget import GeographicAndTar
 from sarpy.io.product.sidd1_elements.Measurement import MeasurementType as MeasurementType1
 from sarpy.io.product.sidd1_elements.ExploitationFeatures import ExploitationFeaturesType as ExploitationFeaturesType1
 from sarpy.io.product.sidd1_elements.ProductCreation import ProductCreationType as ProductCreationType1
+#from sarpy.visualization.remap import Density
+import sarpy.visualization.remap as remap
 
 logger = logging.getLogger(__name__)
 
@@ -521,7 +523,8 @@ def create_sidd_structure_v1(ortho_helper, bounds, product_class, pixel_type):
 ##########################
 # Switchable version SIDD structure
 
-def create_sidd_structure(ortho_helper, bounds, product_class, pixel_type, version=3, remap_function=None):
+def create_sidd_structure(ortho_helper, bounds, product_class, pixel_type, 
+                          version=3, remap_function=remap.get_registered_remap('density')):
     """
     Create a SIDD structure, with version specified, based on the orthorectification
     helper and pixel bounds.
@@ -538,12 +541,17 @@ def create_sidd_structure(ortho_helper, bounds, product_class, pixel_type, versi
         Must be one of `MONO8I, MONO16I` or `RGB24I`.
     version : int
         The SIDD version, must be either 1, 2, or 3.
+    remap_function: str
+        The applied remap function. If one is not provided, then a default is 
+        used. Required global parameters will be calculated if they are missing,
+        so the internal state of this remap function may be modified.
 
     Returns
     -------
     SIDDType1|SIDDType2|SIDDType3
     """
-
+    if remap_function == None:
+        remap_function=remap.get_registered_remap('density')
     if version not in [1, 2, 3]:
         raise ValueError('version must be 1, 2, or 3. Got {}'.format(version))
 
