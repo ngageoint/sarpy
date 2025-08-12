@@ -7,6 +7,7 @@ __author__ = "Thomas McCullough"
 
 from typing import Union
 
+import xml.etree.ElementTree
 import numpy
 
 from sarpy.io.xml.base import Serializable
@@ -15,6 +16,8 @@ from sarpy.io.xml.descriptors import SerializableDescriptor, IntegerDescriptor, 
 
 from .base import DEFAULT_STRICT, FLOAT_FORMAT
 
+
+# default_strict is set to False so invalid types don't throw an error for NumWaveletLevels, NumBands, or LayerInfo
 
 class J2KSubtype(Serializable):
     """
@@ -55,9 +58,20 @@ class J2KSubtype(Serializable):
             self._xml_ns_key = kwargs['_xml_ns_key']
         self.NumWaveletLevels = NumWaveletLevels
         self.NumBands = NumBands
-        self.LayerInfo = LayerInfo
+        self.setLayerInfoType(LayerInfo)
         super(J2KSubtype, self).__init__(**kwargs)
 
+    def setLayerInfoType(self,obj):
+        ET = xml.etree.ElementTree
+        if isinstance( obj, ET.Element):
+            numLayers = int(obj.attrib['numLayers'])
+            if (numLayers == 0):
+                return
+            bitrates = numpy.zeros(numLayers)
+          
+            for i in range(numLayers):
+                bitrates[i] = float(obj[i][0].text)
+            self.LayerInfo = bitrates
 
 class J2KType(Serializable):
     """
