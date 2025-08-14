@@ -1826,8 +1826,6 @@ def register_remap(
     None
     """
 
-    if isinstance(remap_function, type) and issubclass(remap_function, RemapFunction):
-        remap_function = remap_function( bit_depth=bit_depth)
     if not isinstance(remap_function, RemapFunction):
         raise TypeError('remap_function must be an instance of RemapFunction.')
 
@@ -1925,20 +1923,28 @@ def get_remap_list() -> List[Tuple[str, RemapFunction]]:
     # undesirable elements than this method
     return [(the_key, the_value) for the_key, the_value in _REMAP_DICT.items()]
 
-
 def get_registered_remap(
         remap_name: str,
         default: Optional[RemapFunction] = None,
         bit_depth=8)             -> RemapFunction:
     """
     Gets a remap instance via its registered name.
-    # add 16 bit ability by newRegMap is dict of class/constructors
+    
+    Results for the bit_depth parameter options
 
+    | Option |  Remap name | bit_depth | Return |
+    |:------:|:-----------:|:---------:|:------:|
+    | 1      |  linear     | n/a       | linear |
+    | 2      |  linear     | 8         | linear |
+    | 3      |  linear     | 16        | linera_16 |
+    | 4      |  linear_16  | n/a       | linear_16 |
+    | 5      |  linera_16  | 16        | linear_16 |
 
     Parameters
     ----------
     remap_name : str
     default : None|RemapFunction
+    bit_depth: int SIDD product pixel bit depth. Valid options are 8 and 16.
 
     Returns
     -------

@@ -167,7 +167,9 @@ def create_detected_image_sidd(
     ortho_bounds = ortho_iterator.ortho_bounds
     sidd_structure = create_sidd_structure(
         ortho_helper, ortho_bounds,
-        product_class='Detected Image', pixel_type='MONO{}I'.format(remap_function.bit_depth), version=version, remap_function=remap_function) 
+        product_class='Detected Image', 
+        pixel_type='MONO{}I'.format(remap_function.bit_depth), version=version, 
+        remap_function=remap_function) 
     # set suggested name
     sidd_structure.NITF['SUGGESTED_NAME'] = ortho_helper.sicd.get_suggested_name(ortho_helper.index)+'_IMG'
 
