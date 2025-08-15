@@ -27,13 +27,12 @@ __all__ = ['__version__',
            '__license__', '__copyright__']
 
 from sarpy.__details__ import __classification__, _post_identifier
-_version_number = '1.3.60'
 
-__version__ = _version_number + _post_identifier
+__version__ = "1.3.61"
 
 __author__ = "National Geospatial-Intelligence Agency"
 __url__ = "https://github.com/ngageoint/sarpy"
-__email__ = "richard.m.naething@nga.mil"
+__email__ = "SARToolboxDev@nga.mil"
 
 
 __title__ = "sarpy"
