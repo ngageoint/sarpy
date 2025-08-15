@@ -1,0 +1,118 @@
+name: Build packages
+
+on:  
+    push:
+      branches:
+        - master
+        - 'integration/**'
+
+jobs:
+  build:
+    # This section builds the distribution for all versions of Python listed in
+    # the python-version matrix under strategy to confirm that it builds for
+    # all of those versions. It then uploads the package built by Python 3.9
+    # for use in later jobs.
+    name: Build distribution
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.extract_version.outputs.raw_version }}
+      rc_version: ${{ steps.extract_release_candidate_version.outputs.version }}
+    strategy:
+      matrix:
+        python-version: [3.9, 3.10, 3.11, 3.12, 3.13, 3.14]
+    steps:
+    # Pull the current branch to build the package from.
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        ref: ${{github.ref}}
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.x"
+    - name: Extract version number from __about__.py
+      shell: bash
+      run: echo "raw_version=`sed -n 's/__version__ = \"\(.*\)\"/\1/p' < sarpy/__about__.py`" >> $GITHUB_OUTPUT
+      id: extract_version
+    - name: Set version number for release candidate
+      shell: bash
+      if: contains(github.ref, 'refs/heads/integration/')
+      run: |
+        echo ${{ steps.extract_version.outputs.raw_version }}
+        rc_version=${{ steps.extract_version.outputs.raw_version }}rc1
+        sed -i -e "s/__version__ = \"${{ steps.extract_version.outputs.raw_version }}/__version__ = \"$rc_version/g" sarpy/__about__.py
+        echo "version=$rc_version"  >> $GITHUB_OUTPUT
+      id: extract_release_candidate_version
+    - name: Install pypa/build
+      run: >-
+        python3 -m
+        pip install
+        build
+        --user
+    - name: Build sarpy binary wheel and a source tarball
+      run: python3 -m build
+    - name: Upload all the dists
+      if: matrix.python-version == 3.9
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ steps.extract_version.outputs.raw_version }}
+        path: dist/
+        overwrite: true
+  # This job creates a GitHub release and uploads the package contents created
+  # in the build job to the release.
+  release:    
+    name: Create release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        ref: ${{github.ref}}
+    - name: Extract version number from __about__.py
+      shell: bash
+      run: |
+        if "${{endswith(github.ref, 'master')}}"
+        then
+          echo "version=${{ needs.build.outputs.version }}" >> $GITHUB_OUTPUT
+        else
+          echo "version=${{ needs.build.outputs.rc_version }}" >> $GITHUB_OUTPUT
+        fi
+      id: extract_version
+    - name: Download all the dists
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ needs.build.outputs.version }}
+        path: dist
+    - name: Create a release
+      id: create_release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: v${{ steps.extract_version.outputs.version }}
+        generate_release_notes: true
+        name: Version ${{ steps.extract_version.outputs.version }}
+        draft: false
+        prerelease: false
+        target_commitish: ${{github.ref}}
+        files: dist/*
+
+  publish-to-pypi:
+    name: Publish to PyPI
+    needs: release
+    runs-on: ubuntu-latest
+    environment:
+      name: development
+    permissions:
+      id-token: write
+    steps:
+    - name: Download all the dists
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ needs.build.outputs.version }}
+        path: dist
+        merge-multiple: true
+    - run: ls -R dist
+    - name: Publish distribution to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        repository-url: https://pypi.org/legacy/

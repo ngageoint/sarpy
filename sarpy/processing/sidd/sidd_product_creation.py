@@ -43,7 +43,7 @@ from sarpy.visualization.remap import MonochromaticRemap, NRL
 
 DEFAULT_IMG_REMAP = NRL
 DEFAULT_CSI_REMAP = NRL
-DEFAULT_DI_REMAP = NRL
+DEFAULT_DI_REMAP  = NRL
 
 _output_text = 'output_directory `{}`\n\t' \
                'does not exist or is not a directory'
@@ -103,7 +103,7 @@ def create_detected_image_sidd(
     Parameters
     ----------
     ortho_helper : OrthorectificationHelper
-        The orthorectification helper object.
+        The ortho-rectification helper object.
     output_directory : str
         The output directory for the given file.
     output_file : None|str
@@ -156,7 +156,7 @@ def create_detected_image_sidd(
         remap_function = DEFAULT_IMG_REMAP(override_name='IMG_DEFAULT')
     _validate_remap_function(remap_function)
 
-    # construct the orthorectification iterator - for a basic data fetcher
+    # construct the ortho-rectification iterator - for a basic data fetcher
     calculator = FullResolutionFetcher(
         ortho_helper.reader, dimension=dimension, index=ortho_helper.index, block_size=block_size)
     ortho_iterator = OrthorectificationIterator(
@@ -167,7 +167,7 @@ def create_detected_image_sidd(
     ortho_bounds = ortho_iterator.ortho_bounds
     sidd_structure = create_sidd_structure(
         ortho_helper, ortho_bounds,
-        product_class='Detected Image', pixel_type='MONO{}I'.format(remap_function.bit_depth), version=version)
+        product_class='Detected Image', pixel_type='MONO{}I'.format(remap_function.bit_depth), version=version, remap_function=remap_function) 
     # set suggested name
     sidd_structure.NITF['SUGGESTED_NAME'] = ortho_helper.sicd.get_suggested_name(ortho_helper.index)+'_IMG'
 
@@ -188,7 +188,7 @@ def create_csi_sidd(
     Parameters
     ----------
     ortho_helper : OrthorectificationHelper
-        The orthorectification helper object.
+        The ortho-rectification helper object.
     output_directory : str
         The output directory for the given file.
     output_file : None|str
@@ -247,7 +247,7 @@ def create_csi_sidd(
     if remap_function.bit_depth != 8:
         raise ValueError('The CSI SIDD specifically requires an 8-bit remap function.')
 
-    # construct the orthorectification iterator
+    # construct the ortho-rectification iterator
     ortho_iterator = OrthorectificationIterator(
         ortho_helper, calculator=csi_calculator, bounds=bounds,
         remap_function=remap_function, recalc_remap_globals=False)
@@ -256,7 +256,7 @@ def create_csi_sidd(
     ortho_bounds = ortho_iterator.ortho_bounds
     sidd_structure = create_sidd_structure(
         ortho_helper, ortho_bounds,
-        product_class='Color Subaperture Image', pixel_type='RGB24I', version=version)
+        product_class='Color Subaperture Image', pixel_type='RGB24I', version=version, remap_function=remap_function)
     # set suggested name
     sidd_structure.NITF['SUGGESTED_NAME'] = csi_calculator.sicd.get_suggested_name(csi_calculator.index)+'_CSI'
 
@@ -278,7 +278,7 @@ def create_dynamic_image_sidd(
     Parameters
     ----------
     ortho_helper : OrthorectificationHelper
-        The orthorectification helper object.
+        The ortho-rectification helper object.
     output_directory : str
         The output directory for the given file.
     output_file : None|str
@@ -343,7 +343,7 @@ def create_dynamic_image_sidd(
         remap_function = DEFAULT_DI_REMAP(override_name='DI_DEFAULT')
     _validate_remap_function(remap_function)
 
-    # construct the orthorectification iterator
+    # construct the ortho-rectification iterator
     ortho_iterator = SubapertureOrthoIterator(
         ortho_helper, calculator=subap_calculator, bounds=bounds,
         remap_function=remap_function, recalc_remap_globals=False, depth_first=True)
@@ -352,7 +352,7 @@ def create_dynamic_image_sidd(
     ortho_bounds = ortho_iterator.ortho_bounds
     sidd_structure = create_sidd_structure(
         ortho_helper, ortho_bounds,
-        product_class='Dynamic Image', pixel_type='MONO{}I'.format(remap_function.bit_depth), version=version)
+        product_class='Dynamic Image', pixel_type='MONO{}I'.format(remap_function.bit_depth), version=version, remap_function=remap_function)
     # set suggested name
     sidd_structure.NITF['SUGGESTED_NAME'] = subap_calculator.sicd.get_suggested_name(subap_calculator.index)+'__DI'
     the_sidds = []

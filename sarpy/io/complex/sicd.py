@@ -358,10 +358,8 @@ class SICDReader(NITFReader, SICDTypeReader):
         if complex_order is not None and complex_order != 'IQ':
             if complex_order != 'MP' or raw_dtype.name != 'uint8' or band_dimension != 2:
                 raise ValueError('Got unsupported SICD band type definition')
-            if self.sicd_meta.ImageData.PixelType != 'AMP8I_PHS8I':
+            if self.sicd_meta.ImageData.PixelType != 'AMP8I_PHS8I' or self.sicd_meta.ImageData.AmpTable is None:
                 raise ValueError('Expected AMP8I_PHS8I')
-            if self.sicd_meta.ImageData.PixelType == 'AMP8I_PHS8I' and self.sicd_meta.ImageData.AmpTable is None:
-                return AmpLookupFunction(raw_dtype, numpy.arange(256, dtype=numpy.float32))
             return AmpLookupFunction(raw_dtype, self.sicd_meta.ImageData.AmpTable)
         return NITFReader.get_format_function(
             self, raw_dtype, complex_order, lut, band_dimension, image_segment_index, **kwargs)
@@ -867,7 +865,8 @@ class SICDWriter(NITFWriter):
             sicd_meta: Optional[SICDType] = None,
             sicd_writing_details: Optional[SICDWritingDetails] = None,
             check_older_version: bool = False,
-            check_existence: bool = True):
+            check_existence: bool = True,
+            in_memory: bool = None):
         """
 
         Parameters
@@ -880,6 +879,8 @@ class SICDWriter(NITFWriter):
             NGA applications like SOCET or RemoteView
         check_existence : bool
             Should we check if the given file already exists?
+        in_memory : bool
+            If True force in-memory writing, if False force file writing.
         """
 
         if sicd_meta is None and sicd_writing_details is None:
@@ -887,7 +888,7 @@ class SICDWriter(NITFWriter):
         if sicd_writing_details is None:
             sicd_writing_details = SICDWritingDetails(sicd_meta, check_older_version=check_older_version)
         NITFWriter.__init__(
-            self, file_object, sicd_writing_details, check_existence=check_existence)
+            self, file_object, sicd_writing_details, check_existence=check_existence, in_memory=in_memory)
 
     @property
     def nitf_writing_details(self) -> SICDWritingDetails:
@@ -921,10 +922,8 @@ class SICDWriter(NITFWriter):
         if complex_order is not None and complex_order != 'IQ':
             if complex_order != 'MP' or raw_dtype.name != 'uint8' or band_dimension != 2:
                 raise ValueError('Got unsupported SICD band type definition')
-            if self.sicd_meta.ImageData.PixelType != 'AMP8I_PHS8I':
+            if self.sicd_meta.ImageData.PixelType != 'AMP8I_PHS8I' or self.sicd_meta.ImageData.AmpTable is None:
                 raise ValueError('Expected AMP8I_PHS8I')
-            if self.sicd_meta.ImageData.PixelType == 'AMP8I_PHS8I' and self.sicd_meta.ImageData.AmpTable is None:
-                return AmpLookupFunction(raw_dtype, numpy.arange(256, dtype=numpy.float32))
             return AmpLookupFunction(raw_dtype, self.sicd_meta.ImageData.AmpTable)
         return NITFWriter.get_format_function(
             self, raw_dtype, complex_order, lut, band_dimension, image_segment_index, **kwargs)
