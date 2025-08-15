@@ -227,7 +227,7 @@ def create_sidd_structure_v3(ortho_helper, bounds, product_class, pixel_type,
     pixel_type : str
         Must be one of `MONO8I, MONO16I` or `RGB24I`.
     remap_function: RemapFunction
-        Must be an instantiation of the RemapFunction class  see sarpy/visualation/remapper
+        Must be an instantiation of the RemapFunction class see sarpy/visualation/remap
 
     Returns
     -------
@@ -349,7 +349,7 @@ def create_sidd_structure_v2(ortho_helper, bounds, product_class, pixel_type,
     pixel_type : str
         Must be one of `MONO8I, MONO16I` or `RGB24I`.
     remap_function: RemapFunction
-        Must be an instantiation of the RemapFunction class  see sarpy/visualation/remapper
+        Must be an instantiation of the RemapFunction class see sarpy/visualation/remap
 
     Returns
     -------
@@ -551,7 +551,7 @@ def create_sidd_structure(ortho_helper, bounds, product_class, pixel_type,
     version : int
         The SIDD version, must be either 1, 2, or 3.
     remap_function: RemapFunction
-        Must be an instantiation of the RemapFunction class  see sarpy/visualation/remapper
+        Must be an instantiation of the RemapFunction class see sarpy/visualation/remap
 
     Returns
     -------
