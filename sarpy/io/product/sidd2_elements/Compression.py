@@ -29,13 +29,13 @@ class J2KSubtype(Serializable):
     _numeric_format = {'LayerInfo': FLOAT_FORMAT}
     # Descriptor
     NumWaveletLevels = IntegerDescriptor(
-        'NumWaveletLevels', _required, strict=DEFAULT_STRICT,
+        'NumWaveletLevels', _required, strict=True,
         docstring='')  # type: int
     NumBands = IntegerDescriptor(
-        'NumBands', _required, strict=DEFAULT_STRICT,
+        'NumBands', _required, strict=True,
         docstring='')  # type: int
     LayerInfo = FloatArrayDescriptor(
-        'LayerInfo', _collections_tags, _required, strict=DEFAULT_STRICT,
+        'LayerInfo', _collections_tags, _required, strict=True,
         docstring='Original Layer Information. This is an array of bit rate target associated with each '
                   'layer. It may happen that the bit rate was not achieved due to data characteristics. '
                   '**Note -** for JPEG 2000 numerically loss-less quality, the bit rate for the final layer is '
@@ -82,10 +82,10 @@ class J2KType(Serializable):
     _required = ('Original', )
     # Descriptor
     Original = SerializableDescriptor(
-        'Original', J2KSubtype, _required, strict=DEFAULT_STRICT,
+        'Original', J2KSubtype, _required, strict=True,
         docstring='')  # type: J2KSubtype
     Parsed = SerializableDescriptor(
-        'Parsed', J2KSubtype, _required, strict=DEFAULT_STRICT,
+        'Parsed', J2KSubtype, _required, strict=True,
         docstring='Conditional fields that exist only for parsed images.')  # type: Union[None, J2KSubtype]
 
     def __init__(self, Original=None, Parsed=None, **kwargs):
@@ -107,7 +107,7 @@ class CompressionType(Serializable):
     _required = ('J2K', )
     # Descriptor
     J2K = SerializableDescriptor(
-        'J2K', J2KType, _required, strict=DEFAULT_STRICT,
+        'J2K', J2KType, _required, strict=True,
         docstring='Block describing details of JPEG 2000 compression.')  # type: J2KType
 
     def __init__(self, J2K=None, **kwargs):
