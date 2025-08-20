@@ -21,8 +21,21 @@ def test_j2ksubtype_init_no_parameters():
 
 def test_j2ksubtype_init_failure_num_wavelet_level():
     layer_info = [0.0, 1.0, 2.0]
-    j2k = J2KSubtype(NumWaveletLevels="abc", NumBands=5, LayerInfo=layer_info)
-    # we want some kind of error to be thrown her because NumWaveletLevels should not accept a string
+    with pytest.raises(TypeError, 
+                        match = re.escape("Failed converting value 'abc' of type <class 'str'> to `int`\n\tfor field NumWaveletLevels of class J2KSubtype with exception <class 'ValueError'>-invalid literal for int() with base 10: 'abc'.")):
+        J2KSubtype(NumWaveletLevels="abc", NumBands=5, LayerInfo=layer_info)
+    # we want some kind of error to be thrown here because NumWaveletLevels should not accept a string
+
+def test_j2ksubtype_init_failure_num_bands():
+    layer_info = [0.0, 1.0, 2.0]
+    with pytest.raises(TypeError, 
+                        match = re.escape("Failed converting value 'abc' of type <class 'str'> to `int`\n\tfor field NumBands of class J2KSubtype with exception <class 'ValueError'>-invalid literal for int() with base 10: 'abc'.")):
+        J2KSubtype(NumWaveletLevels=3, NumBands="abc", LayerInfo=layer_info)
+
+def test_j2ksubtype_init_failure_layer_info():
+    layer_info = "abc"
+    J2KSubtype(NumWaveletLevels=3, NumBands=7, LayerInfo=layer_info)
+    # we want some kind of error to be thrown here because we want layerinfo to be a float array
 
 def test_j2ksubtype_init_kwargs():
     layer_info = [0.0, 1.0, 2.0]
@@ -62,8 +75,12 @@ def setup_j2ksubtype():
 def test_j2ktype_init():
     layer_info = [0.0, 1.0, 2.0]
     original = J2KSubtype(NumWaveletLevels=3, NumBands=5, LayerInfo=layer_info)
+    J2KType(original)
 
-    j2ktype = J2KType(original)
+def test_j2ktype_init_no_parameters():
+    with pytest.raises(ValueError, 
+                        match = re.escape("Attribute Original of class J2KType cannot be assigned None.")):
+        J2KType()
 
 @pytest.fixture()
 def setup_j2ktype(setup_j2ksubtype):
@@ -73,7 +90,7 @@ def test_j2ktype_init_w_parsed(setup_j2ksubtype):
     layer_info = [0.0, 1.0, 2.0]
     original = setup_j2ksubtype
     parsed = J2KSubtype(NumWaveletLevels=2, NumBands=4, LayerInfo=layer_info)
-    j2ktype = J2KType(original, parsed)
+    J2KType(original, parsed)
 
 def test_j2ktype_init_kwargs(setup_j2ksubtype):
     layer_info = [0.0, 1.0, 2.0]
@@ -89,7 +106,12 @@ def test_j2ktype_init_kwargs(setup_j2ksubtype):
 
 def test_compressiontype_init(setup_j2ktype):
     j2ktype = setup_j2ktype
-    compressiontype = CompressionType(j2ktype)
+    CompressionType(j2ktype)
+
+def test_compressiontype_init_no_parameters():
+    with pytest.raises(ValueError, 
+                        match = re.escape("Attribute J2K of class CompressionType cannot be assigned None.")):
+        CompressionType()
 
 def test_compressiontype_init_kwargs(setup_j2ktype):
     j2ktype = setup_j2ktype
@@ -97,6 +119,7 @@ def test_compressiontype_init_kwargs(setup_j2ktype):
     ns_key = "test_namespace_key"
 
     compressiontype = CompressionType(j2ktype, _xml_ns=ns_value, _xml_ns_key=ns_key)
+    
     # checks if the xml ns value and keys are assigned correctly
     assert compressiontype._xml_ns == ns_value
     assert compressiontype._xml_ns_key == ns_key
