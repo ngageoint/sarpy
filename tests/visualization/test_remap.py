@@ -306,6 +306,14 @@ class TestRemap(unittest.TestCase):
         self.assertIn("linear", default_names)
         self.assertIn("log", default_names)
         self.assertIn("pedf", default_names)
+        self.assertIn("nrl_16", default_names)
+        self.assertIn("density_16", default_names)
+        self.assertIn("high_contrast_16", default_names)
+        self.assertIn("brighter_16", default_names)
+        self.assertIn("darker_16", default_names)
+        self.assertIn("linear_16", default_names)
+        self.assertIn("log_16", default_names)
+        self.assertIn("pedf_16", default_names)
 
         if MATPLOTLIB_AVAILABLE:
             self.assertIn("viridis", default_names)
