@@ -180,6 +180,7 @@ def test_dted_interpolator_get_elevation_hae_south_west():
     assert dem_interpolator.get_elevation_hae(ll[0], ll[1]) ==  pytest.approx( 159.98, abs=0.01 )
  
 @pytest.mark.skipif(not test_data["dted_with_null"], reason="DTED with null data does not exist")
+def test_dted_interpolator_get_elevation_hae_south_west():
     ll = [ -35.4237, 149.5331 ]  # Austrialia, south west of Sydney, this point is north east of the void used above in the reader test
     geoid = GeoidHeight(egm96_file)
     files = test_data["dted_with_null"][4]  #  '/sar/CuratedData_SomeDomestic/sarpy_test/dem/dted/s36_e149_3arc_v1.dt1'
