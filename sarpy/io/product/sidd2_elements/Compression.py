@@ -17,7 +17,7 @@ from sarpy.io.xml.descriptors import SerializableDescriptor, IntegerDescriptor, 
 from .base import DEFAULT_STRICT, FLOAT_FORMAT
 
 
-# default_strict is set to False so invalid types don't throw an error for NumWaveletLevels, NumBands, or LayerInfo
+# default_strict is set to False which is why invalid types don't throw an error for NumWaveletLevels, NumBands, or LayerInfo
 
 class J2KSubtype(Serializable):
     """
@@ -29,13 +29,13 @@ class J2KSubtype(Serializable):
     _numeric_format = {'LayerInfo': FLOAT_FORMAT}
     # Descriptor
     NumWaveletLevels = IntegerDescriptor(
-        'NumWaveletLevels', _required, strict=True,
+        'NumWaveletLevels', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: int
     NumBands = IntegerDescriptor(
-        'NumBands', _required, strict=True,
+        'NumBands', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: int
     LayerInfo = FloatArrayDescriptor(
-        'LayerInfo', _collections_tags, _required, strict=True,
+        'LayerInfo', _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Original Layer Information. This is an array of bit rate target associated with each '
                   'layer. It may happen that the bit rate was not achieved due to data characteristics. '
                   '**Note -** for JPEG 2000 numerically loss-less quality, the bit rate for the final layer is '
@@ -61,7 +61,7 @@ class J2KSubtype(Serializable):
         self.setLayerInfoType(LayerInfo)
         super(J2KSubtype, self).__init__(**kwargs)
 
-    def setLayerInfoType(self,obj):
+    def setLayerInfoType(self, obj):
         ET = xml.etree.ElementTree
         if isinstance( obj, ET.Element):
             numLayers = int(obj.attrib['numLayers'])
@@ -72,6 +72,17 @@ class J2KSubtype(Serializable):
             for i in range(numLayers):
                 bitrates[i] = float(obj[i][0].text)
             self.LayerInfo = bitrates
+        
+        # if setLayerInfoType is handed an array then also trigger the descriptor checks
+        elif isinstance(obj, (list, tuple, numpy.ndarray)):
+            self.LayerInfo = obj 
+
+        # none object handler since LayerInfo isn't a required field
+        elif obj is None:
+            self.LayerInfo = None
+
+        else:
+            raise TypeError(f'Invalid input type for LayerInfo: {type(obj)}. Must be Element, list, tuple, ndarray, or None.')
 
 class J2KType(Serializable):
     """
@@ -82,10 +93,10 @@ class J2KType(Serializable):
     _required = ('Original', )
     # Descriptor
     Original = SerializableDescriptor(
-        'Original', J2KSubtype, _required, strict=True,
+        'Original', J2KSubtype, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: J2KSubtype
     Parsed = SerializableDescriptor(
-        'Parsed', J2KSubtype, _required, strict=True,
+        'Parsed', J2KSubtype, _required, strict=DEFAULT_STRICT,
         docstring='Conditional fields that exist only for parsed images.')  # type: Union[None, J2KSubtype]
 
     def __init__(self, Original=None, Parsed=None, **kwargs):
@@ -107,7 +118,7 @@ class CompressionType(Serializable):
     _required = ('J2K', )
     # Descriptor
     J2K = SerializableDescriptor(
-        'J2K', J2KType, _required, strict=True,
+        'J2K', J2KType, _required, strict=DEFAULT_STRICT,
         docstring='Block describing details of JPEG 2000 compression.')  # type: J2KType
 
     def __init__(self, J2K=None, **kwargs):

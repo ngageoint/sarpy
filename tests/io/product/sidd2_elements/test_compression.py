@@ -18,6 +18,7 @@ def test_j2ksubtype_init_no_parameters():
 # DEFAULT_STRICT value being used in the J2KSubtype and Type class definitions was set to False, so errors don't get raised for incorrect typing
 # I replaced DEFAULT_STRICT with True in the class definitions because otherwise the test_j2ksubtype_init_no_parameters test would not throw any errors
 # despite not being passed any arguments
+# I also replaced DEFAULT_STRICT with True for references to fields that were indicated as "required" in the class definition to make sure that an error gets thrown
 
 def test_j2ksubtype_init_failure_num_wavelet_level():
     layer_info = [0.0, 1.0, 2.0]
@@ -34,8 +35,18 @@ def test_j2ksubtype_init_failure_num_bands():
 
 def test_j2ksubtype_init_failure_layer_info():
     layer_info = "abc"
-    J2KSubtype(NumWaveletLevels=3, NumBands=7, LayerInfo=layer_info)
+    with pytest.raises(TypeError,
+                       match=re.escape("Invalid input type for LayerInfo: <class 'str'>. Must be Element, list, tuple, ndarray, or None.")):
+        J2KSubtype(NumWaveletLevels=3, NumBands=7, LayerInfo=layer_info)
     # we want some kind of error to be thrown here because we want layerinfo to be a float array
+
+def test_j2ksubtype_init_failure_layer_info_max_size():
+    with pytest.raises(ValueError,
+                       match=re.escape("Attribute LayerInfo of class J2KSubtype is a double array of size 4294967297,\n\tand must have size no larger than 4294967296.")):
+            layer_info = numpy.zeros(2**32 + 1, dtype=numpy.float64)
+            J2KSubtype(NumWaveletLevels=3, NumBands=7, LayerInfo=layer_info)
+
+    # we want some kind of error to be thrown here because we want layerinfo to be smaller than 2**32
 
 def test_j2ksubtype_init_kwargs():
     layer_info = [0.0, 1.0, 2.0]
@@ -56,7 +67,7 @@ def create_layerinfo_xml_helper(num_layers, bitrates):
         value_element.text = str(rate)
     return root
 
-def test_j2ksubtype_set_layer_info_type():
+def test_j2ksubtype_set_layer_info_type_element():
     bitrates = [1.0, 2.0, 3.0]
     xml_element = create_layerinfo_xml_helper(3, bitrates)
 
@@ -66,7 +77,15 @@ def test_j2ksubtype_set_layer_info_type():
     j2ksubtype.setLayerInfoType(xml_element)
 
     assert numpy.array_equal(j2ksubtype.LayerInfo, bitrates)
+    
+def test_j2ksubtype_set_layer_info_type_array():
+    layer_info = [0.0, 1.0, 2.0]
+    j2ksubtype = J2KSubtype(NumWaveletLevels=3, NumBands=5, LayerInfo=layer_info)
 
+    j2ksubtype.setLayerInfoType([1,0, 2,0, 3,0])
+
+    assert numpy.array_equal(j2ksubtype.LayerInfo, [1,0, 2,0, 3,0])
+    
 @pytest.fixture()
 def setup_j2ksubtype():
     layer_info = [0.0, 1.0, 2.0]
@@ -91,6 +110,14 @@ def test_j2ktype_init_w_parsed(setup_j2ksubtype):
     original = setup_j2ksubtype
     parsed = J2KSubtype(NumWaveletLevels=2, NumBands=4, LayerInfo=layer_info)
     J2KType(original, parsed)
+
+def test_j2ktype_init_w_parsed_improper_format(setup_j2ksubtype):
+    layer_info =  "abc"
+    with pytest.raises(TypeError,
+                       match=re.escape("Invalid input type for LayerInfo: <class 'str'>. Must be Element, list, tuple, ndarray, or None.")):
+        original = setup_j2ksubtype
+        parsed = J2KSubtype(NumWaveletLevels=2, NumBands=4, LayerInfo=layer_info)
+        J2KType(original, parsed)
 
 def test_j2ktype_init_kwargs(setup_j2ksubtype):
     layer_info = [0.0, 1.0, 2.0]
