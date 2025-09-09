@@ -82,6 +82,16 @@ def test_j2ksubtype_set_layer_info_type_element():
 
     assert numpy.array_equal(j2ksubtype.LayerInfo, bitrates)
 
+def test_j2ksubtype_set_layer_info_no_layer_info_passed():
+    bitrates = [1.0, 2.0, 3.0]
+    xml_element = create_layerinfo_xml_helper(3, bitrates)
+
+    j2ksubtype = J2KSubtype(NumWaveletLevels=3, NumBands=5)
+
+    j2ksubtype.setLayerInfoType(xml_element)
+
+    assert numpy.array_equal(j2ksubtype.LayerInfo, bitrates)
+
 # only need this test if the array block is added to set_layer_info_type 
 '''
 def test_j2ksubtype_set_layer_info_type_array():
