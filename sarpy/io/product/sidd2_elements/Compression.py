@@ -73,6 +73,9 @@ class J2KSubtype(Serializable):
                 bitrates[i] = float(obj[i][0].text)
             self.LayerInfo = bitrates
         
+        
+        # we only need this part if strict=True and we implement the changes to descriptors.py
+        '''
         # if setLayerInfoType is handed an array then also trigger the descriptor checks
         elif isinstance(obj, (list, tuple, numpy.ndarray)):
             self.LayerInfo = obj 
@@ -83,7 +86,7 @@ class J2KSubtype(Serializable):
 
         else:
             raise TypeError(f'Invalid input type for LayerInfo: {type(obj)}. Must be Element, list, tuple, ndarray, or None.')
-
+        '''
 class J2KType(Serializable):
     """
     Jpeg 2000 parameters.
