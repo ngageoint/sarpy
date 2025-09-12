@@ -150,7 +150,11 @@ def find_first_child(
         return node.find('{}:{}'.format(ns_key, tag), xml_ns)
 
 
-def find_children(node, tag, xml_ns, ns_key):
+def find_children(
+        node  : ElementTree.Element,
+        tag   : str,
+        xml_ns: Optional[Dict[str, str]] = None,
+        ns_key: Optional[str]            = None):
     """
     Finds the collection of children nodes
 
@@ -290,6 +294,39 @@ def validate_xml_from_file(xml_path, xsd_path, output_logger=None):
 
 
 def parse_str(value, name, instance):
+    """
+    The parse_str function is not a generic string parser. It is a helper 
+    function specifically for parsing values within XML elements in 
+    sarpy.io.xml.base. It's used internally by the library to extract text 
+    values from XML ElementTree objects. 
+    The function is not intended for public use for general string parsing, and 
+    attempting to use it on a simple text string will just return the initial 
+    string as parse_str expects an XML element as its input. 
+
+    Parameters
+    ----------
+    value : ElementTree.Element|None|str
+        The ElementTree.Element entity that you want to get the value from.
+        None returns None.
+        A string value will return the given string unchanged.
+    name : str 
+        Name of the field to return the value of. This is only used in the 
+        raised error message
+    instance :
+        The class of the variable. This is only used in the raised error message.
+
+    Returns
+    -------
+    None | str
+        Returns None if value passed is None. Returns the string passed if value
+        is a string. Returns the string value of a node when passed an 
+        ElementTree.Element
+
+    Raises
+    -------
+    TypeError
+        When passed a value with a type other than the expected input types.
+    """
     if value is None:
         return None
     if isinstance(value, str):
