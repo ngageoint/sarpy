@@ -19,6 +19,15 @@
       <xs:element name="gdppc" type="xs:integer"/>
       <!-- This element is optional and can be empty -->
       <xs:element name="empty" type="xs:string" minOccurs="0"/>
+      <!-- This element is optional and can be empty -->
+      <xs:element minOccurs="0" name="imaginary">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element maxOccurs="unbounded" name="Real" type="xs:unsignedByte" />
+            <xs:element maxOccurs="unbounded" name="Imag" type="xs:unsignedByte" />
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
       <!-- A country can have zero or more neighbor elements -->
       <xs:element name="neighbor" type="NeighborType" minOccurs="0" maxOccurs="unbounded"/>
     </xs:sequence>

@@ -407,8 +407,9 @@ def parse_int(value, name, instance):
     value : ElementTree.Element|None|int|str
         The ElementTree.Element entity that you want to get the value from.
         None returns None.
-        A string value will return the boolean value for the string if it can be 
-        converted to a boolean.
+        int returns the integer.
+        A string value will return the integer value for the string if it can be 
+        converted to an integer.
     name : str 
         Name of the field to return the value of. This is only used in the 
         raised error message
@@ -453,6 +454,36 @@ def parse_int(value, name, instance):
 
 # noinspection PyUnusedLocal
 def parse_float(value, name, instance):
+    """
+    The parse_float function is a helper function specifically for parsing float
+    values within XML elements in sarpy.io.xml.base. 
+    The function is not intended for public use. This function is recursive.
+    
+    Parameters
+    ----------
+    value : ElementTree.Element|None|float|str
+        The ElementTree.Element entity that you want to get the value from.
+        None returns None.
+        Float returns a float.
+        A string value will return the float value for the string if it can be 
+        converted to a float.
+    name : str 
+        Name of the field to return the value of. This is only used in the 
+        raised error message
+    instance :
+        The class of the variable. This is only used in the raised error message.
+
+    Returns
+    -------
+    None | bool
+        Returns None if value passed is None. Returns the float value
+        of a node when passed an ElementTree.Element
+
+    Raises
+    -------
+    TypeError
+        When passed a value with a type other than the expected input types.
+    """
     if value is None:
         return None
     if isinstance(value, float):
@@ -466,6 +497,37 @@ def parse_float(value, name, instance):
 
 
 def parse_complex(value, name, instance):
+    """
+    The parse_complex function is a helper function specifically for parsing 
+    complex number (numbers with both a real and an imaginary component) values 
+    within XML elements in sarpy.io.xml.base. 
+    The function is not intended for public use. This function is recursive.
+    
+    Parameters
+    ----------
+    value : ElementTree.Element|None|complex|dict
+        The ElementTree.Element entity that you want to get the value from.
+        None returns None.
+        Float returns a float.
+        A string value will return the float value for the string if it can be 
+        converted to a float.
+    name : str 
+        Name of the field to return the value of. This is only used in the 
+        raised error message
+    instance :
+        The class of the variable. This is only used in the raised error message.
+
+    Returns
+    -------
+    None | bool
+        Returns None if value passed is None. Returns the float value
+        of a node when passed an ElementTree.Element
+
+    Raises
+    -------
+    TypeError
+        When passed a value with a type other than the expected input types.
+    """
     if value is None:
         return None
     if isinstance(value, complex):
