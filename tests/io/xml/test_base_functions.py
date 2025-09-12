@@ -120,5 +120,31 @@ class Test_base_functions(unittest.TestCase):
         assert(base.validate_xml_from_file(xml_path, xsd_path, base.logger))
         
     def test_parse_str_no_params_fail(self):
-        base.parse_str()
+        with self.assertRaisesRegex(TypeError, r"parse_str\(\) missing 3 required positional arguments: 'value', 'name', and 'instance'$"):
+            base.parse_str()
         
+    def test_parse_str_value_param_only_fail(self):
+        with self.assertRaisesRegex(TypeError, r"parse_str\(\) missing 2 required positional arguments: 'name' and 'instance'$"):
+            base.parse_str("Test")
+
+    def test_parse_str_missing_instance_param_fail(self):
+        with self.assertRaisesRegex(TypeError, r"parse_str\(\) missing 1 required positional argument: 'instance'$"):
+            base.parse_str("Test", "Bob")
+
+    def test_parse_str_value_param_is_string_success(self):
+        assert(base.parse_str("Test", "Bob", "base") == "Test")
+
+    def test_parse_str_value_param_is_None_success(self):
+        assert(base.parse_str(None, "Bob", "base") == None)
+
+    def test_parse_str_value_param_is_xml_with_value_success(self):
+        assert(base.parse_str(self.root[0][2], "text", "base") == 
+               self.root[0][2].text)
+        
+    def test_parse_str_value_param_is_xml_empty_value_success(self):
+        assert(base.parse_str(self.root[0], "text", "base") == 
+               self.root[0].text.strip())
+        
+    def test_parse_str_bad_value_param_fail(self):
+        with self.assertRaisesRegex(TypeError, r"field Bob of class str requires a string value."):
+            base.parse_str(1, "Bob", "base")

@@ -327,6 +327,7 @@ def parse_str(value, name, instance):
     TypeError
         When passed a value with a type other than the expected input types.
     """
+    
     if value is None:
         return None
     if isinstance(value, str):
