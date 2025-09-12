@@ -1,8 +1,9 @@
 __classification__ = "UNCLASSIFIED"
 __author__ = "Tex Peterson"
 
-import xml.etree.ElementTree as ET
+import numpy as np
 import unittest
+import xml.etree.ElementTree as ET
 
 import sarpy.io.xml.base as base
 
@@ -148,3 +149,79 @@ class Test_base_functions(unittest.TestCase):
     def test_parse_str_bad_value_param_fail(self):
         with self.assertRaisesRegex(TypeError, r"field Bob of class str requires a string value."):
             base.parse_str(1, "Bob", "base")
+
+    def test_parse_bool_no_params_fail(self):
+        with self.assertRaisesRegex(TypeError, r"parse_bool\(\) missing 3 required positional arguments: 'value', 'name', and 'instance'$"):
+            base.parse_bool()
+        
+    def test_parse_bool_value_param_only_fail(self):
+        with self.assertRaisesRegex(TypeError, r"parse_bool\(\) missing 2 required positional arguments: 'name' and 'instance'$"):
+            base.parse_bool("Test")
+
+    def test_parse_bool_missing_instance_param_fail(self):
+        with self.assertRaisesRegex(TypeError, r"parse_bool\(\) missing 1 required positional argument: 'instance'$"):
+            base.parse_bool("Test", "Bob")
+
+    def test_parse_bool_value_param_is_None_success(self):
+        assert(base.parse_bool(None, "Bob", "base") == None)
+
+    def test_parse_bool_value_param_is_bool_success(self):
+        assert(base.parse_bool(True, "Bob", "base") == True)
+
+    def test_parse_bool_value_param_is_int_success(self):
+        assert(base.parse_bool(1, "Bob", "base") == True)
+
+    def test_parse_bool_value_param_is_np_bool_success(self):
+        arr_bool = np.array([True, False, True, False], dtype=bool)
+        assert(base.parse_bool(arr_bool[0], "Bob", "base") == True)
+        
+    def test_parse_bool_value_param_is_xml_success(self):
+        assert(base.parse_bool(self.root[0][0], "Bob", "base") == True)
+
+    def test_parse_bool_value_param_is_string_true_success(self):
+        assert(base.parse_bool('trUe', "Bob", "base") == True)
+
+    def test_parse_bool_value_param_is_string_1_success(self):
+        assert(base.parse_bool('1', "Bob", "base") == True)
+
+    def test_parse_bool_value_param_is_string_false_success(self):
+        assert(base.parse_bool('FALSE', "Bob", "base") == False)
+
+    def test_parse_bool_value_param_is_string_0_success(self):
+        assert(base.parse_bool('0', "Bob", "base") == False)
+
+    def test_parse_bool_value_param_is_float_fail(self):
+        with self.assertRaisesRegex(ValueError, r"Boolean field Bob of class str cannot assign from type <class 'float'>."):
+            assert(base.parse_bool(3.5, "Bob", "base") == False)
+
+    def test_parse_int_no_params_fail(self):
+        with self.assertRaisesRegex(TypeError, r"parse_int\(\) missing 3 required positional arguments: 'value', 'name', and 'instance'$"):
+            base.parse_int()
+        
+    def test_parse_int_value_param_only_fail(self):
+        with self.assertRaisesRegex(TypeError, r"parse_int\(\) missing 2 required positional arguments: 'name' and 'instance'$"):
+            base.parse_int("Test")
+
+    def test_parse_int_missing_instance_param_fail(self):
+        with self.assertRaisesRegex(TypeError, r"parse_int\(\) missing 1 required positional argument: 'instance'$"):
+            base.parse_int("Test", "Bob")
+
+    def test_parse_int_value_param_is_None_success(self):
+        assert(base.parse_int(None, "Bob", "base") == None)
+
+    def test_parse_int_value_param_is_int_success(self):
+        assert(base.parse_int(1, "Bob", "base") == 1)
+
+    def test_parse_int_value_param_is_xml_success(self):
+        assert(base.parse_int(self.root[0][0], "Bob", "base") == 1)
+
+    def test_parse_int_value_param_is_string_1_success(self):
+        assert(base.parse_int('1', "Bob", "base") == 1)
+
+    def test_parse_int_value_param_is_string_non_int_success(self):
+        with self.assertRaisesRegex(ValueError, r"invalid literal for int\(\) with base 10: 'Bob'"):
+            assert(base.parse_int('Bob', "Bob", "base") == 1)
+
+    def test_parse_int_value_param_is_string_non_int_success(self):
+        with self.assertRaisesRegex(TypeError, r"int\(\) argument must be a string, a bytes-like object or a real number, not 'list'"):
+            assert(base.parse_int([3.5], "Bob", "base") == 1)

@@ -327,7 +327,7 @@ def parse_str(value, name, instance):
     TypeError
         When passed a value with a type other than the expected input types.
     """
-    
+
     if value is None:
         return None
     if isinstance(value, str):
@@ -341,6 +341,35 @@ def parse_str(value, name, instance):
 
 
 def parse_bool(value, name, instance):
+    """
+    The parse_bool function is a helper function specifically for parsing boolean
+    values within XML elements in sarpy.io.xml.base. 
+    The function is not intended for public use.
+    
+    Parameters
+    ----------
+    value : ElementTree.Element|None|str[0, 1, true, false]
+        The ElementTree.Element entity that you want to get the value from.
+        None returns None.
+        A string value will return the boolean value for the string if it can be 
+        converted to a boolean.
+    name : str 
+        Name of the field to return the value of. This is only used in the 
+        raised error message
+    instance :
+        The class of the variable. This is only used in the raised error message.
+
+    Returns
+    -------
+    None | bool
+        Returns None if value passed is None. Returns the boolean value
+        of a node when passed an ElementTree.Element
+
+    Raises
+    -------
+    ValueError
+        When passed a value with a type other than the expected input types.
+    """
     def parse_string(val):
         if val.lower() in ['0', 'false']:
             return False
@@ -368,6 +397,35 @@ def parse_bool(value, name, instance):
 
 
 def parse_int(value, name, instance):
+    """
+    The parse_int function is a helper function specifically for parsing integer
+    values within XML elements in sarpy.io.xml.base. 
+    The function is not intended for public use. This function is recursive.
+    
+    Parameters
+    ----------
+    value : ElementTree.Element|None|int|str
+        The ElementTree.Element entity that you want to get the value from.
+        None returns None.
+        A string value will return the boolean value for the string if it can be 
+        converted to a boolean.
+    name : str 
+        Name of the field to return the value of. This is only used in the 
+        raised error message
+    instance :
+        The class of the variable. This is only used in the raised error message.
+
+    Returns
+    -------
+    None | bool
+        Returns None if value passed is None. Returns the boolean value
+        of a node when passed an ElementTree.Element
+
+    Raises
+    -------
+    TypeError
+        When passed a value with a type other than the expected input types.
+    """
     if value is None:
         return None
     if isinstance(value, int):
