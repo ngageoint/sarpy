@@ -350,6 +350,16 @@ class Test_base_functions(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, r"Cannot convert dict {'not': 3, 'valid': 2} to a complex number for field Bob of class str."):
             assert(base.parse_complex({"not":3, "valid":2}, "Bob", "base") == test_complex)
 
+    def test_parse_complex_value_param_is_complex_dict_5_fail(self):
+        test_complex = 3 + 2j
+        with self.assertRaisesRegex(ValueError, r"Cannot convert dict {'real': None, 'imag': 2} to a complex number for field Bob of class str."):
+            assert(base.parse_complex({"real":None, "imag":2}, "Bob", "base") == test_complex)
+
+    def test_parse_complex_value_param_is_complex_dict_6_fail(self):
+        test_complex = 3 + 2j
+        with self.assertRaisesRegex(ValueError, r"Cannot convert dict {'real': 4, 'imag': None} to a complex number for field Bob of class str."):
+            assert(base.parse_complex({"real":4, "imag":None}, "Bob", "base") == test_complex)
+
     def test_parse_complex_value_param_is_string_non_int_success(self):
         with self.assertRaisesRegex(ValueError, r"complex\(\) arg is a malformed string"):
             assert(base.parse_complex('Bob', "Bob", "base") == 1)
