@@ -353,14 +353,6 @@ class IntegerDescriptor(BasicDescriptor):
         if super(IntegerDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
             return
 
-        # if self.strict:
-        #     if not isinstance(value, int):
-        #         try: 
-        #             value = int(value)
-        #         except (ValueError, TypeError) as e:
-        #             message = (f'Failed converting value {value!r} of type {type(value)} to `int`\n\t' 
-        #                     f'for field {self.name} of class {instance.__class__.__name__} with exception {type(e)}-{e}.')
-        #             raise TypeError(message) from e
         try:
             iv = parse_int(value, self.name, instance)
         except Exception as e:
@@ -620,15 +612,6 @@ class FloatArrayDescriptor(BasicDescriptor):
         super(FloatArrayDescriptor, self).__init__(name, required, strict=strict, docstring=docstring)
 
     def __set__(self, instance, value):
-        # if self.strict:
-        #     if not isinstance(value, numpy.ndarray):
-        #         try:
-        #             value = numpy.array(value, dtype=numpy.float64)
-        #         except (ValueError, TypeError) as e:
-        #             message = (f'Failed converting value {value!r} of type {type(value)} to a float array\n\t' 
-        #                     f'for field {self.name} of class {instance.__class__.__name__} with exception {type(e)}-{e}.')
-        #             raise TypeError(message) from e
-
         def set_value(new_val):
             if len(new_val) < self.minimum_length:
                 msg = 'Attribute {} of class {} is a double array of size {},\n\t' \
