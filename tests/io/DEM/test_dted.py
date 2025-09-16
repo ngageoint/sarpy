@@ -7,7 +7,8 @@ from sarpy.io.DEM.geoid import GeoidHeight
 
 import tests
 # Note
-# export SARPY_TEST_PATH='/sar/CuratedData_SomeDomestic/sarpy_test/'
+# set this for your storage of dted and egm files
+# export SARPY_TEST_PATH=<your dem stuff path>
 
 test_data = tests.find_test_data_files(pathlib.Path(__file__).parent / "geoid.json")
 egm96_file = test_data["geoid_files"][0] if test_data["geoid_files"] else None
@@ -40,7 +41,6 @@ def test_dted_reader():
 @pytest.mark.skipif(not test_data["dted_with_null"], reason="DTED with null data does not exist")
 def test_dted_reader_south_west():
     dted_reader = sarpy_dted.DTEDReader(test_data["dted_with_null"][0]) # belive wants the s file
-    print( "Testing Reader test using: {}".format( test_data["dted_with_null"][0] ))
  
     # From entity ID: SRTM3S04W061V1, date updated: 2013-04-17T12:16:47-05
     # Acquired from https://earthexplorer.usgs.gov/ on 2024-08-21
@@ -60,7 +60,6 @@ def test_dted_reader_south_west():
 @pytest.mark.skipif(not test_data["dted_with_null"], reason="DTED with null data does not exist")
 def test_dted_reader_north_west():
     dted_reader = sarpy_dted.DTEDReader(test_data["dted_with_null"][1]) # belive wants the northern  file
-    print( "Testing Reader test using: {}".format( test_data["dted_with_null"][1] ))
  
     # From entity ID: SRTM3N33W119V1, date updated: 2013-04-17T12:16:47-05
     # Acquired from https://earthexplorer.usgs.gov/ on 2024-08-21
@@ -80,7 +79,6 @@ def test_dted_reader_north_west():
 @pytest.mark.skipif(not test_data["dted_with_null"], reason="DTED with null data does not exist")
 def test_dted_reader_north_east():
     dted_reader = sarpy_dted.DTEDReader(test_data["dted_with_null"][3]) # belive wants the northern  file in Nepal
-    print( "Testing Reader test using: {}".format( test_data["dted_with_null"][3] ))
  
     # From entity ID: SRTM3N27E084V1, date updated: 2005-02-01 00:00:00-06
     # Acquired from https://earthexplorer.usgs.gov/ on 2024-08-21
@@ -99,7 +97,6 @@ def test_dted_reader_north_east():
 @pytest.mark.skipif(not test_data["dted_with_null"], reason="DTED with null data does not exist")
 def test_dted_reader_south_east():
     dted_reader = sarpy_dted.DTEDReader(test_data["dted_with_null"][4]) # belive wants the Austrial
-    print( "Testing Reader test using: {}".format( test_data["dted_with_null"][4] ))
  
     # From entity ID:  SRTM3S36E149V1, date updated: 2005-02-01 00:00:00-06  Austrialia south west of Sydney
     # Acquired from https://earthexplorer.usgs.gov/ on 2025-08-28
@@ -129,7 +126,6 @@ def test_dted_reader_get_elevation_northern_box():
  
     lats = [ 33.3748,    33.405 ]
     lons = [ -118.4187, -118.4027 ]
-    print( "Northern Reader box lat: {} long:{} Reader.get_elevation ARRAY()  {}".format( lats, lons , dted_reader.get_elevation( lats, lons )))
     assert dted_reader.get_elevation( lats, lons ) ==  pytest.approx( [ 588.2368, 468.36  ] , abs=0.01 )
  
  
@@ -137,36 +133,31 @@ def test_dted_reader_get_elevation_northern_box():
 def test_dted_reader_get_elevation_southern_pt ():
     dted_reader = sarpy_dted.DTEDReader(test_data["dted_with_null"][2]) # second souther file
     llbx = [ -1.0, -70.0 ] # lat long,
-    print( "dted reader southern 1 pt  lat: {} long:{} Reader.get_elevation()  {}".format( llbx[ 0], llbx[ 1 ] , dted_reader.get_elevation( llbx[ 0], llbx[ 1 ])))
     assert dted_reader.get_elevation( llbx[ 0], llbx[ 1 ]) ==  pytest.approx( 145.0, abs=0.01 )
  
- 
- 
+  
 @pytest.mark.skipif(not test_data["dted_with_null"], reason="DTED with null data does not exist")
 def test_dted_reader_get_elevation_southern_box ():
     dted_reader = sarpy_dted.DTEDReader(test_data["dted_with_null"][2]) # second southern file
  
     lats = [ -0.92, -0.90 ]
     lons = [ -69.9, -69.8 ]
-    print( "dted reader sourther array get_elevation box lat: {} long:{} Reader.get_elevation()  {}".format( lats, lons , dted_reader.get_elevation( lats, lons )))
     assert dted_reader.get_elevation( lats, lons ) ==  pytest.approx( [ 81.0, 111.0  ] , abs=0.1 )
  
 @pytest.mark.skipif(not test_data["dted_with_null"], reason="DTED with null data does not exist")
 def test_dted_interpolator_get_elevation_hae_north_west():
     ll = [ 33.3748, -118.4187 ]  # catinlia island off California coast
     geoid = GeoidHeight(egm96_file)
-    files = test_data["dted_with_null"][1]  #  '/sar/CuratedData_SomeDomestic/sarpy_test/dem/dted/n33_w119_3arc_v1.dt1
+    files = test_data["dted_with_null"][1]  #  dem/dted/n33_w119_3arc_v1.dt1
     dem_interpolator = sarpy_dted.DTEDInterpolator(files=files, geoid_file=geoid, lat_lon_box=ll)
-    print("dted interpolator northen test  ll: {}  elevation HAE : {}".format( ll,  dem_interpolator.get_elevation_hae(ll[0], ll[1])))
     assert dem_interpolator.get_elevation_hae(ll[0], ll[1]) == pytest.approx( 551.87, abs=0.01 )
  
 @pytest.mark.skipif(not test_data["dted_with_null"], reason="DTED with null data does not exist")
 def test_dted_interpolator_get_elevation_hae_north_east():
     ll = [ 27.57071, 84.77881 ] # Nepal  Near void used above
     geoid = GeoidHeight(egm96_file)
-    files = test_data["dted_with_null"][3]  #  '/sar/CuratedData_SomeDomestic/sarpy_test/dem/dted/n27_e084_3arc_v1.dt1`
+    files = test_data["dted_with_null"][3]  #  dem/dted/n27_e084_3arc_v1.dt1`
     dem_interpolator = sarpy_dted.DTEDInterpolator(files=files, geoid_file=geoid, lat_lon_box=ll)
-    print("dted interpolator north east Nepal test  ll: {}  elevation HAE : {}".format( ll,  dem_interpolator.get_elevation_hae(ll[0], ll[1])))
     assert dem_interpolator.get_elevation_hae(ll[0], ll[1]) == pytest.approx( 954.70, abs=0.01 )
 
  
@@ -174,16 +165,23 @@ def test_dted_interpolator_get_elevation_hae_north_east():
 def test_dted_interpolator_get_elevation_hae_south_west():
     ll = [-1, -70]  # to get this point on -1,-70 tile with a tighter tolerance  From kjurka  Apr 29, 2025 github issue #587
     geoid = GeoidHeight(egm96_file)
-    files = test_data["dted_with_null"][2]  #  '/sar/CuratedData_SomeDomestic/sarpy_test/dem/dted/s01_w070_3arc_v1.dt1'
+    files = test_data["dted_with_null"][2]  #  dem/dted/s01_w070_3arc_v1.dt1'
     dem_interpolator = sarpy_dted.DTEDInterpolator(files=files, geoid_file=geoid, lat_lon_box=ll)
-    print("dted interpolator southern test from issue  code  ll: {}  elevation HAE : {}".format( ll,  dem_interpolator.get_elevation_hae(ll[0], ll[1])))
     assert dem_interpolator.get_elevation_hae(ll[0], ll[1]) ==  pytest.approx( 159.98, abs=0.01 )
  
 @pytest.mark.skipif(not test_data["dted_with_null"], reason="DTED with null data does not exist")
 def test_dted_interpolator_get_elevation_hae_south_west():
     ll = [ -35.4237, 149.5331 ]  # Austrialia, south west of Sydney, this point is north east of the void used above in the reader test
     geoid = GeoidHeight(egm96_file)
-    files = test_data["dted_with_null"][4]  #  '/sar/CuratedData_SomeDomestic/sarpy_test/dem/dted/s36_e149_3arc_v1.dt1'
+    files = test_data["dted_with_null"][4]  #  dem/dted/s36_e149_3arc_v1.dt1'
     dem_interpolator = sarpy_dted.DTEDInterpolator(files=files, geoid_file=geoid, lat_lon_box=ll)
-    print("dted interpolator Contsturcot southern test from issue  code  ll: {}  elevation HAE : {}".format( ll,  dem_interpolator.get_elevation_hae(ll[0], ll[1])))
     assert dem_interpolator.get_elevation_hae(ll[0], ll[1]) ==  pytest.approx( 1283.93, abs=0.01 )
+
+
+@pytest.mark.skipif(not test_data["dted_with_null"], reason="DTED with null data does not exist")
+def test_dted_interpolator_get_elevation_hae_south_east_cross_equator():
+    ll = [ -0.01, -70.0 ] # lat long,
+    geoid = GeoidHeight(egm96_file)
+    files = test_data["dted_with_null"][2] 
+    dem_interpolator = sarpy_dted.DTEDInterpolator.from_reference_point( ll, files, geoid_file=geoid, pad_value=1.0 )
+    assert dem_interpolator.get_elevation_hae(ll[0], ll[1]) ==  pytest.approx( 13.53, abs=0.01 )
