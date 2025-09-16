@@ -13,6 +13,7 @@ class Test_base_functions(unittest.TestCase):
         self.actor_tree = ET.parse('tests/io/xml/actor_test_data.xml')
         # self.root, self.country_ns_dict = base.parse_xml_from_file('tests/io/xml/country_data.xml') #self.tree.getroot()
         self.root = self.tree.getroot()
+        # For xml ns is an abbreviation for name space
         self.actor_root, self.actor_ns_dict = base.parse_xml_from_file('tests/io/xml/actor_test_data.xml') # self.actor_tree.getroot()
 
     # ********************
