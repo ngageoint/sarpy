@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <!-- Definition for the root element 'countries' -->
+  <xs:element name="countries">
+    <xs:complexType>
+      <xs:sequence>
+        <!-- The 'countries' element contains one or more 'country' elements -->
+        <xs:element name="country" type="CountryType" maxOccurs="unbounded"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- Definition for the 'country' complex type -->
+  <xs:complexType name="CountryType">
+    <xs:sequence>
+      <xs:element name="rank" type="xs:integer"/>
+      <xs:element name="year" type="xs:integer"/>
+      <xs:element name="gdppc" type="xs:integer"/>
+      <!-- This element is optional and can be empty -->
+      <xs:element name="empty" type="xs:string" minOccurs="0"/>
+      <!-- This element is optional and can be empty -->
+      <xs:element minOccurs="0" name="imaginary">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element maxOccurs="unbounded" name="Real" type="xs:unsignedByte" />
+            <xs:element maxOccurs="unbounded" name="Imag" type="xs:unsignedByte" />
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+      <!-- A country can have zero or more neighbor elements -->
+      <xs:element name="neighbor" type="NeighborType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <!-- The 'country' element has a mandatory 'name' attribute -->
+    <xs:attribute name="name" type="xs:string" use="required"/>
+  </xs:complexType>
+
+  <!-- Definition for the 'neighbor' complex type -->
+  <xs:complexType name="NeighborType">
+    <!-- A neighbor has a mandatory 'name' and 'direction' attribute -->
+    <xs:attribute name="name" type="xs:string" use="required"/>
+    <xs:attribute name="direction" type="xs:string" use="required"/>
+  </xs:complexType>
+
+</xs:schema>

@@ -147,10 +147,12 @@ def verify_subscript(
                 subscript = subscript[:ellipsis_location]
             elif ellipsis_location == 0:
                 init_pad = ndim - len(subscript) + 1
-                subscript = tuple([None, ]*init_pad) + subscript[1:]
+                subscript = tuple([None, ]*init_pad) + tuple(subscript[1:])
             else:  # ellipsis in the middle
                 middle_pad = ndim - len(subscript) + 1
-                subscript = subscript[:ellipsis_location] + tuple([None, ]*middle_pad) + subscript[ellipsis_location+1:]
+                subscript = tuple(subscript[:ellipsis_location]) + \
+                    tuple([None, ]*middle_pad) + \
+                        tuple(subscript[ellipsis_location+1:])
 
         if len(subscript) > ndim:
             raise ValueError('More subscript entries ({}) than shape dimensions ({}).'.format(len(subscript), ndim))

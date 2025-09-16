@@ -5,17 +5,16 @@ This module contains the base objects for use in base xml/serializable functiona
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
-import logging
-from xml.etree import ElementTree
-import json
-from datetime import date, datetime
-from collections import OrderedDict
 import copy
-import re
-from io import StringIO
-from typing import Dict, Optional
-
+import json
+import logging
 import numpy
+import re
+from collections import OrderedDict
+from datetime    import date, datetime
+from io          import StringIO
+from typing      import Dict, Optional
+from xml.etree   import ElementTree
 
 from sarpy.compliance import bytes_to_string
 
@@ -37,7 +36,8 @@ DEFAULT_STRICT = False
 
 def get_node_value(nod: ElementTree.Element) -> Optional[str]:
     """
-    XML parsing helper for extracting text value from an ElementTree Element. No error checking performed.
+    XML parsing helper for extracting text value from an ElementTree Element. 
+    No error checking performed.
 
     Parameters
     ----------
@@ -123,10 +123,10 @@ def create_text_node(
 
 
 def find_first_child(
-        node: ElementTree.Element,
-        tag: str,
-        xml_ns: Optional[Dict[str, str]],
-        ns_key: Optional[str]) -> ElementTree.Element:
+        node  : ElementTree.Element,
+        tag   : str,
+        xml_ns: Optional[Dict[str, str]] = None,
+        ns_key: Optional[str]            = None) -> ElementTree.Element:
     """
     Finds the first child node
 
@@ -134,8 +134,8 @@ def find_first_child(
     ----------
     node : ElementTree.Element
     tag : str
-    xml_ns : None|dict
-    ns_key : None|str
+    xml_ns : None|dict XML namespace of the node in question
+    ns_key : None|str  Namespace key to use to preface the tag
 
     Returns
     -------
@@ -150,7 +150,11 @@ def find_first_child(
         return node.find('{}:{}'.format(ns_key, tag), xml_ns)
 
 
-def find_children(node, tag, xml_ns, ns_key):
+def find_children(
+        node  : ElementTree.Element,
+        tag   : str,
+        xml_ns: Optional[Dict[str, str]] = None,
+        ns_key: Optional[str]            = None):
     """
     Finds the collection of children nodes
 
@@ -290,6 +294,40 @@ def validate_xml_from_file(xml_path, xsd_path, output_logger=None):
 
 
 def parse_str(value, name, instance):
+    """
+    The parse_str function is not a generic string parser. It is a helper 
+    function specifically for parsing values within XML elements in 
+    sarpy.io.xml.base. It's used internally by the library to extract text 
+    values from XML ElementTree objects. 
+    The function is not intended for public use for general string parsing, and 
+    attempting to use it on a simple text string will just return the initial 
+    string as parse_str expects an XML element as its input. 
+
+    Parameters
+    ----------
+    value : ElementTree.Element|None|str
+        The ElementTree.Element entity that you want to get the value from.
+        None returns None.
+        A string value will return the given string unchanged.
+    name : str 
+        Name of the field to return the value of. This is only used in the 
+        raised error message
+    instance :
+        The class of the variable. This is only used in the raised error message.
+
+    Returns
+    -------
+    None | str
+        Returns None if value passed is None. Returns the string passed if value
+        is a string. Returns the string value of a node when passed an 
+        ElementTree.Element
+
+    Raises
+    -------
+    TypeError
+        When passed a value with a type other than the expected input types.
+    """
+
     if value is None:
         return None
     if isinstance(value, str):
@@ -303,6 +341,35 @@ def parse_str(value, name, instance):
 
 
 def parse_bool(value, name, instance):
+    """
+    The parse_bool function is a helper function specifically for parsing boolean
+    values within XML elements in sarpy.io.xml.base. 
+    The function is not intended for public use.
+    
+    Parameters
+    ----------
+    value : ElementTree.Element|None|str[0, 1, true, false]
+        The ElementTree.Element entity that you want to get the value from.
+        None returns None.
+        A string value will return the boolean value for the string if it can be 
+        converted to a boolean.
+    name : str 
+        Name of the field to return the value of. This is only used in the 
+        raised error message
+    instance :
+        The class of the variable. This is only used in the raised error message.
+
+    Returns
+    -------
+    None | bool
+        Returns None if value passed is None. Returns the boolean value
+        of a node when passed an ElementTree.Element
+
+    Raises
+    -------
+    ValueError
+        When passed a value with a type other than the expected input types.
+    """
     def parse_string(val):
         if val.lower() in ['0', 'false']:
             return False
@@ -330,6 +397,36 @@ def parse_bool(value, name, instance):
 
 
 def parse_int(value, name, instance):
+    """
+    The parse_int function is a helper function specifically for parsing integer
+    values within XML elements in sarpy.io.xml.base. 
+    The function is not intended for public use. This function is recursive.
+    
+    Parameters
+    ----------
+    value : ElementTree.Element|None|int|str
+        The ElementTree.Element entity that you want to get the value from.
+        None returns None.
+        int returns the integer.
+        A string value will return the integer value for the string if it can be 
+        converted to an integer.
+    name : str 
+        Name of the field to return the value of. This is only used in the 
+        raised error message
+    instance :
+        The class of the variable. This is only used in the raised error message.
+
+    Returns
+    -------
+    None | bool
+        Returns None if value passed is None. Returns the boolean value
+        of a node when passed an ElementTree.Element
+
+    Raises
+    -------
+    TypeError
+        When passed a value with a type other than the expected input types.
+    """
     if value is None:
         return None
     if isinstance(value, int):
@@ -357,6 +454,36 @@ def parse_int(value, name, instance):
 
 # noinspection PyUnusedLocal
 def parse_float(value, name, instance):
+    """
+    The parse_float function is a helper function specifically for parsing float
+    values within XML elements in sarpy.io.xml.base. 
+    The function is not intended for public use. This function is recursive.
+    
+    Parameters
+    ----------
+    value : ElementTree.Element|None|float|str
+        The ElementTree.Element entity that you want to get the value from.
+        None returns None.
+        Float returns a float.
+        A string value will return the float value for the string if it can be 
+        converted to a float.
+    name : str 
+        Name of the field to return the value of. This is only used in the 
+        raised error message
+    instance :
+        The class of the variable. This is only used in the raised error message.
+
+    Returns
+    -------
+    None | bool
+        Returns None if value passed is None. Returns the float value
+        of a node when passed an ElementTree.Element
+
+    Raises
+    -------
+    TypeError
+        When passed a value with a type other than the expected input types.
+    """
     if value is None:
         return None
     if isinstance(value, float):
@@ -370,6 +497,37 @@ def parse_float(value, name, instance):
 
 
 def parse_complex(value, name, instance):
+    """
+    The parse_complex function is a helper function specifically for parsing 
+    complex number (numbers with both a real and an imaginary component) values 
+    within XML elements in sarpy.io.xml.base. 
+    The function is not intended for public use. This function is recursive.
+    
+    Parameters
+    ----------
+    value : ElementTree.Element|None|complex|dict
+        The ElementTree.Element entity that you want to get the value from.
+        None returns None.
+        Float returns a float.
+        A string value will return the float value for the string if it can be 
+        converted to a float.
+    name : str 
+        Name of the field to return the value of. This is only used in the 
+        raised error message
+    instance :
+        The class of the variable. This is only used in the raised error message.
+
+    Returns
+    -------
+    None | bool
+        Returns None if value passed is None. Returns the float value
+        of a node when passed an ElementTree.Element
+
+    Raises
+    -------
+    TypeError
+        When passed a value with a type other than the expected input types.
+    """
     if value is None:
         return None
     if isinstance(value, complex):

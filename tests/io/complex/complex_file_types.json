@@ -29,6 +29,7 @@
   "PALSAR": [
     {"path":  "palsar/1000000001_001001_ALOS2150521570-170307", "path_type":  "relative"}],
   "Capella": [
+    {"path":  "capella/CAPELLA_C02_SS_GEC_HH_20210220023903_20210220023919.tif", "path_type":  "relative"},
     {"path":  "capella/CAPELLA_C02_SM_SLC_HH_20210220171045_20210220171049.tif", "path_type":  "relative"},
     {"path":  "capella/CAPELLA_C02_SS_SLC_HH_20210223023836_20210223023852.tif", "path_type":  "relative"},
     {"path":  "capella/CAPELLA_C03_SP_SLC_HH_20210313173209_20210313173212.tif", "path_type":  "relative"}
