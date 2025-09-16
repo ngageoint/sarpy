@@ -96,8 +96,8 @@ jobs:
         target_commitish: ${{github.ref}}
         files: dist/*
 
-  publish-to-test-pypi:
-    name: Publish to Test-PyPI
+  publish-to-pypi:
+    name: Publish to PyPI
     needs: release
     runs-on: ubuntu-latest
     environment:
@@ -112,7 +112,7 @@ jobs:
         path: dist
         merge-multiple: true
     - run: ls -R dist
-    - name: Publish distribution to Test-PyPI
+    - name: Publish distribution to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
-        repository-url: https://test.pypi.org/legacy/
+        repository-url: https://pypi.org/legacy/
