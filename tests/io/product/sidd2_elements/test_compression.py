@@ -20,6 +20,7 @@ def test_j2ksubtype_init_kwargs():
     assert j2ksubtype._xml_ns == ns_value
     assert j2ksubtype._xml_ns_key == ns_key
 
+# this function is used as a helper to create an XML that mimic's the structure of LayerInfo to be used for testing
 def create_layerinfo_xml_helper(num_layers, bitrates):
     root = ET.Element("LayerInfo", numLayers=str(num_layers))
     for rate in bitrates:
@@ -49,6 +50,13 @@ def test_j2ksubtype_set_layer_info_no_layer_info_passed():
 
     assert numpy.array_equal(j2ksubtype.LayerInfo, bitrates)
 
+def test_j2ksubtype_init_failure_layer_info():
+    # makes sure that an error is thrown if LayerInfo is neither an ElementTree, list, tuple, ndarray, or None
+    layer_info = "abc"
+    with pytest.raises(TypeError,
+                       match=re.escape("Invalid input type for LayerInfo: <class 'str'>. Must be an ElementTree, list, tuple, ndarray, or None.")):
+        J2KSubtype(NumWaveletLevels=3, NumBands=7, LayerInfo=layer_info)
+
 @pytest.fixture()
 def setup_j2ksubtype():
     layer_info = [0.0, 1.0, 2.0]
@@ -56,8 +64,8 @@ def setup_j2ksubtype():
 
 def test_j2ktype_init():
     layer_info = [0.0, 1.0, 2.0]
-    original = J2KSubtype(NumWaveletLevels=3, NumBands=5, LayerInfo=layer_info)
-    J2KType(original)
+    # original = J2KSubtype(NumWaveletLevels=3, NumBands=5, LayerInfo=layer_info)
+    J2KType(setup_j2ksubtype)
 
 @pytest.fixture()
 def setup_j2ktype(setup_j2ksubtype):

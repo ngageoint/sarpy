@@ -56,7 +56,7 @@ conda create -n sarpytest python --y
 conda activate sarpytest
 
 pip install nox
-export SARPY_TEST_PATH=/sar/CuratedData_SomeDomestic/sarpy_test  # set to appropriate dir
+export SARPY_TEST_PATH=/data/sarpy_test  # set to appropriate dir
 nox
 ```
 
