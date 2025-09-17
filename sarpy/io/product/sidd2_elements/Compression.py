@@ -62,6 +62,12 @@ class J2KSubtype(Serializable):
         super(J2KSubtype, self).__init__(**kwargs)
 
     def setLayerInfoType(self, obj):
+        """
+        Since the LayerInfo is defined as an array of bit rates in the definition above and SarPy returns an
+        element tree with the bit rates nested within different layers, this function is used to parse and return
+        LayerInfo as an array of bit rates
+        """
+        # if LayerInfo is an ElementTree as expected, then it gets parsed to return an array of bit rates
         ET = xml.etree.ElementTree
         if isinstance( obj, ET.Element):
             numLayers = int(obj.attrib['numLayers'])
@@ -72,6 +78,18 @@ class J2KSubtype(Serializable):
             for i in range(numLayers):
                 bitrates[i] = float(obj[i][0].text)
             self.LayerInfo = bitrates
+
+        # if LayerInfo is a numpy.ndarray, a  list, or a tuple per the above definition, return LayerInfo
+        elif isinstance(obj, (list, tuple, numpy.ndarray)):
+            self.LayerInfo = obj 
+
+        # none object handler since it states that LayerInfo can be None in the definition above and it isn't a required field
+        elif obj is None:
+            self.LayerInfo = None
+
+        # throw an error if LayerInfo is an invalid type and an array of bitrates is unable to be generated
+        else:
+            raise TypeError(f'Invalid input type for LayerInfo: {type(obj)}. Must be an ElementTree, list, tuple, ndarray, or None.')
 
 class J2KType(Serializable):
     """
