@@ -10,6 +10,10 @@
     {"path":  "dem/geoid/egm2008-1.pgm", "path_type":  "relative"}
   ],
   "dted_with_null": [
-    {"path":  "dem/dted/s04_w061_3arc_v1.dt1", "path_type":  "relative"}
+     {"path":  "dem/dted/s04_w061_3arc_v1.dt1", "path_type":  "relative", "comment" : "orginal"},
+     {"path":  "dem/dted/n33_w119_3arc_v1.dt1", "path_type":  "relative", "comment" : "Catinlia island"},
+     {"path":  "dem/dted/s01_w070_3arc_v1.dt1", "path_type":  "relative", "comment" : "issue tile"},
+     {"path":  "dem/dted/n27_e084_3arc_v1.dt1", "path_type":  "relative", "comment" : "Nepal"},
+     {"path":  "dem/dted/s36_e149_3arc_v1.dt1", "path_type":  "relative", "comment" : "Austrialia"}
   ]
 }

@@ -651,7 +651,7 @@ class DTEDInterpolator(DEMInterpolator):
         DTEDInterpolator
         """
 
-        pad_value = float(pad_value)
+        pad_value = abs( float(pad_value) )
         if pad_value > 0.5:
             pad_value = 0.5
         if pad_value < 0.05:
@@ -660,7 +660,7 @@ class DTEDInterpolator(DEMInterpolator):
         lat_max = min(ref_point[0] + lat_diff, 90)
         lat_min = max(ref_point[0] - lat_diff, -90)
 
-        lon_diff = min(15, lat_diff/(numpy.sin(numpy.deg2rad(ref_point[0]))))
+        lon_diff = min(15, abs( lat_diff/(numpy.cos(numpy.deg2rad(ref_point[0])))))
         lon_max = ref_point[1] + lon_diff
         if lon_max > 180:
             lon_max -= 360
