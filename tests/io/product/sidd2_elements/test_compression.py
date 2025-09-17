@@ -62,9 +62,8 @@ def setup_j2ksubtype():
     layer_info = [0.0, 1.0, 2.0]
     yield J2KSubtype(NumWaveletLevels=3, NumBands=5, LayerInfo=layer_info)
 
-def test_j2ktype_init():
+def test_j2ktype_init(setup_j2ksubtype):
     layer_info = [0.0, 1.0, 2.0]
-    # original = J2KSubtype(NumWaveletLevels=3, NumBands=5, LayerInfo=layer_info)
     J2KType(setup_j2ksubtype)
 
 @pytest.fixture()
