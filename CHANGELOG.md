@@ -4,10 +4,6 @@ SarPy follows a continuous release process, so there are fairly frequent release
 Since essentially every (squash merge) commit corresponds to a release, specific 
 release points are not being annotated in GitHub.
 
-## [1.3.62] - 2025-09-15
-### Fixed
-- SIDD 2.0 compression reading issue
-
 ## [1.3.60] - 2025-01-24
 ### Added
 - Support for file objects in `sarpy.io.phase_history.converter.open_phase_history`
