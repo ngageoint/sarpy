@@ -1,186 +1,150 @@
 __classification__ = "UNCLASSIFIED"
 __author__ = "Tex Peterson"
 
+from collections import OrderedDict
+from datetime import datetime, date
+import logging
 import numpy as np
+import re
+import types
 import unittest
 import xml.etree.ElementTree as ET
-from collections import OrderedDict
 
 import sarpy.io.xml.base as base
+
+# Helper for XML test data path
+XML_PATH = 'tests/io/xml/'
+
+def get_tree_and_root(filename):
+    tree = ET.parse(XML_PATH + filename)
+    return tree, tree.getroot()
+
+def get_actor_tree_and_ns():
+    return base.parse_xml_from_file(XML_PATH + 'actor_test_data.xml')
+
 
 # ********************
 # get_node_value tests
 # ********************
 class TestGetNodeValue(unittest.TestCase):
     def setUp(self):
-        self.tree = ET.parse('tests/io/xml/country_data.xml')
-        self.actor_tree = ET.parse('tests/io/xml/actor_test_data.xml')
-        self.root = self.tree.getroot()
-        # For xml ns is an abbreviation for name space
-        self.actor_root, self.actor_ns_dict = \
-            base.parse_xml_from_file('tests/io/xml/actor_test_data.xml') 
+        self.tree, self.root = get_tree_and_root('country_data.xml')
+        self.actor_root, self.actor_ns_dict = get_actor_tree_and_ns()
 
     def test_get_node_value_success_with_text(self):
-        branch = base.get_node_value(self.root[0][1])
-        self.assertEqual(branch, '2008')
+        self.assertEqual(base.get_node_value(self.root[0][1]), '2008')
 
     def test_get_node_value_success_none(self):
-        branch = base.get_node_value(self.root[0])
-        self.assertIsNone(branch)
+        self.assertIsNone(base.get_node_value(self.root[0]))
 
     def test_get_node_value_success_empty(self):
-        branch = base.get_node_value(self.root[0][3])
-        self.assertIsNone(branch)
+        self.assertIsNone(base.get_node_value(self.root[0][3]))
 
 # ********************
 # create_new_node tests
 # ********************
 class TestCreateNewNode(unittest.TestCase):
     def setUp(self):
-        self.tree = ET.parse('tests/io/xml/country_data.xml')
-        self.actor_tree = ET.parse('tests/io/xml/actor_test_data.xml')
-        self.root = self.tree.getroot()
-        # For xml ns is an abbreviation for name space
-        self.actor_root, self.actor_ns_dict = \
-            base.parse_xml_from_file('tests/io/xml/actor_test_data.xml') 
+        self.tree, self.root = get_tree_and_root('country_data.xml')
+        self.actor_root, self.actor_ns_dict = get_actor_tree_and_ns()
 
     def test_create_new_node_no_parent_success(self):
         new_node_tag = "country"
-        self.assertEqual(len(self.root), 3, 
-                         "Root should have 3 children before adding new node")
+        len_initial_root = len(self.root)
         new_node = base.create_new_node(self.tree, new_node_tag)
-        self.assertEqual(len(self.root), 4, 
-                         "Root should have 4 children after adding new node")
-        self.assertEqual(self.root[-1].tag, new_node_tag, 
-                         "Last child should have the new node tag")
-        self.assertIs(self.root[-1], new_node, 
-                      "Returned node should be the last child of root")
+        self.assertEqual(len(self.root), len_initial_root + 1)
+        self.assertEqual(self.root[-1].tag, new_node_tag)
+        self.assertIs(self.root[-1], new_node)
+
+    def test_create_new_node_empty_tree_success(self):
+        new_tree = ET.ElementTree()
+        self.assertIsNone(new_tree.getroot())
+        new_node = base.create_new_node(new_tree, "country")
+        self.assertEqual(new_tree.getroot(), new_node)
 
     def test_create_new_node_with_parent_success(self):
         new_node_tag = "ocean"
-        self.assertEqual(len(self.root[1]), 5, 
-                         "Parent should have 5 children before adding new node")
+        self.assertEqual(len(self.root[1]), 5)
         new_node = base.create_new_node(self.tree, new_node_tag, self.root[1])
-        self.assertEqual(len(self.root[1]), 6, 
-                         "Parent should have 6 children after adding new node")
-        self.assertEqual(self.root[1][5].tag, new_node_tag, 
-                         "Last child should have the new node tag")
-        self.assertIs(self.root[1][5], new_node, 
-                      "Returned node should be the last child of parent")
+        self.assertEqual(len(self.root[1]), 6)
+        self.assertEqual(self.root[1][5].tag, new_node_tag)
+        self.assertIs(self.root[1][5], new_node)
+
 
 # ********************
 # create_text_node tests
 # ********************
 class TestCreateTextNode(unittest.TestCase):
     def setUp(self):
-        self.tree = ET.parse('tests/io/xml/country_data.xml')
-        self.actor_tree = ET.parse('tests/io/xml/actor_test_data.xml')
-        self.root = self.tree.getroot()
-        # For xml ns is an abbreviation for name space
-        self.actor_root, self.actor_ns_dict = \
-            base.parse_xml_from_file('tests/io/xml/actor_test_data.xml') 
+        self.tree, self.root = get_tree_and_root('country_data.xml')
+        self.actor_root, self.actor_ns_dict = get_actor_tree_and_ns()
 
     def test_create_text_node_no_parent_success(self):
         new_node_tag = "country"
         new_node_value = "Costa Rica"
-        self.assertEqual(len(self.root), 3, 
-                         "Root should have 3 children before adding new " + \
-                                    "text node")
+        len_initial_root = len(self.root)
         new_node = base.create_text_node(self.tree, new_node_tag, new_node_value)
-        self.assertEqual(len(self.root), 4, 
-                         "Root should have 4 children after adding new " + \
-                                    "text node")
-        self.assertEqual(self.root[3].tag, new_node_tag, 
-                         "Last child should have the new node tag")
-        self.assertEqual(self.root[3].text, new_node_value, 
-                         "Last child's text should match the new node value")
-        self.assertIs(self.root[3], new_node, 
-                      "Returned node should be the last child of root")
+        self.assertEqual(len(self.root), len_initial_root + 1)
+        self.assertEqual(self.root[-1].tag, new_node_tag)
+        self.assertEqual(self.root[-1].text, new_node_value)
+        self.assertIs(self.root[-1], new_node)
 
     def test_create_text_node_with_parent_success(self):
         new_node_tag = "ocean"
         new_node_value = "Pacific"
-        self.assertEqual(len(self.root[2]), 6, 
-                         "Parent should have 6 children before adding new " + \
-                                    "text node")
+        self.assertEqual(len(self.root[2]), 6)
         new_node = base.create_text_node(self.tree, new_node_tag, 
                                          new_node_value, self.root[2])
-        self.assertEqual(len(self.root[2]), 7, 
-                         "Parent should have 7 children after adding new " + \
-                                    "text node")
-        self.assertEqual(self.root[2][6].tag, new_node_tag, 
-                         "Last child should have the new node tag")
-        self.assertEqual(self.root[2][6].text, new_node_value, 
-                         "Last child's text should match the new node value")
-        self.assertIs(self.root[2][6], new_node, 
-                      "Returned node should be the last child of parent")
+        self.assertEqual(len(self.root[2]), 7)
+        self.assertEqual(self.root[2][6].tag, new_node_tag)
+        self.assertEqual(self.root[2][6].text, new_node_value)
+        self.assertIs(self.root[2][6], new_node)
+
 
 # ********************
 # find_first_child tests
 # ********************
 class TestFindFirstChild(unittest.TestCase):
     def setUp(self):
-        self.tree = ET.parse('tests/io/xml/country_data.xml')
-        self.actor_tree = ET.parse('tests/io/xml/actor_test_data.xml')
-        self.root = self.tree.getroot()
-        # For xml ns is an abbreviation for name space
-        self.actor_root, self.actor_ns_dict = \
-            base.parse_xml_from_file('tests/io/xml/actor_test_data.xml') 
+        self.tree, self.root = get_tree_and_root('country_data.xml')
+        self.actor_root, self.actor_ns_dict = get_actor_tree_and_ns()
 
     def test_find_first_child_no_optional_params_success(self):
         found_node = base.find_first_child(self.root, "country")
-        self.assertIsNotNone(found_node, "Should find a node with tag 'country'")
-        self.assertEqual(found_node.attrib, self.root[0].attrib, 
-                         "Found node's attributes should match the first " + \
-                                    "'country' node")
+        self.assertIsNotNone(found_node)
+        self.assertEqual(found_node.attrib, self.root[0].attrib)
 
     def test_find_first_child_namespace_params_success(self):
         found_node = base.find_first_child(self.actor_root, "actor", 
                                            self.actor_ns_dict)
-        self.assertIsNotNone(found_node, 
-                             "Should find a node with tag 'actor' using namespace")
-        self.assertEqual(found_node.attrib, 
-                         self.actor_root[0].attrib, 
-                         "Found node's attributes should match the first " + \
-                                    "'actor' node")
+        self.assertIsNotNone(found_node)
+        self.assertEqual(found_node.attrib, self.actor_root[0].attrib)
 
     def test_find_first_child_namespace_nskey_params_success(self):
         found_actor_node = base.find_first_child(self.actor_root, "actor", 
                                                  self.actor_ns_dict)
         found_node = base.find_first_child(found_actor_node, "character", 
                                            self.actor_ns_dict, "fictional")
-        self.assertIsNotNone(
-            found_node, 
-            "Should find a node with tag 'character' using namespace and nskey")
-        self.assertEqual(found_node.attrib, 
-                         self.actor_root[0].attrib, 
-                         "Found node's attributes should match the first " + \
-                                    "'actor' node")
+        self.assertIsNotNone(found_node)
+        self.assertEqual(found_node.attrib, self.actor_root[0].attrib)
 
 # ********************
 # find_children tests
 # ********************
 class TestFindChildren(unittest.TestCase):
     def setUp(self):
-        self.tree = ET.parse('tests/io/xml/country_data.xml')
-        self.actor_tree = ET.parse('tests/io/xml/actor_test_data.xml')
-        self.root = self.tree.getroot()
-        # For xml ns is an abbreviation for name space
-        self.actor_root, self.actor_ns_dict = \
-            base.parse_xml_from_file('tests/io/xml/actor_test_data.xml') 
+        self.tree, self.root = get_tree_and_root('country_data.xml')
+        self.actor_root, self.actor_ns_dict = get_actor_tree_and_ns()
 
     def test_find_children_no_optional_params_success(self):
         found_nodes = base.find_children(self.root, "country")
-        self.assertEqual(found_nodes, 
-                         self.root.findall("country"), 
-                         "Should find all 'country' nodes without namespace")
+        self.assertEqual(found_nodes, self.root.findall("country"))
 
     def test_find_children_namespace_params_success(self):
         found_node = base.find_children(self.actor_root, "actor", 
                                         self.actor_ns_dict)
         self.assertEqual(found_node, 
-                         self.actor_root.findall('actor',self.actor_ns_dict)
-                         )
+                         self.actor_root.findall('actor', self.actor_ns_dict))
 
     def test_find_children_namespace_nskey_params_success(self):
         found_actor_node = base.find_first_child(self.actor_root, "actor", 
@@ -189,8 +153,7 @@ class TestFindChildren(unittest.TestCase):
                                          self.actor_ns_dict, "fictional")
         self.assertEqual(
             found_nodes,
-            found_actor_node.findall('fictional:character', self.actor_ns_dict),
-            "Should find all 'character' nodes with namespace and nskey"
+            found_actor_node.findall('fictional:character', self.actor_ns_dict)
         )
 
 # ********************
@@ -198,35 +161,66 @@ class TestFindChildren(unittest.TestCase):
 # ********************
 class TestParseXmlFromString(unittest.TestCase):
     def setUp(self):
-        self.tree = ET.parse('tests/io/xml/country_data.xml')
-        self.actor_tree = ET.parse('tests/io/xml/actor_test_data.xml')
-        self.root = self.tree.getroot()
-        # For xml ns is an abbreviation for name space
-        self.actor_root, self.actor_ns_dict = \
-            base.parse_xml_from_file('tests/io/xml/actor_test_data.xml') 
+        self.tree, self.root = get_tree_and_root('country_data.xml')
+        self.actor_tree = ET.parse(XML_PATH + 'actor_test_data.xml')
+        self.actor_root, self.actor_ns_dict = get_actor_tree_and_ns()
 
     def test_parse_xml_from_string_success(self):
         xml_string = ET.tostring(self.root, encoding='unicode', method='xml')
         root_node, ns_dict = base.parse_xml_from_string(xml_string)
-        self.assertEqual(root_node.attrib, self.root.attrib, 
-                            "Parsed root node's attributes should match the " + \
-                            "original root")
+        self.assertEqual(root_node.attrib, self.root.attrib)
+        self.assertIsNone(ns_dict)
+
+    def test_parse_xml_from_string_bytes_success(self):
+        xml_string = ET.tostring(self.root, encoding='utf-8', method='xml')
+        root_node, ns_dict = base.parse_xml_from_string(xml_string)
+        self.assertEqual(root_node.attrib, self.root.attrib)
+        self.assertIsNone(ns_dict)
+
+    def test_parse_xml_from_string_with_namespace(self):
+        xml = '<root xmlns="urn:test"><child/></root>'
+        root_node, ns_dict = base.parse_xml_from_string(xml)
+        self.assertEqual(root_node.tag, '{urn:test}root')
+        self.assertIn('default', ns_dict)
+        self.assertEqual(ns_dict['default'], 'urn:test')
+
+    def test_parse_xml_from_string_invalid_xml(self):
+        invalid_xml = "<root><unclosed></root>"
+        with self.assertRaises(ET.ParseError):
+            base.parse_xml_from_string(invalid_xml)
+
+    def test_parse_xml_from_string_namespace_match_none(self):
+        xml = ET.tostring(self.actor_root, encoding='utf-8', method='xml')
+        original_match = re.match
+        re.match = lambda pattern, string: None
+        with self.assertRaisesRegex(ValueError, r"Trouble finding the " + \
+                                    "default namespace for tag " + \
+                                    "\{http:\/\/people.example.com\}actors$"):
+            base.parse_xml_from_string(xml)
+        re.match = original_match
+
+    def test_parse_xml_from_string_namespace_match_not_none(self):
+        xml = '''
+            <Dummy:table xmlns:Dummy='http://www.example.com/schema'>
+                <Dummy:child>value</Dummy:child>
+            </Dummy:table>
+        '''
+        root_node, xml_ns = base.parse_xml_from_string(xml)
+        self.assertTrue(root_node.tag.endswith('table'))
+        self.assertIn('default', xml_ns)
+        self.assertEqual(xml_ns['default'], 'http://www.example.com/schema')
     
 # ********************
 # parse_xml_from_file tests
 # ********************
 class TestParseXmlFromFile(unittest.TestCase):
     def setUp(self):
-        self.tree = ET.parse('tests/io/xml/country_data.xml')
-        self.actor_tree = ET.parse('tests/io/xml/actor_test_data.xml')
-        self.root = self.tree.getroot()
-        # For xml ns is an abbreviation for name space
-        self.actor_root, self.actor_ns_dict = \
-            base.parse_xml_from_file('tests/io/xml/actor_test_data.xml') 
+        self.tree, self.root = get_tree_and_root('country_data.xml')
+        self.actor_root, self.actor_ns_dict = get_actor_tree_and_ns()
 
     def test_parse_xml_from_file_success(self):
-        test_root, test_ns_dict = \
-            base.parse_xml_from_file('tests/io/xml/country_data.xml')
+        test_root, test_ns_dict = base.parse_xml_from_file(XML_PATH + 
+                                                           'country_data.xml')
         self.assertEqual(test_root.attrib, self.root.attrib)
         
 # ********************
@@ -234,73 +228,102 @@ class TestParseXmlFromFile(unittest.TestCase):
 # ********************
 class TestValidateXmlFromString(unittest.TestCase):
     def setUp(self):
-        self.tree = ET.parse('tests/io/xml/country_data.xml')
-        self.actor_tree = ET.parse('tests/io/xml/actor_test_data.xml')
-        self.root = self.tree.getroot()
-        # For xml ns is an abbreviation for name space
-        self.actor_root, self.actor_ns_dict = \
-            base.parse_xml_from_file('tests/io/xml/actor_test_data.xml') 
+        self.tree, self.root = get_tree_and_root('country_data.xml')
+        self.actor_root, self.actor_ns_dict = get_actor_tree_and_ns()
 
     def test_validate_xml_from_string_success(self):
         xml_string = ET.tostring(self.root, encoding='unicode', method='xml')
-        xsd_path = 'tests/io/xml/country.xsd'
-        self.assertTrue(base.validate_xml_from_string(xml_string, xsd_path), 
-                        "XML string should validate against the provided XSD")
-        
+        xsd_path = XML_PATH + 'country.xsd'
+        self.assertTrue(base.validate_xml_from_string(xml_string, xsd_path))
+
     def test_validate_xml_from_string_with_logger_success(self):
         xml_string = ET.tostring(self.root, encoding='unicode', method='xml')
-        xsd_path = 'tests/io/xml/country.xsd'
+        xsd_path = XML_PATH + 'country.xsd'
         self.assertTrue(base.validate_xml_from_string(xml_string, xsd_path, 
-                                                      base.logger), 
-                        "XML string should validate against the provided " + \
-                                    "XSD with logger")
+                                                      base.logger))
+
+    def test_validate_xml_from_string_not_valid_output_logger_none(self):
+        class DummyEntry:
+            line = 10
+            message = "Invalid element"
+        class DummySchema:
+            def validate(self, doc): return False
+            @property
+            def error_log(self): return [DummyEntry()]
+        class DummyDoc: pass
+        original_etree = base.etree
+        base.etree = types.SimpleNamespace(
+            fromstring=lambda x: DummyDoc(),
+            XMLSchema=lambda file: DummySchema()
+        )
+        from unittest.mock import patch
+        with patch.object(base, "logger") as mock_logger:
+            result = base.validate_xml_from_string(b"<root></root>", 
+                                                   "fake.xsd", 
+                                                   output_logger=None)
+            self.assertFalse(result)
+            self.assertTrue(mock_logger.error.called)
+            self.assertIn("XML validation error on line", 
+                          str(mock_logger.error.call_args[0][0]))
+        base.etree = original_etree
+
+    def test_validate_xml_from_string_not_valid_output_logger_not_none(self):
+        class DummyEntry:
+            line = 10
+            message = "Invalid element"
+        class DummySchema:
+            def validate(self, doc): return False
+            @property
+            def error_log(self): return [DummyEntry()]
+        class DummyDoc: pass
+        original_etree = base.etree
+        base.etree = types.SimpleNamespace(
+            fromstring=lambda x: DummyDoc(),
+            XMLSchema=lambda file: DummySchema()
+        )
+        class DummyLogger:
+            def __init__(self): self.logged = []
+            def error(self, msg): self.logged.append(msg)
+        dummy_logger = DummyLogger()
+        result = base.validate_xml_from_string(b"<root></root>", "fake.xsd", 
+                                               output_logger=dummy_logger)
+        self.assertFalse(result)
+        self.assertIn("XML validation error on line", dummy_logger.logged[0])
+        base.etree = original_etree
 
 # ********************
 # validate_xml_from_file tests
 # ********************
 class TestValidateXmlFromFile(unittest.TestCase):
     def setUp(self):
-        self.tree = ET.parse('tests/io/xml/country_data.xml')
-        self.actor_tree = ET.parse('tests/io/xml/actor_test_data.xml')
-        self.root = self.tree.getroot()
-        # For xml ns is an abbreviation for name space
-        self.actor_root, self.actor_ns_dict = \
-            base.parse_xml_from_file('tests/io/xml/actor_test_data.xml') 
+        self.tree, self.root = get_tree_and_root('country_data.xml')
+        self.actor_root, self.actor_ns_dict = get_actor_tree_and_ns()
 
     def test_validate_xml_from_file_success(self):
-        xml_path = 'tests/io/xml/country_data.xml'
-        xsd_path = 'tests/io/xml/country.xsd'
-        self.assertTrue(base.validate_xml_from_file(xml_path, xsd_path), 
-                        "XML file should validate against the provided XSD")
-        
+        xml_path = XML_PATH + 'country_data.xml'
+        xsd_path = XML_PATH + 'country.xsd'
+        self.assertTrue(base.validate_xml_from_file(xml_path, xsd_path))
+
     def test_validate_xml_from_file_with_logger_success(self):
-        xml_path = 'tests/io/xml/country_data.xml'
-        xsd_path = 'tests/io/xml/country.xsd'
-        self.assertTrue(
-            base.validate_xml_from_file(xml_path, xsd_path, base.logger),
-            "XML file should validate against the provided XSD with logger"
-        )
+        xml_path = XML_PATH + 'country_data.xml'
+        xsd_path = XML_PATH + 'country.xsd'
+        self.assertTrue(base.validate_xml_from_file(xml_path, xsd_path, 
+                                                    base.logger))
         
 # ********************
 # parse_str tests
 # ********************
 class TestParseStr(unittest.TestCase):
     def setUp(self):
-        self.tree = ET.parse('tests/io/xml/country_data.xml')
-        self.actor_tree = ET.parse('tests/io/xml/actor_test_data.xml')
-        self.root = self.tree.getroot()
-        # For xml ns is an abbreviation for name space
-        self.actor_root, self.actor_ns_dict = \
-            base.parse_xml_from_file('tests/io/xml/actor_test_data.xml') 
+        self.tree, self.root = get_tree_and_root('country_data.xml')
+        self.actor_root, self.actor_ns_dict = get_actor_tree_and_ns()
 
     def test_parse_str_no_params_fail(self):
-        with self.assertRaisesRegex(
-            TypeError, 
-            r"parse_str\(\) missing 3 required positional arguments: " + \
-                                    "'value', 'name', and 'instance'$"
-        ):
+        with self.assertRaisesRegex(TypeError, r"parse_str\(\) missing 3 " + \
+                                    "required positional arguments: 'value', " + \
+                                    "'name', and 'instance'$"):
             base.parse_str()
-        
+
     def test_parse_str_value_param_only_fail(self):
         with self.assertRaisesRegex(TypeError, r"parse_str\(\) missing 2 " + \
                                     "required positional arguments: 'name' " + \
@@ -321,12 +344,11 @@ class TestParseStr(unittest.TestCase):
     def test_parse_str_value_param_is_xml_with_value_success(self):
         self.assertEqual(base.parse_str(self.root[0][2], "text", "base"), 
                          self.root[0][2].text)
-        
+
     def test_parse_str_value_param_is_xml_empty_value_success(self):
         self.assertEqual(base.parse_str(self.root[0], "text", "base"), 
-                         self.root[0].text.strip()
-                         )
-        
+                         self.root[0].text.strip())
+
     def test_parse_str_bad_value_param_fail(self):
         with self.assertRaisesRegex(TypeError, r"field Bob of class str " + \
                                     "requires a string value."):
@@ -337,19 +359,15 @@ class TestParseStr(unittest.TestCase):
 # ********************
 class TestParseBool(unittest.TestCase):
     def setUp(self):
-        self.tree = ET.parse('tests/io/xml/country_data.xml')
-        self.actor_tree = ET.parse('tests/io/xml/actor_test_data.xml')
-        self.root = self.tree.getroot()
-        # For xml ns is an abbreviation for name space
-        self.actor_root, self.actor_ns_dict = \
-            base.parse_xml_from_file('tests/io/xml/actor_test_data.xml') 
+        self.tree, self.root = get_tree_and_root('country_data.xml')
+        self.actor_root, self.actor_ns_dict = get_actor_tree_and_ns()
 
     def test_parse_bool_no_params_fail(self):
         with self.assertRaisesRegex(TypeError, r"parse_bool\(\) missing 3 " + \
                                     "required positional arguments: 'value', " + \
                                     "'name', and 'instance'$"):
             base.parse_bool()
-        
+
     def test_parse_bool_value_param_only_fail(self):
         with self.assertRaisesRegex(TypeError, r"parse_bool\(\) missing 2 " + \
                                     "required positional arguments: 'name' " + \
@@ -373,7 +391,7 @@ class TestParseBool(unittest.TestCase):
     def test_parse_bool_value_param_is_np_bool_success(self):
         arr_bool = np.array([True, False, True, False], dtype=bool)
         self.assertTrue(base.parse_bool(arr_bool[0], "Bob", "base"))
-        
+
     def test_parse_bool_value_param_is_xml_success(self):
         self.assertTrue(base.parse_bool(self.root[0][0], "Bob", "base"))
 
@@ -390,10 +408,17 @@ class TestParseBool(unittest.TestCase):
         self.assertFalse(base.parse_bool('0', "Bob", "base"))
 
     def test_parse_bool_value_param_is_float_fail(self):
-        with self.assertRaisesRegex(ValueError, r"Boolean field Bob of " + \
-                                    "class str cannot assign from type " + \
-                                    "<class 'float'>."):
+        with self.assertRaisesRegex(ValueError, r"Boolean field Bob of class " + \
+                                    "str cannot assign from type <class " + \
+                                    "'float'>."):
             base.parse_bool(3.5, "Bob", "base")
+
+    def test_parse_bool_parse_string_invalid_value(self):
+        class Dummy: pass
+        with self.assertRaisesRegex(ValueError, "Boolean field field of " + \
+                                    "class Dummy cannot assign from string " + \
+                                    "value maybe."):
+            base.parse_bool("maybe", "field", Dummy())
 
 # ********************
 # parse_int tests
@@ -501,6 +526,7 @@ class TestParseFloat(unittest.TestCase):
 # ********************
 # parse_complex tests
 # ********************
+
 class TestParseComplex(unittest.TestCase):
     def setUp(self):
         self.tree = ET.parse('tests/io/xml/country_data.xml')
@@ -539,6 +565,22 @@ class TestParseComplex(unittest.TestCase):
         test_complex = 3 + 2j
         self.assertEqual(base.parse_complex(self.root[0][4], "Bob", "base"), 
                          test_complex)
+        
+    def test_parse_complex_with_child_xml_ns_key(self):
+        class DummyInstance:
+            _xml_ns = {'ns1': 'urn:ns1'}
+            _child_xml_ns_key = {'field': 'ns1'}
+            __class__ = type('DummyInstance', (), {})
+        # XML with Real and Imag in ns1 namespace
+        xml = """
+        <Complex xmlns:ns1="urn:ns1">
+            <ns1:Real>3</ns1:Real>
+            <ns1:Imag>2</ns1:Imag>
+        </Complex>
+        """
+        elem = ET.fromstring(xml)
+        result = base.parse_complex(elem, 'field', DummyInstance())
+        assert result == complex(3, 2)
 
     def test_parse_complex_value_param_is_xml_2_real_fail(self):
         test_complex = 3 + 2j
@@ -571,27 +613,122 @@ class TestParseComplex(unittest.TestCase):
 
     def test_parse_complex_value_param_is_complex_dict_4_fail(self):
         test_complex = 3 + 2j
-        with self.assertRaisesRegex(ValueError, r"Cannot convert dict {'not': 3, 'valid': 2} to a complex number for field Bob of class str."):
+        with self.assertRaisesRegex(ValueError, r"Cannot convert dict {'not': " + \
+                                    "3, 'valid': 2} to a complex number for " + \
+                                    "field Bob of class str."):
             base.parse_complex({"not":3, "valid":2}, "Bob", "base")
 
     def test_parse_complex_value_param_is_complex_dict_5_fail(self):
         test_complex = 3 + 2j
-        with self.assertRaisesRegex(ValueError, r"Cannot convert dict {'real': None, 'imag': 2} to a complex number for field Bob of class str."):
+        with self.assertRaisesRegex(ValueError, r"Cannot convert dict {'real': " + \
+                                    "None, 'imag': 2} to a complex number " + \
+                                    "for field Bob of class str."):
             base.parse_complex({"real":None, "imag":2}, "Bob", "base")
 
     def test_parse_complex_value_param_is_complex_dict_6_fail(self):
         test_complex = 3 + 2j
-        with self.assertRaisesRegex(ValueError, r"Cannot convert dict {'real': 4, 'imag': None} to a complex number for field Bob of class str."):
+        with self.assertRaisesRegex(ValueError, r"Cannot convert dict {'real': " + \
+                                    "4, 'imag': None} to a complex number for " + \
+                                    "field Bob of class str."):
             base.parse_complex({"real":4, "imag":None}, "Bob", "base")
 
-    def test_parse_complex_value_param_is_string_non_int_fail(self):
-        with self.assertRaisesRegex(ValueError, r"complex\(\) arg is a malformed string"):
+    def test_parse_complex_value_param_is_string_non_int_success(self):
+        with self.assertRaisesRegex(ValueError, r"complex\(\) arg is a " + \
+                                    "malformed string"):
             base.parse_complex('Bob', "Bob", "base")
 
-    def test_parse_complex_value_param_is_list_non_int_fail(self):
-        with self.assertRaisesRegex(TypeError, r"complex\(\) first argument must be a string or a number, not 'list'"):
+    def test_parse_complex_value_param_is_list_non_int_success(self):
+        with self.assertRaisesRegex(TypeError, r"complex\(\) first argument " + \
+                                    "must be a string or a number, not 'list'"):
             base.parse_complex([3.5], "Bob", "base")
 
+# ********************
+# parse_datetime tests
+# ********************
+
+class ParseDatetimeDummyInstance:
+    pass
+
+class TestParseDatetime(unittest.TestCase):
+    
+    def test_no_params_fail(self):
+        with self.assertRaisesRegex(TypeError, r"parse_datetime\(\) missing " + \
+                                    "3 required positional arguments: 'value'," + \
+                                    " 'name', and 'instance'$"):
+            base.parse_datetime()
+        
+    def test_value_param_only_fail(self):
+        with self.assertRaisesRegex(TypeError, r"parse_datetime\(\) missing 2 " + \
+                                    "required positional arguments: 'name' " + \
+                                    "and 'instance'$"):
+            base.parse_datetime("Test")
+
+    def test_missing_instance_param_fail(self):
+        with self.assertRaisesRegex(TypeError, r"parse_datetime\(\) missing 1 " + \
+                                    "required positional argument: 'instance'$"):
+            base.parse_datetime("Test", "Bob")
+
+    def test_none_returns_none(self):
+        self.assertIsNone(base.parse_datetime(None, "dt", 
+                                              ParseDatetimeDummyInstance()))
+
+    def test_numpy_datetime64_pass_through(self):
+        dt = np.datetime64('2023-01-01T12:00:00')
+        self.assertEqual(base.parse_datetime(dt, "dt", 
+                                             ParseDatetimeDummyInstance()), dt)
+
+    def test_string_with_Z(self):
+        dt_str = "2023-01-01T12:00:00Z"
+        result = base.parse_datetime(dt_str, "dt", ParseDatetimeDummyInstance())
+        self.assertIsInstance(result, np.datetime64)
+        self.assertEqual(result, np.datetime64("2023-01-01T12:00:00"))
+
+    def test_string_without_Z(self):
+        dt_str = "2023-01-01T12:00:00"
+        result = base.parse_datetime(dt_str, "dt", ParseDatetimeDummyInstance())
+        self.assertIsInstance(result, np.datetime64)
+        self.assertEqual(result, np.datetime64("2023-01-01T12:00:00"))
+
+    def test_elementtree_element(self):
+        elem = ET.Element("Test")
+        elem.text = "2023-01-01T12:00:00"
+        result = base.parse_datetime(elem, "dt", ParseDatetimeDummyInstance())
+        self.assertIsInstance(result, np.datetime64)
+        self.assertEqual(result, np.datetime64("2023-01-01T12:00:00"))
+
+    def test_date_object(self):
+        d = date(2023, 1, 1)
+        result = base.parse_datetime(d, "dt", ParseDatetimeDummyInstance())
+        self.assertIsInstance(result, np.datetime64)
+        self.assertEqual(result, np.datetime64("2023-01-01"))
+
+    def test_datetime_object(self):
+        d = datetime(2023, 1, 1, 12, 0, 0)
+        result = base.parse_datetime(d, "dt", ParseDatetimeDummyInstance())
+        self.assertIsInstance(result, np.datetime64)
+        self.assertEqual(result, np.datetime64("2023-01-01T12:00:00"))
+
+    def test_numpy_int64(self):
+        val = np.int64(1700000000)
+        result = base.parse_datetime(val, "dt", ParseDatetimeDummyInstance())
+        self.assertIsInstance(result, np.datetime64)
+
+    def test_numpy_float64(self):
+        val = np.float64(1700000000)
+        result = base.parse_datetime(val, "dt", ParseDatetimeDummyInstance())
+        self.assertIsInstance(result, np.datetime64)
+
+    def test_int(self):
+        val = 1700000000
+        result = base.parse_datetime(val, "dt", ParseDatetimeDummyInstance())
+        self.assertIsInstance(result, np.datetime64)
+
+    def test_invalid_type_raises(self):
+        with self.assertRaisesRegex(TypeError, r"Field dt for class " + \
+                                    "ParseDatetimeDummyInstance expects " + \
+                                    "datetime convertible input, and got " + \
+                                    "<class 'list'>$"):
+            base.parse_datetime([2023, 1, 1], "dt", ParseDatetimeDummyInstance())
 
 # ********************
 # parse_serializable tests
@@ -638,21 +775,23 @@ class TestParseSerializable(unittest.TestCase):
             base.parse_serializable()
             
     def test_value_param_only_fail(self):
-        with self.assertRaisesRegex(TypeError, r"parse_serializable\(\) missing 3 " + \
-                                    "required positional arguments: 'name', " + \
-                                    "'instance', and 'the_type'$"):
+        with self.assertRaisesRegex(TypeError, r"parse_serializable\(\) " + \
+                                    "missing 3 required positional arguments: " + \
+                                    "'name', 'instance', and 'the_type'$"):
             base.parse_serializable("Test")
 
     def test_value_name_params_only_fail(self):
-        with self.assertRaisesRegex(TypeError, r"parse_serializable\(\) missing 2 " + \
-                                    "required positional arguments: " + \
+        with self.assertRaisesRegex(TypeError, r"parse_serializable\(\) " + \
+                                    "missing 2 required positional arguments: " + \
                                     "'instance' and 'the_type'$"):
             base.parse_serializable("Test", "foo")
 
     def test_value_name_instance_params_only_fail(self):
-        with self.assertRaisesRegex(TypeError, r"parse_serializable\(\) missing 1 " + \
-                                    "required positional argument: 'the_type'$"):
-            base.parse_serializable("Test", "foo", ParseSerializableDummyInstance())
+        with self.assertRaisesRegex(TypeError, r"parse_serializable\(\) " + \
+                                    "missing 1 required positional argument: " + \
+                                    "'the_type'$"):
+            base.parse_serializable("Test", "foo", 
+                                    ParseSerializableDummyInstance())
 
     def test_none(self):
         self.assertIsNone(base.parse_serializable(None, 'foo', 
@@ -736,6 +875,33 @@ class TestParseSerializable(unittest.TestCase):
             base.parse_serializable(123.456, 'foo', 
                                     ParseSerializableDummyInstance(), 
                                     ParseSerializableDummyType)
+            
+    def test_parse_serializable_without_child_xml_ns_key(self):
+        class DummyType:
+            @classmethod
+            def from_node(cls, node, xml_ns, ns_key=None):
+                # Just return a tuple for test
+                return (node.tag, xml_ns, ns_key)
+            @classmethod
+            def from_dict(cls, d):
+                return d
+
+        class DummyInstance:
+            _xml_ns = {'default': 'urn:default'}
+            _xml_ns_key = 'default'
+            # _child_xml_ns_key is not set
+
+        xml = '<TestTag>value</TestTag>'
+        elem = ET.fromstring(xml)
+        result = base.parse_serializable(elem, 'field', DummyInstance(), 
+                                         DummyType)
+        self.assertEqual(result[0], 'TestTag')
+        self.assertEqual(result[1], {'default': 'urn:default'})
+        self.assertEqual(result[2], 'default')
+
+# ********************
+# parse_serializable_array tests
+# ********************
 
 class ParseSerializableArrayDummyArrayable(base.Arrayable):
     def __init__(self, arr):
@@ -892,6 +1058,19 @@ class TestParseSerializableArray(unittest.TestCase):
                                           ParseSerializableArrayDummyInstance(), 
                                           ParseSerializableArrayDummySerializable, 
                                           'child')
+            
+    def test_parse_serializable_array_list_first_element_incompatible(self):
+        class DummyChild:
+            pass
+
+        # First element is not DummyChild, not dict, not arrayable, not list/tuple/ndarray
+        values = [42, 43]
+        with self.assertRaisesRegex(TypeError, 'Attribute field of array type ' + \
+                                    'functionality belonging to class NoneType ' + \
+                                    'got a list containing first element of ' + \
+                                    'incompatible type <class \'int\'>.'):
+            base.parse_serializable_array(values, 'field', None, DummyChild, 
+                                          'Child')
 
     def test_list_of_child_type(self):
         objs = [ParseSerializableArrayDummySerializable('child'), 
@@ -948,6 +1127,115 @@ class TestParseSerializableArray(unittest.TestCase):
         self.assertIsInstance(arr, np.ndarray)
         self.assertEqual(arr.size, 0)
 
+    def test_parse_serializable_array_ndarray_object_1d_child_type(self):
+        class DummyChild:
+            pass
+
+        # Create a 1D numpy array of dtype 'object' where the first element is DummyChild
+        arr = np.array([DummyChild(), DummyChild()], dtype=object)
+        result = base.parse_serializable_array(arr, 'field', None, DummyChild, 'Child')
+        self.assertTrue(isinstance(result, np.ndarray))
+        self.assertEqual(result.dtype.name, 'object')
+        self.assertEqual(len(result.shape), 1)
+        self.assertTrue(isinstance(result[0], DummyChild))
+
+    def test_parse_serializable_array_element_no_child_xml_ns_key(self):
+        class DummyChild:
+            @classmethod
+            def from_node(cls, node, xml_ns, ns_key=None):
+                # For test, return tuple of tag, ns_key, and xml_ns
+                return (node.tag, ns_key, xml_ns)
+        class DummyInstance:
+            _xml_ns = {'default': 'urn:default'}
+            _xml_ns_key = 'default'
+            # _child_xml_ns_key is NOT set
+
+        xml = """
+        <Parent size="2" xmlns="urn:default">
+            <Child/>
+            <Child/>
+        </Parent>
+        """
+        elem = ET.fromstring(xml)
+        arr = base.parse_serializable_array(elem, 'field', DummyInstance(), 
+                                            DummyChild, 'Child')
+        self.assertEqual(len(arr), 2)
+        self.assertEqual(arr[0][1], 'default')
+        self.assertEqual(arr[0][2], {'default': 'urn:default'})
+
+    def test_parse_serializable_array_element_size_minus_one(self):
+        class DummyChild:
+            @classmethod
+            def from_node(cls, node, xml_ns, ns_key=None):
+                # For test, return node.tag
+                return node.tag
+        class DummyInstance:
+            _xml_ns = None
+            _xml_ns_key = None
+
+        # XML with size attribute set to -1, should use number of child nodes
+        xml = """
+        <Parent size="-1">
+            <Child/>
+            <Child/>
+            <Child/>
+        </Parent>
+        """
+        elem = ET.fromstring(xml)
+        arr = base.parse_serializable_array(elem, 'field', DummyInstance(), 
+                                            DummyChild, 'Child')
+        assert isinstance(arr, np.ndarray)
+        assert arr.size == 3
+        assert all(tag == 'Child' for tag in arr)
+
+    def test_parse_serializable_array_list_hasattr_coefs(self):
+        class DummyChild:
+            def __init__(self, Coefs):
+                self._coefs = Coefs
+            # Simulate having a 'Coefs' property
+            @property
+            def Coefs(self):
+                return self._coefs
+
+        arrays = [[1, 2], [3, 4]]
+        arr = base.parse_serializable_array(arrays, 'field', None, DummyChild, 
+                                            'Child')
+        self.assertIsInstance(arr, np.ndarray)
+        self.assertEqual(arr.size, 2)
+        self.assertTrue(all(isinstance(x, DummyChild) for x in arr))
+        self.assertEqual(arr[0].Coefs, [1, 2])
+        self.assertEqual(arr[1].Coefs, [3, 4])
+
+    def test_parse_serializable_array_list_not_arrayable_and_no_coefs(self):
+        class DummyChild:
+            pass  # No from_array, not subclass of Arrayable, no Coefs
+
+        arrays = [[1, 2], [3, 4]]
+        # Should raise ValueError because DummyChild is not Arrayable and has 
+        # no 'Coefs'
+        with self.assertRaisesRegex(ValueError, r'Attribute field of array ' + \
+                                    'type functionality belonging to class ' + \
+                                    'NoneType got a list containing elements ' + \
+                                    'type <class \'list\'> and construction ' + \
+                                    'failed.$'):
+            base.parse_serializable_array(arrays, 'field', None, DummyChild, 
+                                          'Child')
+
+    def test_parse_serializable_array_invalid_type(self):
+        class DummyChild:
+            pass
+
+        # value is not None, not DummyChild, not ndarray, not Element, not 
+        # list/tuple
+        value = 42.0  # float type
+        with self.assertRaises(TypeError):
+            base.parse_serializable_array(value, 'field', None, DummyChild, 
+                                          'Child')
+
+# ********************
+# parse_serializable_list tests
+# ********************
+
 class ParseSerializableListDummySerializable:
     @classmethod
     def from_node(cls, node, xml_ns, ns_key=None):
@@ -967,7 +1255,8 @@ class TestParseSerializableList(unittest.TestCase):
     def test_no_params_fail(self):
         with self.assertRaisesRegex(TypeError, r"parse_serializable_list\(\) " + \
                                     "missing 4 required positional arguments: " + \
-                                    "'value', 'name', 'instance', and 'child_type'$"):
+                                    "'value', 'name', 'instance', and " + \
+                                    "'child_type'$"):
             base.parse_serializable_list()
             
     def test_value_param_only_fail(self):
@@ -1034,7 +1323,8 @@ class TestParseSerializableList(unittest.TestCase):
         self.assertIsInstance(result, list)
         self.assertEqual(len(result), 2)
         self.assertTrue(all(
-            isinstance(x, ParseSerializableListDummySerializable) for x in result)
+            isinstance(x, ParseSerializableListDummySerializable) 
+            for x in result)
             )
         self.assertEqual(result[0].tag, 'child')
         self.assertEqual(result[1].tag, 'child2')
@@ -1049,7 +1339,8 @@ class TestParseSerializableList(unittest.TestCase):
         self.assertIsInstance(result, list)
         self.assertEqual(len(result), 2)
         self.assertTrue(all(
-            isinstance(x, ParseSerializableListDummySerializable) for x in result)
+            isinstance(x, ParseSerializableListDummySerializable) 
+            for x in result)
             )
 
     def test_list_of_incompatible_type(self):
@@ -1070,6 +1361,52 @@ class TestParseSerializableList(unittest.TestCase):
         self.assertIsInstance(result, list)
         self.assertEqual(len(result), 0)
 
+    def test_parse_serializable_list_no_child_xml_ns_key(self):
+        class DummyChild:
+            @classmethod
+            def from_node(cls, node, xml_ns, ns_key=None):
+                # For test, return tuple of tag, ns_key, and xml_ns
+                return (node.tag, ns_key, xml_ns)
+
+        class DummyInstance:
+            _xml_ns = {'default': 'urn:default'}
+            _xml_ns_key = 'default'
+            # _child_xml_ns_key is NOT set
+
+        xml = """
+        <Parent>
+            <Child/>
+            <Child/>
+        </Parent>
+        """
+        elem = ET.fromstring(xml)
+        children = list(elem)
+        result = base.parse_serializable_list(children, 'field', 
+                                              DummyInstance(), DummyChild)
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0][1], 'default')
+        self.assertEqual(result[0][2], {'default': 'urn:default'})
+
+    def test_parse_serializable_list_invalid_type(self):
+        class DummyChild:
+            pass
+
+        class DummyInstance:
+            _xml_ns = {'default': 'urn:default'}
+            _xml_ns_key = 'default'
+
+        # value is not None, not DummyChild, not ElementTree.Element, not list, 
+        # not child_type
+        value = np.array([42.0])  # numpy array with float type
+        with self.assertRaisesRegex(TypeError, r'Field field of class ' + 
+                                    'DummyInstance got incompatible type ' + 
+                                    '<class \'numpy.ndarray\'>.$'):
+            base.parse_serializable_list(value, 'field', DummyInstance(), 
+                                         DummyChild)
+
+# ********************
+# parse_parameters_collection tests
+# ********************
 
 class ParseParametersCollectionDummyInstance:
     pass
