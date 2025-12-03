@@ -656,7 +656,17 @@ class SIDDWritingDetails(NITFWritingDetails):
             ftitle = 'SIDD: Unknown'
         return ftitle
 
+    # File Creation DateTime
     def _get_fdt(self, index: int) -> Optional[str]:
+        sidd = self.sidd_meta[index]
+        if sidd.ProductCreation.ProcessorInformation.ProcessingDateTime is not None:
+            the_time = sidd.ProductCreation.ProcessorInformation.ProcessingDateTime.astype('datetime64[s]')
+            return re.sub(r'[^0-9]', '', str(the_time))
+        else:
+            return None
+
+    # Image Acquisition (Collection) Datetime
+    def _get_collection_datetime(self, index: int) -> Optional[str]:   
         sidd = self.sidd_meta[index]
         if sidd.ExploitationFeatures.Collections[0].Information.CollectionDateTime is not None:
             the_time = sidd.ExploitationFeatures.Collections[0].Information.CollectionDateTime.astype('datetime64[s]')
@@ -730,7 +740,7 @@ class SIDDWritingDetails(NITFWritingDetails):
             'IC': 'NC',
             'IID2': self._get_iid2(sidd_index),
             'ISORCE': self._get_isorce(sidd_index),
-            'IDATIM': self._get_fdt(sidd_index)
+            'IDATIM': self._get_collection_datetime(sidd_index)
         }
 
         if sidd.Display.PixelType == 'MONO8I':
