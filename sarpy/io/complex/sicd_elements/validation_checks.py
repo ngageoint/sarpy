@@ -389,6 +389,14 @@ def _pfa_check_uvects(PFA, Position, Grid, SCP) -> bool:
 
 def _pfa_check_stdeskew(PFA, Grid) -> bool:
     """
+    This function ensures that the STDeskew settings and related polynomials are 
+    consistent and physically meaningful for PFA processing in SAR data.
+
+    Summary:
+    ----------
+    The _pfa_check_stdeskew function performs validity checks related to the 
+    STDeskew (Space-Time Deskew) processing in the PFA (Polar Format Algorithm) 
+    image formation parameters for SAR imagery.
 
     Parameters
     ----------
@@ -397,12 +405,21 @@ def _pfa_check_stdeskew(PFA, Grid) -> bool:
 
     Returns
     -------
-    bool
+    bool:
+        - Returns True if all checks pass.
+        - Returns False if any check fails.
     """
 
+    # If PFA.STDeskew is None or its Applied attribute is False, the function 
+    # returns True (no checks needed).
     if PFA.STDeskew is None or not PFA.STDeskew.Applied:
         return True
     cond = True
+    # TimeCOAPoly check:
+    #   If Grid.TimeCOAPoly exists, it checks if the polynomial is essentially 
+    #   constant (either shape (1, 1) or all higher-order coefficients are near 
+    #   zero).
+    #       If so, it logs a validity error and sets the return value to False.
     if Grid.TimeCOAPoly is not None:
         timecoa_poly = Grid.TimeCOAPoly.get_array(dtype='float64')
         if timecoa_poly.shape == (1, 1) or numpy.all(timecoa_poly.flatten()[1:] < 1e-6):
@@ -411,6 +428,12 @@ def _pfa_check_stdeskew(PFA, Grid) -> bool:
             cond = False
 
     # the Row DeltaKCOAPoly and STDSPhasePoly should be essentially identical
+    # DeltaKCOAPoly vs STDSPhasePoly check:
+    #   If both Grid.Row.DeltaKCOAPoly and PFA.STDeskew.STDSPhasePoly exist, it 
+    #       compares their arrays (after padding to the same shape).
+    #   If the maximum absolute difference between them exceeds 1e-6, it logs a 
+    #       validity warning and sets the return value to False.
+
     if Grid.Row is not None and Grid.Row.DeltaKCOAPoly is not None and \
             PFA.STDeskew.STDSPhasePoly is not None:
         stds_phase_poly = PFA.STDeskew.STDSPhasePoly.get_array(dtype='float64')
