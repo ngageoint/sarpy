@@ -36,28 +36,23 @@ DEFAULT_STRICT = False
 
 def get_node_value(nod: ElementTree.Element) -> Optional[str]:
     """
-    XML parsing helper for extracting text value from an ElementTree Element. 
-    No error checking performed.
+    Extracts and returns the stripped text value from an ElementTree Element.
+    Returns None if the text is None or only whitespace.
 
     Parameters
     ----------
     nod : ElementTree.Element
-        the xml dom element
+        The XML DOM element.
 
     Returns
     -------
-    str
-        the string value of the node.
+    Optional[str]
+        The stripped string value of the node, or None.
     """
-
-    if nod.text is None:
-        return None
-
-    val = nod.text.strip()
-    if len(val) == 0:
-        return None
-    else:
-        return val
+    if nod.text:
+        val = nod.text.strip()
+        return val if val else None
+    return None
 
 
 def create_new_node(
@@ -508,18 +503,19 @@ def parse_complex(value, name, instance):
     value : ElementTree.Element|None|complex|dict
         The ElementTree.Element entity that you want to get the value from.
         None returns None.
-        complex returns a complex.
-        dict is a dictionary representation of a complex number.
+        Float returns a float.
+        A string value will return the float value for the string if it can be 
+        converted to a float.
     name : str 
         Name of the field to return the value of. This is only used in the 
         raised error message
     instance :
-        The class of the variable. This is only used in the raised error message.
+        The class of the variable. 
 
     Returns
     -------
     None | bool
-        Returns None if value passed is None. Returns the complex value
+        Returns None if value passed is None. Returns the float value
         of a node when passed an ElementTree.Element
 
     Raises
@@ -573,36 +569,6 @@ def parse_complex(value, name, instance):
 
 
 def parse_datetime(value, name, instance, units='us'):
-    """
-    The parse_datetime function is a helper function specifically for parsing 
-    datetime values within XML elements in sarpy.io.xml.base. 
-    The function is not intended for public use. This function is recursive.
-    
-    Parameters
-    ----------
-    value : ElementTree.Element|None|datetime|dict
-        The ElementTree.Element entity that you want to get the value from.
-        None returns None.
-        datetime returns a datetime.
-        A string value will return the datetime value for the string if it can be 
-        converted to a datetime.
-    name : str 
-        Name of the field to return the value of. This is only used in the 
-        raised error message
-    instance :
-        The class of the variable. This is only used in the raised error message.
-
-    Returns
-    -------
-    None | bool
-        Returns None if value passed is None. Returns the float value
-        of a node when passed an ElementTree.Element
-
-    Raises
-    -------
-    TypeError
-        When passed a value with a type other than the expected input types.
-    """
     if value is None:
         return None
     if isinstance(value, numpy.datetime64):
@@ -616,8 +582,10 @@ def parse_datetime(value, name, instance, units='us'):
     elif isinstance(value, ElementTree.Element):
         # from XML deserialization - extract the string
         return parse_datetime(get_node_value(value), name, instance, units=units)
-    elif isinstance(value, (date, datetime, numpy.int64, numpy.float64)):
+    elif isinstance(value, (date, datetime)):
         return numpy.datetime64(value, units)
+    elif isinstance(value, (numpy.int64, numpy.float64)):
+        return numpy.datetime64(int(value.item()), units)
     elif isinstance(value, int):
         # this is less safe, because the units are unknown...
         return numpy.datetime64(value, units)
@@ -685,20 +653,24 @@ def parse_serializable_array(value, name, instance, child_type, child_tag):
         xml_ns = getattr(instance, '_xml_ns', None)
         if hasattr(instance, '_child_xml_ns_key'):
             # noinspection PyProtectedMember
-            xml_ns_key = instance._child_xml_ns_key.get(name, getattr(instance, '_xml_ns_key', None))
+            xml_ns_key = instance._child_xml_ns_key.get(name, 
+                                                        getattr(instance, 
+                                                                '_xml_ns_key', 
+                                                                None))
         else:
             xml_ns_key = getattr(instance, '_xml_ns_key', None)
         # this is the parent node from XML deserialization
-        size = int(value.attrib.get('size', -1))  # NB: Corner Point arrays don't have
-        # extract child nodes at top level
+        size = int(value.attrib.get('size', -1))  # NB: Corner Point arrays 
+        # don't have extract child nodes at top level
         child_nodes = find_children(value, child_tag, xml_ns, xml_ns_key)
 
         if size == -1:  # fill in, if it's missing
             size = len(child_nodes)
         if len(child_nodes) != size:
             raise ValueError(
-                'Attribute {} of array type functionality belonging to class {} got a ElementTree element '
-                'with size attribute {}, but has {} child nodes with tag {}.'.format(
+                'Attribute {} of array type functionality belonging to class {} '
+                'got a ElementTree element with size attribute {}, but has {} '
+                'child nodes with tag {}.'.format(
                     name, instance.__class__.__name__, size, len(child_nodes), child_tag))
         new_value = numpy.empty((size, ), dtype='object')
         for i, entry in enumerate(child_nodes):
@@ -720,7 +692,7 @@ def parse_serializable_array(value, name, instance, child_type, child_tag):
                 return numpy.array([child_type(Coefs=array) for array in value], dtype='object')
             else:
                 raise ValueError(
-                    'Attribute {} of array type functionality belonging to class {} got an list '
+                    'Attribute {} of array type functionality belonging to class {} got a list '
                     'containing elements type {} and construction failed.'.format(
                         name, instance.__class__.__name__, type(value[0])))
         else:
@@ -739,13 +711,17 @@ def parse_serializable_list(value, name, instance, child_type):
     if isinstance(value, child_type):
         # this is the child element
         return [value, ]
-
+    print('past instance')
     xml_ns = getattr(instance, '_xml_ns', None)
     if hasattr(instance, '_child_xml_ns_key'):
         # noinspection PyProtectedMember
-        xml_ns_key = instance._child_xml_ns_key.get(name, getattr(instance, '_xml_ns_key', None))
+        xml_ns_key = instance._child_xml_ns_key.get(name, 
+                                                    getattr(instance, 
+                                                            '_xml_ns_key', 
+                                                            None))
     else:
         xml_ns_key = getattr(instance, '_xml_ns_key', None)
+    print('past hasattr')
     if isinstance(value, ElementTree.Element):
         # this is the child
         return [child_type.from_node(value, xml_ns, ns_key=xml_ns_key), ]
@@ -758,7 +734,8 @@ def parse_serializable_list(value, name, instance, child_type):
             # NB: charming errors are possible if something stupid has been done.
             return [child_type.from_dict(node) for node in value]
         elif isinstance(value[0], ElementTree.Element):
-            return [child_type.from_node(node, xml_ns, ns_key=xml_ns_key) for node in value]
+            return [child_type.from_node(node, xml_ns, ns_key=xml_ns_key) 
+                    for node in value]
         else:
             raise TypeError(
                 'Field {} of list type functionality belonging to class {} got a '
@@ -799,19 +776,22 @@ def parse_parameters_collection(value, name, instance):
 
 class Serializable(object):
     """
-    Basic abstract class specifying the serialization pattern. There are no clearly defined Python conventions
-    for this issue. Every effort has been made to select sensible choices, but this is an individual effort.
+    Basic abstract class specifying the serialization pattern. There are no 
+    clearly defined Python conventions for this issue. Every effort has been 
+    made to select sensible choices, but this is an individual effort.
 
     Notes
     -----
-        All fields MUST BE LISTED in the `_fields` tuple. Everything listed in `_required` tuple will be checked
-        for inclusion in `_fields` tuple. Note that special care must be taken to ensure compatibility of `_fields`
+        All fields MUST BE LISTED in the `_fields` tuple. Everything listed in 
+        `_required` tuple will be checked for inclusion in `_fields` tuple. 
+        Note that special care must be taken to ensure compatibility of `_fields`
         tuple, if inheriting from an extension of this class.
     """
     _fields = ()
     """collection of field names"""
     _required = ()
-    """subset of `_fields` defining the required (for the given object, according to the sicd standard) fields"""
+    """subset of `_fields` defining the required (for the given object, 
+    according to the sicd standard) fields"""
     _tag_override = {}
     """On occasion, the xml tag and the corresponding variable name may need to differ. 
     This dictionary should be populated as `{<variable name> : <tag name>}`."""
@@ -845,11 +825,11 @@ class Serializable(object):
     """
     Entries appropriate for choice selection between attributes. Entry formatting:
 
-    * `{'required': True, 'collection': <tuple of attribute names>}` - indicates that EXACTLY only one of the 
-      attributes should be populated.
+    * `{'required': True, 'collection': <tuple of attribute names>}` - 
+    indicates that EXACTLY only one of the attributes should be populated.
 
-    * `{'required': False, 'collection': <tuple of attribute names>}` - indicates that no more than one of the 
-      attributes should be populated.
+    * `{'required': False, 'collection': <tuple of attribute names>}` - 
+    indicates that no more than one of the attributes should be populated.
     """
     _child_xml_ns_key = {}
     """
@@ -861,14 +841,17 @@ class Serializable(object):
 
     def __init__(self, **kwargs):
         """
-        The default constructor. For each attribute name in `self._fields`, fetches the value (or None) from
-        the `kwargs` dict, and sets the class instance attribute value. The details for attribute value validation,
-        present for virtually every attribute, will be implemented specifically as descriptors.
+        The default constructor. For each attribute name in `self._fields`, 
+        fetches the value (or None) from the `kwargs` dict, and sets the class 
+        instance attribute value. The details for attribute value validation,
+        present for virtually every attribute, will be implemented specifically 
+        as descriptors.
 
         Parameters
         ----------
         **kwargs :
-            the keyword arguments dictionary - the possible entries match the attributes.
+            the keyword arguments dictionary - the possible entries match the 
+            attributes.
         """
 
         if '_xml_ns' in kwargs:
@@ -880,13 +863,12 @@ class Serializable(object):
                 'collection {}'.format(unexpected_args, self._fields))
 
         for attribute in self._fields:
-            if attribute in kwargs:
-                try:
-                    setattr(self, attribute, kwargs.get(attribute, None))
-                except AttributeError:
-                    # NB: this is included to allow for read only properties without breaking the paradigm
-                    #   Silently catching errors can potentially cover up REAL issues.
-                    pass
+            try:
+                setattr(self, attribute, kwargs.get(attribute, None))
+            except AttributeError:
+                # NB: this is included to allow for read only properties without breaking the paradigm
+                #   Silently catching errors can potentially cover up REAL issues.
+                pass
 
     def __str__(self):
         return '{}(**{})'.format(self.__class__.__name__, json.dumps(self.to_dict(check_validity=False), indent=1))
@@ -895,7 +877,12 @@ class Serializable(object):
         return '{}(**{})'.format(self.__class__.__name__, self.to_dict(check_validity=False))
 
     def __setattr__(self, key, value):
-        if not (key.startswith('_') or (key in self._fields) or hasattr(self.__class__, key) or hasattr(self, key)):
+        if not (
+            key.startswith('_') or 
+            (key in self._fields) or 
+            hasattr(self.__class__, key) or 
+            hasattr(self, key)
+            ):
             # not expected attribute - descriptors, properties, etc
             logger.warning(
                 'Class {} instance receiving unexpected attribute {}.\n\t'
@@ -1140,17 +1127,15 @@ class Serializable(object):
 
         if kwargs is None:
             kwargs = {}
-        kwargs['_xml_ns'] = xml_ns
-        kwargs['_xml_ns_key'] = ns_key
-
         if not isinstance(kwargs, dict):
             raise ValueError(
                 "Named input argument kwargs for class {} must be dictionary instance".format(cls))
+        kwargs['_xml_ns'] = xml_ns
+        kwargs['_xml_ns_key'] = ns_key
 
         for attribute in cls._fields:
             if attribute in kwargs:
                 continue
-
             kwargs[attribute] = None
             # This value will be replaced if tags are present
             # Note that we want to try explicitly setting to None to trigger descriptor behavior
@@ -1261,7 +1246,8 @@ class Serializable(object):
                 # I have no idea how we'd find ourselves here, unless inconsistencies have been introduced
                 # into the descriptor
                 raise ValueError(
-                    'The value associated with attribute {} is an instance of class {}, if None, is required to be'
+                    'The value associated with attribute {} is an instance of '
+                    'class {}, if None, is required to be '
                     'a numpy.ndarray of dtype float64 or object, but it has dtype {}'.format(
                         attribute, self.__class__.__name__, val.dtype))
 
@@ -1432,7 +1418,7 @@ class Serializable(object):
                 # I have no idea how we'd find ourselves here, unless inconsistencies have been introduced
                 # into the descriptor
                 raise ValueError(
-                    'The value associated with attribute {} is an instance of class {}. This is expected to be'
+                    'The value associated with attribute {} is an instance of class {}. This is expected to be '
                     'a numpy.ndarray of dtype float64, but it has dtype {}'.format(
                         attribute, self.__class__.__name__, val.dtype))
 
@@ -1463,7 +1449,7 @@ class Serializable(object):
                 return val.isoformat(sep='T')
             else:
                 raise ValueError(
-                    'a entry for class {} using tag {} is of type {}, and serialization has not '
+                    'An entry for class {} using tag {} is of type {}, and serialization has not '
                     'been implemented'.format(self.__class__.__name__, field, type(val)))
 
         if check_validity:
@@ -1910,19 +1896,38 @@ class ParametersCollection(object):
     def get_collection(self):
         return self._dict
 
-    # noinspection PyUnusedLocal
     def to_node(self, doc, ns_key=None, parent=None, check_validity=False, strict=False):
+        """
+            Serializes the ParametersCollection to XML nodes.
+
+            Parameters
+            ----------
+            doc : ElementTree.ElementTree
+                The XML Document.
+            ns_key : None|str
+                Namespace prefix.
+            parent : None|ElementTree.Element
+                Parent element.
+            check_validity : bool
+                Unused, for compatibility.
+            strict : bool
+                Unused, for compatibility.
+
+            Returns
+            -------
+            ElementTree.Element
+                The parent node containing all parameter children.
+        """
         if self._dict is None:
-            return None  # nothing to be done
-        for name in self._dict:
-            value = self._dict[name]
-            if not isinstance(value, str):
-                value = str(value)
-            if ns_key is None:
-                node = create_text_node(doc, self._child_tag, value, parent=parent)
-            else:
-                node = create_text_node(doc, '{}:{}'.format(ns_key, self._child_tag), value, parent=parent)
-            node.attrib['name'] = name
+            return None
+        tag = f"{ns_key}:{self._child_tag}" if ns_key else self._child_tag
+        node = create_new_node(doc, tag, parent)
+        for name, value in self._dict.items():
+            val_str = str(value) if not isinstance(value, str) else value
+            tag = f"{ns_key}:{self._child_tag}" if ns_key else self._child_tag
+            param_node = create_text_node(doc, tag, val_str, parent=node)
+            param_node.attrib['name'] = name
+        return node
 
     # noinspection PyUnusedLocal
     def to_dict(self, check_validity=False, strict=False):
