@@ -863,12 +863,13 @@ class Serializable(object):
                 'collection {}'.format(unexpected_args, self._fields))
 
         for attribute in self._fields:
-            try:
-                setattr(self, attribute, kwargs.get(attribute, None))
-            except AttributeError:
-                # NB: this is included to allow for read only properties without breaking the paradigm
-                #   Silently catching errors can potentially cover up REAL issues.
-                pass
+            if attribute in kwargs:
+                try:
+                    setattr(self, attribute, kwargs.get(attribute, None))
+                except AttributeError:
+                    # NB: this is included to allow for read only properties without breaking the paradigm
+                    #   Silently catching errors can potentially cover up REAL issues.
+                    pass
 
     def __str__(self):
         return '{}(**{})'.format(self.__class__.__name__, json.dumps(self.to_dict(check_validity=False), indent=1))
