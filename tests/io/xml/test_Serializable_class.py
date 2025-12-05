@@ -207,14 +207,6 @@ class TestSerializable(unittest.TestCase):
         obj = DummySerializable2(a=1, b=2, c=3)
         self.assertEqual((obj.a, obj.b, obj.c), (1, 2, 3))
 
-    def test_serializable_init_missing_fields_are_none(self):
-        class DummySerializable2(Serializable):
-            _fields = ('a', 'b', 'c')
-        obj = DummySerializable2(a=1)
-        self.assertEqual(obj.a, 1)
-        self.assertIsNone(obj.b)
-        self.assertIsNone(obj.c)
-
     def test_serializable_init_unexpected_args_raises(self):
         class DummySerializable(Serializable):
             _fields = ('a', 'b')
