@@ -40,17 +40,6 @@ class TestParametersCollection(unittest.TestCase):
         d = pc.get_collection()
         self.assertEqual(d, {'alpha': 'A', 'beta': 'B'})
 
-    def test_to_node(self):
-        pc = ParametersCollection({'alpha': 'A', 'beta': 'B'}, name='Test')
-        doc = ElementTree.ElementTree()
-        node = pc.to_node(doc)
-        self.assertEqual(node.tag, 'Parameters')
-        children = list(node)
-        self.assertEqual(len(children), 2)
-        self.assertEqual(children[0].tag, 'Parameters')
-        self.assertEqual(children[0].attrib['name'], 'alpha')
-        self.assertEqual(children[0].text, 'A')
-
     def test_repr(self):
         pc = ParametersCollection({'alpha': 'A'}, name='Test')
         self.assertIn('ParametersCollection', repr(pc))

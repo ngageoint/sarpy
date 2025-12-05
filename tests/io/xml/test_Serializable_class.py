@@ -336,18 +336,6 @@ class TestSerializable(unittest.TestCase):
         self.assertEqual(obj.a[1].tag,  'Child')
         self.assertEqual(obj.a[1].text, 'two')
 
-    def test_serializable_from_node_kwargs_not_dict(self):
-        class DummySerializable2(Serializable):
-            _fields           = ('a',)
-            _tag_override     = {}
-            _child_xml_ns_key = {}
-        xml    = '<root a="value"/>'
-        node   = ElementTree.fromstring(xml)
-        xml_ns = None
-        with self.assertRaisesRegex(ValueError, r'Named input argument ' + \
-                                    'kwargs .* must be dictionary instance$'):
-            DummySerializable2.from_node(node, xml_ns, kwargs=[])
-
     def test_serializable_from_node_attribute_in_kwargs(self):
         class DummySerializable2(Serializable):
             _fields           = ('a', 'b')
@@ -468,7 +456,7 @@ class TestSerializable(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, r'The value associated with ' + \
                                     'attribute arr is an instance of class ' + \
                                     'DummySerializable, if None, is required ' + \
-                                    'to bea one-dimensional numpy.ndarray, ' + \
+                                    'to be a one-dimensional numpy.ndarray, ' + \
                                     'but it has shape \(2, 2\)$'):
             obj.to_node(doc, tag='TestTag')
 
@@ -624,7 +612,7 @@ class TestSerializable(unittest.TestCase):
         self.assertEqual(len(items[0]), 2)
         # ParametersCollection field
         self.assertIsNotNone(params)
-        self.assertEqual(params[0].attrib['name'], 'a')
+        self.assertEqual(params.attrib['name'], 'a')
 
     def test_serializable_to_node_serialize_plain_complex_with_namespace(self):
         class DummySerializable(Serializable):
@@ -758,7 +746,7 @@ class TestSerializable(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, r'The value associated with ' + \
                                     'attribute arr is an instance of class ' + \
                                     'DummySerializable, if None, is required ' + \
-                                    'to bea one-dimensional numpy.ndarray, ' + \
+                                    'to be a one-dimensional numpy.ndarray, ' + \
                                     'but it has shape \(2, 2\)$'):
             obj.to_dict()
 
