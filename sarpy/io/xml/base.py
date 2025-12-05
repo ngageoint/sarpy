@@ -36,28 +36,21 @@ DEFAULT_STRICT = False
 
 def get_node_value(nod: ElementTree.Element) -> Optional[str]:
     """
-    XML parsing helper for extracting text value from an ElementTree Element. 
-    No error checking performed.
-
+    Extracts and returns the stripped text value from an ElementTree Element.
+    Returns None if the text is None or only whitespace.
     Parameters
     ----------
     nod : ElementTree.Element
-        the xml dom element
-
+        The XML DOM element.
     Returns
     -------
-    str
-        the string value of the node.
+    Optional[str]
+        The stripped string value of the node, or None.
     """
-
-    if nod.text is None:
-        return None
-
-    val = nod.text.strip()
-    if len(val) == 0:
-        return None
-    else:
-        return val
+    if nod.text:
+        val = nod.text.strip()
+        return val if val else None
+    return None
 
 
 def create_new_node(
