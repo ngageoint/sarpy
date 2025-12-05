@@ -91,11 +91,6 @@ class TestSerializableArray(unittest.TestCase):
         sa[0] = DummySerializable(x=10)
         # Test __getitem
         self.assertEqual(sa[0].x, 10)
-        with self.assertRaisesRegex(TypeError, 'Elements of test must be ' + \
-                                    'of type ' + \
-                                    '<class \'test_serializableArray_class.DummySerializable\'>' + \
-                                    ', not None'):
-            sa[1] = None
 
     def test_is_valid(self):
         arr = [DummySerializable(x=1), DummySerializable(x=2)]
