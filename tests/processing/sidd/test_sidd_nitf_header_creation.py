@@ -56,6 +56,7 @@ read the NITF header from the newly created SIDD product and test that the FDT v
 is different than the IDATIM value and that the FDT value is close to the current time
 (becuase the NITF SIDD product was just created). 
 '''
+@unittest.skipIf(len(sicd_files) == 0, 'No sicd files found')
 def test_nitf_fdt_updated_for_detected_image_sidd(tmp_path):
     local_reader = get_test_reader(0)
     ortho_helper = NearestNeighborMethod(local_reader, index=0)
@@ -102,6 +103,7 @@ is different than the IDATIM value and that the FDT value is close to the curren
 the FDT and IDATIM values are recomputed for each subaerture of the dynamic-image, but
 that information may not be represented in the NITF header data.
 '''
+@unittest.skipIf(len(sicd_files) == 0, 'No sicd files found')
 def test_nitf_fdt_updated_for_dynamic_image_sidd(tmp_path):
     local_reader = get_test_reader(0)
     ortho_helper = NearestNeighborMethod(local_reader, index=0)
