@@ -5,15 +5,15 @@ Base structures for received signal data readers and usage
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
-from typing import Union, Tuple, Sequence, Dict, Optional
-
 import numpy
+from typing   import Union, Tuple, Sequence, Dict, Optional
+from deprecated import deprecated
 
-from sarpy.io.general.base import BaseReader
-from sarpy.io.general.data_segment import DataSegment
+from sarpy.io.general.base                 import BaseReader
+from sarpy.io.general.data_segment         import DataSegment
 from sarpy.io.received.crsd1_elements.CRSD import CRSDType as CRSDType1_0
 
-
+@deprecated("sarpy's CRSD implementation is deprecated. Please use SARKit.")
 class CRSDTypeReader(BaseReader):
     """
     A class for ensuring common CRSD reading functionality.

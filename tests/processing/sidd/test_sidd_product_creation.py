@@ -142,8 +142,8 @@ def test_create_dynamic_image_sidd_remap_function_fail(tmp_path):
           test_sidd = create_dynamic_image_sidd(ortho_helper, output_directory, \
                                            output_file, \
                                             remap_function=local_remap_function)
-    
-@unittest.skipIf(len(sicd_files) == 0, 'No sicd files found')
+
+@unittest.skipIf(len(sicd_files) == 0, 'No sicd files found')    
 def test_create_dynamic_image_sidd_remap_function_success(tmp_path):
     local_reader = get_test_reader()
     ortho_helper = NearestNeighborMethod(local_reader, index=0)

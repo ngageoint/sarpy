@@ -5,13 +5,12 @@ Base annotation types for general use - based on the geojson implementation
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
+from collections import OrderedDict
+import json
 import logging
 import os
-from uuid import uuid4
 from typing import Optional, Dict, List, Any, Union
-import json
-
-from collections import OrderedDict
+from uuid import uuid4
 
 from sarpy.geometry.geometry_elements import Jsonable, FeatureCollection, Feature, \
     GeometryCollection, GeometryObject, Geometry, basic_assemble_from_collection
@@ -33,7 +32,7 @@ class GeometryProperties(Jsonable):
         if uid is None:
             uid = str(uuid4())
         if not isinstance(uid, str):
-            raise TypeError('uid must be a string')
+            raise TypeError('uid must be a string, got {}'.format(type(uid)))
         self._uid = uid
 
         self.name = name
@@ -60,7 +59,7 @@ class GeometryProperties(Jsonable):
         if value is None or isinstance(value, str):
             self._name = value
         else:
-            raise TypeError('Got unexpected type for name')
+            raise TypeError('Got unexpected type of {} for name'.format(type(value)))
 
     @property
     def color(self):
@@ -75,7 +74,7 @@ class GeometryProperties(Jsonable):
         if value is None or isinstance(value, str):
             self._color = value
         else:
-            raise TypeError('Got unexpected type for color')
+            raise TypeError('Got unexpected type of {} for color'.format(type(value)))
 
     @classmethod
     def from_dict(cls, the_json):
@@ -90,10 +89,18 @@ class GeometryProperties(Jsonable):
         -------
         GeometryProperties
         """
-
-        typ = the_json['type']
+        
+        if not isinstance(the_json, dict):
+            raise TypeError('This requires a dict. Got type {}'.format(type(the_json)))
+        
+        typ = the_json.get('type', None) # prevents key error from being thrown if 'type' isn't in the_json
+        
+        if typ is None:
+            raise KeyError("the json requires the field 'type'")
+        
         if typ != cls._type:
-            raise ValueError('GeometryProperties cannot be constructed from {}'.format(the_json))
+            raise ValueError('GeometryProperties cannot be constructed from {}, expecting {}'.format(typ, cls._type))
+
         return cls(
             uid=the_json.get('uid', None),
             name=the_json.get('name', None),
@@ -168,7 +175,7 @@ class AnnotationProperties(Jsonable):
         if value is None or isinstance(value, str):
             self._name = value
         else:
-            raise TypeError('Got unexpected type for name')
+            raise TypeError(f'Got unexpected value of type {type(value)} for name')
 
     @property
     def description(self):
@@ -182,7 +189,7 @@ class AnnotationProperties(Jsonable):
         if value is None or isinstance(value, str):
             self._description = value
         else:
-            raise TypeError('Got unexpected type for description')
+            raise TypeError(f'Got unexpected value of type {type(value)} for description')
 
     @property
     def directory(self):
@@ -198,7 +205,7 @@ class AnnotationProperties(Jsonable):
             return
 
         if not isinstance(value, str):
-            raise TypeError('Got unexpected type for directory')
+            raise TypeError(f'Got unexpected value of type {type(value)} for directory')
 
         parts = [entry.strip() for entry in value.split('/')]
         self._directory = '/'.join([entry for entry in parts if entry != ''])
@@ -218,7 +225,7 @@ class AnnotationProperties(Jsonable):
             self._geometry_properties = []
             return
         if not isinstance(value, list):
-            raise TypeError('Got unexpected value for geometry properties')
+            raise TypeError(f'Got unexpected value of type {type(value)} for geometry properties')
 
         self._geometry_properties = []
         for entry in value:
@@ -242,8 +249,9 @@ class AnnotationProperties(Jsonable):
             entry = GeometryProperties.from_dict(entry)
 
         if not isinstance(entry, GeometryProperties):
-            raise TypeError('Got entry of unexpected type for geometry properties list')
-        self._geometry_properties.append(entry)
+            raise TypeError(f'Got unexpected value of type {type(entry)} for geometry properties')
+
+        self.geometry_properties.append(entry)
 
     def get_geometry_property(self, item):
         """
@@ -303,7 +311,7 @@ class AnnotationProperties(Jsonable):
         if value is None or isinstance(value, Jsonable):
             self._parameters = value
         else:
-            raise TypeError('Got unexpected type for parameters')
+            raise TypeError(f'Got unexpected value of type {type(value)} for parameters')
 
     @classmethod
     def from_dict(cls, the_json):
@@ -319,9 +327,17 @@ class AnnotationProperties(Jsonable):
         AnnotationProperties
         """
 
-        typ = the_json['type']
+        if not isinstance(the_json, dict):
+            raise TypeError('This requires a dict. Got type {}'.format(type(the_json)))
+
+        typ = the_json.get('type', None) # prevents key error from being thrown if 'type' isn't in the_json
+        
+        if typ is None:
+            raise KeyError("the json requires the field 'type'")
+        
         if typ != cls._type:
-            raise ValueError('AnnotationProperties cannot be constructed from {}'.format(the_json))
+            raise ValueError('AnnotationProperties cannot be constructed from {}, expecting {}'.format(typ, cls._type))
+        
         return cls(
             name=the_json.get('name', None),
             description=the_json.get('description', None),
@@ -334,6 +350,7 @@ class AnnotationProperties(Jsonable):
         Serialize to json.
 
         Parameters
+
         ----------
         parent_dict : None|Dict
 
@@ -373,6 +390,7 @@ class AnnotationFeature(Feature):
     populated with AnnotationProperties instance.
     """
     _allowed_geometries = None
+    _type = "AnnotationFeature"
 
     @property
     def properties(self):
@@ -395,7 +413,7 @@ class AnnotationFeature(Feature):
         elif isinstance(properties, dict):
             self._properties = AnnotationProperties.from_dict(properties)
         else:
-            raise TypeError('Got an unexpected type for properties attribute of class {}'.format(self.__class__))
+            raise TypeError('Got an unexpected type for properties attribute of type {}'.format(properties.__class__))
 
     def get_name(self):
         """
@@ -560,7 +578,7 @@ class AnnotationFeature(Feature):
         if geometry is None:
             return geometry
         if not isinstance(geometry, Geometry):
-            raise TypeError('geometry must be an instance of Geometry base class')
+            raise TypeError('geometry must be an instance of Geometry base class. Got {}'.format(type(geometry)))
 
         if self._allowed_geometries is not None and geometry.__class__ not in self._allowed_geometries:
             raise TypeError('geometry ({}) is not of one of the allowed types ({})'.format(geometry, self._allowed_geometries))
@@ -577,29 +595,34 @@ class AnnotationFeature(Feature):
         """
 
         if not isinstance(geometry, GeometryObject):
-            raise TypeError('geometry must be a GeometryObject instance')
+            raise TypeError('geometry must be a GeometryObject instance. Got {}'.format(type(geometry)))
 
         if properties is None:
             properties = GeometryProperties()
+
         if not isinstance(properties, GeometryProperties):
-            raise TypeError('properties must be a GeometryProperties instance')
+            raise TypeError('properties must be a GeometryProperties instance. Got {}'.format(type(properties)))
+   
         if self.properties is None:
             self.properties = AnnotationProperties()
+        
+        if self.geometry is None:
+            self.geometry = GeometryCollection()
 
         # handle the geometry
-        self._geometry = self._validate_geometry_element(
+        self.geometry = self._validate_geometry_element(
             basic_assemble_from_collection(self.geometry, geometry))
 
-        # add the geometry property
-        self.properties.add_geometry_property(properties)
-
-        # check that they are in sync
+        # check that they are in sync and warns before adding the geometry element
         if len(self.properties.geometry_properties) != self.geometry_count:
             logger.warning(
                 'There are {} geometry elements defined\n\t'
                 'and {} geometry properties populated. '
                 'This is likely to cause problems.'.format(
                     self.geometry_count, len(self.properties.geometry_properties)))
+
+         # add the geometry property
+        self.properties.add_geometry_property(properties)
 
     def remove_geometry_element(self, item):
         """
@@ -623,12 +646,33 @@ class AnnotationFeature(Feature):
             del self.geometry.collection[index]
             del self.properties.geometry_properties[index]
 
+    @classmethod
+    def from_dict(cls, the_json):
+        if not isinstance(the_json, dict):
+            raise TypeError('This requires a dict. Got type {}'.format(type(the_json)))
+
+        typ = the_json.get('type', None) # prevents key error from being thrown if 'type' isn't in the_json
+        
+        if typ is None:
+            raise KeyError("the json requires the field 'type'")
+
+        if typ != cls._type:
+            raise ValueError('AnnotationFeature cannot be constructed from {}, expecting {}'.format(typ, cls._type))
+
+        the_id = the_json.get('id', None)
+        if the_id is None:
+            the_id = the_json.get('uid', None)
+
+        return cls(uid=the_id,
+                   geometry=the_json.get('geometry', None),
+                   properties=the_json.get('properties', None))
 
 class AnnotationCollection(FeatureCollection):
     """
     An extension of the FeatureCollection class which has the features are
     AnnotationFeature instances.
     """
+    _type = "AnnotationCollection"
 
     @property
     def features(self):
@@ -685,6 +729,27 @@ class AnnotationCollection(FeatureCollection):
             index = self._feature_dict[item]
             return self._features[index]
         return self._features[item]
+    
+    @classmethod
+    def from_dict(cls, the_json):
+        if not isinstance(the_json, dict):
+            raise TypeError('This requires a dict. Got type {}'.format(type(the_json)))
+
+        typ = the_json.get('type', None) # prevents key error from being thrown if 'type' isn't in the_json
+        
+        if typ is None:
+            raise KeyError("the json requires the field 'type'")
+
+        if typ != cls._type:
+            raise ValueError('AnnotationCollection cannot be constructed from {}, expecting {}'.format(typ, cls._type))
+
+        features = the_json.get('features', None)
+        if features is None:
+            feature_list = None
+        else:
+            feature_list = [AnnotationFeature.from_dict(entry) for entry in features]
+
+        return cls(features=feature_list)
 
 
 class FileAnnotationCollection(Jsonable):
@@ -856,7 +921,8 @@ class FileAnnotationCollection(Jsonable):
 
         typ = the_dict.get('type', 'NONE')
         if typ != cls._type:
-            raise ValueError('FileAnnotationCollection cannot be constructed from the input dictionary')
+            raise ValueError('FileAnnotationCollection cannot be constructed from {}, expecting {}'.format(typ, cls._type))
+
 
         return cls(
             version=the_dict.get('version', 'UNKNOWN'),

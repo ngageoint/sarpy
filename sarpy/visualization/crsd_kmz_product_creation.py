@@ -6,16 +6,16 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Valkyrie Systems Corporation"
 
 import logging
-import os
-
 import numpy as np
+import os
+from deprecated import deprecated
 
 import sarpy.visualization.cphd_kmz_product_creation as cphd_kpc
 from sarpy.visualization import kmz_utils
 
 logger = logging.getLogger(__name__)
 
-
+@deprecated("sarpy's CRSD implementation is deprecated. Please use SARKit.")
 def crsd_create_kmz_view(reader, output_directory, file_stem="view"):
     """
     Create a kmz view for the reader contents.

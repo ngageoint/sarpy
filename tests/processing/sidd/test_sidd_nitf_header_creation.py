@@ -124,25 +124,5 @@ def test_nitf_fdt_updated_for_dynamic_image_sidd(tmp_path):
     collection_datetime = datetime.strptime(details.img_headers[0].IDATIM,"%Y%m%d%H%M%S%f")
     assert (fdt_datetime > collection_datetime)
 
-    # Since fdt_datetime and collection_datetime are realtive to Zulu but that information
-    # is not represented in their datetime python objects, we need to determine the
-    # current datetime relative to Zule, but then remove the tiemzone info from the
-    # object in order to compute time deltas later.
-#     current_time_zulu = datetime.now(timezone.utc).replace(tzinfo=None)
-    
-#     # Compute time difference between FDT (presumably current time) and IDATIM (collection time)
-#     time_delta = fdt_datetime - collection_datetime
-
-#     # boolean representing collection time is before file creation time
-#     fdt_gt_cdt = time_delta.total_seconds() > 0
-
-#     # Compute time difference between current time the FDT from NITF header
-#     recent_time_delta = current_time_zulu - fdt_datetime
-
-#     # Boolean representig that the SIDD file was created within the past 2 minutes
-#     fdt_is_recent = recent_time_delta.total_seconds() < 120
-    
-#     assert (fdt_gt_cdt and fdt_is_recent), 'NITF FileDateTime should be greater than IDATIM: {} > {}?'.format(details.nitf_header.FDT,details.img_headers[0].IDATIM)
-
 if __name__ == '__main__':
     unittest.main()
