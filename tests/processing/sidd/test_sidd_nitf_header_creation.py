@@ -126,8 +126,3 @@ def test_nitf_fdt_updated_for_dynamic_image_sidd(tmp_path):
 
 if __name__ == '__main__':
     unittest.main()
-
-
-
-
-

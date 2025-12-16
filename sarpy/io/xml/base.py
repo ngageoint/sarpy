@@ -36,28 +36,21 @@ DEFAULT_STRICT = False
 
 def get_node_value(nod: ElementTree.Element) -> Optional[str]:
     """
-    XML parsing helper for extracting text value from an ElementTree Element. 
-    No error checking performed.
-
+    Extracts and returns the stripped text value from an ElementTree Element.
+    Returns None if the text is None or only whitespace.
     Parameters
     ----------
     nod : ElementTree.Element
-        the xml dom element
-
+        The XML DOM element.
     Returns
     -------
-    str
-        the string value of the node.
+    Optional[str]
+        The stripped string value of the node, or None.
     """
-
-    if nod.text is None:
-        return None
-
-    val = nod.text.strip()
-    if len(val) == 0:
-        return None
-    else:
-        return val
+    if nod.text:
+        val = nod.text.strip()
+        return val if val else None
+    return None
 
 
 def create_new_node(
@@ -616,8 +609,10 @@ def parse_datetime(value, name, instance, units='us'):
     elif isinstance(value, ElementTree.Element):
         # from XML deserialization - extract the string
         return parse_datetime(get_node_value(value), name, instance, units=units)
-    elif isinstance(value, (date, datetime, numpy.int64, numpy.float64)):
+    elif isinstance(value, (date, datetime)):
         return numpy.datetime64(value, units)
+    elif isinstance(value, (numpy.int64, numpy.float64)):
+        return numpy.datetime64(int(value.item()), units)
     elif isinstance(value, int):
         # this is less safe, because the units are unknown...
         return numpy.datetime64(value, units)
@@ -720,7 +715,7 @@ def parse_serializable_array(value, name, instance, child_type, child_tag):
                 return numpy.array([child_type(Coefs=array) for array in value], dtype='object')
             else:
                 raise ValueError(
-                    'Attribute {} of array type functionality belonging to class {} got an list '
+                    'Attribute {} of array type functionality belonging to class {} got a list '
                     'containing elements type {} and construction failed.'.format(
                         name, instance.__class__.__name__, type(value[0])))
         else:
@@ -1242,7 +1237,7 @@ class Serializable(object):
                 # again, I have no idea how we'd find ourselves here, unless inconsistencies have been introduced
                 # into the descriptor
                 raise ValueError(
-                    'The value associated with attribute {} is an instance of class {}, if None, is required to be'
+                    'The value associated with attribute {} is an instance of class {}, if None, is required to be '
                     'a one-dimensional numpy.ndarray, but it has shape {}'.format(
                         attribute, self.__class__.__name__, val.shape))
             if val.size == 0:
@@ -1261,7 +1256,7 @@ class Serializable(object):
                 # I have no idea how we'd find ourselves here, unless inconsistencies have been introduced
                 # into the descriptor
                 raise ValueError(
-                    'The value associated with attribute {} is an instance of class {}, if None, is required to be'
+                    'The value associated with attribute {} is an instance of class {}, if None, is required to be '
                     'a numpy.ndarray of dtype float64 or object, but it has dtype {}'.format(
                         attribute, self.__class__.__name__, val.dtype))
 
@@ -1419,7 +1414,7 @@ class Serializable(object):
                 # again, I have no idea how we'd find ourselves here, unless inconsistencies have been introduced
                 # into the descriptor
                 raise ValueError(
-                    'The value associated with attribute {} is an instance of class {}, if None, is required to be'
+                    'The value associated with attribute {} is an instance of class {}, if None, is required to be '
                     'a one-dimensional numpy.ndarray, but it has shape {}'.format(
                         attribute, self.__class__.__name__, val.shape))
 
@@ -1432,7 +1427,7 @@ class Serializable(object):
                 # I have no idea how we'd find ourselves here, unless inconsistencies have been introduced
                 # into the descriptor
                 raise ValueError(
-                    'The value associated with attribute {} is an instance of class {}. This is expected to be'
+                    'The value associated with attribute {} is an instance of class {}. This is expected to be '
                     'a numpy.ndarray of dtype float64, but it has dtype {}'.format(
                         attribute, self.__class__.__name__, val.dtype))
 
@@ -1463,7 +1458,7 @@ class Serializable(object):
                 return val.isoformat(sep='T')
             else:
                 raise ValueError(
-                    'a entry for class {} using tag {} is of type {}, and serialization has not '
+                    'An entry for class {} using tag {} is of type {}, and serialization has not '
                     'been implemented'.format(self.__class__.__name__, field, type(val)))
 
         if check_validity:
