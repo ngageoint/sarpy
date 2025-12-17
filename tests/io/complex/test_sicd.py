@@ -2,11 +2,14 @@ import os
 import json
 import tempfile
 import unittest
+import numpy as np
+import pytest
 
 from sarpy.io.complex.converter import conversion_utility
-from sarpy.io.complex.sicd import SICDReader
+from sarpy.io.complex.sicd import SICDReader, AmpLookupFunction
 from sarpy.io.complex.sicd_schema import get_schema_path, get_default_version_string
-
+from sarpy.io.general.format_function import ComplexFormatFunction
+from sarpy.io.general.nitf import NITFReader
 
 from tests import parse_file_entry
 
@@ -63,3 +66,62 @@ class TestSICDWriting(unittest.TestCase):
             with self.subTest(msg='Test writing a single row of the sicd file {}'.format(fil)):
                 with tempfile.TemporaryDirectory() as tmpdirname:
                     conversion_utility(reader, tmpdirname, row_limits=(0, 1))
+
+class DummySICDMeta:
+    class ImageDataType:
+        def __init__(self, pixel_type, amp_table=None):
+            self.PixelType = pixel_type
+            self.AmpTable = amp_table
+
+    def __init__(self, pixel_type='RE32F_IM32F', amp_table=None):
+        self.ImageData = self.ImageDataType(pixel_type, amp_table)
+
+@pytest.mark.parametrize(
+    "raw_dtype,complex_order,band_dimension,pixel_type,amp_table,expected_type",
+    [
+        (np.dtype('float32'), 'IQ', 2, 'RE32F_IM32F', None, ComplexFormatFunction),
+        (np.dtype('int16'), 'IQ', 2, 'RE16I_IM16I', None, ComplexFormatFunction),
+        (np.dtype('uint8'), 'MP', 2, 'AMP8I_PHS8I', np.linspace(0, 1, 256, dtype=np.float32), AmpLookupFunction),
+    ]
+)
+def test_sicdreader_get_format_function(raw_dtype, complex_order, band_dimension, pixel_type, amp_table, expected_type):
+    class DummyReader(SICDReader):
+        def __init__(self, sicd_meta):
+            # Avoid full parent init
+            self._sicd_meta = sicd_meta
+
+        @property
+        def sicd_meta(self):
+            return self._sicd_meta
+
+    reader = DummyReader(DummySICDMeta(pixel_type, amp_table))
+    func = reader.get_format_function(raw_dtype, complex_order, None, band_dimension)
+    assert isinstance(func, expected_type)
+
+def test_sicdreader_get_format_function_invalid_mp():
+    class DummyReader(SICDReader):
+        def __init__(self, sicd_meta):
+            self._sicd_meta = sicd_meta
+
+        @property
+        def sicd_meta(self):
+            return self._sicd_meta
+
+    # Should raise ValueError for unsupported MP type
+    reader = DummyReader(DummySICDMeta('AMP8I_PHS8I', np.linspace(0, 1, 256, dtype=np.float32)))
+    with pytest.raises(ValueError):
+        reader.get_format_function(np.dtype('uint16'), 'MP', None, 2)
+
+def test_sicdreader_get_format_function_fallback():
+    # Should fallback to NITFReader.get_format_function and return None
+    class DummyReader(SICDReader):
+        def __init__(self, sicd_meta):
+            self._sicd_meta = sicd_meta
+
+        @property
+        def sicd_meta(self):
+            return self._sicd_meta
+
+    reader = DummyReader(DummySICDMeta('RE32F_IM32F'))
+    func = reader.get_format_function(np.dtype('float32'), None, None, 2)
+    assert func is None
