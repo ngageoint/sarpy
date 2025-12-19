@@ -359,9 +359,9 @@ def _get_dtype(
 
 def _get_format_function(
         raw_dtype: numpy.dtype,
-        complex_order: Optional[str],
-        lut: Optional[numpy.ndarray],
-        band_dimension: int) -> Optional[FormatFunction]:
+        complex_order: Optional[str] = None,
+        lut: Optional[numpy.ndarray] = None,
+        band_dimension: int = -1) -> Optional[FormatFunction]:
     """
     Gets the format function for use in a data segment.
 
@@ -1504,9 +1504,9 @@ class NITFReader(BaseReader):
     def get_format_function(
             self,
             raw_dtype: numpy.dtype,
-            complex_order: Optional[str],
-            lut: Optional[numpy.ndarray],
-            band_dimension: int,
+            complex_order: Optional[str] = None,
+            lut: Optional[numpy.ndarray] = None,
+            band_dimension: int = -1,
             image_segment_index: Optional[int] = None,
             **kwargs) -> Optional[FormatFunction]:
         return _get_format_function(raw_dtype, complex_order, lut, band_dimension)
@@ -3753,9 +3753,9 @@ class NITFWriter(BaseWriter):
     def get_format_function(
             self,
             raw_dtype: numpy.dtype,
-            complex_order: Optional[str],
-            lut: Optional[numpy.ndarray],
-            band_dimension: int,
+            complex_order: Optional[str] = None,
+            lut: Optional[numpy.ndarray] = None,
+            band_dimension: int = -1,
             image_segment_index: Optional[int] = None,
             **kwargs) -> Optional[FormatFunction]:
         return _get_format_function(raw_dtype, complex_order, lut, band_dimension)
