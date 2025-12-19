@@ -914,9 +914,9 @@ class SICDWriter(NITFWriter):
     def get_format_function(
             self,
             raw_dtype: numpy.dtype,
-            complex_order: Optional[str],
-            lut: Optional[numpy.ndarray],
-            band_dimension: int,
+            complex_order: Optional[str] = None,
+            lut: Optional[numpy.ndarray] = None,
+            band_dimension: int = -1,
             image_segment_index: Optional[int] = None,
             **kwargs) -> Optional[FormatFunction]:
         if complex_order is not None and complex_order != 'IQ':
