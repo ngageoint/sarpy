@@ -83,3 +83,65 @@ class test_sio_reader(TestCase):
         assert_array_equal(sio_reader._image_data, image_data)
         self.assertEqual(sio_reader._sicdmeta.to_xml_bytes(), 
                          example_sicd.to_xml_bytes())
+
+    # Because numpy does not have a native complex 32 object, we have to 
+    # simulate a complex 32 object with two int 16's
+    def test_read_complex_32(self):
+        input_sio_complex_32 = "./tests/io/complex/sio_processor/SIOReaderTest_c32_01.sio"
+        image_data_c32 = numpy.arange(13*34, dtype=numpy.int16)
+        local_real_part = image_data_c32[0::2]
+        local_imag_part = image_data_c32[1::2]
+        final_image_data = numpy.empty(local_real_part.shape, dtype=numpy.complex64)
+        final_image_data.real = local_real_part
+        final_image_data.imag = local_imag_part
+        final_image_data = final_image_data.reshape(13, 17)
+        example_sicd = SICDType(
+            ImageData=ImageDataType(
+                NumRows=final_image_data.shape[0],
+                    NumCols=final_image_data.shape[1],
+                    PixelType="RE16I_IM16I",
+                    FirstRow=0,
+                    FirstCol=0,
+                    FullImage=FullImageType(
+                        NumRows=final_image_data.shape[0],
+                        NumCols=final_image_data.shape[1]
+                    ),
+                    SCPPixel=RowColType(Row=final_image_data.shape[0], 
+                                        Col=final_image_data.shape[1])
+            ),
+        )
+        sio_reader = SIOReader(str(input_sio_complex_32))
+        assert_array_equal(sio_reader._image_data, final_image_data)
+        self.assertEqual(sio_reader._sicdmeta.to_xml_bytes(), 
+                         example_sicd.to_xml_bytes())
+        
+    # Test the 32 bit complex with the other identifier which is an int datatype
+    # with a data size of 4
+    def test_read_complex_32_02(self):
+        input_sio_complex_32 = "./tests/io/complex/sio_processor/SIOReaderTest_c32_02.sio"
+        image_data_c32 = numpy.arange(13*34, dtype=numpy.int16)
+        local_real_part = image_data_c32[0::2]
+        local_imag_part = image_data_c32[1::2]
+        final_image_data = numpy.empty(local_real_part.shape, dtype=numpy.complex64)
+        final_image_data.real = local_real_part
+        final_image_data.imag = local_imag_part
+        final_image_data = final_image_data.reshape(13, 17)
+        example_sicd = SICDType(
+            ImageData=ImageDataType(
+                NumRows=final_image_data.shape[0],
+                    NumCols=final_image_data.shape[1],
+                    PixelType="RE16I_IM16I",
+                    FirstRow=0,
+                    FirstCol=0,
+                    FullImage=FullImageType(
+                        NumRows=final_image_data.shape[0],
+                        NumCols=final_image_data.shape[1]
+                    ),
+                    SCPPixel=RowColType(Row=final_image_data.shape[0], 
+                                        Col=final_image_data.shape[1])
+            ),
+        )
+        sio_reader = SIOReader(str(input_sio_complex_32))
+        assert_array_equal(sio_reader._image_data, final_image_data)
+        self.assertEqual(sio_reader._sicdmeta.to_xml_bytes(), 
+                         example_sicd.to_xml_bytes())

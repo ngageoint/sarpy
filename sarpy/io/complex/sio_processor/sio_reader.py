@@ -56,15 +56,15 @@ class SIOReader(object):
         self._rows               = int.from_bytes(self._fid.read(4), byteorder=byte_order)
         self._columns            = int.from_bytes(self._fid.read(4), byteorder=byte_order)
         self._data_type_code     = int.from_bytes(self._fid.read(4), byteorder=byte_order)
+        self._data_size          = int.from_bytes(self._fid.read(4), byteorder=byte_order)
+        self._user_data          = None
+        self._sicdmeta           = None
         # Set the data type and size from the code in the header.
         self._sio_code_to_numpy_data_type()
         if byte_order == 'little':
             self._data_type_str = '<' + self._data_type_str
         else:
             self._data_type_str = '>' + self._data_type_str
-        self._data_size          = int.from_bytes(self._fid.read(4), byteorder=byte_order)
-        self._user_data          = None
-        self._sicdmeta           = None
         # Magic Key indicates there is SICD meta data in the user data
         if self._magic_key in [0xFF027FFD, 0xFD7F02FF]:
             # SICD meta data header format:
@@ -84,7 +84,25 @@ class SIOReader(object):
             self._sicdmeta       = SICDType.from_xml_string(self._user_data)
         # Check to ensure the _magic_key is valid
         if self._magic_key in [0xFF017FFE, 0xFF027FFD, 0xFE7F01FF, 0xFD7F02FF]:
-            self._image_data  = numpy.frombuffer(self._fid.read(),
+            if 'c4' in self._data_type_str:
+                local_datatype_str = self._data_type_str[0] + 'i2'
+                local_raw_data = numpy.frombuffer(self._fid.read(),
+                                                     dtype=local_datatype_str
+                                                     )
+                real_start = 0
+                imag_start = 1
+                if byte_order == 'little':
+                    real_start = 1
+                    imag_start = 0
+                local_real_part = local_raw_data[real_start::2]
+                local_imag_part = local_raw_data[imag_start::2]
+                local_image_data = numpy.empty(local_real_part.shape, dtype=numpy.complex64)
+                local_image_data.real = local_real_part
+                local_image_data.imag = local_imag_part
+                self._image_data = local_image_data.reshape(self._rows,
+                                                            self._columns)
+            else:
+                self._image_data  = numpy.frombuffer(self._fid.read(),
                                                      dtype=self._data_type_str
                                                      ).reshape(self._rows,
                                                                self._columns)
@@ -102,9 +120,13 @@ class SIOReader(object):
                 self._data_type_str = 'u1'
             case 2:
                 self._data_type_str = 'i2'
+                if self._data_size == 4:
+                    self._data_type_str = 'c4'
             case 3:
                 self._data_type_str = 'f4'
-            case 11 | 12 | 13:
+            case 12:
+                self._data_type_str = 'c4'
+            case 13:
                 self._data_type_str = 'c8'
             case _ : #Default if other cases don't match
                 raise TypeError('Reader only recognizes floats, complex and ' + \
