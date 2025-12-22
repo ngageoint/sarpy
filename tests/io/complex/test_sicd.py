@@ -125,3 +125,17 @@ def test_sicdreader_get_format_function_fallback():
     reader = DummyReader(DummySICDMeta('RE32F_IM32F'))
     func = reader.get_format_function(np.dtype('float32'), None, None, 2)
     assert func is None
+
+def test_sicdreader_get_format_function_required_params_only():
+    # Should fallback to NITFReader.get_format_function and return None
+    class DummyReader(SICDReader):
+        def __init__(self, sicd_meta):
+            self._sicd_meta = sicd_meta
+
+        @property
+        def sicd_meta(self):
+            return self._sicd_meta
+
+    reader = DummyReader(DummySICDMeta('RE32F_IM32F'))
+    func = reader.get_format_function(np.dtype('float32'))
+    assert func is None
