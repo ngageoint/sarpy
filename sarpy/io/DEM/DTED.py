@@ -107,11 +107,11 @@ class DTEDList(DEMList):
         ----------
         root_directory : str
         missing_error : bool
-            Raise an exception when DTED files are missing?
+            Raise an exception when DTED files are missing?      
         """
 
         self._root_dir = root_directory
-        self._missing_error = missing_error
+        self._missing_error = missing_error 
 
     @property
     def root_dir(self):
@@ -265,7 +265,7 @@ class DTEDReader(object):
 
     __slots__ = ('_file_name', '_origin', '_spacing', '_bounding_box', '_shape', '_mem_map')
 
-    def __init__(self, file_name):
+    def __init__(self, file_name, ignore_voids = False):
         self._file_name = file_name
 
         with open(self._file_name, 'rb') as fi:
@@ -296,11 +296,21 @@ class DTEDReader(object):
         #   and 4 extra (checksum) at the end - look to MIL-PRF-89020B for an explanation
         # To enable memory map usage, we will spoof it as a raster and adjust column indices
         shp = (int(self._shape[0]), int(self._shape[1]) + 6)
-        self._mem_map = numpy.memmap(self._file_name,
+        tmp_mem_map = numpy.memmap(self._file_name,
                                      dtype=numpy.dtype('>u2'),
                                      mode='r',
                                      offset=3428,
                                      shape=shp)
+        # if user wants to ignore_void in interpolation we remove them here just after reading the file in
+        if ignore_voids:
+            self._mem_map = numpy.where(tmp_mem_map == 65535, 0, tmp_mem_map)
+        # user has not set ignore_voids thus old way of running this code
+        else:
+            # see if void data in dted data that is a single cell/ a scalar or an array of cells
+            self._mem_map = tmp_mem_map
+            if (65535 in self._mem_map ):
+                    logger.warning( "Warning your DTED data has voids in it, this effect interpolation. Try with reading dted files with ignore_voids=True which will zero the void data.  See dted_check_voids.py in utils directory to check if your DTED files have voids in them.")
+                    print( "Warning your DTED data has voids in it, this effect interpolation. Try with reading dted files with ignore_voids=True which will zero the void data.  See dted_check_voids.py in utils directory to check if your DTED files have voids in them.")
 
     @property
     def origin(self):
@@ -370,15 +380,15 @@ class DTEDReader(object):
             All elevation values are signed magnitude binary integers, right justified,
             16 bits (2 bytes). The sign bit is in the high order position.
 
-        """
+        """              
         out = (elevations & 0x7f_ff).astype(numpy.int16)
         out *= (-1) ** ((elevations & 0x80_00) != 0)
         return out
 
     def _linear(self, ix, dx, iy, dy):
         # type: (numpy.ndarray, numpy.ndarray, numpy.ndarray, numpy.ndarray) -> numpy.ndarray
-        a = (1 - dx) * self._lookup_elevation(ix, iy) + dx * self._lookup_elevation(ix + 1, iy)
-        b = (1 - dx) * self._lookup_elevation(ix, iy+1) + dx * self._lookup_elevation(ix+1, iy+1)
+        a = (1 - dx) * self._lookup_elevation(ix, iy)   + dx * self._lookup_elevation(ix + 1, iy)
+        b = (1 - dx) * self._lookup_elevation(ix, iy+1) + dx * self._lookup_elevation(ix+1,   iy+1)
         return (1 - dy) * a + dy * b
 
     def _lookup_elevation(self, ix, iy):
@@ -552,11 +562,11 @@ class DTEDInterpolator(DEMInterpolator):
 
     __slots__ = ('_readers', '_geoid', '_ref_geoid')
 
-    def __init__(self, files, geoid_file, lat_lon_box=None):
+    def __init__(self, files, geoid_file, lat_lon_box=None, ignore_voids=False):
         if isinstance(files, str):
             files = [files, ]
         # get a reader object for each file
-        self._readers = [DTEDReader(fil) for fil in files]
+        self._readers = [DTEDReader(fil, ignore_voids) for fil in files]
 
         # get the geoid object - we should prefer egm96 .pgm files, since that's the DTED spec
         #   in reality, it makes very little difference, though
@@ -584,7 +594,7 @@ class DTEDInterpolator(DEMInterpolator):
         self._min_geoid = None
 
     @classmethod
-    def from_coords_and_list(cls, lat_lon_box, dted_list, dem_type=None, geoid_file=None):
+    def from_coords_and_list(cls, lat_lon_box, dted_list, dem_type=None, geoid_file=None, ignore_voids=False):
         """
         Construct a `DTEDInterpolator` from a coordinate collection and `DTEDList` object.
 
@@ -603,6 +613,8 @@ class DTEDInterpolator(DEMInterpolator):
             The `GeoidHeight` object, an egm file name, or root directory containing
             one of the egm files in the sub-directory "geoid". If `None`, then default
             to the root directory of `dted_list`.
+        ignore_voids: Bool
+            to be passed on to DTEDReader to tell interpolation to not use void values
 
         Returns
         -------
@@ -619,10 +631,10 @@ class DTEDInterpolator(DEMInterpolator):
         if geoid_file is None:
             geoid_file = dted_list.root_dir
 
-        return cls(dted_list.get_file_list(lat_lon_box, dem_type=dem_type), geoid_file, lat_lon_box=lat_lon_box)
+        return cls(dted_list.get_file_list(lat_lon_box, dem_type=dem_type), geoid_file, lat_lon_box=lat_lon_box, ignore_voids=ignore_voids)
 
     @classmethod
-    def from_reference_point(cls, ref_point, dted_list, dem_type=None, geoid_file=None, pad_value=0.1):
+    def from_reference_point(cls, ref_point, dted_list, dem_type=None, geoid_file=None, pad_value=0.1, ignore_voids=False):
         """
         Construct a DTEDInterpolator object by padding around the reference point by
         `pad_value` latitude degrees (1 degree ~ 111 km or 69 miles).
@@ -645,7 +657,9 @@ class DTEDInterpolator(DEMInterpolator):
             to the root directory of `dted_list`.
         pad_value : float
             The degree value to pad by.
-
+        ignore_voids: Bool
+            to be passed on to DTEDReader to tell interpolation to not use void values
+            
         Returns
         -------
         DTEDInterpolator
@@ -669,7 +683,7 @@ class DTEDInterpolator(DEMInterpolator):
             lon_min += 360
 
         return cls.from_coords_and_list(
-            [lat_min, lat_max, lon_min, lon_max], dted_list, dem_type=dem_type, geoid_file=geoid_file)
+            [lat_min, lat_max, lon_min, lon_max], dted_list, dem_type=dem_type, geoid_file=geoid_file, ignore_voids=ignore_voids)
 
     @property
     def geoid(self):  # type: () -> GeoidHeight
@@ -717,7 +731,7 @@ class DTEDInterpolator(DEMInterpolator):
             If `None`, then the entire calculation will proceed as a single block.
             Otherwise, block processing using blocks of the given size will be used.
             A minimum value of 50000 will be enforced here.
-
+            
         Returns
         -------
         numpy.ndarray

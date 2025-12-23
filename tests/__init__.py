@@ -73,7 +73,7 @@ def parse_file_entry(entry, default='absolute'):
             logging.warning('Environment variable SARPY_TEST_PATH unset, but relative path identified in unit test')
             the_file = None
         else:
-            the_file = os.path.join(parent_path, entry['path'])
+            the_file = os.path.join(parent_path,  os.path.normpath( entry['path'] ))
     else:
         raise ValueError('value associated with "path_type" must be one of "absolute" or "relative"')
 
