@@ -712,16 +712,19 @@ class TestParseDatetime(unittest.TestCase):
         val = np.int64(1700000000)
         result = base.parse_datetime(val, "dt", ParseDatetimeDummyInstance())
         self.assertIsInstance(result, np.datetime64)
+        self.assertEqual(result, numpy.datetime64('1970-01-01T00:28:20.000000'))
 
     def test_numpy_float64(self):
         val = np.float64(1700000000)
         result = base.parse_datetime(val, "dt", ParseDatetimeDummyInstance())
         self.assertIsInstance(result, np.datetime64)
+        self.assertEqual(result, numpy.datetime64('1970-01-01T00:28:20.000000'))
 
     def test_int(self):
         val = 1700000000
         result = base.parse_datetime(val, "dt", ParseDatetimeDummyInstance())
         self.assertIsInstance(result, np.datetime64)
+        self.assertEqual(result, numpy.datetime64('1970-01-01T00:28:20.000000'))
 
     def test_invalid_type_raises(self):
         with self.assertRaisesRegex(TypeError, r"Field dt for class " + \
