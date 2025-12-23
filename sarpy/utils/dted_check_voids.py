@@ -1,3 +1,13 @@
+"""
+Test a dted file for voids.
+It can check a file, list of files, or a complete path to a directory
+return  list/file with { <dtedfilename} :[ (lat/lon void),]
+or  a boolean on yes this file has a void
+and a note on how to see/check voids in QGIS
+"""
+
+__classification__ = "UNCLASSIFIED"
+__author__ = "John O'Neill"
 
 import os
 import sarpy.io.DEM.DTED as sarpy_dted
@@ -5,13 +15,6 @@ import sarpy.io.DEM.DTED as sarpy_dted
 import numpy as np
 import json
 
-#
-#   A method here in utils to test a dted file for voids.
-#   It can check a file, list of files, or a complete path to a directory
-#    return  list/file with { <dtedfilename} :[ (lat/lon void),]
-#    or  a boolean on yes this file has a void
-#  and a note on how to see/check voids in QGIS
-#
 def check_for_voids(dtedFilePath, return_index=False ):
     
     """
