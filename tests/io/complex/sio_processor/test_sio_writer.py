@@ -54,6 +54,16 @@ class test_sio_writer(TestCase):
         assert_array_equal(sio_reader._image_data, image_data)
         self.assertIsNone(sio_reader._sicdmeta)
 
+    def test_write_filename_str_success(self):
+        image_data = numpy.arange(13*17, dtype=numpy.float32).reshape(13, 17)
+        output_sio_writer_32 = str(self.tmp_dir) + "/SIOWriterTest_filename_str_success.sio"
+        sio_writer = SIOWriter(output_sio_writer_32, image_data)
+        sio_writer.write()
+        sio_writer.close()
+        sio_reader = SIOReader(output_sio_writer_32)
+        assert_array_equal(sio_reader._image_data, image_data)
+        self.assertIsNone(sio_reader._sicdmeta)
+
     def test_write_with_required_params_and_sicd_meta_success(self):
         image_data = numpy.arange(13*17, dtype=numpy.float32).reshape(13, 17)
         sicd_meta_real_32 = SICDType(

@@ -5,6 +5,7 @@ __author__ = "Tex Peterson"
 
 import numpy
 import os
+from pathlib import Path
 import sys
 
 from sarpy.io.complex.sicd_elements.SICD import SICDType
@@ -41,17 +42,17 @@ class SIOWriter(object):
     example_image_data = np.arange(13*17*2, dtype=np.float32).reshape(13, 17,2)
     example_sicd_meta_data = SICDType(
         ImageData=ImageDataType(
-                NumRows=example_image_data.shape[0],
-                    NumCols=example_image_data.shape[1],
-                    PixelType="RE32F_IM32F",
-                    FirstRow=0,
-                    FirstCol=0,
-                    FullImage=FullImageType(
-                        NumRows=example_image_data.shape[0],
-                        NumCols=example_image_data.shape[1]
-                    ),
-                    SCPPixel=RowColType(Row=example_image_data.shape[0] // 2, Col=example_image_data.shape[1] // 2)
-            ),
+            NumRows=example_image_data.shape[0],
+                NumCols=example_image_data.shape[1],
+                PixelType="RE32F_IM32F",
+                FirstRow=0,
+                FirstCol=0,
+                FullImage=FullImageType(
+                    NumRows=example_image_data.shape[0],
+                    NumCols=example_image_data.shape[1]
+                ),
+                SCPPixel=RowColType(Row=example_image_data.shape[0] // 2, Col=example_image_data.shape[1] // 2)
+        ),
     )
     output_file_name = "SIOWriterExampleOutput.sio"
 
@@ -63,7 +64,7 @@ class SIOWriter(object):
     
     def __init__(
             self,
-            param_filename:              str, 
+            param_filename:              str|Path, 
             param_image_data:            numpy.array, 
             param_sicdmeta:              SICDType|None = None,
             param_start_indices:         list          = [0, 0],
@@ -98,6 +99,12 @@ class SIOWriter(object):
         """
         # Parse inputs
         self._filename               = param_filename
+        if isinstance(self._filename, str):
+            self._filename = Path(self._filename)
+            if os.path.dirname(self._filename) == '':
+                self._filename = Path.cwd() / self._filename
+        if not isinstance(self._filename, Path):
+            raise TypeError('Filename must be a pathlib.Path or string')
         self._image_data             = param_image_data
         if param_sicdmeta is not None:
             self._sicdmeta_xml_bytes = param_sicdmeta.to_xml_bytes()
