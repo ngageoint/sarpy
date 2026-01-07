@@ -96,23 +96,23 @@ jobs:
         target_commitish: ${{github.ref}}
         files: dist/*
 
-  publish-to-pypi:
-    name: Publish to PyPI
-    needs: release
-    runs-on: ubuntu-latest
-    environment:
-      name: development
-    permissions:
-      id-token: write
-    steps:
-    - name: Download all the dists
-      uses: actions/download-artifact@v4
-      with:
-        name: ${{ needs.build.outputs.version }}
-        path: dist
-        merge-multiple: true
-    - run: ls -R dist
-    - name: Publish distribution to PyPI
-      uses: pypa/gh-action-pypi-publish@release/v1
-      with:
-        repository-url: https://pypi.org/legacy/
+  # publish-to-pypi:
+  #   name: Publish to PyPI
+  #   needs: release
+  #   runs-on: ubuntu-latest
+  #   environment:
+  #     name: development
+  #   permissions:
+  #     id-token: write
+  #   steps:
+  #   - name: Download all the dists
+  #     uses: actions/download-artifact@v4
+  #     with:
+  #       name: ${{ needs.build.outputs.version }}
+  #       path: dist
+  #       merge-multiple: true
+  #   - run: ls -R dist
+  #   - name: Publish distribution to PyPI
+  #     uses: pypa/gh-action-pypi-publish@release/v1
+  #     with:
+  #       repository-url: https://pypi.org/legacy/
