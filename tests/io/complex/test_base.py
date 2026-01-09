@@ -170,6 +170,25 @@ def test_flat_sicd_reader_write_to_file(tmp_path):
     read_array = loaded.data_segment[:].copy()
     numpy.testing.assert_array_equal(read_array, image_data)
 
+def test_flat_sicd_reader_write_to_file_fail(tmp_path):
+    reader = FlatSICDReader(
+        sicd_meta=sicd_meta,
+        underlying_array=image_data,
+        formatted_dtype=numpy.float32,
+        formatted_shape=image_data.shape,
+        reverse_axes=None,
+        transpose_axes=None,
+        format_function=None,
+        close_segments=True
+    )
+
+    # Write to file
+    out_file = 1234
+    with pytest.raises(TypeError) as excinfo:
+        reader.write_to_file(out_file)
+    assert "output_file is expected to a be a string, got type <class 'int'>" in str(excinfo.value)
+    
+
 def test_subset_sicd_reader(monkeypatch):
     data_segment = NumpyArraySegment(underlying_array=image_data)
     reader = SICDTypeReader(data_segment=data_segment, sicd_meta=sicd_meta)
