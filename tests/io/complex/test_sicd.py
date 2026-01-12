@@ -193,6 +193,12 @@ def test_amplookupfunction_set_magnitude_lookup():
     func.set_magnitude_lookup(lut2)
     assert np.allclose(func.magnitude_lookup_table, lut2)
 
+def test_amplookupfunction_set_magnitude_lookup_raw_dtype_not_uint8():
+    lut = np.linspace(0, 1, 256, dtype=np.float32)
+    # Should raise ValueError when raw_dtype is not 'uint8'
+    with pytest.raises(ValueError, match="A magnitude lookup table has been supplied,\n\tbut the raw datatype is not `uint8`."):
+        func = AmpLookupFunction('uint16', lut, band_dimension=2)
+
 def test_amplookupfunction_forward_reverse_methods():
     lut = np.linspace(0, 1, 256, dtype=np.float32)
     func = AmpLookupFunction('uint8', lut, band_dimension=2)
@@ -233,69 +239,19 @@ def test_sicddetails_find_sicd_sets_is_sicd():
     assert details.is_sicd is True
 
 @unittest.skipIf(len(sicd_files) == 0, 'No sicd files found')
+def test_sicddetails_find_sicd_sets_is_sicd_no_des_subheader_offsets(monkeypatch):
+    details = SICDDetails(sicd_files[0])
+    details.des_subheader_offsets = None
+    details._find_sicd()
+    assert details.is_sicd is False
+    
+@unittest.skipIf(len(sicd_files) == 0, 'No sicd files found')
 def test_sicddetails_subhead_sizes_zero_fail():
     details = SICDDetails(sicd_files[0])
     with pytest.raises(AttributeError):
         details._nitf_header.ImageSegments.subhead_sizes.size = 0
 
-class DummySubheadSizes:
-    def __init__(self, size):
-        self.size = size
-
-class DummyImageSegments:
-    def __init__(self, size):
-        self.subhead_sizes = DummySubheadSizes(size)
-
-class DummyGraphicsSegments:
-    def __init__(self, size):
-        self.item_sizes = DummySubheadSizes(size)
-
-class DummyDataExtensions:
-    def __init__(self, size):
-        self.subhead_sizes = DummySubheadSizes(size)
-
-class DummyNITFHeader:
-    def __init__(self):
-        self.ImageSegments = DummyImageSegments(1)
-        self.GraphicsSegments = DummyGraphicsSegments(0)
-        self.DataExtensions = DummyDataExtensions(1)
-
-class DummyNITFDetails(SICDDetails):
-    def __init__(self):
-        self._des_index = None
-        self._des_header = None
-        self._img_headers = None
-        self._is_sicd = False  # Simulate not a SICD file
-        self._sicd_meta = None
-        self._nitf_header = DummyNITFHeader()
-        # Skip calling super().__init__ to avoid real parsing
-        # Simulate _find_sicd does nothing
-
-    def _find_sicd(self):
-        pass
-
-    @property
-    def is_sicd(self):
-        return self._is_sicd
-
 def test_sicddetails_init_not_sicd(monkeypatch):
-    # Patch NITFDetails.__init__ to do nothing
-    monkeypatch.setattr("sarpy.io.general.nitf.NITFDetails.__init__", lambda self, file_object: None)
-    # Patch SICDDetails._find_sicd to do nothing
-    monkeypatch.setattr("sarpy.io.complex.sicd.SICDDetails._find_sicd", lambda self: None)
-    # Patch SICDDetails.is_sicd to always return False
     monkeypatch.setattr("sarpy.io.complex.sicd.SICDDetails.is_sicd", property(lambda self: False))
-    # Patch SICDDetails._nitf_header to our dummy header
-    def dummy_init(self, file_object):
-        self._des_index = None
-        self._des_header = None
-        self._img_headers = None
-        self._is_sicd = False
-        self._sicd_meta = None
-        self._nitf_header = DummyNITFHeader()
-        self._find_sicd()
-        if not self.is_sicd:
-            raise SarpyIOError('Could not find the SICD XML des.')
-    monkeypatch.setattr("sarpy.io.complex.sicd.SICDDetails.__init__", dummy_init)
     with pytest.raises(SarpyIOError, match="Could not find the SICD XML des."):
-        SICDDetails("dummy_file")
+        details = SICDDetails(sicd_files[0])
