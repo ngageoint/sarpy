@@ -176,9 +176,6 @@ def _get_sicd_type_specific_projection(sicd) -> Callable:
         polar_ang_poly_der = polar_ang_poly.derivative(der_order=1, return_poly=True)
         spatial_freq_sf_poly_der = spatial_freq_sf_poly.derivative(der_order=1, return_poly=True)
 
-        polar_ang_poly_der = polar_ang_poly.derivative(der_order=1, return_poly=True)
-        spatial_freq_sf_poly_der = spatial_freq_sf_poly.derivative(der_order=1, return_poly=True)
-
         # noinspection PyUnusedLocal, PyIncorrectDocstring
         def method_projection(instance, row_transform, col_transform, time_coa, arp_coa, varp_coa):
             """
