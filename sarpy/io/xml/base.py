@@ -190,9 +190,18 @@ def parse_xml_from_string(xml_string):
 
     xml_string = bytes_to_string(xml_string, encoding='utf-8')
 
-    root_node = ElementTree.fromstring(xml_string)
-    # define the namespace dictionary
-    xml_ns = dict([node for _, node in ElementTree.iterparse(StringIO(xml_string), events=('start-ns',))])
+    # Use iterparse with 'start-ns' and 'end' events to capture namespaces and
+    # build the element tree in a single pass (avoids parsing the XML twice)
+    xml_ns = {}
+    root_node = None
+    for event, elem in ElementTree.iterparse(StringIO(xml_string), events=('start-ns', 'end')):
+        if event == 'start-ns':
+            prefix, uri = elem
+            xml_ns[prefix] = uri
+        elif event == 'end':
+            # Keep updating - the final 'end' event is the root element
+            root_node = elem
+
     if len(xml_ns.keys()) == 0:
         xml_ns = None
     elif '' in xml_ns:
@@ -1515,7 +1524,8 @@ class Serializable(object):
 
         """
 
-        return self.__class__.from_dict(copy.deepcopy(self.to_dict(check_validity=False)))
+        # Use direct deepcopy instead of to_dict/from_dict roundtrip for efficiency
+        return copy.deepcopy(self)
 
     def to_xml_bytes(self, urn=None, tag=None, check_validity=False, strict=DEFAULT_STRICT):
         """

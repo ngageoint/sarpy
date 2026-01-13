@@ -11,6 +11,7 @@ from typing import Iterator, Tuple, List, Optional, Union
 
 import numpy
 from numpy.polynomial import polynomial
+from numpy.polynomial.polynomial import polyvander2d
 from scipy.stats import scoreatpercentile
 from scipy.linalg import lstsq
 
@@ -75,10 +76,9 @@ def two_dim_poly_fit(
     # first, we need to formulate this as A*t = z
     # where A has shape (x.size, (x_order+1)*(y_order+1))
     # and t has shape ((x_order+1)*(y_order+1), )
-    A = numpy.empty((x.size, (x_order+1)*(y_order+1)), dtype=numpy.float64)
-    # noinspection PyTypeChecker
-    for i, index in enumerate(numpy.ndindex((x_order+1, y_order+1))):
-        A[:, i] = numpy.power(x, index[0])*numpy.power(y, index[1])
+    # Use polyvander2d for efficient Vandermonde matrix construction
+    # This is significantly faster than looping with numpy.power()
+    A = polyvander2d(x, y, [x_order, y_order])
     # perform least squares fit
     sol, residuals, rank, sing_values = lstsq(A, z, cond=rcond)
     if isinstance(residuals, (numpy.ndarray, numpy.number)):

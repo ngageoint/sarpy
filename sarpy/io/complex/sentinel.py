@@ -49,11 +49,21 @@ logger = logging.getLogger(__name__)
 
 def _parse_xml(file_name: str,
                without_ns: bool = False) -> Union[ElementTree.Element, Tuple[dict, ElementTree.Element]]:
-    root_node = ElementTree.parse(file_name).getroot()
     if without_ns:
-        return root_node
+        return ElementTree.parse(file_name).getroot()
     else:
-        ns = dict([node for _, node in ElementTree.iterparse(file_name, events=('start-ns', ))])
+        # Use iterparse to capture both namespaces and build tree in a single pass
+        # This avoids parsing the file twice (once for tree, once for namespaces)
+        ns = {}
+        events = ('start-ns', 'end')
+        root_node = None
+        for event, elem in ElementTree.iterparse(file_name, events=events):
+            if event == 'start-ns':
+                prefix, uri = elem
+                ns[prefix] = uri
+            elif event == 'end':
+                # Keep updating - the final 'end' event is the root element
+                root_node = elem
         return ns, root_node
 
 

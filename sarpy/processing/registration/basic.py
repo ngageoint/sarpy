@@ -59,8 +59,15 @@ def best_physical_location_fit(
 
     def get_mean_location(hae_value, log_residue=False):
         ecf_locs = numpy.zeros((points, 3), dtype='float64')
-        for i, (loc, struct) in enumerate(zip(locs, structs)):
-            ecf_locs[i, :] = struct.project_image_to_ground(loc, projection_type='HAE', hae0=hae_value)
+        # Check if all structs are the same - if so, batch the projection
+        # This is a common case (multiple points from same image) and much faster
+        if all(s is structs[0] for s in structs):
+            # Batch projection - significantly faster for same-struct case
+            ecf_locs = structs[0].project_image_to_ground(locs, projection_type='HAE', hae0=hae_value)
+        else:
+            # Mixed structs - must project individually
+            for i, (loc, struct) in enumerate(zip(locs, structs)):
+                ecf_locs[i, :] = struct.project_image_to_ground(loc, projection_type='HAE', hae0=hae_value)
         ecf_mean = numpy.mean(ecf_locs, axis=0)
         diff = ecf_locs - ecf_mean
         residue = numpy.sum(diff*diff, axis=1)

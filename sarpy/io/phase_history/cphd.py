@@ -685,7 +685,26 @@ class CPHDReader1(CPHDReader):
     def read_support_array(
             self,
             index: Union[int, str],
-            *ranges: Sequence[Union[None, int, Tuple[int, ...], slice]]) -> numpy.ndarray:
+            *ranges: Sequence[Union[None, int, Tuple[int, ...], slice]],
+            copy: bool = True) -> numpy.ndarray:
+        """
+        Read support array data.
+
+        Parameters
+        ----------
+        index : int|str
+            The support array index or identifier.
+        ranges : Sequence
+            Optional subscript ranges for partial reads.
+        copy : bool
+            If True (default), return a copy of the data. If False, return a
+            view into the memory-mapped array. Use copy=False for performance
+            when the caller doesn't need to modify the data.
+
+        Returns
+        -------
+        numpy.ndarray
+        """
         # find the support array identifier
         if isinstance(index, int):
             the_entry = self.cphd_meta.Data.SupportArrays[index]
@@ -696,11 +715,13 @@ class CPHDReader1(CPHDReader):
         the_memmap = self._support_array_memmap[index]
 
         if len(ranges) == 0:
-            return numpy.copy(the_memmap[:])
+            result = the_memmap[:]
+        else:
+            # noinspection PyTypeChecker
+            subscript = verify_subscript(ranges, the_memmap.shape)
+            result = the_memmap[subscript]
 
-        # noinspection PyTypeChecker
-        subscript = verify_subscript(ranges, the_memmap.shape)
-        return numpy.copy(the_memmap[subscript])
+        return numpy.copy(result) if copy else result
 
     def read_support_block(self) -> Dict[str, numpy.ndarray]:
         if self.cphd_meta.Data.SupportArrays:
@@ -714,23 +735,63 @@ class CPHDReader1(CPHDReader):
             self,
             variable: str,
             index: Union[int, str],
-            the_range: Union[None, int, Tuple[int, ...], slice] = None) -> Optional[numpy.ndarray]:
+            the_range: Union[None, int, Tuple[int, ...], slice] = None,
+            copy: bool = True) -> Optional[numpy.ndarray]:
+        """
+        Read a single PVP variable.
+
+        Parameters
+        ----------
+        variable : str
+            The PVP variable name.
+        index : int|str
+            The channel index or identifier.
+        the_range : None|int|Tuple|slice
+            Optional range for partial reads.
+        copy : bool
+            If True (default), return a copy of the data. If False, return a
+            view into the memory-mapped array.
+
+        Returns
+        -------
+        numpy.ndarray|None
+        """
         index_key = self._validate_index_key(index)
         the_memmap = self._pvp_memmap[index_key]
         the_slice = verify_slice(the_range, the_memmap.shape[0])
         if variable in the_memmap.dtype.fields:
-            return numpy.copy(the_memmap[variable][the_slice])
+            result = the_memmap[variable][the_slice]
+            return numpy.copy(result) if copy else result
         else:
             return None
 
     def read_pvp_array(
             self,
             index: Union[int, str],
-            the_range: Union[None, int, Tuple[int, ...], slice] = None) -> numpy.ndarray:
+            the_range: Union[None, int, Tuple[int, ...], slice] = None,
+            copy: bool = True) -> numpy.ndarray:
+        """
+        Read PVP array data.
+
+        Parameters
+        ----------
+        index : int|str
+            The channel index or identifier.
+        the_range : None|int|Tuple|slice
+            Optional range for partial reads.
+        copy : bool
+            If True (default), return a copy of the data. If False, return a
+            view into the memory-mapped array.
+
+        Returns
+        -------
+        numpy.ndarray
+        """
         index_key = self._validate_index_key(index)
         the_memmap = self._pvp_memmap[index_key]
         the_slice = verify_slice(the_range, the_memmap.shape[0])
-        return numpy.copy(the_memmap[the_slice])
+        result = the_memmap[the_slice]
+        return numpy.copy(result) if copy else result
 
     def read_pvp_block(self) -> Dict[str, numpy.ndarray]:
         return {chan.Identifier: self.read_pvp_array(chan.Identifier)
@@ -1635,8 +1696,9 @@ class CPHDWriter1(BaseWriter):
         # mark it as written
         details = self.writing_details.support_details[int_index]
         if self._in_memory:
-            # TODO: we can delete the memmap now?
             details.item_bytes = out_array.tobytes()
+            # Delete the memmap to release memory now that data is stored in item_bytes
+            del self._support_memmaps[identifier]
         else:
             details.item_written = True
 
@@ -1678,8 +1740,9 @@ class CPHDWriter1(BaseWriter):
         # mark it as written
         details = self.writing_details.pvp_details[int_index]
         if self._in_memory:
-            # TODO: we can likely delete the memmap now?
             details.item_bytes = self._pvp_memmaps[identifier].tobytes()
+            # Delete the memmap to release memory now that data is stored in item_bytes
+            del self._pvp_memmaps[identifier]
         else:
             details.item_written = True
 
