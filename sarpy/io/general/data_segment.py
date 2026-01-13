@@ -2471,10 +2471,9 @@ class FileReadDataSegment(DataSegment):
             out = numpy.flip(out, axis=0)
 
         if squeeze:
-            out = numpy.squeeze(out)
-        # Use ascontiguousarray instead of copy - it only copies if necessary
-        # (when the array is not already C-contiguous), avoiding redundant copies
-        out = numpy.ascontiguousarray(out)
+            out = numpy.copy(numpy.squeeze(out))
+        else:
+            out = numpy.copy(out)
         del data
         return out
 

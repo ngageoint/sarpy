@@ -176,6 +176,9 @@ def _get_sicd_type_specific_projection(sicd) -> Callable:
         polar_ang_poly_der = polar_ang_poly.derivative(der_order=1, return_poly=True)
         spatial_freq_sf_poly_der = spatial_freq_sf_poly.derivative(der_order=1, return_poly=True)
 
+        polar_ang_poly_der = polar_ang_poly.derivative(der_order=1, return_poly=True)
+        spatial_freq_sf_poly_der = spatial_freq_sf_poly.derivative(der_order=1, return_poly=True)
+
         # noinspection PyUnusedLocal, PyIncorrectDocstring
         def method_projection(instance, row_transform, col_transform, time_coa, arp_coa, varp_coa):
             """
@@ -984,13 +987,10 @@ def _ground_to_image(
     matrix_transform = numpy.dot(row_col_transform, ipp_transform)
     # (3 x 2)*(2 x 2) = (3 x 2)
 
-    # Pre-compute uIPN/sf to avoid division in the loop
-    uIPN_scaled = uIPN / sf
-
     while cont:
         # project ground plane to image plane iteration
         iteration += 1
-        dist_n = numpy.dot(ref_point - g_n, uIPN_scaled)  # (N, )
+        dist_n = numpy.dot(ref_point - g_n, uIPN)/sf  # (N, )
         i_n = g_n + numpy.outer(dist_n, uProj)  # (N, 3)
         delta_ipp = i_n - ref_point  # (N, 3)
         ip_iter = numpy.dot(delta_ipp, matrix_transform)  # (N, 2)

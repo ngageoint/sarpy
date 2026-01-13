@@ -206,8 +206,7 @@ class SICDDetails(NITFDetails):
                 des_bytes = self.get_des_bytes(i)
                 # noinspection PyBroadException
                 try:
-                    # Strip bytes directly instead of decode/strip/encode roundtrip
-                    root_node, xml_ns = parse_xml_from_string(des_bytes.strip())
+                    root_node, xml_ns = parse_xml_from_string(des_bytes.decode('utf-8').strip().encode())
                     if 'SIDD' in root_node.tag:  # namespace makes this ugly
                         # NOTE that SIDD files are supposed to have the corresponding
                         # SICD xml as one of the DES AFTER the SIDD xml.
@@ -238,8 +237,7 @@ class SICDDetails(NITFDetails):
                 # This is an old format SICD
                 des_bytes = self.get_des_bytes(i)
                 try:
-                    # Strip bytes directly instead of decode/strip/encode roundtrip
-                    root_node, xml_ns = parse_xml_from_string(des_bytes.strip())
+                    root_node, xml_ns = parse_xml_from_string(des_bytes.decode('utf-8').strip().encode())
                     if 'SICD' in root_node.tag:  # namespace makes this ugly
                         self._des_index = i
                         self._des_header = None
