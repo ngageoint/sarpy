@@ -1,9 +1,12 @@
+from xml.etree   import ElementTree
+from io          import StringIO
 import os
 import json
 import tempfile
 import unittest
 import numpy as np
 import pytest
+from pytest import fixture
 
 from sarpy.io.complex.converter import conversion_utility
 from sarpy.io.complex.sicd import SICDReader, AmpLookupFunction
@@ -14,6 +17,7 @@ from sarpy.io.complex.sicd import SICDDetails
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.general.nitf_elements.des import DataExtensionHeader
 from sarpy.io.general.base import SarpyIOError
+from sarpy.io.xml.base import parse_xml_from_string
 
 from tests import parse_file_entry
 
@@ -255,3 +259,638 @@ def test_sicddetails_init_not_sicd(monkeypatch):
     monkeypatch.setattr("sarpy.io.complex.sicd.SICDDetails.is_sicd", property(lambda self: False))
     with pytest.raises(SarpyIOError, match="Could not find the SICD XML des."):
         details = SICDDetails(sicd_files[0])
+
+def test_sicddetails_init_des_subheader_offsets_none(monkeypatch):
+    details = SICDDetails(sicd_files[0])
+    details.des_subheader_offsets = None
+    details._find_sicd()
+    assert details.is_sicd is False
+
+def test_sicddetails_init_des_subheader_offsets_size_zero(monkeypatch):
+    details = SICDDetails(sicd_files[0])
+    details.des_subheader_offsets = np.empty(shape=(0))
+    details._find_sicd()
+    assert details.is_sicd is False
+
+def test_sicddetails_find_sicd_dexml_data_content_sicd(monkeypatch):
+    details = SICDDetails(sicd_files[0])
+    details._find_sicd()
+    assert details.is_sicd is True
+    assert isinstance(details.sicd_meta, SICDType)
+    assert details._des_index == 0
+    assert details._des_header is not None
+
+def test_sicddetails_find_sicd_desidd_xml(monkeypatch):
+    class DummySICDDetails(SICDDetails):
+        def get_des_subheader_bytes(self, index: int):
+            return b'DESIDD_XML'
+    with pytest.raises(SarpyIOError, match="Could not find the SICD XML des."):
+        details = DummySICDDetails(sicd_files[0])
+
+def test_sicddetails_find_sicd_dexml_data_content_sidd(monkeypatch):
+    """
+    Test SICDDetails._find_sicd when subhead_bytes.startswith(b'DEXML_DATA_CONTENT') is True
+    and 'SIDD' is in root_node.tag, should set _is_sicd to False and break.
+    """
+    class DummySICDDetails(SICDDetails):
+        def __init__(self):
+            # Avoid parent init
+            self._des_index = None
+            self._des_header = None
+            self._img_headers = None
+            self._is_sicd = False
+            self._sicd_meta = None
+            self.des_subheader_offsets = type('DummyOffsets', (), {'size': 1})()
+            self._called = False
+
+        def get_des_subheader_bytes(self, index):
+            return b'DEXML_DATA_CONTENT         01UUS                                                                                                                                                                    077399999XML     2021-11-30T20:59:38Z                                        SICD Volume 1 Design & Implementation Description Document  1.1       2014-09-30T00:00:00Zurn:SICD:1.1.0                                                                                                          +35.05301449-106.59263183+35.05542923-106.59424948+35.05604151-106.59253016+35.05362675-106.59091255+35.05301449-106.59263183                                                                                                                                                                                                                                                                                                                                                                             '
+
+        def get_des_bytes(self, index):
+            return b"<SIDD></SIDD>"
+
+    # Patch parse_xml_from_string to return a dummy root_node with 'SIDD' in tag
+    def dummy_parse_xml_from_string(xml_bytes):
+        class DummyRoot:
+            tag = 'SIDD'
+        return DummyRoot(), None
+
+    monkeypatch.setattr("sarpy.io.complex.sicd.parse_xml_from_string", dummy_parse_xml_from_string)
+
+    details = DummySICDDetails()
+    details._find_sicd()
+    assert details._is_sicd is False
+    assert details._des_index is None
+    assert details._des_header is None
+    assert details._sicd_meta is None
+
+def test_sicddetails_find_sicd_dexml_data_content_sicd_xmlns_none(monkeypatch):
+    """
+    Test SICDDetails._find_sicd when subhead_bytes.startswith(b'DEXML_DATA_CONTENT') is True,
+    'SICD' in root_node.tag is True, and xml_ns is None.
+    Should set _is_sicd True, _des_index and _des_header set, and _sicd_meta from_node called with ns_key=None.
+    """
+    # Dummy SICDType for from_node
+    class DummySICDType:
+        called = {}
+        @classmethod
+        def from_node(cls, root_node, xml_ns, ns_key=None):
+            cls.called = {'root_node': root_node, 'xml_ns': xml_ns, 'ns_key': ns_key}
+            return 'dummy_sicd_meta'
+        def derive(self): pass
+
+    # Patch SICDType in module under test
+    monkeypatch.setattr("sarpy.io.complex.sicd.SICDType", DummySICDType)
+
+    # Dummy parse_xml_from_string returns root_node with tag 'SICD' and xml_ns None
+    class DummyRoot:
+        tag = 'SICD'
+    def dummy_parse_xml_from_string(xml_bytes):
+        return DummyRoot(), None
+    monkeypatch.setattr("sarpy.io.complex.sicd.parse_xml_from_string", dummy_parse_xml_from_string)
+
+    # Dummy DataExtensionHeader
+    class DummyDataExtensionHeader:
+        @staticmethod
+        def from_bytes(subhead_bytes, start=0):
+            return 'dummy_des_header'
+    monkeypatch.setattr("sarpy.io.complex.sicd.DataExtensionHeader", DummyDataExtensionHeader)
+
+    # Dummy SICDDetails with one DES subheader offset
+    class DummySICDDetails(SICDDetails):
+        def __init__(self):
+            self._des_index = None
+            self._des_header = None
+            self._img_headers = None
+            self._is_sicd = False
+            self._sicd_meta = None
+            self.des_subheader_offsets = type('DummyOffsets', (), {'size': 1})()
+        def get_des_subheader_bytes(self, index):
+            return b'DEXML_DATA_CONTENT         01UUS                                                                                                                                                                    077399999XML     2021-11-30T20:59:38Z                                        SICD Volume 1 Design & Implementation Description Document  1.1       2014-09-30T00:00:00Zurn:SICD:1.1.0                                                                                                          +35.05301449-106.59263183+35.05542923-106.59424948+35.05604151-106.59253016+35.05362675-106.59091255+35.05301449-106.59263183                                                                                                                                                                                                                                                                                                                                                                             '
+        def get_des_bytes(self, index):
+            return b"<SICD></SICD>"
+
+    details = DummySICDDetails()
+    details._find_sicd()
+    assert details._is_sicd is True
+    assert details._des_index == 0
+    assert details._des_header == 'dummy_des_header'
+    assert details._sicd_meta == 'dummy_sicd_meta'
+    assert DummySICDType.called['ns_key'] is None
+    assert DummySICDType.called['xml_ns'] is None
+    assert DummySICDType.called['root_node'].tag == 'SICD'
+
+def test_sicddetails_find_sicd_dexml_data_content_parse_xml_fails(monkeypatch):
+    """
+    Test SICDDetails._find_sicd when subhead_bytes.startswith(b'DEXML_DATA_CONTENT') is True
+    and parse_xml_from_string raises an Exception, should continue loop and not set _is_sicd.
+    """
+    # Dummy DataExtensionHeader
+    class DummyDataExtensionHeader:
+        @staticmethod
+        def from_bytes(subhead_bytes, start=0):
+            return 'dummy_des_header'
+
+    # Patch DataExtensionHeader in module under test
+    monkeypatch.setattr("sarpy.io.complex.sicd.DataExtensionHeader", DummyDataExtensionHeader)
+
+    # Patch parse_xml_from_string to raise Exception
+    def dummy_parse_xml_from_string(xml_bytes):
+        raise Exception("parse_xml failed")
+
+    monkeypatch.setattr("sarpy.io.complex.sicd.parse_xml_from_string", dummy_parse_xml_from_string)
+
+    # Dummy SICDDetails with one DES subheader offset
+    class DummySICDDetails(SICDDetails):
+        def __init__(self):
+            self._des_index = None
+            self._des_header = None
+            self._img_headers = None
+            self._is_sicd = False
+            self._sicd_meta = None
+            self.des_subheader_offsets = type('DummyOffsets', (), {'size': 1})()
+        def get_des_subheader_bytes(self, index):
+            return b'DEXML_DATA_CONTENT         01UUS'
+        def get_des_bytes(self, index):
+            return b"<SICD></SICD>"
+
+    details = DummySICDDetails()
+    details._find_sicd()
+    assert details._is_sicd is False
+    assert details._des_index is None
+    assert details._des_header is None
+    assert details._sicd_meta is None
+
+def test_sicddetails_find_sicd_desicd_xml(monkeypatch):
+    """
+    Test SICDDetails._find_sicd when subhead_bytes.startswith(b'DESICD_XML') is True,
+    and 'SICD' is in root_node.tag, should set _is_sicd True, _des_index set, _des_header None,
+    and _sicd_meta from_node called with ns_key=None or 'default'.
+    """
+    # Dummy SICDType for from_node
+    class DummySICDType:
+        called = {}
+        @classmethod
+        def from_node(cls, root_node, xml_ns, ns_key=None):
+            cls.called = {'root_node': root_node, 'xml_ns': xml_ns, 'ns_key': ns_key}
+            return 'dummy_sicd_meta'
+        def derive(self): pass
+
+    # Patch SICDType in module under test
+    monkeypatch.setattr("sarpy.io.complex.sicd.SICDType", DummySICDType)
+
+    # Dummy parse_xml_from_string returns root_node with tag 'SICD' and xml_ns None
+    class DummyRoot:
+        tag = 'SICD'
+    def dummy_parse_xml_from_string(xml_bytes):
+        return DummyRoot(), None
+    monkeypatch.setattr("sarpy.io.complex.sicd.parse_xml_from_string", dummy_parse_xml_from_string)
+
+    # Dummy SICDDetails with one DES subheader offset
+    class DummySICDDetails(SICDDetails):
+        def __init__(self):
+            self._des_index = None
+            self._des_header = None
+            self._img_headers = None
+            self._is_sicd = False
+            self._sicd_meta = None
+            self.des_subheader_offsets = type('DummyOffsets', (), {'size': 1})()
+        def get_des_subheader_bytes(self, index):
+            return b'DESICD_XML'
+        def get_des_bytes(self, index):
+            return b"<SICD></SICD>"
+
+    details = DummySICDDetails()
+    details._find_sicd()
+    assert details._is_sicd is True
+    assert details._des_index == 0
+    assert details._des_header is None
+    assert details._sicd_meta == 'dummy_sicd_meta'
+    assert DummySICDType.called['ns_key'] is None
+    assert DummySICDType.called['root_node'].tag == 'SICD'
+
+def test_sicddetails_find_sicd_desicd_xml_parse_xml_fails(monkeypatch):
+    """
+    Test SICDDetails._find_sicd when subhead_bytes.startswith(b'DESICD_XML') is True
+    and parse_xml_from_string raises an Exception, should continue loop and not set _is_sicd.
+    """
+    # Patch parse_xml_from_string to raise Exception
+    def dummy_parse_xml_from_string(xml_bytes):
+        raise Exception("parse_xml failed")
+    monkeypatch.setattr("sarpy.io.complex.sicd.parse_xml_from_string", dummy_parse_xml_from_string)
+
+    # Dummy SICDDetails with one DES subheader offset
+    class DummySICDDetails(SICDDetails):
+        def __init__(self):
+            self._des_index = None
+            self._des_header = None
+            self._img_headers = None
+            self._is_sicd = False
+            self._sicd_meta = None
+            self.des_subheader_offsets = type('DummyOffsets', (), {'size': 1})()
+        def get_des_subheader_bytes(self, index):
+            return b'DESICD_XML'
+        def get_des_bytes(self, index):
+            return b"<SICD></SICD>"
+
+    details = DummySICDDetails()
+    details._find_sicd()
+    assert details._is_sicd is False
+    assert details._des_index is None
+    assert details._des_header is None
+    assert details._sicd_meta is None
+
+def test_sicddetails_find_sicd_desicd_xml_xmlns_none_false(monkeypatch):
+    """
+    Test SICDDetails._find_sicd when subhead_bytes.startswith(b'DESICD_XML') is True,
+    'SICD' in root_node.tag is True, and xml_ns is not None.
+    Should set _is_sicd True, _des_index set, _des_header None,
+    and _sicd_meta from_node called with ns_key='default'.
+    """
+    # Dummy SICDType for from_node
+    class DummySICDType:
+        called = {}
+        @classmethod
+        def from_node(cls, root_node, xml_ns, ns_key=None):
+            cls.called = {'root_node': root_node, 'xml_ns': xml_ns, 'ns_key': ns_key}
+            return 'dummy_sicd_meta'
+        def derive(self): pass
+
+    # Patch SICDType in module under test
+    monkeypatch.setattr("sarpy.io.complex.sicd.SICDType", DummySICDType)
+
+    # Dummy parse_xml_from_string returns root_node with tag 'SICD' and xml_ns not None
+    class DummyRoot:
+        tag = 'SICD'
+    def dummy_parse_xml_from_string(xml_bytes):
+        return DummyRoot(), {'dummy': 'ns'}
+    monkeypatch.setattr("sarpy.io.complex.sicd.parse_xml_from_string", dummy_parse_xml_from_string)
+
+    # Dummy SICDDetails with one DES subheader offset
+    class DummySICDDetails(SICDDetails):
+        def __init__(self):
+            self._des_index = None
+            self._des_header = None
+            self._img_headers = None
+            self._is_sicd = False
+            self._sicd_meta = None
+            self.des_subheader_offsets = type('DummyOffsets', (), {'size': 1})()
+        def get_des_subheader_bytes(self, index):
+            return b'DESICD_XML'
+        def get_des_bytes(self, index):
+            return b"<SICD></SICD>"
+
+    details = DummySICDDetails()
+    details._find_sicd()
+    assert details._is_sicd is True
+    assert details._des_index == 0
+    assert details._des_header is None
+    assert details._sicd_meta == 'dummy_sicd_meta'
+    assert DummySICDType.called['ns_key'] == 'default'
+    assert DummySICDType.called['xml_ns'] == {'dummy': 'ns'}
+    assert DummySICDType.called['root_node'].tag == 'SICD'
+
+def test_sicdreader_init_raises_typeerror_for_invalid_nitf_details():
+    # Pass an object that is not a string, file-like, or SICDDetails
+    class NotSICDDetails:
+        pass
+
+    with pytest.raises(TypeError, match="The input argument for SICDReader must be a filename, file-like object, or SICDDetails object."):
+        SICDReader(NotSICDDetails())
+
+def test_sicdreader_get_nitf_dict_returns_expected_keys(monkeypatch):
+    # Prepare dummy nitf_header and img_headers
+    class DummySecurity:
+        CLAS = "U"
+        CODE = "US"
+        # Fill all fields in NITFSecurityTags._ordering with non-empty values
+        def __getattr__(self, name):
+            return "VAL"
+
+    class DummyNITFHeader:
+        Security = DummySecurity()
+        OSTAID = "OSTAID_VAL"
+        FTITLE = "FTITLE_VAL"
+
+    class DummyImgHeader:
+        ISORCE = "ISORCE_VAL"
+        IID2 = "IID2_VAL"
+
+    class DummyNitfDetails:
+        nitf_header = DummyNITFHeader()
+        img_headers = [DummyImgHeader()]
+
+    class DummySICDReader(SICDReader):
+        def __init__(self):
+            self._nitf_details = DummyNitfDetails()
+            self._sicd_meta = None
+
+        @property
+        def nitf_details(self):
+            return self._nitf_details
+
+    reader = DummySICDReader()
+    result = reader.get_nitf_dict()
+    assert "Security" in result
+    assert "OSTAID" in result
+    assert "FTITLE" in result
+    assert "ISORCE" in result
+    assert "IID2" in result
+    # Security dict should contain all fields from NITFSecurityTags._ordering
+    from sarpy.io.general.nitf_elements.security import NITFSecurityTags
+    for field in NITFSecurityTags._ordering:
+        assert field in result["Security"]
+
+def test_sicdreader_get_nitf_dict_security_empty(monkeypatch):
+    # Security fields are all empty, so Security key should not be present
+    class DummySecurity:
+        def __getattr__(self, name):
+            return ""
+
+    class DummyNITFHeader:
+        Security = DummySecurity()
+        OSTAID = "OSTAID_VAL"
+        FTITLE = "FTITLE_VAL"
+
+    class DummyImgHeader:
+        ISORCE = "ISORCE_VAL"
+        IID2 = "IID2_VAL"
+
+    class DummyNitfDetails:
+        nitf_header = DummyNITFHeader()
+        img_headers = [DummyImgHeader()]
+
+    class DummySICDReader(SICDReader):
+        def __init__(self):
+            self._nitf_details = DummyNitfDetails()
+            self._sicd_meta = None
+
+        @property
+        def nitf_details(self):
+            return self._nitf_details
+
+    reader = DummySICDReader()
+    result = reader.get_nitf_dict()
+    assert "Security" not in result
+    assert result["OSTAID"] == "OSTAID_VAL"
+    assert result["FTITLE"] == "FTITLE_VAL"
+    assert result["ISORCE"] == "ISORCE_VAL"
+    assert result["IID2"] == "IID2_VAL"
+
+def test_sicdreader_get_nitf_dict_multiple_img_headers(monkeypatch):
+    # Only the first img_headers[0] should be used for ISORCE and IID2
+    class DummySecurity:
+        CLAS = "U"
+        CODE = "US"
+        def __getattr__(self, name):
+            return "VAL"
+
+    class DummyNITFHeader:
+        Security = DummySecurity()
+        OSTAID = "OSTAID_VAL"
+        FTITLE = "FTITLE_VAL"
+
+    class DummyImgHeader:
+        def __init__(self, isorce, iid2):
+            self.ISORCE = isorce
+            self.IID2 = iid2
+
+    class DummyNitfDetails:
+        nitf_header = DummyNITFHeader()
+        img_headers = [
+            DummyImgHeader("ISORCE_1", "IID2_1"),
+            DummyImgHeader("ISORCE_2", "IID2_2"),
+        ]
+
+    class DummySICDReader(SICDReader):
+        def __init__(self):
+            self._nitf_details = DummyNitfDetails()
+            self._sicd_meta = None
+
+        @property
+        def nitf_details(self):
+            return self._nitf_details
+
+    reader = DummySICDReader()
+    result = reader.get_nitf_dict()
+    assert result["ISORCE"] == "ISORCE_1"
+    assert result["IID2"] == "IID2_1"
+
+def test_sicdreader_get_nitf_dict_multiple_img_headers(monkeypatch):
+    # Only the first img_headers[0] should be used for ISORCE and IID2
+    class DummySecurity:
+        CLAS = "U"
+        CODE = "US"
+        def __getattr__(self, name):
+            return "VAL"
+
+    class DummyNITFHeader:
+        Security = DummySecurity()
+        OSTAID = "OSTAID_VAL"
+        FTITLE = "FTITLE_VAL"
+
+    class DummyImgHeader:
+        def __init__(self, isorce, iid2):
+            self.ISORCE = isorce
+            self.IID2 = iid2
+
+    class DummyNitfDetails:
+        nitf_header = DummyNITFHeader()
+        img_headers = [
+            DummyImgHeader("ISORCE_1", "IID2_1"),
+            DummyImgHeader("ISORCE_2", "IID2_2"),
+        ]
+
+    class DummySICDReader(SICDReader):
+        def __init__(self):
+            self._nitf_details = DummyNitfDetails()
+            self._sicd_meta = None
+
+        @property
+        def nitf_details(self):
+            return self._nitf_details
+
+    reader = DummySICDReader()
+    result = reader.get_nitf_dict()
+    assert result["ISORCE"] == "ISORCE_1"
+    assert result["IID2"] == "IID2_1"
+
+    def test_populate_nitf_information_into_sicd(monkeypatch):
+        # Prepare dummy SICDMeta and nitf_details
+        class DummySICDMeta:
+            def __init__(self):
+                self.NITF = {}
+
+        class DummySecurity:
+            CLAS = "U"
+            CODE = "US"
+            def __getattr__(self, name):
+                return "VAL"
+
+        class DummyNITFHeader:
+            Security = DummySecurity()
+            OSTAID = "OSTAID_VAL"
+            FTITLE = "FTITLE_VAL"
+
+        class DummyImgHeader:
+            ISORCE = "ISORCE_VAL"
+            IID2 = "IID2_VAL"
+
+        class DummyNitfDetails:
+            nitf_header = DummyNITFHeader()
+            img_headers = [DummyImgHeader()]
+
+        class DummySICDReader(SICDReader):
+            def __init__(self):
+                self._nitf_details = DummyNitfDetails()
+                self._sicd_meta = DummySICDMeta()
+
+            @property
+            def nitf_details(self):
+                return self._nitf_details
+
+            @property
+            def sicd_meta(self):
+                return self._sicd_meta
+
+        reader = DummySICDReader()
+        reader.populate_nitf_information_into_sicd()
+        # Check that NITF dict is populated correctly
+        assert "Security" in reader.sicd_meta.NITF
+        assert reader.sicd_meta.NITF["OSTAID"] == "OSTAID_VAL"
+        assert reader.sicd_meta.NITF["FTITLE"] == "FTITLE_VAL"
+        assert reader.sicd_meta.NITF["ISORCE"] == "ISORCE_VAL"
+        assert reader.sicd_meta.NITF["IID2"] == "IID2_VAL"
+
+def test_populate_nitf_information_into_sicd_overwrites_existing(monkeypatch):
+    # If NITF already has values, they should be overwritten
+    class DummySICDMeta:
+        def __init__(self):
+            self.NITF = {"OSTAID": "OLD", "FTITLE": "OLD", "ISORCE": "OLD", "IID2": "OLD"}
+
+    class DummySecurity:
+        CLAS = "U"
+        CODE = "US"
+        def __getattr__(self, name):
+            return "VAL"
+
+    class DummyNITFHeader:
+        Security = DummySecurity()
+        OSTAID = "NEW_OSTAID"
+        FTITLE = "NEW_FTITLE"
+
+    class DummyImgHeader:
+        ISORCE = "NEW_ISORCE"
+        IID2 = "NEW_IID2"
+
+    class DummyNitfDetails:
+        nitf_header = DummyNITFHeader()
+        img_headers = [DummyImgHeader()]
+
+    class DummySICDReader(SICDReader):
+        def __init__(self):
+            self._nitf_details = DummyNitfDetails()
+            self._sicd_meta = DummySICDMeta()
+
+        @property
+        def nitf_details(self):
+            return self._nitf_details
+
+        @property
+        def sicd_meta(self):
+            return self._sicd_meta
+
+    reader = DummySICDReader()
+    reader.populate_nitf_information_into_sicd()
+    assert reader.sicd_meta.NITF["OSTAID"] == "NEW_OSTAID"
+    assert reader.sicd_meta.NITF["FTITLE"] == "NEW_FTITLE"
+    assert reader.sicd_meta.NITF["ISORCE"] == "NEW_ISORCE"
+    assert reader.sicd_meta.NITF["IID2"] == "NEW_IID2"
+
+def test_sicdreader_depopulate_nitf_information_clears_nitf(monkeypatch):
+    # Dummy SICDMeta with NITF dict
+    class DummySICDMeta:
+        def __init__(self):
+            self.NITF = {"Security": {"CLAS": "U"}, "OSTAID": "OSTAID_VAL"}
+
+    class DummyNitfDetails:
+        nitf_header = None
+        img_headers = []
+
+    class DummySICDReader(SICDReader):
+        def __init__(self):
+            self._sicd_meta = DummySICDMeta()
+            self._nitf_details = DummyNitfDetails()
+
+        @property
+        def sicd_meta(self):
+            return self._sicd_meta
+
+        @property
+        def nitf_details(self):
+            return self._nitf_details
+
+    reader = DummySICDReader()
+    # Ensure NITF dict is initially populated
+    assert reader.sicd_meta.NITF != {}
+    reader.depopulate_nitf_information()
+    assert reader.sicd_meta.NITF == {}
+
+def test_sicdreader_depopulate_nitf_information_idempotent(monkeypatch):
+    # Dummy SICDMeta with empty NITF dict
+    class DummySICDMeta:
+        def __init__(self):
+            self.NITF = {}
+
+    class DummyNitfDetails:
+        nitf_header = None
+        img_headers = []
+
+    class DummySICDReader(SICDReader):
+        def __init__(self):
+            self._sicd_meta = DummySICDMeta()
+            self._nitf_details = DummyNitfDetails()
+
+        @property
+        def sicd_meta(self):
+            return self._sicd_meta
+
+        @property
+        def nitf_details(self):
+            return self._nitf_details
+
+    reader = DummySICDReader()
+    # NITF dict is already empty
+    assert reader.sicd_meta.NITF == {}
+    reader.depopulate_nitf_information()
+    assert reader.sicd_meta.NITF == {}
+
+def test_sicdreader_get_format_function_amp8i_phs8i_pixeltype_missing_amptable():
+    # Dummy SICDMeta with PixelType 'AMP8I_PHS8I' but AmpTable is None
+    class DummyImageData:
+        def __init__(self):
+            self.PixelType = 'AMP8I_PHS8I'
+            self.AmpTable = None
+
+    class DummySICDMeta:
+        def __init__(self):
+            self.ImageData = DummyImageData()
+
+    class DummyReader(SICDReader):
+        def __init__(self, sicd_meta):
+            self._sicd_meta = sicd_meta
+
+        @property
+        def sicd_meta(self):
+            return self._sicd_meta
+
+    reader = DummyReader(DummySICDMeta())
+    # Should raise ValueError('Expected AMP8I_PHS8I')
+    with pytest.raises(ValueError, match="Expected AMP8I_PHS8I"):
+        reader.get_format_function(np.dtype('uint8'), complex_order='MP', band_dimension=2)
+
+def test_check_image_segment_for_compliance_true(monkeypatch):
+    reader = SICDReader(sicd_files[0])
+    reader.nitf_details.img_headers[0].NBPP = 9
+    result = SICDReader._check_image_segment_for_compliance(reader, 0, reader.nitf_details.img_headers[0])
+    assert result is False
