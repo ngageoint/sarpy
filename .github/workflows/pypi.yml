@@ -13,6 +13,19 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: "3.x"
+    - name: Extract version number from __about__.py
+      shell: bash
+      run: echo "raw_version=`sed -n 's/__version__ = \"\(.*\)\"/\1/p' < sarpy/__about__.py`" >> $GITHUB_OUTPUT
+      id: extract_version
+    - name: Set version number for release candidate
+      shell: bash
+      if: contains(github.ref, 'refs/heads/integration/')
+      run: |
+        echo ${{ steps.extract_version.outputs.raw_version }}
+        rc_version=${{ steps.extract_version.outputs.raw_version }}rc1
+        sed -i -e "s/__version__ = \"${{ steps.extract_version.outputs.raw_version }}/__version__ = \"$rc_version/g" sarpy/__about__.py
+        echo "version=$rc_version"  >> $GITHUB_OUTPUT
+      id: extract_release_candidate_version
     - name: Install pypa/build
       run: >-
         python3 -m

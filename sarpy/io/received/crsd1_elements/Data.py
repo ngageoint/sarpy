@@ -5,9 +5,10 @@ The DataType definition.
 __classification__ = "UNCLASSIFIED"
 __author__ = ("Thomas McCullough", "Michael Stewart, Valkyrie")
 
-from typing import List
+from typing   import List
+from deprecated import deprecated
 
-from sarpy.io.xml.base import Serializable
+from sarpy.io.xml.base        import Serializable
 from sarpy.io.xml.descriptors import StringDescriptor, StringEnumDescriptor, \
     IntegerDescriptor, SerializableListDescriptor
 from sarpy.io.phase_history.cphd1_elements.Data import SupportArraySizeType
@@ -136,6 +137,7 @@ class DataType(Serializable):
             return len(self.SupportArrays)
 
     @property
+    @deprecated("sarpy's CRSD implementation is deprecated. Please use SARKit.")
     def NumCRSDChannels(self):
         """
         int: The number of CRSD channels.

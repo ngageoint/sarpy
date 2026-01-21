@@ -1,0 +1,37 @@
+{
+ "type": "FileAnnotationCollection",
+ "version": "test_version",
+ "image_file_name": "test_image_file_name",
+ "image_id": "test_image_id",
+ "core_name": "test_core_name",
+ "annotations": {
+  "type": "AnnotationCollection",
+  "features": [
+   {
+    "type": "AnnotationFeature",
+    "id": "10dfc96e-ed21-4214-99bf-6543f079acff",
+    "geometry": {
+     "type": "Point",
+     "coordinates": [
+      0.0,
+      0.0
+     ]
+    },
+    "properties": {
+     "type": "AnnotationProperties",
+     "name": "annotation1",
+     "description": "abcd",
+     "directory": "path/folder",
+     "geometry_properties": [
+      {
+       "type": "GeometryProperties",
+       "uid": "abcd",
+       "name": "efgh",
+       "color": "blue"
+      }
+     ]
+    }
+   }
+  ]
+ }
+}

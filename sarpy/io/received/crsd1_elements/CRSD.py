@@ -5,34 +5,35 @@ The Compensated Received Signal Data 1.0 definition.
 __classification__ = "UNCLASSIFIED"
 __author__ = ("Thomas McCullough", "Michael Stewart, Valkyrie")
 
-from xml.etree import ElementTree
-from collections import OrderedDict
-from typing import Union
 import numpy
+from collections import OrderedDict
+from typing      import Union
+from deprecated  import deprecated
+from xml.etree   import ElementTree
 
+from sarpy.io.complex.sicd_elements.MatchInfo          import MatchInfoType
+from sarpy.io.phase_history.cphd1_elements.Dwell       import DwellType
+from sarpy.io.phase_history.cphd1_elements.GeoInfo     import GeoInfoType
+from sarpy.io.phase_history.cphd1_elements.ProductInfo import ProductInfoType
+from sarpy.io.phase_history.cphd1_elements.SceneCoordinates import \
+    SceneCoordinatesType
+from sarpy.io.phase_history.cphd1_elements.SupportArray import SupportArrayType
+from sarpy.io.phase_history.cphd_schema import get_urn_details, WRITABLE_VERSIONS, \
+    get_namespace, get_default_tuple
 from sarpy.io.xml.base import Serializable, find_children, parse_xml_from_file, \
     parse_xml_from_string
 from sarpy.io.xml.descriptors import SerializableDescriptor, IntegerDescriptor, \
     StringDescriptor
 
-from .base import DEFAULT_STRICT
-from .CollectionID import CollectionIDType
-from .Global import GlobalType
-from sarpy.io.phase_history.cphd1_elements.SceneCoordinates import SceneCoordinatesType
-from .Data import DataType
-from .Channel import ChannelType
-from .PVP import PVPType
-from sarpy.io.phase_history.cphd1_elements.SupportArray import SupportArrayType
-from sarpy.io.phase_history.cphd1_elements.Dwell import DwellType
-from .ReferenceGeometry import ReferenceGeometryType
 from .Antenna import AntennaType
+from .base import DEFAULT_STRICT
+from .Channel import ChannelType
+from .CollectionID import CollectionIDType
+from .Data import DataType
 from .ErrorParameters import ErrorParametersType
-from sarpy.io.phase_history.cphd1_elements.ProductInfo import ProductInfoType
-from sarpy.io.phase_history.cphd1_elements.GeoInfo import GeoInfoType
-from sarpy.io.complex.sicd_elements.MatchInfo import MatchInfoType
-
-from sarpy.io.phase_history.cphd_schema import get_urn_details, WRITABLE_VERSIONS, \
-    get_namespace, get_default_tuple
+from .Global import GlobalType
+from .PVP import PVPType
+from .ReferenceGeometry import ReferenceGeometryType
 
 
 #########
@@ -51,7 +52,7 @@ CRSD_SECTION_TERMINATOR = b'\f\n'
 
 #########
 # CRSD header object
-
+@deprecated("sarpy's CRSD implementation is deprecated. Please use SARKit.")
 def _parse_crsd_header_field(line):
     """
     Parse the CRSD header field, or return `None` as a termination signal.
@@ -74,7 +75,7 @@ def _parse_crsd_header_field(line):
     val = parts[1].strip().decode('utf-8')
     return fld, val
 
-
+@deprecated("sarpy's CRSD implementation is deprecated. Please use SARKit.")
 class CRSDHeaderBase(object):
     _fields = ()
     _required = ()
@@ -113,7 +114,7 @@ class CRSDHeaderBase(object):
             the_dict[fld] = val
         return cls(**the_dict)
 
-
+@deprecated("sarpy's CRSD implementation is deprecated. Please use SARKit.")
 class CRSDHeader(CRSDHeaderBase):
     _fields = (
         'XML_BLOCK_SIZE', 'XML_BLOCK_BYTE_OFFSET', 'SUPPORT_BLOCK_SIZE', 'SUPPORT_BLOCK_BYTE_OFFSET',
@@ -188,7 +189,7 @@ class CRSDHeader(CRSDHeaderBase):
                 + ''.join(["{} := {}\n".format(f, getattr(self, f))
                            for f in self._fields if getattr(self, f) is not None]))
 
-
+@deprecated("sarpy's CRSD implementation is deprecated. Please use SARKit.")
 class CRSDType(Serializable):
     """
     The Compensated Received Signal Data definition.

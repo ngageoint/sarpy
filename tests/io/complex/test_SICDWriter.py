@@ -144,6 +144,13 @@ def test_nitf_writing_details_setter_failure(tmp_path):
         sicd_writer.nitf_writing_details = sicd_writing_details
 
 @unittest.skipIf(len(sicd_files) == 0, 'No sicd files found')
+def test_get_format_function_required_param_only(tmp_path):
+    sicd_meta   = get_sicd_meta()
+    output_file = str(tmp_path / "out.sicd")
+    sicd_writer = SICDWriter(output_file, sicd_meta=sicd_meta)
+    sicd_writer.get_format_function(raw_dtype="float")
+
+@unittest.skipIf(len(sicd_files) == 0, 'No sicd files found')
 def test_get_format_function(tmp_path):
     sicd_meta   = get_sicd_meta()
     output_file = str(tmp_path / "out.sicd")

@@ -13,13 +13,14 @@ __author__ = "Thomas McCullough"
 import argparse
 import logging
 import os
+from deprecated import deprecated
 
 import sarpy
 from sarpy.io.complex.converter import open_complex
 import sarpy.io.general.base
 import sarpy.io.phase_history
 import sarpy.io.received.converter
-from sarpy.visualization.kmz_product_creation import create_kmz_view
+from sarpy.visualization.kmz_product_creation      import create_kmz_view
 from sarpy.visualization.cphd_kmz_product_creation import cphd_create_kmz_view
 from sarpy.visualization.crsd_kmz_product_creation import crsd_create_kmz_view
 
@@ -63,6 +64,7 @@ if __name__ == '__main__':
         reader = sarpy.io.phase_history.open(args.input_file)
         cphd_create_kmz_view(reader, args.output_directory, file_stem=file_stem)
 
+    @deprecated("sarpy's CRSD implementation is deprecated. Please use SARKit.")
     def _crsd_kmz():
         reader = sarpy.io.received.converter.open_received(args.input_file)
         crsd_create_kmz_view(reader, args.output_directory, file_stem=file_stem)
