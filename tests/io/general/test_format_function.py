@@ -187,3 +187,105 @@ class TestSingleLUTFormatFunction(unittest.TestCase):
                 func = SingleLUTFormatFunction(lut, base_data.shape, out_shape)
                 out_data = func(base_data, (slice(0, 51, 1), slice(0, 49, 1)))
                 self.assertTrue(numpy.array_equal(out_data, lut[base_data]), msg='LUT forward')
+
+
+class TestComplexFormatFunctionForwardFunctionalStep(unittest.TestCase):
+    def test_forward_functional_step_IQ(self):
+        # shape: (2, 3, 4), band_dimension=2, so 4 bands, should be 2 complex values per last axis
+        data = numpy.zeros((2, 3, 4), dtype='float32')
+        data[:, :, 0] = 1.0  # real part 1st complex
+        data[:, :, 1] = 2.0  # imag part 1st complex
+        data[:, :, 2] = 3.0  # real part 2nd complex
+        data[:, :, 3] = 4.0  # imag part 2nd complex
+
+        func = ComplexFormatFunction(
+            'float32', 'IQ', raw_shape=(2, 3, 4), formatted_shape=(2, 3, 2), band_dimension=2)
+        subscript = (slice(0, 2), slice(0, 3), slice(0, 4))
+        out = func._forward_functional_step(data, subscript)
+        self.assertEqual(out.shape, (2, 3, 2))
+        self.assertTrue(numpy.all(out.real == numpy.array([[[1, 3], [1, 3], [1, 3]],
+                                                           [[1, 3], [1, 3], [1, 3]]])))
+        self.assertTrue(numpy.all(out.imag == numpy.array([[[2, 4], [2, 4], [2, 4]],
+                                                           [[2, 4], [2, 4], [2, 4]]])))
+
+    def test_forward_functional_step_QI(self):
+        data = numpy.zeros((2, 3, 4), dtype='float32')
+        data[:, :, 0] = 10.0  # imag part 1st complex
+        data[:, :, 1] = 20.0  # real part 1st complex
+        data[:, :, 2] = 30.0  # imag part 2nd complex
+        data[:, :, 3] = 40.0  # real part 2nd complex
+
+        func = ComplexFormatFunction(
+            'float32', 'QI', raw_shape=(2, 3, 4), formatted_shape=(2, 3, 2), band_dimension=2)
+        subscript = (slice(0, 2), slice(0, 3), slice(0, 4))
+        out = func._forward_functional_step(data, subscript)
+        self.assertEqual(out.shape, (2, 3, 2))
+        self.assertTrue(numpy.all(out.real == numpy.array([[[20, 40], [20, 40], [20, 40]],
+                                                           [[20, 40], [20, 40], [20, 40]]])))
+        self.assertTrue(numpy.all(out.imag == numpy.array([[[10, 30], [10, 30], [10, 30]],
+                                                           [[10, 30], [10, 30], [10, 30]]])))
+
+    def test_forward_functional_step_MP(self):
+        # MP: magnitude, phase
+        mag = numpy.ones((2, 3, 2), dtype='float32') * 5
+        theta = numpy.ones((2, 3, 2), dtype='float32') * numpy.pi / 2
+        data = numpy.empty((2, 3, 4), dtype='float32')
+        data[:, :, 0] = mag[:, :, 0]
+        data[:, :, 1] = theta[:, :, 0]
+        data[:, :, 2] = mag[:, :, 1]
+        data[:, :, 3] = theta[:, :, 1]
+
+        func = ComplexFormatFunction(
+            'float32', 'MP', raw_shape=(2, 3, 4), formatted_shape=(2, 3, 2), band_dimension=2)
+        subscript = (slice(0, 2), slice(0, 3), slice(0, 4))
+        out = func._forward_functional_step(data, subscript)
+        self.assertEqual(out.shape, (2, 3, 2))
+        # For theta=pi/2, cos=0, sin=1, so real=0, imag=5
+        self.assertTrue(numpy.allclose(out.real, 0, atol=1e-6))
+        self.assertTrue(numpy.allclose(out.imag, 5, atol=1e-6))
+
+    def test_forward_functional_step_PM(self):
+        # PM: phase, magnitude
+        mag = numpy.ones((2, 3, 2), dtype='float32') * 7
+        theta = numpy.ones((2, 3, 2), dtype='float32') * numpy.pi
+        data = numpy.empty((2, 3, 4), dtype='float32')
+        data[:, :, 0] = theta[:, :, 0]
+        data[:, :, 1] = mag[:, :, 0]
+        data[:, :, 2] = theta[:, :, 1]
+        data[:, :, 3] = mag[:, :, 1]
+
+        func = ComplexFormatFunction(
+            'float32', 'PM', raw_shape=(2, 3, 4), formatted_shape=(2, 3, 2), band_dimension=2)
+        subscript = (slice(0, 2), slice(0, 3), slice(0, 4))
+        out = func._forward_functional_step(data, subscript)
+        self.assertEqual(out.shape, (2, 3, 2))
+        # For theta=pi, cos=-1, sin=0, so real=-7, imag=0
+        self.assertTrue(numpy.allclose(out.real, -7, atol=1e-6))
+        self.assertTrue(numpy.allclose(out.imag, 0, atol=1e-6))
+
+    def test_forward_functional_step_MP_uint8(self):
+        # Test quantized phase for uint8
+        mag = numpy.ones((2, 3, 2), dtype='uint8') * 10
+        theta = numpy.ones((2, 3, 2), dtype='uint8') * 64  # 64/256*2pi = pi/2
+        data = numpy.empty((2, 3, 4), dtype='uint8')
+        data[:, :, 0] = mag[:, :, 0]
+        data[:, :, 1] = theta[:, :, 0]
+        data[:, :, 2] = mag[:, :, 1]
+        data[:, :, 3] = theta[:, :, 1]
+
+        func = ComplexFormatFunction(
+            'uint8', 'MP', raw_shape=(2, 3, 4), formatted_shape=(2, 3, 2), band_dimension=2)
+        subscript = (slice(0, 2), slice(0, 3), slice(0, 4))
+        out = func._forward_functional_step(data, subscript)
+        self.assertEqual(out.shape, (2, 3, 2))
+        # For theta=64, bit_depth=8, theta=64/256*2pi=pi/2, so real=0, imag=10
+        self.assertTrue(numpy.allclose(out.real, 0, atol=1e-6))
+        self.assertTrue(numpy.allclose(out.imag, 10, atol=1e-6))
+
+    def test_forward_functional_step_bad_shape(self):
+        func = ComplexFormatFunction(
+            'float32', 'IQ', raw_shape=(2, 3, 4), formatted_shape=(2, 3, 2), band_dimension=2)
+        data = numpy.zeros((2, 3, 5), dtype='float32')  # wrong band size
+        subscript = (slice(0, 2), slice(0, 3), slice(0, 5))
+        with self.assertRaises(ValueError):
+            func._forward_functional_step(data, subscript)
