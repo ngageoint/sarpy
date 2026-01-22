@@ -801,27 +801,29 @@ class ComplexFormatFunction(FormatFunction):
                         data.shape[self.band_dimension + 1:]
 
         out = numpy.empty(out_shape, dtype='complex64')
+
+        # Build slices for even/odd indices along band_dimension
+        # Using slices is faster than numpy.take() with range()
+        even_slice = [slice(None)] * data.ndim
+        odd_slice = [slice(None)] * data.ndim
+        even_slice[self.band_dimension] = slice(0, band_dim_size, 2)
+        odd_slice[self.band_dimension] = slice(1, band_dim_size, 2)
+        even_data = data[tuple(even_slice)].reshape(out.shape)
+        odd_data = data[tuple(odd_slice)].reshape(out.shape)
+
         if self.order == 'IQ':
-            out.real = numpy.reshape(
-                data.take(indices=range(0, band_dim_size, 2), axis=self.band_dimension), out.shape)
-            out.imag = numpy.reshape(
-                data.take(indices=range(1, band_dim_size, 2), axis=self.band_dimension), out.shape)
+            out.real = even_data
+            out.imag = odd_data
         elif self.order == 'QI':
-            out.imag = numpy.reshape(
-                data.take(indices=range(0, band_dim_size, 2), axis=self.band_dimension), out.shape)
-            out.real = numpy.reshape(
-                data.take(indices=range(1, band_dim_size, 2), axis=self.band_dimension), out.shape)
+            out.imag = even_data
+            out.real = odd_data
         elif self.order in ['MP', 'PM']:
             if self.order == 'MP':
-                mag = numpy.reshape(
-                    data.take(indices=range(0, band_dim_size, 2), axis=self.band_dimension), out.shape)
-                theta = numpy.reshape(
-                    data.take(indices=range(1, band_dim_size, 2), axis=self.band_dimension), out.shape)
+                mag = even_data
+                theta = odd_data
             else:
-                mag = numpy.reshape(
-                    data.take(indices=range(1, band_dim_size, 2), axis=self.band_dimension), out.shape)
-                theta = numpy.reshape(
-                    data.take(indices=range(0, band_dim_size, 2), axis=self.band_dimension), out.shape)
+                mag = odd_data
+                theta = even_data
             self._forward_magnitude_theta(data, out, mag, theta, subscript)
         else:
             raise ValueError('Unhandled order value {}'.format(self.order))
