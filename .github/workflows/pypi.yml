@@ -42,7 +42,7 @@ jobs:
 
   publish-to-pypi:
     name: Publish to PyPI
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || contains(github.ref, 'refs/heads/integration/')
     needs:
     - build
     runs-on: ubuntu-latest
