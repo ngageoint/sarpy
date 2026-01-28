@@ -1,23 +1,31 @@
 from xml.etree   import ElementTree
 from io          import StringIO
-import os
+import os, re
 import json
 import tempfile
 import unittest
+from unittest import TestCase
 import numpy as np
+import datetime
 import pytest
 from pytest import fixture
 
+from sarpy.__about__ import __title__, __version__
 from sarpy.io.complex.converter import conversion_utility
 from sarpy.io.complex.sicd import SICDReader, AmpLookupFunction
+from sarpy.io.complex.sicd_elements.ImageCreation import ImageCreationType
+from sarpy.io.complex.sicd_elements.CollectionInfo import CollectionInfoType
 from sarpy.io.complex.sicd_schema import get_schema_path, get_default_version_string
+from sarpy.io.complex.sicd_elements.ImageData import ImageDataType, FullImageType
+from sarpy.io.complex.sicd_elements.blocks     import RowColType
 from sarpy.io.general.format_function import ComplexFormatFunction
 from sarpy.io.general.nitf import NITFReader
-from sarpy.io.complex.sicd import SICDDetails
+from sarpy.io.complex.sicd import SICDDetails, is_a, validate_sicd_for_writing, extract_clas
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.general.nitf_elements.des import DataExtensionHeader
 from sarpy.io.general.base import SarpyIOError
 from sarpy.io.xml.base import parse_xml_from_string
+from sarpy.io.xml.descriptors import StringEnumDescriptor
 
 from tests import parse_file_entry
 
@@ -88,6 +96,22 @@ class DummySICDMeta:
     def __init__(self, pixel_type='RE32F_IM32F', amp_table=None):
         self.ImageData = self.ImageDataType(pixel_type, amp_table)
 
+sicd_meta_data = SICDType(
+    ImageData=ImageDataType(
+        NumRows=1,
+        NumCols=2,
+        PixelType="RE32F_IM32F",
+        FirstRow=0,
+        FirstCol=0,
+        FullImage=FullImageType(
+            NumRows=1,
+            NumCols=2
+        ),
+        SCPPixel=RowColType(Row=1, 
+                            Col=2)
+    ),
+)
+    
 @pytest.mark.parametrize(
     "raw_dtype,complex_order,band_dimension,pixel_type,amp_table,expected_type",
     [
@@ -255,23 +279,27 @@ def test_sicddetails_subhead_sizes_zero_fail():
     with pytest.raises(AttributeError):
         details._nitf_header.ImageSegments.subhead_sizes.size = 0
 
+@unittest.skipIf(len(sicd_files) == 0, 'No sicd files found')
 def test_sicddetails_init_not_sicd(monkeypatch):
     monkeypatch.setattr("sarpy.io.complex.sicd.SICDDetails.is_sicd", property(lambda self: False))
     with pytest.raises(SarpyIOError, match="Could not find the SICD XML des."):
         details = SICDDetails(sicd_files[0])
 
+@unittest.skipIf(len(sicd_files) == 0, 'No sicd files found')
 def test_sicddetails_init_des_subheader_offsets_none(monkeypatch):
     details = SICDDetails(sicd_files[0])
     details.des_subheader_offsets = None
     details._find_sicd()
     assert details.is_sicd is False
 
+@unittest.skipIf(len(sicd_files) == 0, 'No sicd files found')
 def test_sicddetails_init_des_subheader_offsets_size_zero(monkeypatch):
     details = SICDDetails(sicd_files[0])
     details.des_subheader_offsets = np.empty(shape=(0))
     details._find_sicd()
     assert details.is_sicd is False
 
+@unittest.skipIf(len(sicd_files) == 0, 'No sicd files found')
 def test_sicddetails_find_sicd_dexml_data_content_sicd(monkeypatch):
     details = SICDDetails(sicd_files[0])
     details._find_sicd()
@@ -280,6 +308,7 @@ def test_sicddetails_find_sicd_dexml_data_content_sicd(monkeypatch):
     assert details._des_index == 0
     assert details._des_header is not None
 
+@unittest.skipIf(len(sicd_files) == 0, 'No sicd files found')
 def test_sicddetails_find_sicd_desidd_xml(monkeypatch):
     class DummySICDDetails(SICDDetails):
         def get_des_subheader_bytes(self, index: int):
@@ -889,8 +918,199 @@ def test_sicdreader_get_format_function_amp8i_phs8i_pixeltype_missing_amptable()
     with pytest.raises(ValueError, match="Expected AMP8I_PHS8I"):
         reader.get_format_function(np.dtype('uint8'), complex_order='MP', band_dimension=2)
 
+@unittest.skipIf(len(sicd_files) == 0, 'No sicd files found')
 def test_check_image_segment_for_compliance_true(monkeypatch):
     reader = SICDReader(sicd_files[0])
     reader.nitf_details.img_headers[0].NBPP = 9
     result = SICDReader._check_image_segment_for_compliance(reader, 0, reader.nitf_details.img_headers[0])
     assert result is False
+
+class SicdTest(TestCase):
+    @unittest.skipIf(len(sicd_files) == 0, 'No sicd files found')
+    def test_check_image_segment_for_compliance_bad_complex_order(self):
+        reader = SICDReader(sicd_files[0])
+        reader.nitf_details.img_headers[0].Bands[1].ISUBCAT = 'Z'
+        with self.assertLogs() as captured:
+            result = SICDReader._check_image_segment_for_compliance(reader, 0, 
+                                                                    reader.nitf_details.img_headers[0])
+        self.assertEqual(len(captured.records), 1)
+        self.assertEqual(captured.records[0].getMessage(), 
+                         "Image segment at index 0 is not of appropriate type for a SICD Image Segment")
+        self.assertFalse(result)
+
+    @unittest.skipIf(len(sicd_files) == 0, 'No sicd files found')
+    def test_check_image_segment_for_pixel_type_32(self):
+        reader = SICDReader(sicd_files[0])
+        reader.nitf_details.img_headers[0].Bands[0].ISUBCAT = 'M'
+        reader.nitf_details.img_headers[0].Bands[1].ISUBCAT = 'P'
+        with self.assertLogs() as captured:
+            result = SICDReader._check_image_segment_for_compliance(reader, 0, 
+                                                                    reader.nitf_details.img_headers[0])
+        self.assertEqual(len(captured.records), 1)
+        self.assertEqual(captured.records[0].getMessage(), 
+                         "Image segment at index 0 required to be compatible\n\t"
+                         "with PIXEL_TYPE RE32F_IM32F")
+        self.assertFalse(result)
+
+    @unittest.skipIf(len(sicd_files) == 0, 'No sicd files found')
+    def test_check_image_segment_for_pixel_type_16(self):
+        reader = SICDReader(sicd_files[0])
+        reader.sicd_meta.ImageData.PixelType = 'RE16I_IM16I'
+        reader.nitf_details.img_headers[0].Bands[0].ISUBCAT = 'M'
+        reader.nitf_details.img_headers[0].Bands[1].ISUBCAT = 'P'
+        with self.assertLogs() as captured:
+            result = SICDReader._check_image_segment_for_compliance(reader, 0, 
+                                                                    reader.nitf_details.img_headers[0])
+        self.assertEqual(len(captured.records), 1)
+        self.assertEqual(captured.records[0].getMessage(), 
+                         "Image segment at index 0 required to be compatible\n\t"
+                         "with PIXEL_TYPE RE16I_IM16I")
+        self.assertFalse(result)
+
+    @unittest.skipIf(len(sicd_files) == 0, 'No sicd files found')
+    def test_check_image_segment_for_pixel_type_u8(self):
+        reader = SICDReader(sicd_files[0])
+        reader.sicd_meta.ImageData.PixelType = 'AMP8I_PHS8I'
+        reader.nitf_details.img_headers[0].Bands[0].ISUBCAT = 'I'
+        reader.nitf_details.img_headers[0].Bands[1].ISUBCAT = 'Q'
+        with self.assertLogs() as captured:
+            result = SICDReader._check_image_segment_for_compliance(reader, 0, 
+                                                                    reader.nitf_details.img_headers[0])
+        self.assertEqual(len(captured.records), 1)
+        self.assertEqual(captured.records[0].getMessage(), 
+                         "Image segment at index 0 required to be compatible\n\t"
+                         "with PIXEL_TYPE AMP8I_PHS8I")
+        self.assertFalse(result)
+
+def test_is_a_none():
+    result = is_a("complex_file_types.json")
+    assert result is None
+
+def test_validate_sicd_for_writing_not_sicdtype():
+    with pytest.raises(ValueError, 
+                       match="sicd_meta is required to be an instance of SICDType, got <class 'int'>"):
+        validate_sicd_for_writing(1234)
+
+def test_validate_sicd_for_writing_imagedata_numcols_none():
+    profile = '{} {}'.format(__title__, __version__)
+    # use naive datetime because numpy warns about parsing timezone aware
+    # now = np.datetime64(datetime.datetime.now(tz=datetime.timezone.utc).replace(tzinfo=None))
+    sicd_meta_data.ImageCreation = ImageCreationType(
+            Application=profile,
+            DateTime=None,
+            Profile=profile)
+    validate_sicd_for_writing(sicd_meta_data)
+
+def test_extract_clas_no_collectioninfo():
+    assert extract_clas(sicd_meta_data) == 'U'
+
+def test_extract_clas_empty_collectioninfo():
+    localCollectionInfo = CollectionInfoType()
+    localsicd_meta_data = sicd_meta_data
+    localsicd_meta_data.CollectionInfo = localCollectionInfo
+    assert extract_clas(localsicd_meta_data) == 'U'
+
+def test_extract_clas_collectioninfo_classification_unclass():
+    localCollectionInfo = CollectionInfoType()
+    localCollectionInfo.Classification = 'UNCLASS'
+    localsicd_meta_data = sicd_meta_data
+    localsicd_meta_data.CollectionInfo = localCollectionInfo
+    assert extract_clas(localsicd_meta_data) == 'U'
+
+def test_extract_clas_collectioninfo_classification_u():
+    localCollectionInfo = CollectionInfoType()
+    localCollectionInfo.Classification = 'U'
+    localsicd_meta_data = sicd_meta_data
+    localsicd_meta_data.CollectionInfo = localCollectionInfo
+    assert extract_clas(localsicd_meta_data) == 'U'
+
+def test_extract_clas_collectioninfo_classification_confidential():
+    localCollectionInfo = CollectionInfoType()
+    localCollectionInfo.Classification = 'CONFIDENTIAL'
+    localsicd_meta_data = sicd_meta_data
+    localsicd_meta_data.CollectionInfo = localCollectionInfo
+    assert extract_clas(localsicd_meta_data) == 'C'
+
+def test_extract_clas_collectioninfo_classification_c1():
+    localCollectionInfo = CollectionInfoType()
+    localCollectionInfo.Classification = 'C'
+    localsicd_meta_data = sicd_meta_data
+    localsicd_meta_data.CollectionInfo = localCollectionInfo
+    assert extract_clas(localsicd_meta_data) == 'C'
+
+def test_extract_clas_collectioninfo_classification_c2():
+    localCollectionInfo = CollectionInfoType()
+    localCollectionInfo.Classification = 'C/'
+    localsicd_meta_data = sicd_meta_data
+    localsicd_meta_data.CollectionInfo = localCollectionInfo
+    assert extract_clas(localsicd_meta_data) == 'C'
+
+def test_extract_clas_collectioninfo_classification_top():
+    localCollectionInfo = CollectionInfoType()
+    localCollectionInfo.Classification = 'TOP SECRET'
+    localsicd_meta_data = sicd_meta_data
+    localsicd_meta_data.CollectionInfo = localCollectionInfo
+    assert extract_clas(localsicd_meta_data) == 'T'
+
+def test_extract_clas_collectioninfo_classification_ts1():
+    localCollectionInfo = CollectionInfoType()
+    localCollectionInfo.Classification = 'TS'
+    localsicd_meta_data = sicd_meta_data
+    localsicd_meta_data.CollectionInfo = localCollectionInfo
+    assert extract_clas(localsicd_meta_data) == 'T'
+
+def test_extract_clas_collectioninfo_classification_ts2():
+    localCollectionInfo = CollectionInfoType()
+    localCollectionInfo.Classification = 'TS/'
+    localsicd_meta_data = sicd_meta_data
+    localsicd_meta_data.CollectionInfo = localCollectionInfo
+    assert extract_clas(localsicd_meta_data) == 'T'
+
+def test_extract_clas_collectioninfo_classification_secret():
+    localCollectionInfo = CollectionInfoType()
+    localCollectionInfo.Classification = 'SECRET'
+    localsicd_meta_data = sicd_meta_data
+    localsicd_meta_data.CollectionInfo = localCollectionInfo
+    assert extract_clas(localsicd_meta_data) == 'S'
+
+def test_extract_clas_collectioninfo_classification_s1():
+    localCollectionInfo = CollectionInfoType()
+    localCollectionInfo.Classification = 'S'
+    localsicd_meta_data = sicd_meta_data
+    localsicd_meta_data.CollectionInfo = localCollectionInfo
+    assert extract_clas(localsicd_meta_data) == 'S'
+
+def test_extract_clas_collectioninfo_classification_s2():
+    localCollectionInfo = CollectionInfoType()
+    localCollectionInfo.Classification = 'S/'
+    localsicd_meta_data = sicd_meta_data
+    localsicd_meta_data.CollectionInfo = localCollectionInfo
+    assert extract_clas(localsicd_meta_data) == 'S'
+
+def test_extract_clas_collectioninfo_classification_fouo():
+    localCollectionInfo = CollectionInfoType()
+    localCollectionInfo.Classification = 'FOUO'
+    localsicd_meta_data = sicd_meta_data
+    localsicd_meta_data.CollectionInfo = localCollectionInfo
+    assert extract_clas(localsicd_meta_data) == 'R'
+
+def test_extract_clas_collectioninfo_classification_restricted():
+    localCollectionInfo = CollectionInfoType()
+    localCollectionInfo.Classification = 'RESTRICTED'
+    localsicd_meta_data = sicd_meta_data
+    localsicd_meta_data.CollectionInfo = localCollectionInfo
+    assert extract_clas(localsicd_meta_data) == 'R'
+
+class ClassificaitonTest(TestCase):
+    def test_extract_clas_collectioninfo_classification_restricted(self):
+        localCollectionInfo = CollectionInfoType()
+        localCollectionInfo.Classification = 'ZONED'
+        localsicd_meta_data = sicd_meta_data
+        localsicd_meta_data.CollectionInfo = localCollectionInfo
+        with self.assertLogs() as captured:
+            assert extract_clas(localsicd_meta_data) == 'U'
+            self.assertEqual(len(captured.records), 1)
+            self.assertEqual(captured.records[0].getMessage(), 
+                            'Unclear how to extract CLAS for classification string ZONED.\n\t'
+                            'Should be set appropriately.')
+        
