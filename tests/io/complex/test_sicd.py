@@ -26,6 +26,8 @@ from sarpy.io.general.nitf_elements.des import DataExtensionHeader
 from sarpy.io.general.base import SarpyIOError
 from sarpy.io.xml.base import parse_xml_from_string
 from sarpy.io.xml.descriptors import StringEnumDescriptor
+from sarpy.io.complex.sicd import create_security_tags_from_sicd
+from sarpy.io.general.nitf_elements.security import NITFSecurityTags
 
 from tests import parse_file_entry
 
@@ -1114,3 +1116,14 @@ class ClassificaitonTest(TestCase):
                             'Unclear how to extract CLAS for classification string ZONED.\n\t'
                             'Should be set appropriately.')
         
+@unittest.skipIf(len(sicd_files) == 0, 'No sicd files found')
+def test_create_security_tags_from_sicd_get_basic_args_fld_in_sec_tags(monkeypatch):
+    """
+    Test create_security_tags_from_sicd's get_basic_args when fld in sec_tags is True.
+    """
+    reader = SICDReader(sicd_files[0])
+    sicd_meta = reader.sicd_meta
+    tags = create_security_tags_from_sicd(sicd_meta)
+    # All fields from NITFSecurityTags._ordering should be present and match
+    for fld in tags._ordering:
+        assert fld in NITFSecurityTags._ordering
