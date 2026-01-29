@@ -1,3 +1,6 @@
+## NGA has ended support for SARPy as of January 29th, 2026.  Please use the successor to SARPy SARKit:  https://github.com/ValkyrieSystems/sarkit
+
+
 SarPy
 =====
 SarPy is a basic Python library to read, write, and do simple processing
