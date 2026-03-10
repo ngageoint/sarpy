@@ -14,6 +14,7 @@ from collections import OrderedDict
 import numbers
 
 import numpy
+from deprecated import deprecated
 
 from sarpy.io.general.utils import is_file_like, is_real_file
 from sarpy.io.general.base import BaseReader, BaseWriter, SarpyIOError
@@ -392,6 +393,7 @@ def _validate_cphd_details(
 # Reading
 
 
+@deprecated("sarpy's CPHD implementation is deprecated. Please use sarkit.")
 class CPHDReader(CPHDTypeReader):
     """
     The Abstract CPHD reader instance, which just selects the proper CPHD reader
@@ -1307,6 +1309,7 @@ class CPHDWritingDetails(object):
         self._verify_item_written(self.signal_details, 'signal')
 
 
+@deprecated("sarpy's CPHD implementation is deprecated. Please use sarkit.")
 class CPHDWriter1(BaseWriter):
     """
     The CPHD version 1 writer.

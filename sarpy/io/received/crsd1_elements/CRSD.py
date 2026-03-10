@@ -52,7 +52,7 @@ CRSD_SECTION_TERMINATOR = b'\f\n'
 
 #########
 # CRSD header object
-@deprecated("sarpy's CRSD implementation is deprecated. Please use SARKit.")
+@deprecated("sarpy's CRSD implementation is deprecated. Please use sarkit.")
 def _parse_crsd_header_field(line):
     """
     Parse the CRSD header field, or return `None` as a termination signal.
@@ -75,7 +75,7 @@ def _parse_crsd_header_field(line):
     val = parts[1].strip().decode('utf-8')
     return fld, val
 
-@deprecated("sarpy's CRSD implementation is deprecated. Please use SARKit.")
+@deprecated("sarpy's CRSD implementation is deprecated. Please use sarkit.")
 class CRSDHeaderBase(object):
     _fields = ()
     _required = ()
@@ -114,7 +114,7 @@ class CRSDHeaderBase(object):
             the_dict[fld] = val
         return cls(**the_dict)
 
-@deprecated("sarpy's CRSD implementation is deprecated. Please use SARKit.")
+@deprecated("sarpy's CRSD implementation is deprecated. Please use sarkit.")
 class CRSDHeader(CRSDHeaderBase):
     _fields = (
         'XML_BLOCK_SIZE', 'XML_BLOCK_BYTE_OFFSET', 'SUPPORT_BLOCK_SIZE', 'SUPPORT_BLOCK_BYTE_OFFSET',
@@ -189,7 +189,7 @@ class CRSDHeader(CRSDHeaderBase):
                 + ''.join(["{} := {}\n".format(f, getattr(self, f))
                            for f in self._fields if getattr(self, f) is not None]))
 
-@deprecated("sarpy's CRSD implementation is deprecated. Please use SARKit.")
+@deprecated("sarpy's CRSD implementation is deprecated. Please use sarkit.")
 class CRSDType(Serializable):
     """
     The Compensated Received Signal Data definition.

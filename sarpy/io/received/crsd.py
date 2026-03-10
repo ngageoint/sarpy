@@ -33,7 +33,7 @@ _index_range_text = 'index must be in the range `[0, {})`'
 
 #########
 # Object for parsing CRSD elements
-@deprecated("sarpy's CRSD implementation is deprecated. Please use SARKit.")
+@deprecated("sarpy's CRSD implementation is deprecated. Please use sarkit.")
 class CRSDDetails(object):
     """
     The basic CRSD element parser.
@@ -195,7 +195,7 @@ class CRSDDetails(object):
             except Exception:
                 pass
 
-@deprecated("sarpy's CRSD implementation is deprecated. Please use SARKit.")
+@deprecated("sarpy's CRSD implementation is deprecated. Please use sarkit.")
 def _validate_crsd_details(
         crsd_details: Union[str, CRSDDetails],
         version: Union[None, str, Sequence[str]] = None) -> CRSDDetails:
@@ -237,7 +237,7 @@ def _validate_crsd_details(
 
     return crsd_details
 
-@deprecated("sarpy's CRSD implementation is deprecated. Please use SARKit.")
+@deprecated("sarpy's CRSD implementation is deprecated. Please use sarkit.")
 class CRSDReader(CRSDTypeReader):
     """
     The Abstract CRSD reader instance, which just selects the proper CRSD reader
@@ -329,7 +329,7 @@ class CRSDReader(CRSDTypeReader):
                 self._crsd_details.close()
             del self._crsd_details
 
-@deprecated("sarpy's CRSD implementation is deprecated. Please use SARKit.")
+@deprecated("sarpy's CRSD implementation is deprecated. Please use sarkit.")
 class CRSDReader1(CRSDReader):
     """
     The CRSD version 1 reader.
@@ -667,7 +667,7 @@ class CRSDReader1(CRSDReader):
         index = self._validate_index(index)
         return BaseReader.__call__(self, *ranges, index=index, raw=raw, squeeze=squeeze)
 
-@deprecated("sarpy's CRSD implementation is deprecated. Please use SARKit.")
+@deprecated("sarpy's CRSD implementation is deprecated. Please use sarkit.")
 def is_a(file_name: str) -> Optional[CRSDReader]:
     """
     Tests whether a given file_name corresponds to a CRSD file. Returns a reader instance, if so.
@@ -694,7 +694,7 @@ def is_a(file_name: str) -> Optional[CRSDReader]:
 
 ###########
 # writer
-@deprecated("sarpy's CRSD implementation is deprecated. Please use SARKit.")
+@deprecated("sarpy's CRSD implementation is deprecated. Please use sarkit.")
 class CRSDWritingDetails(CPHDWritingDetails):
 
     @property
@@ -755,7 +755,7 @@ class CRSDWritingDetails(CPHDWritingDetails):
         file_object.write(CRSD_SECTION_TERMINATOR)
         self._header_written = True
 
-@deprecated("sarpy's CRSD implementation is deprecated. Please use SARKit.")
+@deprecated("sarpy's CRSD implementation is deprecated. Please use sarkit.")
 class CRSDWriter1(CPHDWriter1):
     """
     The CRSD version 1 writer.

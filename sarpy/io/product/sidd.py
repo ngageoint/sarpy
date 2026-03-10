@@ -12,6 +12,7 @@ import re
 from typing import List, Tuple, Sequence, Union, BinaryIO, Optional
 
 import numpy
+from deprecated import deprecated
 
 from sarpy.io.xml.base import parse_xml_from_string
 
@@ -173,6 +174,7 @@ def _check_iid_format(iid1: str) -> bool:
     return True
 
 
+@deprecated("sarpy's SIDD implementation is deprecated. Please use sarkit.")
 class SIDDReader(NITFReader, SIDDTypeReader):
     """
     A reader object for a SIDD file (NITF container with SIDD contents)
@@ -889,6 +891,7 @@ class SIDDWritingDetails(NITFWritingDetails):
         return tuple(des_managers)
 
 
+@deprecated("sarpy's SIDD implementation is deprecated. Please use sarkit.")
 class SIDDWriter(NITFWriter):
     """
     Writer class for a SIDD file - a NITF file following certain rules.

@@ -1,4 +1,4 @@
-## NGA has ended support for SARPy as of January 29th, 2026.  Please use the successor to SARPy SARKit:  https://github.com/ValkyrieSystems/sarkit
+## NGA has ended support for SARPy as of January 29th, 2026.  Please use the successor to SARPy, SARkit:  https://github.com/ValkyrieSystems/sarkit
 
 
 SarPy

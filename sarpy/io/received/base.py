@@ -13,7 +13,7 @@ from sarpy.io.general.base                 import BaseReader
 from sarpy.io.general.data_segment         import DataSegment
 from sarpy.io.received.crsd1_elements.CRSD import CRSDType as CRSDType1_0
 
-@deprecated("sarpy's CRSD implementation is deprecated. Please use SARKit.")
+@deprecated("sarpy's CRSD implementation is deprecated. Please use sarkit.")
 class CRSDTypeReader(BaseReader):
     """
     A class for ensuring common CRSD reading functionality.

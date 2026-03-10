@@ -15,7 +15,7 @@ from sarpy.visualization import kmz_utils
 
 logger = logging.getLogger(__name__)
 
-@deprecated("sarpy's CRSD implementation is deprecated. Please use SARKit.")
+@deprecated("sarpy's CRSD implementation is deprecated.")
 def crsd_create_kmz_view(reader, output_directory, file_stem="view"):
     """
     Create a kmz view for the reader contents.

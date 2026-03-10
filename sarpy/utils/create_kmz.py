@@ -64,7 +64,7 @@ if __name__ == '__main__':
         reader = sarpy.io.phase_history.open(args.input_file)
         cphd_create_kmz_view(reader, args.output_directory, file_stem=file_stem)
 
-    @deprecated("sarpy's CRSD implementation is deprecated. Please use SARKit.")
+    @deprecated("sarpy's CRSD implementation is deprecated.")
     def _crsd_kmz():
         reader = sarpy.io.received.converter.open_received(args.input_file)
         crsd_create_kmz_view(reader, args.output_directory, file_stem=file_stem)
