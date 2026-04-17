@@ -1,4 +1,12 @@
-## NGA has ended support for SARPy as of January 29th, 2026.  Please use the successor to SARPy, SARkit:  https://github.com/ValkyrieSystems/sarkit
+## Introducing Sarpy 2.0 !
+
+SarPy 2.0
+=========
+SarPy 2.0 is a merge between the sarkit library, which is the new NGA standards libary, and legacy SarPy functions.  This initial release introduces the SARKit fast readers which use SARKit to read standard NGA File Formats and includes handy functions in the reader object itself.  You can use the fast readers by doing the following import:
+
+from sarpy.io.sarkitFastReader import FastReadSICD
+
+There are fast read options for SICD, SIDD, CPHD, and CRSD.  You can use the python help function to access the reader parameters.  The SICD fast reader includes methods to perform projections and remaps.  The legacy sarpy readers are still included but will be deprecated at some point in favor of the fast readers. Feedback is welcome!
 
 
 SarPy
