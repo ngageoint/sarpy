@@ -6,7 +6,7 @@ SarPy 2.0 is a merge between the sarkit library, which is the new NGA standards 
 
 from sarpy.io.sarkitFastReader import FastReadSICD
 
-There are fast read options for SICD, SIDD, CPHD, and CRSD.  You can use the python help function to access the reader parameters.  The SICD fast reader includes methods to perform projections and remaps.  The legacy sarpy readers are still included but will be deprecated at some point in favor of the fast readers. Feedback is welcome!
+There are fast read options for SICD, SIDD, CPHD, and CRSD.  You can use the python help function to access the reader parameters.  The SICD fast reader includes methods to perform projections and remaps.  The legacy sarpy readers for NGA standards have been deprecated in favor of the fast readers. Feedback is welcome!
 
 
 SarPy
