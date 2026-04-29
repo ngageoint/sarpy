@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Jan 20 16:07:47 2026
+
+@author: haverpdl
+"""
+
 """
 Provides common methods for remapping a complex or other array to 8 or 16-bit
 image type arrays.
@@ -19,9 +26,9 @@ import warnings
 
 import numpy
 
-from sarpy.io.complex.base import SICDTypeReader
-from sarpy.io.complex.utils import get_data_mean_magnitude, stats_calculation, \
-    get_data_extrema
+#from sarpy.io.complex.base import SICDTypeReader
+#from sarpy.io.complex.utils import get_data_mean_magnitude, stats_calculation, \
+#    get_data_extrema
 
 try:
     import matplotlib.pyplot as plt
@@ -365,7 +372,7 @@ class RemapFunction(object):
 
     @staticmethod
     def _validate_pixel_bounds(
-            reader: SICDTypeReader,
+            reader,
             index: int,
             pixel_bounds: Union[None, Tuple, List, numpy.ndarray]):
         data_size = reader.get_data_size_as_tuple()[index]
@@ -382,7 +389,7 @@ class RemapFunction(object):
 
     def calculate_global_parameters_from_reader(
             self,
-            reader: SICDTypeReader,
+            reader,
             index: int = 0,
             pixel_bounds: Union[None, Tuple, List, numpy.ndarray] = None):
         """
@@ -636,7 +643,7 @@ class Density(MonochromaticRemap):
 
     def calculate_global_parameters_from_reader(
             self,
-            reader: SICDTypeReader,
+            reader,
             index: int = 0,
             pixel_bounds: Union[None, tuple, list, numpy.ndarray] = None):
         pixel_bounds = self._validate_pixel_bounds(reader, index, pixel_bounds)
@@ -1107,7 +1114,7 @@ class Linear(MonochromaticRemap):
 
     def calculate_global_parameters_from_reader(
             self,
-            reader: SICDTypeReader,
+            reader,
             index: int = 0,
             pixel_bounds: Union[tuple, list, numpy.ndarray] = None) -> None:
         pixel_bounds = self._validate_pixel_bounds(reader, index, pixel_bounds)
@@ -1312,7 +1319,7 @@ class Logarithmic(MonochromaticRemap):
 
     def calculate_global_parameters_from_reader(
             self,
-            reader: SICDTypeReader,
+            reader,
             index: int = 0,
             pixel_bounds: Union[None, tuple, list, numpy.ndarray] = None) -> None:
         pixel_bounds = self._validate_pixel_bounds(reader, index, pixel_bounds)
@@ -1435,7 +1442,7 @@ class PEDF(MonochromaticRemap):
 
     def calculate_global_parameters_from_reader(
             self,
-            reader: SICDTypeReader,
+            reader,
             index: int = 0,
             pixel_bounds: Union[None, tuple, list, numpy.ndarray] = None) -> None:
         self._density.calculate_global_parameters_from_reader(
@@ -1650,7 +1657,7 @@ class NRL(MonochromaticRemap):
 
     def calculate_global_parameters_from_reader(
             self,
-            reader: SICDTypeReader,
+            reader,
             index: int = 0,
             pixel_bounds: Union[None, tuple, list, numpy.ndarray] = None) -> None:
         pixel_bounds = self._validate_pixel_bounds(reader, index, pixel_bounds)
@@ -1799,7 +1806,7 @@ class LUT8bit(RemapFunction):
 
     def calculate_global_parameters_from_reader(
             self,
-            reader: SICDTypeReader,
+            reader,
             index: int = 0,
             pixel_bounds: Union[None, tuple, list, numpy.ndarray] = None) -> None:
         self.mono_remap.calculate_global_parameters_from_reader(

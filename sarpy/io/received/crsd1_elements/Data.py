@@ -137,7 +137,7 @@ class DataType(Serializable):
             return len(self.SupportArrays)
 
     @property
-    @deprecated("sarpy's CRSD implementation is deprecated. Please use SARKit.")
+    @deprecated("sarpy's CRSD implementation is deprecated. Please use sarkit.")
     def NumCRSDChannels(self):
         """
         int: The number of CRSD channels.

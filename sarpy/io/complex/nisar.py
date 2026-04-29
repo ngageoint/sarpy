@@ -1,5 +1,7 @@
 """
 Functionality for reading NISAR data into a SICD model.
+
+Modified by Daniel Haverporth to work with newly released NISAR data
 """
 
 __classification__ = "UNCLASSIFIED"
@@ -14,6 +16,7 @@ from typing import Tuple, Dict, Union, List, Sequence, Optional
 import numpy
 from numpy.polynomial import polynomial
 from scipy.constants import speed_of_light
+from scipy.interpolate import interpn
 
 from sarpy.compliance import bytes_to_string
 from sarpy.io.complex.base import SICDTypeReader
@@ -119,9 +122,9 @@ class NISARDetails(object):
             # noinspection PyBroadException
             try:
                 # noinspection PyUnusedLocal
-                gp = hf['/science/LSAR/SLC']
+                gp = hf['/science/LSAR/RSLC']
             except Exception as e:
-                raise SarpyIOError('Got an error when reading required path /science/LSAR/SLC\n\t{}'.format(e))
+                raise SarpyIOError('Got an error when reading required path /science/LSAR/RSLC\n\t{}'.format(e))
 
         self._file_name = file_name
 
@@ -195,8 +198,9 @@ class NISARDetails(object):
         range_zero_doppler_times : numpy.ndarray
         """
 
-        gp = hf['/science/LSAR/SLC/swaths']
+        gp = hf['/science/LSAR/RSLC/swaths']
         ds = gp['zeroDopplerTime']
+        #print('ds shape;  ', ds[0])
         ref_time = _get_ref_time(ds.attrs['units'])
         zd_time = ds[:] + get_seconds(ref_time, base_sicd.Timeline.CollectStart, precision='ns')
         ss_az_s = gp['zeroDopplerTimeSpacing'][()]
@@ -205,7 +209,7 @@ class NISARDetails(object):
             zd_time = zd_time[::-1]
             ss_az_s *= -1
 
-        gp = hf['/science/LSAR/SLC/metadata/processingInformation/parameters']
+        gp = hf['/science/LSAR/RSLC/metadata/processingInformation/parameters']
         grid_r = gp['slantRange'][:]
         ds = gp['zeroDopplerTime']
         ref_time = _get_ref_time(ds.attrs['units'])
@@ -226,7 +230,7 @@ class NISARDetails(object):
             return CollectionInfoType(
                 CollectorName=_stringify(hf.attrs['mission_name']),
                 CoreName='{0:07d}_{1:s}'.format(gp['absoluteOrbitNumber'][()],
-                                                _stringify(gp['trackNumber'][()])),
+                                                _stringify(gp['trackNumber'][()].astype('str'))),
                 CollectType='MONOSTATIC',
                 Classification='UNCLASSIFIED',
                 RadarMode=RadarModeType(ModeType='STRIPMAP'))
@@ -237,7 +241,7 @@ class NISARDetails(object):
             try:
                 application = '{} {}'.format(
                     application,
-                    _stringify(hf['/science/LSAR/SLC/metadata/processingInformation/algorithms/ISCEVersion'][()]))
+                    _stringify(hf['/science/LSAR/RSLC/metadata/processingInformation/algorithms/ISCEVersion'][()]))
             except Exception as e:
                 logger.info('Failed extracting the application details with error\n\t{}'.format(e))
                 pass
@@ -256,19 +260,19 @@ class NISARDetails(object):
             if not poly_str.startswith(beg_str):
                 raise ValueError('Unexpected polygon string {}'.format(poly_str))
             parts = poly_str[len(beg_str):-2].strip().split(',')
-            if len(parts) != 5:
-                raise ValueError('Unexpected polygon string parts {}'.format(parts))
-            lats_lons = numpy.zeros((4, 2), dtype=numpy.float64)
+            #if len(parts) != 5:
+            #    raise ValueError('Unexpected polygon string parts {}'.format(parts))
+            lats_lons = numpy.zeros((len(parts), 3), dtype=numpy.float64)
             for i, part in enumerate(parts[:-1]):
                 spart = part.strip().split()
-                if len(spart) != 2:
+                if len(spart) != 3:
                     raise ValueError('Unexpected polygon string parts {}'.format(parts))
-                lats_lons[i, :] = float(spart[1]), float(spart[0])
+                lats_lons[i, :] = float(spart[1]), float(spart[0]), float(spart[2])
 
             llh = numpy.zeros((3, ), dtype=numpy.float64)
-            llh[0:2] = numpy.mean(lats_lons, axis=0)
-            llh[2] = numpy.mean(
-                hf['/science/LSAR/SLC/metadata/processingInformation/parameters/referenceTerrainHeight'][:])
+            llh[0:3] = numpy.mean(lats_lons, axis=0)
+            #llh[2] = numpy.mean(
+            #    hf['/science/LSAR/RSLC/metadata/processingInformation/parameters/referenceTerrainHeight'][:])
             return GeoDataType(SCP=SCPType(LLH=llh))
 
         def get_grid() -> GridType:
@@ -278,7 +282,7 @@ class NISARDetails(object):
             #  At this point, it is not clear what the final weighting description for NISAR
             #  will be.
 
-            gp = hf['/science/LSAR/SLC/metadata/processingInformation/parameters']
+            gp = hf['/science/LSAR/RSLC/metadata/processingInformation/parameters']
             row_wgt = gp['rangeChirpWeighting'][:]
             win_name = 'UNIFORM' if numpy.all(row_wgt == row_wgt[0]) else 'UNKNOWN'
             row = DirParamType(
@@ -305,7 +309,7 @@ class NISARDetails(object):
                 IPP=[IPPSetType(index=0, TStart=0, TEnd=duration, IPPStart=0, IPPEnd=0), ])
 
         def get_position() -> PositionType:
-            gp = hf['/science/LSAR/SLC/metadata/orbit']
+            gp = hf['/science/LSAR/RSLC/metadata/orbit']
             ref_time = _get_ref_time(gp['time'].attrs['units'])
             T = gp['time'][:] + get_seconds(ref_time, collect_start, precision='ns')
             Pos = gp['position'][:]
@@ -497,7 +501,7 @@ class NISARDetails(object):
             t_sicd.ImageFormation.TxRcvPolarizationProc = pol
 
         def update_inca_and_grid() -> Tuple[numpy.ndarray, numpy.ndarray]:
-            t_sicd.RMA.INCA.R_CA_SCP = r_ca_sampled[t_sicd.ImageData.SCPPixel.Row]
+            t_sicd.RMA.INCA.R_CA_SCP = r_ca_sampled[t_sicd.ImageData.SCPPixel.Col]
             scp_ca_time = zd_time[t_sicd.ImageData.SCPPixel.Col]
 
             # compute DRateSFPoly
@@ -509,6 +513,7 @@ class NISARDetails(object):
             r_ca_poly = numpy.array([t_sicd.RMA.INCA.R_CA_SCP, 1], dtype=numpy.float64)
             # closest Doppler rate polynomial to SCP
             min_ind = numpy.argmin(numpy.absolute(grid_zd_time - scp_ca_time))
+            #print('mind-ind:  ', min_ind)
             # define range coordinate grid
             coords_rg_m = grid_r - t_sicd.RMA.INCA.R_CA_SCP
             # determine dop_rate_poly coordinates
@@ -526,6 +531,8 @@ class NISARDetails(object):
             coords_az_m = (grid_zd_time - scp_ca_time)*t_sicd.Grid.Col.SS/ss_az_s
 
             # cerate the 2d grids
+            #print('coords_rg_m:  ', coords_rg_m)
+            #print('coords_az_m:  ', coords_az_m)
             coords_rg_2d_t, coords_az_2d_t = numpy.meshgrid(coords_rg_m, coords_az_m, indexing='xy')
 
             coefs, residuals, rank, sing_values = two_dim_poly_fit(
@@ -556,8 +563,10 @@ class NISARDetails(object):
         def define_radiometric() -> None:
             def get_poly(ds: h5pyDataset, name: str) -> Optional[Poly2DType]:
                 array = ds[:]
-                fill = ds.attrs['_FillValue']
+                #fill = gp.attrs['_FillValue']
+                fill = 0
                 boolc = (array != fill)
+                #boolc = True
 
                 if numpy.any(boolc):
                     array = array[boolc]
@@ -574,6 +583,7 @@ class NISARDetails(object):
                         # it's constant, so just use a constant polynomial
                         coefs = [[array[0], ], ]
                         logger.info('The {} values are constant'.format(name))
+                    #print('Coefs:  ', coefs[0][0])
                     return Poly2DType(Coefs=coefs)
                 else:
                     logger.warning('No non-trivial values for {} provided.'.format(name))
@@ -583,12 +593,16 @@ class NISARDetails(object):
             gamma0_poly = get_poly(gamma0, 'gamma0')
             sigma0_poly = get_poly(sigma0, 'sigma0')
 
-            nesz = hf['/science/LSAR/SLC/metadata/calibrationInformation/frequency{}/{}/nes0'.format(freq_name,
+            nesz = hf['/science/LSAR/RSLC/metadata/calibrationInformation/frequency{}/nes0/{}'.format(freq_name,
                                                                                                      pol_name)][:]
             noise_samples = nesz - (10 * numpy.log10(sigma0_poly.Coefs[0, 0]))
-
+            #print('coords_rg_2d:  ', coords_rg_2d.shape)
+            #print('coords_az_2d:  ', coords_az_2d.shape)
+            #print('noise_samples:  ', noise_samples.shape)
+            #interp_noise_samples = interpn(noise_samples, coords_rg_2d, coords_az_2d)
+            #print('interp_noise Size:  ', interp_noise_samples)
             coefs, residuals, rank, sing_values = two_dim_poly_fit(
-                coords_rg_2d, coords_az_2d, noise_samples,
+                coords_rg_2d, coords_az_2d, interp_noise_samples,
                 x_order=3, y_order=3, x_scale=1e-3, y_scale=1e-3, rcond=1e-40)
             logger.info(
                 'The noise_poly fit details:\n\t'
@@ -615,11 +629,19 @@ class NISARDetails(object):
         define_image_data()
         update_image_formation()
         coords_rg_2d, coords_az_2d = update_inca_and_grid()
-        define_radiometric()
+        #define_radiometric()  Could not get to work DH
         update_geodata()
         t_sicd.derive()
         t_sicd.populate_rniirs(override=False)
         return t_sicd, shape, dtype
+    
+    def get_Doppler_LUT(self, gp2):
+        LUT = gp2['dopplerCentroid']
+        #print(LUT[()])
+        doprate_sampled = numpy.gradient(LUT[()])
+        #doprate_sample = numpy.mean(doprate_sampled)
+        #print('doprate sample;  ', doprate_sampled)
+        return doprate_sampled[0]
 
     def get_sicd_collection(self) -> Tuple[
             Dict[str, SICDType],
@@ -653,7 +675,7 @@ class NISARDetails(object):
             collect_start, collect_end, duration = self._get_collection_times(hf)
             zd_time, ss_az_s, grid_r, grid_zd_time = self._get_zero_doppler_data(hf, base_sicd)
 
-            gp = hf['/science/LSAR/SLC/metadata/calibrationInformation/geometry']
+            gp = hf['/science/LSAR/RSLC/metadata/calibrationInformation/geometry']
             beta0 = gp['beta0']
             gamma0 = gp['gamma0']
             sigma0 = gp['sigma0']
@@ -661,7 +683,7 @@ class NISARDetails(object):
             # formulate the frequency specific sicd information
             freqs = self._get_frequency_list(hf)
             for i, freq in enumerate(freqs):
-                gp_name = '/science/LSAR/SLC/swaths/frequency{}'.format(freq)
+                gp_name = '/science/LSAR/RSLC/swaths/frequency{}'.format(freq)
                 gp = hf[gp_name]
                 freq_sicd, pols, tx_rcv_pol, center_freq = self._get_freq_specific_sicd(gp, base_sicd)
 
@@ -669,14 +691,18 @@ class NISARDetails(object):
                 # TODO: Future Change Required - processedAzimuthBandwidth acknowledged
                 #  by JPL to be wrong in simulated datasets.
                 dop_bw = gp['processedAzimuthBandwidth'][()]
-                gp2 = hf['/science/LSAR/SLC/metadata/processingInformation/parameters/frequency{}'.format(freq)]
+                gp2 = hf['/science/LSAR/RSLC/metadata/processingInformation/parameters/frequency{}'.format(freq)]
                 dopcentroid_sampled = gp2['dopplerCentroid'][:]
-                doprate_sampled = gp2['azimuthFMRate'][:]
+                doprate_sampled = self.get_Doppler_LUT(gp2)
+                #doprate_sampled = gp2['azimuthFMRate'][:]
                 r_ca_sampled = gp['slantRange'][:]
+                #print(r_ca_sampled.shape)
                 # formulate the frequency/polarization specific sicd information
                 for j, pol in enumerate(pols):
                     ds_name = '{}/{}'.format(gp_name, pol)
                     ds = gp[pol]
+                    #print(hf.attrs['_FillValue'])
+                    #print('ds shape:  ', ds.shape)
                     pol_sicd, shape, dtype = self._get_pol_specific_sicd(
                         hf, ds, freq_sicd, pol, freq, j, tx_rcv_pol[j],
                         r_ca_sampled, zd_time, grid_zd_time, grid_r,
@@ -684,6 +710,7 @@ class NISARDetails(object):
                         ss_az_s, dop_bw, beta0, gamma0, sigma0)
                     out_sicds[ds_name] = pol_sicd
                     shapes[ds_name] = (shape, dtype)
+        #print('shapes:  ', shapes)
         return out_sicds, shapes, reverse_axes, transpose_axes
 
 

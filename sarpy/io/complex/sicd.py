@@ -12,6 +12,7 @@ import datetime
 from typing import BinaryIO, Union, Optional, Dict, Tuple, Sequence
 
 import numpy
+from deprecated import deprecated
 
 from sarpy.__about__ import __title__, __version__
 from sarpy.io.complex.base import SICDTypeReader
@@ -267,6 +268,7 @@ class SICDDetails(NITFDetails):
 #######
 #  The actual reading implementation
 
+@deprecated("sarpy's SICD implementation is deprecated. Please use sarkit.")
 class SICDReader(NITFReader, SICDTypeReader):
     """
     A SICD reader implementation - file is NITF container following specified rules.
@@ -851,6 +853,7 @@ class SICDWritingDetails(NITFWritingDetails):
         return tuple(des_managers)
 
 
+@deprecated("sarpy's SICD implementation is deprecated. Please use sarkit.")
 class SICDWriter(NITFWriter):
     """
     Writer class for a SICD file - a NITF file containing complex radar data and
