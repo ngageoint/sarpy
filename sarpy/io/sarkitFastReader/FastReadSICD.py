@@ -50,28 +50,33 @@ from sarpy.visualization import remap
 
 class SICD_Fast_Reader:
     
-    def __init__(self, fname, metaformat = 'wrapped', preload = False):
-        with open(fname, 'rb') as f, sksicd.NitfReader(f) as reader:
-            # Create metadata attribute with SARKit metadata options
-            if metaformat == 'wrapped':
-                Meta = sksicd.ElementWrapper(reader.metadata.xmltree.getroot())
-            elif metaformat == 'helper':
-                Meta = sksicd.XmlHelper(reader.metadata.xmltree)
-            else:
-                Meta = reader.metadata.xmltree
-                metaformat = 'xmltree'
+    def __init__(self, fname, metaformat = 'wrapped', preload = False, chip = False):
+        self.f = open(fname, 'rb')
+        reader = sksicd.NitfReader(self.f) 
+        # Create metadata attribute with SARKit metadata options
+        if metaformat == 'wrapped':
+            Meta = sksicd.ElementWrapper(reader.metadata.xmltree.getroot())
+        elif metaformat == 'helper':
+            Meta = sksicd.XmlHelper(reader.metadata.xmltree)
+        else:
+            Meta = reader.metadata.xmltree
+            metaformat = 'xmltree'
                 
-            if preload:
-                image = reader.read_image()
-                self.complex_image = image
-            else:
-                self.complex_image = None
+        if preload:
+            self.complex_image = reader.read_image()
+        elif chip and len(chip) == 4: #[rowStart, ColStart, rowEnd, colEnd]
+            self.complex_image = reader.read_sub_image(chip[0], chip[1], chip[2], chip[3])[0]
+            preload = True
+        else:
+            self.complex_image = None
+            
+        
                 
-            self.metadata = Meta
-            self.reader = reader
-            self.metaformat = metaformat
-            self._file_object = f
-            self.Preload = preload
+        self.metadata = Meta
+        self.reader = reader
+        self.metaformat = metaformat
+            
+        self.Preload = preload
             
     def image_to_llh(self, row, col):
         Meta = self.metadata
@@ -147,19 +152,13 @@ class SICD_Fast_Reader:
          image_coords = np.array([iRow, iCol])
         return(image_coords)
     
-    def Remap(self, chip = None, display = False):
+    def Remap(self, display = False):
         if not self.Preload:
             raise ValueError('preload option must be turned on to use Remap function')
         #remapClass = getattr(remap, alg)
         remapClass = remap.Density()
-        
-        if chip == None: # Read full image because no chip specified
-            cmplx = self.complex_image
-        elif len(chip) == 4: # chip size entered with pixel coordinates
-            cmplx = self.complex_image[chip[0]:chip[1], chip[2]:chip[3]]
-        else:
-            raise ValueError('chip shoudl be formed as [rowStart, rowEnd, ColStart, ColEnd]')
-
+        cmplx = self.complex_image
+        print(cmplx)
         image = remapClass(cmplx)            
         if display:
            import matplotlib.pyplot as plt

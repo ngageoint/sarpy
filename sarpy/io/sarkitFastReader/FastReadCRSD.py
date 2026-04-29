@@ -32,25 +32,26 @@ from sarkit import crsd as skcrsd
 class CRSD_Fast_Reader:
     
     def __init__(self, fname, metaformat = 'wrapped', preload = False):
-        with open(fname, 'rb') as f, skcrsd.Reader(f) as reader:
-            # Create metadata attribute with SARKit metadata options
+        self.f = open(fname, 'rb') 
+        reader = skcrsd.Reader(self.f)
+        # Create metadata attribute with SARKit metadata options
             
-            if metaformat == 'wrapped':
-                Meta = skcrsd.ElementWrapper(reader.metadata.xmltree.getroot())
-            elif metaformat == 'helper':
-                Meta = skcrsd.XmlHelper(reader.metadata.xmltree)
-            else:
-                Meta = reader.metadata.xmltree
-                metaformat = 'xmltree'
+        if metaformat == 'wrapped':
+            Meta = skcrsd.ElementWrapper(reader.metadata.xmltree.getroot())
+        elif metaformat == 'helper':
+            Meta = skcrsd.XmlHelper(reader.metadata.xmltree)
+        else:
+            Meta = reader.metadata.xmltree
+            metaformat = 'xmltree'
             
-            ch_id = reader.metadata.xmltree.findtext("{*}Data/{*}Receive/{*}Channel/{*}ChId")
-            print("channel IDs:  ", ch_id) 
-            if preload:
-                image = reader.read_signal(ch_id)
-                self.signal = image
-            else:
-                self.signal = None
+        ch_id = reader.metadata.xmltree.findtext("{*}Data/{*}Receive/{*}Channel/{*}ChId")
+        print("channel IDs:  ", ch_id) 
+        if preload:
+            image = reader.read_signal(ch_id)
+            self.signal = image
+        else:
+            self.signal = None
             
-            self.metadata = Meta
-            self.reader = reader
-            self.metaformat = metaformat
+        self.metadata = Meta
+        self.reader = reader
+        self.metaformat = metaformat
