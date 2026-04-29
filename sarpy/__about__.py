@@ -28,7 +28,7 @@ __all__ = ['__version__',
 
 from sarpy.__details__ import __classification__, _post_identifier
 
-__version__ = "1.3.64"
+__version__ = "2.0.1"
 
 __author__ = "National Geospatial-Intelligence Agency"
 __url__ = "https://github.com/ngageoint/sarpy"
