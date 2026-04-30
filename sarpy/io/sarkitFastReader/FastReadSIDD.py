@@ -33,28 +33,29 @@ from sarkit import sidd as sksidd
 class SIDD_Fast_Reader:
     
     def __init__(self, fname, metaformat = 'wrapped', preload = False, display= False):
-        with open(fname, 'rb') as f, sksidd.NitfReader(f) as reader:
+        self.f = open(fname, 'rb') 
+        reader = sksidd.NitfReader(self.f)
             
-            # Create metadata attribute with SARKit metadata options
+        # Create metadata attribute with SARKit metadata options
             
             
-            if metaformat == 'wrapped':
-                Meta = sksidd.ElementWrapper(reader.metadata.images[0].xmltree.getroot())
-            elif metaformat == 'helper':
-                Meta = sksidd.XmlHelper(reader.metadata.images[0])
-            else:
-                Meta = reader.metadata.images[0]
-                metaformat = 'xmltree'
+        if metaformat == 'wrapped':
+            Meta = sksidd.ElementWrapper(reader.metadata.images[0].xmltree.getroot())
+        elif metaformat == 'helper':
+            Meta = sksidd.XmlHelper(reader.metadata.images[0])
+        else:
+            Meta = reader.metadata.images[0]
+            metaformat = 'xmltree'
                 
-            self.metadata = Meta
-            self.reader = reader
+        self.metadata = Meta
+        self.reader = reader
                 
-            if preload:
-                image = reader.read_image(0)
-                self.image = image
-            else:
-                self.image = None
+        if preload:
+            self.image = reader.read_image(0)
+            
+        else:
+            self.image = None
                 
-            if display and preload:
-                import matplotlib.pyplot as plt
-                plt.imshow(image, cmap='gray')
+        if display and preload:
+            import matplotlib.pyplot as plt
+            plt.imshow(self.image, cmap='gray')
