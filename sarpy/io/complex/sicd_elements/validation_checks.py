@@ -422,7 +422,7 @@ def _pfa_check_stdeskew(PFA, Grid) -> bool:
     #       If so, it logs a validity error and sets the return value to False.
     if Grid.TimeCOAPoly is not None:
         timecoa_poly = Grid.TimeCOAPoly.get_array(dtype='float64')
-        if timecoa_poly.shape == (1, 1) or numpy.all(timecoa_poly.flatten()[1:] < 1e-6):
+        if timecoa_poly.shape == (1, 1) or numpy.all(numpy.abs(timecoa_poly.flatten()[1:]) < 1e-6):
             PFA.log_validity_error(
                 'PFA.STDeskew.Applied is True, and the Grid.TimeCOAPoly is essentially constant.')
             cond = False
