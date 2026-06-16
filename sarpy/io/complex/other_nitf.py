@@ -46,6 +46,17 @@ logger = logging.getLogger(__name__)
 
 _iso_date_format = '{}-{}-{}T{}:{}:{}'
 
+
+def _get_cmetaa_af_type_value(cmetaa) -> str:
+    """Get CMETAA autofocus type value with support for old/new field names."""
+
+    af_type = getattr(cmetaa, 'AF_TYPE1', None)
+    if af_type is None:
+        af_type = getattr(cmetaa, 'AF_TYPE', 'N')
+
+    af_type = str(af_type).strip().upper()
+    return af_type[0] if len(af_type) > 0 else 'N'
+
 # NB: DO NOT implement is_a() here.
 #   This will explicitly happen after other readers
 
@@ -337,7 +348,7 @@ def extract_sicd(
         # all remaining guess work
         the_sicd.ImageFormation.STBeamComp = 'NO'
         the_sicd.ImageFormation.ImageBeamComp = 'SV' if cmetaa.IF_BEAM_COMP[0] == 'Y' else 'NO'
-        the_sicd.ImageFormation.AzAutofocus = 'NO' if cmetaa.AF_TYPE[0] == 'N' else 'SV'
+        the_sicd.ImageFormation.AzAutofocus = 'NO' if _get_cmetaa_af_type_value(cmetaa) == 'N' else 'SV'
         the_sicd.ImageFormation.RgAutofocus = 'NO'
 
     def try_AIMIDA() -> None:
