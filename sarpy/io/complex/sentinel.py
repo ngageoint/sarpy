@@ -807,14 +807,40 @@ class SentinelDetails(object):
                 coords_az = coords_az.reshape((valid_count, -1))
 
             def create_poly(arr, poly_order=2, poly_name=''):
+                # SICD section 4.10.3 lets each SF poly use any (M, N) - the schema
+                # only constrains shape. When the cal LUT does not constrain the full
+                # (poly_order, poly_order) basis, drop the fit order to match the rank
+                # of the available samples and zero-pad the unconstrained higher-order
+                # coefficients. This avoids LAPACK GELSD's nullspace basis being baked
+                # into the output (the cause of the ~7-orders-of-magnitude /
+                # negative-leading-coefficient failures for bursts with only two cal
+                # vectors).
+                n_unique_az = int(numpy.unique(numpy.asarray(coords_az).ravel()).size)
+                n_unique_rg = int(numpy.unique(numpy.asarray(coords_rg).ravel()).size)
+                y_order = min(poly_order, max(0, n_unique_az - 1))
+                x_order = min(poly_order, max(0, n_unique_rg - 1))
+
                 poly, residuals, rank, sing_values = two_dim_poly_fit(
-                    coords_rg, coords_az, arr,
-                    x_order=poly_order, y_order=poly_order, x_scale=1e-3, y_scale=1e-3, rcond=1e-35)
+                coords_rg, coords_az, arr,
+                x_order=x_order, y_order=y_order,
+                x_scale=1e-3, y_scale=1e-3, rcond=1e-35)
+
+                if (x_order, y_order) != (poly_order, poly_order):
+                    padded = numpy.zeros((poly_order + 1, poly_order + 1), dtype=poly.dtype)
+                    padded[: x_order + 1, : y_order + 1] = poly
+                    logger.info(
+                        'The %s fit was reduced to order (%d, %d) because the calibration '
+                        'samples span only %d distinct range and %d distinct azimuth '
+                        'coordinates; higher-order coefficients zero-padded to (%d, %d).',
+                        poly_name, x_order, y_order, n_unique_rg, n_unique_az,
+                        poly_order, poly_order)
+                    poly = padded
+
                 logger.info(
-                    'The {} polynomial fit details:\n\t'
-                    'root mean square residuals = {}\n\t'
-                    'rank = {}\n\t'
-                    'singular values = {}'.format(poly_name, residuals, rank, sing_values))
+                    'The %s polynomial fit details:\n\t'
+                    'root mean square residuals = %s\n\t'
+                    'rank = %s\n\t'
+                    'singular values = %s', poly_name, residuals, rank, sing_values)
                 return Poly2DType(Coefs=poly)
 
             if sicd.Radiometric is None:

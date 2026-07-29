@@ -224,7 +224,7 @@ class SCPType(Serializable):
         LLH : LatLonHAERestrictionType|numpy.ndarray|list|tuple
         kwargs
         """
-
+       
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
         if '_xml_ns_key' in kwargs:
