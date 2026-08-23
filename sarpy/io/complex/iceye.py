@@ -14,7 +14,7 @@ import numpy
 from numpy.polynomial import polynomial
 from scipy.constants import speed_of_light
 
-from sarpy.io.complex.nisar import _stringify
+from sarpy.compliance import bytes_to_string
 from sarpy.io.complex.base import SICDTypeReader
 from sarpy.io.complex.sicd_elements.blocks import Poly2DType, Poly1DType
 from sarpy.io.complex.sicd_elements.SICD import SICDType
@@ -40,6 +40,21 @@ from sarpy.io.general.format_function import ComplexFormatFunction
 from sarpy.io.general.utils import get_seconds, parse_timestring, is_file_like, is_hdf5, h5py
 
 logger = logging.getLogger(__name__)
+
+def _stringify(val: Union[str, bytes]) -> str:
+    """
+    Decode the value as necessary, for hdf5 string support issues.
+
+    Parameters
+    ----------
+    val : str|bytes
+
+    Returns
+    -------
+    str
+    """
+
+    return bytes_to_string(val).strip()
 
 
 def _parse_time(input_str: Union[bytes, str]) -> numpy.datetime64:
