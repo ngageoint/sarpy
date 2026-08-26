@@ -477,10 +477,7 @@ class DTEDReader(object):
                 out[start_block:end_block] = out1
                 start_block = end_block
 
-        if o_shape == ():
-            return float(out[0])
-        else:
-            return numpy.reshape(out, o_shape)
+        return out.reshape(o_shape)
 
     def _find_overlap(self, lat_lon_box):
         """
@@ -779,10 +776,7 @@ class DTEDInterpolator(DEMInterpolator):
                 start_block = end_block
         out[numpy.isnan(out)] = 0.0  # set missing values to geoid=0 (MSL)
 
-        if o_shape == ():
-            return float(out[0])
-        else:
-            return numpy.reshape(out, o_shape)
+        return out.reshape(o_shape)
 
     def _get_ref_geoid(self, lat_lon_box):
         if lat_lon_box is None:
