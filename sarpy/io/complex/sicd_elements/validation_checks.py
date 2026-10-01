@@ -91,28 +91,21 @@ def _rgazcomp_check_row_deltakcoa(
 
     cond = True
     row_deltakcoa = Grid.Row.DeltaKCOAPoly.get_array(dtype='float64')
-    if numpy.any(row_deltakcoa != row_deltakcoa[0, 0]):
+    if numpy.any(row_deltakcoa[1:, :] != 0) or numpy.any(row_deltakcoa[:, 1:] != 0):
         RgAzComp.log_validity_error(
             'Grid.Row.DeltaKCOAPoly is defined, '
-            'but all entries are not constant\n\t{}'.format(row_deltakcoa))
+            'but contains non-constant terms\n\t{}'.format(row_deltakcoa))
         cond = False
 
     if RadarCollection.RefFreqIndex is None:
         try:
             fc_proc = ImageFormation.TxFrequencyProc.center_frequency
             k_f_c = fc_proc*2/speed_of_light
-            if row_deltakcoa.shape == (1, 1):
-                if abs(Grid.Row.KCtr - (k_f_c - row_deltakcoa[0, 0])) > 1e-6:
-                    RgAzComp.log_validity_error(
-                        'the Grid.Row.DeltaCOAPoly is scalar, '
-                        'and not in agreement with Grid.Row.KCtr and center frequency')
-                    cond = False
-            else:
-                if abs(Grid.Row.KCtr - k_f_c) > 1e-6:
-                    RgAzComp.log_validity_error(
-                        'the Grid.Row.DeltaCOAPoly is not scalar, '
-                        'and Grid.Row.KCtr not in agreement with center frequency')
-                    cond = False
+            if abs(Grid.Row.KCtr - (k_f_c - row_deltakcoa[0, 0])) > 1e-6:
+                RgAzComp.log_validity_error(
+                    'the Grid.Row.DeltaKCOAPoly constant term is not in agreement '
+                    'with Grid.Row.KCtr and center frequency')
+                cond = False
         except (AttributeError, ValueError, TypeError):
             pass
     return cond
@@ -142,16 +135,15 @@ def _rgazcomp_check_col_deltacoa(
             cond = False
     else:
         col_deltakcoa = Grid.Col.DeltaKCOAPoly.get_array(dtype='float64')
-        if numpy.any(col_deltakcoa != col_deltakcoa[0, 0]):
+        if numpy.any(col_deltakcoa[1:, :] != 0) or numpy.any(col_deltakcoa[:, 1:] != 0):
             RgAzComp.log_validity_error(
                 'the Grid.Col.DeltaKCOAPoly is defined, '
-                'but all entries are not constant\n\t{}'.format(col_deltakcoa))
+                'but contains non-constant terms\n\t{}'.format(col_deltakcoa))
             cond = False
 
-        if col_deltakcoa.shape == (1, 1) and abs(Grid.Col.KCtr + col_deltakcoa[0, 0]) > 1e-6:
+        if abs(Grid.Col.KCtr + col_deltakcoa[0, 0]) > 1e-6:
             RgAzComp.log_validity_error(
-                'the Grid.Col.DeltaCOAPoly is scalar, '
-                'and not in agreement with Grid.Col.KCtr')
+                'the Grid.Col.DeltaKCOAPoly constant term is not in agreement with Grid.Col.KCtr')
             cond = False
     return cond
 
