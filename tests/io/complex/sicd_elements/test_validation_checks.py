@@ -70,6 +70,14 @@ class TestPfaCheckStdeskew(unittest.TestCase):
         grid = DummyGrid(timecoa_poly=timecoa_poly)
         self.assertFalse(_pfa_check_stdeskew(pfa, grid))
 
+    def test_timecoa_poly_negative_nontrivial_terms(self):
+        stdeskew = DummySTDeskew(applied=True)
+        pfa = DummyPFA(stdeskew=stdeskew)
+        arr = np.array([[1.0, -1e-2], [0.0, 0.0]])
+        timecoa_poly = DummyPoly(arr)
+        grid = DummyGrid(timecoa_poly=timecoa_poly)
+        self.assertTrue(_pfa_check_stdeskew(pfa, grid))
+
     def test_row_deltakcoa_and_stdsphasepoly_agree(self):
         arr = np.array([[1.0, 2.0], [3.0, 4.0]])
         stdeskew = DummySTDeskew(applied=True, stds_phase_poly=DummyPoly(arr))
