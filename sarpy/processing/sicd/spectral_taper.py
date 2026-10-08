@@ -198,7 +198,9 @@ def apply_spectral_taper(sicd_reader, taper):
     if mdata.Radiometric:
         if mdata.Radiometric.NoiseLevel:
             if mdata.Radiometric.NoiseLevel.NoiseLevelType == "ABSOLUTE":
-                mdata.Radiometric.NoiseLevel.NoisePoly.Coefs *= rms_pwr_gain
+                # NoisePoly represents power in dB, so a uniform power gain
+                # changes only the constant coefficient.
+                mdata.Radiometric.NoiseLevel.NoisePoly[0, 0] += 10 * np.log10(rms_pwr_gain)
 
         if mdata.Radiometric.RCSSFPoly:
             mdata.Radiometric.RCSSFPoly.Coefs /= coh_pwr_gain

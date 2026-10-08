@@ -282,7 +282,7 @@ def test_apply_spectral_taper(mock_sicd_meta, img_rows, img_cols, fft_sgn, skew_
     assert np.allclose(mdata.Radiometric.RCSSFPoly[0][0] * expected_coh_pwr_gain, 1.0)
 
     rms_pwr_gain = np.mean(taper.window_vals**2)**2
-    assert np.allclose(mdata.Radiometric.NoiseLevel.NoisePoly.Coefs[0][0] / rms_pwr_gain, 1.0)
+    assert np.allclose(mdata.Radiometric.NoiseLevel.NoisePoly[0, 0], 1.0 + 10 * np.log10(rms_pwr_gain))
     assert np.allclose(mdata.Radiometric.SigmaZeroSFPoly[0][0] * rms_pwr_gain, 1.0)
     assert np.allclose(mdata.Radiometric.BetaZeroSFPoly[0][0] * rms_pwr_gain, 1.0)
     assert np.allclose(mdata.Radiometric.GammaZeroSFPoly[0][0] * rms_pwr_gain, 1.0)
@@ -307,3 +307,32 @@ def test_apply_2d_spectral_taper(mock_sicd_meta, monkeypatch):
 
     assert np.allclose(cdata['Row'], window_vals / row_scale)
     assert np.allclose(cdata['Col'], window_vals / col_scale)
+
+
+def test_spectral_taper_scales_spatial_noise_poly_in_db(mock_sicd_meta):
+    """A taper adds a dB offset while preserving the spatial noise profile."""
+    for axis in (mock_sicd_meta.Grid.Row, mock_sicd_meta.Grid.Col):
+        axis.WgtType = WgtTypeType(WindowName="UNIFORM")
+        axis.WgtFunct = None
+
+    coefs = np.array([[-30.0, 0.02], [-0.01, 0.0001]])
+    mock_sicd_meta.Radiometric.NoiseLevel = NoiseLevelType_(
+        NoiseLevelType="ABSOLUTE", NoisePoly=coefs.copy())
+
+    class MockSICDReader:
+        def __init__(self, mdata):
+            self.sicd_meta = mdata
+
+        def __getitem__(self, item):
+            return np.zeros((self.sicd_meta.ImageData.NumRows,
+                             self.sicd_meta.ImageData.NumCols), dtype=complex)
+
+    taper = spectral_taper.Taper("kaiser")
+    _, mdata = spectral_taper.apply_spectral_taper(MockSICDReader(mock_sicd_meta), taper)
+
+    gain = np.mean(taper.window_vals**2)**2
+    xrow = np.array([-10.0, 0.0, 20.0])
+    ycol = np.array([5.0, 0.0, -15.0])
+    original_db = np.polynomial.polynomial.polyval2d(xrow, ycol, coefs)
+    updated_db = mdata.Radiometric.NoiseLevel.NoisePoly(xrow, ycol)
+    assert np.allclose(10**(updated_db / 10), gain * 10**(original_db / 10))
