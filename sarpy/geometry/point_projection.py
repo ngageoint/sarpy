@@ -1750,7 +1750,7 @@ def _image_to_ground_dem_block(
     # determine reference point
     ref_lat = 0.5*(lat_lon_box[0] + lat_lon_box[1])
     ref_lon = 0.5*(lat_lon_box[2] + lat_lon_box[3])
-    ref_hae = float(dem_interpolator.get_elevation_hae(ref_lat, ref_lon))
+    ref_hae = dem_interpolator.get_elevation_hae(ref_lat, ref_lon).item()
     ref_ecf = geodetic_to_ecf([ref_lat, ref_lon, ref_hae])
 
     # determine max/min hae in the DEM region
