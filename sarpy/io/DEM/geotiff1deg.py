@@ -27,6 +27,7 @@ from scipy.interpolate import RegularGridInterpolator
 from sarpy.io.DEM.DEM import DEMList
 from sarpy.io.DEM.DEM import DEMInterpolator
 from sarpy.io.DEM.geoid import GeoidHeight
+from sarpy.io.DEM.utils import argument_validation
 
 logger = logging.getLogger(__name__)
 
@@ -169,11 +170,7 @@ class GeoTIFF1DegInterpolator(DEMInterpolator):
         if block_size is not None:
             warnings.warn("Block processing is not implemented.  Full size processing will be used.")  # pragma nocover
 
-        lat = np.atleast_1d(lat)
-        lon = np.atleast_1d(lon)
-
-        if lat.shape != lon.shape:
-            raise ValueError("The lat and lon arrays are not the same shape.")
+        o_shape, lat, lon = argument_validation(lat, lon)
 
         lat_lon_pairs = np.stack([lat.flatten(), lon.flatten()], axis=-1)
         unique_sw_corners = np.unique(np.floor(lat_lon_pairs), axis=0)
@@ -229,7 +226,7 @@ class GeoTIFF1DegInterpolator(DEMInterpolator):
             mask = np.logical_not(np.isnan(interp_height))
             height[mask] = interp_height[mask]
 
-        return height.reshape(lat.shape)
+        return height.reshape(o_shape)
 
     def get_elevation_hae(self, lat, lon, block_size=None):
         """
@@ -307,7 +304,7 @@ class GeoTIFF1DegInterpolator(DEMInterpolator):
         if self._ref_surface.startswith('WGS'):
             return result['max']['height']
         else:
-            return self.get_elevation_hae(result['max']['lat'], result['max']['lon'])[0]
+            return self.get_elevation_hae(result['max']['lat'], result['max']['lon'])
 
     def get_min_hae(self, lat_lon_box=None):
         """
@@ -327,7 +324,7 @@ class GeoTIFF1DegInterpolator(DEMInterpolator):
         if self._ref_surface.startswith('WGS'):
             return result['min']['height']
         else:
-            return self.get_elevation_hae(result['min']['lat'], result['min']['lon'])[0]
+            return self.get_elevation_hae(result['min']['lat'], result['min']['lon'])
 
     def get_max_geoid(self, lat_lon_box=None):
         """
@@ -347,7 +344,7 @@ class GeoTIFF1DegInterpolator(DEMInterpolator):
         if self._ref_surface.startswith('EGM'):
             return result['max']['height']
         else:
-            return self.get_elevation_geoid(result['max']['lat'], result['max']['lon'])[0]
+            return self.get_elevation_geoid(result['max']['lat'], result['max']['lon'])
 
     def get_min_geoid(self, lat_lon_box=None):
         """
@@ -367,7 +364,7 @@ class GeoTIFF1DegInterpolator(DEMInterpolator):
         if self._ref_surface.startswith('EGM'):
             return result['min']['height']
         else:
-            return self.get_elevation_geoid(result['min']['lat'], result['min']['lon'])[0]
+            return self.get_elevation_geoid(result['min']['lat'], result['min']['lon'])
 
     def get_min_max_native(self, lat_lon_box):
         """
