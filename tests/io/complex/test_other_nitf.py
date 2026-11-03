@@ -1,5 +1,6 @@
 import os
 import json
+from types import SimpleNamespace
 
 import pytest
 
@@ -31,3 +32,18 @@ sicd_files = complex_file_types.get("SICD", [])
 def test_read_sicd_with_complex_reader(sicd_file):
     details = other_nitf.ComplexNITFDetails(sicd_file)
     assert other_nitf.ComplexNITFReader(details) is not None
+
+
+def test_get_cmetaa_af_type_value_prefers_af_type1():
+    cmetaa = SimpleNamespace(AF_TYPE1='N    ', AF_TYPE='Y')
+    assert other_nitf._get_cmetaa_af_type_value(cmetaa) == 'N'
+
+
+def test_get_cmetaa_af_type_value_falls_back_to_af_type():
+    cmetaa = SimpleNamespace(AF_TYPE='Y')
+    assert other_nitf._get_cmetaa_af_type_value(cmetaa) == 'Y'
+
+
+def test_get_cmetaa_af_type_value_defaults_when_missing():
+    cmetaa = SimpleNamespace()
+    assert other_nitf._get_cmetaa_af_type_value(cmetaa) == 'N'
