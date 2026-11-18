@@ -100,11 +100,15 @@ def _find_slice_overlap(
         child_start = 0 if start_ind <= slice_in.start else \
             int(numpy.ceil((start_ind - slice_in.start)/slice_in.step))
         parent_start = slice_in.start - start_ind + child_start*slice_in.step
-        # find end - maximum multiplier so that slice_in.start + mult*slice_in.step <= stop_ind
-        #    mult <= (stop_ind - slice_in.start)/slice_in.step
+        # find end - first multiplier so that slice_in.start + mult*slice_in.step >= max_ind
+        #    mult >= (max_ind - slice_in.start)/slice_in.step
+        # This must be ceil, not floor: floor drops the last strided sample in
+        # every block whenever the block length is not a multiple of the step,
+        # and yields an empty (malformed) slice when the block holds only one.
         max_ind = min(slice_in.stop, stop_ind)
-        child_stop = int(numpy.floor((max_ind - slice_in.start)/slice_in.step))
-        parent_stop = slice_in.start - start_ind + child_stop*slice_in.step
+        child_stop = int(numpy.ceil((max_ind - slice_in.start)/slice_in.step))
+        # one past the last sample read, so it never exceeds the block length
+        parent_stop = slice_in.start - start_ind + (child_stop - 1)*slice_in.step + 1
     else:
         if slice_in.start < start_ind or (slice_in.stop is not None and slice_in.stop >= stop_ind):
             # there is no overlap
@@ -126,6 +130,11 @@ def _find_slice_overlap(
         parent_stop = slice_in.start - start_ind + child_stop*slice_in.step
         if parent_stop < 0:
             parent_stop = None
+
+    if child_stop <= child_start:
+        # The intervals overlap, but no strided sample lands inside the block.
+        # noinspection PyTypeChecker
+        return None, None
 
     if ref_slice.step < 0:
         # noinspection PyTypeChecker
