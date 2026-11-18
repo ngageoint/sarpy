@@ -447,3 +447,49 @@ class TestFileReadSegment(unittest.TestCase):
 
         with self.assertRaises(ValueError, msg='read_raw access when closed'):
             _ = data_segment.read_raw(None)
+
+
+class TestBlockAggregateSegmentStridedRead(unittest.TestCase):
+    """Strided reads across uneven row blocks must match plain numpy slicing.
+
+    Regression test: ``_find_slice_overlap`` used ``floor`` for the stop
+    multiplier, which dropped the last strided sample in each block (left at
+    the fill value) and raised ``slice ... is not well formed`` when a block
+    held exactly one strided sample. Large NITFs split into image segments
+    (e.g. Umbra SICDs) go through this path.
+    """
+
+    @staticmethod
+    def _build(block_rows, cols=3):
+        total = sum(block_rows)
+        full = numpy.arange(total * cols, dtype='int32').reshape((total, cols)) + 1
+        children, arrangement, start = [], [], 0
+        for n in block_rows:
+            children.append(NumpyArraySegment(full[start:start + n].copy(), mode='r'))
+            arrangement.append((slice(start, start + n, 1), slice(0, cols, 1)))
+            start += n
+        seg = BlockAggregateSegment(
+            tuple(children), tuple(arrangement), 'raw', 0,
+            (total, cols), 'int32', (total, cols))
+        return full, seg
+
+    def test_exhaustive_positive_and_negative_steps(self):
+        full, seg = self._build((7, 7, 5, 2))
+        total = full.shape[0]
+        for step in (1, 2, 3, 4, 5, 6, 7, 8, 13, 25):
+            for start in range(total):
+                for stop in range(start + 1, total + 1):
+                    sl = slice(start, stop, step)
+                    numpy.testing.assert_array_equal(
+                        seg.read((sl, slice(None)), squeeze=False), full[sl, :], err_msg=str(sl))
+                # negative step from `start` downward
+                for stop in [None] + list(range(start)):
+                    sl = slice(start, stop, -step)
+                    numpy.testing.assert_array_equal(
+                        seg.read((sl, slice(None)), squeeze=False), full[sl, :], err_msg=str(sl))
+
+    def test_umbra_layout(self):
+        # 5 x 5314 rows + a 50-row tail, read at stride 131 (the original failure)
+        full, seg = self._build((5314,) * 5 + (50,), cols=1)
+        sl = slice(0, full.shape[0], 131)
+        numpy.testing.assert_array_equal(seg.read((sl, slice(None)), squeeze=False), full[sl, :])
